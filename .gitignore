@@ -15,4 +15,4 @@ Cargo.lock
 
 *.env
 client/node_modules/
-client/package_lock.json
+client/package-lock.json
