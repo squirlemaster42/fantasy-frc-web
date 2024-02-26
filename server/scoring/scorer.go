@@ -1,33 +1,11 @@
 package scoring
 
 type Scorer struct {
-    tbaToken string
-}
-
-type Match struct {
-    matchId string
-    redAllianceScore int
-    blueAllianceScore int
-    redAllianceTeams []string
-    blueAllianceTeams []string
-    dqedTeams []string
-}
-
-type Team struct {
-    teamId string
-    matches []Match
-}
-
-type Player struct {
-
-}
-
-type Draft struct {
 
 }
 
 func NewScorer(tbaToken string) *Scorer {
-    scorer := Scorer{tbaToken: tbaToken}
+    scorer := Scorer{}
     return &scorer
 }
 
