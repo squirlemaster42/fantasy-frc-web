@@ -12,6 +12,8 @@ import (
 func main() {
     godotenv.Load()
     tbaTok := os.Getenv("TBA_TOKEN")
+    dbPassword := os.Getenv("DB_PASSWORD")
     fmt.Println(tbaTok)
+    fmt.Println(dbPassword)
     server.CreateServer()
 }
