@@ -299,7 +299,7 @@ func (s* Scorer) getAllPickedTeams() []string {
     return teams
 }
 
-func (s *Scorer) runScorer() {
+func (s *Scorer) RunScorer() {
     //This function will run on its own routine
     //We will first update our list of teams with all of the teams at all of the events in getChampEvents
     //We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event

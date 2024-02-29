@@ -24,4 +24,5 @@ func CreateServer() {
 func getScores(w http.ResponseWriter, r *http.Request) {
     fmt.Printf("got / request\n")
     io.WriteString(w, "This is my website!\n")
+    io.WriteString(w, "This is another line\n")
 }
