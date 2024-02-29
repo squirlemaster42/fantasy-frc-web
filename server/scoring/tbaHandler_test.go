@@ -36,7 +36,7 @@ func TestMatchReq(t *testing.T) {
     godotenv.Load()
     tbaTok := os.Getenv("TBA_TOKEN")
     handler := NewHandler(tbaTok)
-    match := handler.makeMatchReq("2024isde1_qm39")
+    match := handler.makeMatchReq("2024isde1_qm36")
     if (match.ScoreBreakdown.Blue.TeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
     }

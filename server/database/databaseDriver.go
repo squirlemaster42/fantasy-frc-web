@@ -7,7 +7,7 @@ type DatabaseDriver struct {
     Password string
     Ip string
     DbName string
-    Connection *sql.DB //TODO Give this a type
+    Connection *sql.DB
 }
 
 func CreateDatabaseDriver(username string, password string, ip string, dbName string) *DatabaseDriver{

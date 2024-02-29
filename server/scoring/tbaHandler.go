@@ -1,10 +1,9 @@
 package scoring
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+    "encoding/json"
 )
 
 const (
@@ -16,15 +15,15 @@ type Match struct {
 	ActualTime int `json:"actual_time"`
 	Alliances  struct {
 		Blue struct {
-			DqTeamKeys        []any    `json:"dq_team_keys"`
+			DqTeamKeys        []string `json:"dq_team_keys"`
 			Score             int      `json:"score"`
-			SurrogateTeamKeys []any    `json:"surrogate_team_keys"`
+			SurrogateTeamKeys []string `json:"surrogate_team_keys"`
 			TeamKeys          []string `json:"team_keys"`
 		} `json:"blue"`
 		Red struct {
-			DqTeamKeys        []any    `json:"dq_team_keys"`
+			DqTeamKeys        []string `json:"dq_team_keys"`
 			Score             int      `json:"score"`
-			SurrogateTeamKeys []any    `json:"surrogate_team_keys"`
+			SurrogateTeamKeys []string `json:"surrogate_team_keys"`
 			TeamKeys          []string `json:"team_keys"`
 		} `json:"red"`
 	} `json:"alliances"`
@@ -211,8 +210,6 @@ func (t *TbaHandler) makeRequest(url string) []byte {
         return nil
     }
 
-    fmt.Println(url)
-    fmt.Println(string(body))
 
     return body
 }
