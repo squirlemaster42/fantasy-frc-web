@@ -1,8 +1,9 @@
 package scoring
 
 import (
-    "fmt"
-    db "server/database"
+	"fmt"
+	db "server/database"
+	"time"
 )
 
 type Scorer struct {
@@ -30,12 +31,12 @@ func NewScorer(tbaHandler *TbaHandler, dbDriver *db.DatabaseDriver) *Scorer {
 	return &scorer
 }
 
-func (s *Scorer) scoreMatch(matchId string) *DbMatch {
+func (s *Scorer) scoreMatch(matchId string, override bool) *DbMatch {
 	//Check if the match exists in the database and is scored
 	//Use Db score if possible
 	//If not, query tba and score the match
     dbMatch := s.getMatchFromDb(matchId)
-    if (dbMatch != nil && dbMatch.Played) {
+    if (dbMatch != nil && dbMatch.Played) && !override {
         return dbMatch
     }
 
@@ -265,4 +266,77 @@ func (s *Scorer) scoreTeam(teamId string) int {
     }
 
     return score
+}
+
+func (s *Scorer) upsertTeam(teamId string, teamName string) {
+    s.DbDriver.RunExec(fmt.Sprintf(`INSERT INTO Teams (tbaId, name)
+    VALUES (%s, %s)
+    ON CONFLICT(tbaId)
+    DO UPDATE SET
+    name = EXCLUDED.name;`, teamId, teamName))
+}
+
+func (s* Scorer) getAllPickedTeams() []string {
+    var teams []string
+
+    driver := s.DbDriver
+    rows := driver.RunQuery("Select pickedTeam from Picks")
+    defer rows.Close()
+
+    if rows == nil {
+        return teams
+    }
+
+    for rows.Next() {
+        var pick string
+        err := rows.Scan(&pick)
+        if err != nil {
+            return teams
+        }
+        teams = append(teams, pick)
+    }
+
+    return teams
+}
+
+func (s *Scorer) runScorer() {
+    //This function will run on its own routine
+    //We will first update our list of teams with all of the teams at all of the events in getChampEvents
+    //We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
+    //We then score each match that this team has played and has not already been scored
+    //We choose the matches to score from the picks table
+    //Periodically we will want to rescore everything to ensure that we account for replays
+    //We will will have this process run every five minutes and we will rescore all matches every 6 hours
+
+    go func (s *Scorer) {
+        iteration := 0
+        for {
+            rescore := iteration % 72 == 0
+
+            events := s.getChampEvents()
+
+            var eventToTeam map[string]string
+            for _, event := range events {
+                teams := s.TbaHandler.makeTeamsAtEventRequest(event)
+                for _, team := range teams {
+                    s.upsertTeam(team.Key, team.Name)
+                    eventToTeam[team.Key] = event
+                }
+            }
+
+            var matchesToScore map[string]bool
+            for _, team := range s.getAllPickedTeams() {
+                for _, match := range s.TbaHandler.makeMatchKeysRequest(team, eventToTeam[team]) {
+                    matchesToScore[match] = true
+                }
+            }
+
+            for match := range matchesToScore {
+                s.scoreMatch(match, rescore)
+            }
+
+            iteration++;
+            time.Sleep(5 * time.Minute)
+        }
+    }(s)
 }

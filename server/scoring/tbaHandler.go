@@ -180,6 +180,16 @@ type Event struct {
 	} `json:"qual"`
 }
 
+type Team struct {
+	Key        string `json:"key"`
+	TeamNumber int    `json:"team_number"`
+	Nickname   string `json:"nickname"`
+	Name       string `json:"name"`
+	City       string `json:"city"`
+	StateProv  string `json:"state_prov"`
+	Country    string `json:"country"`
+}
+
 type TbaHandler struct {
     tbaToken string
 }
@@ -261,4 +271,12 @@ func (t *TbaHandler) makeTeamEventStatusRequest(teamId string, eventId string) E
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &event)
     return event
+}
+
+func (t *TbaHandler) makeTeamsAtEventRequest(eventId string) []Team {
+    url := BASE_URL + "event/" + eventId + "/teams/simple"
+    var teams []Team
+    jsonData := t.makeRequest(url)
+    json.Unmarshal(jsonData, &teams)
+    return teams
 }
