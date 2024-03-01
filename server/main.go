@@ -21,5 +21,5 @@ func main() {
     dbDriver := database.CreateDatabaseDriver(dbUsername, dbPassword, dbIp, dbName)
     scorer := scoring.NewScorer(tbaHandler, dbDriver)
     scorer.RunScorer()
-    server.CreateServer()
+    server.CreateServer(scorer)
 }

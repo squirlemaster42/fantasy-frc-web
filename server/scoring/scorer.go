@@ -1,8 +1,8 @@
 package scoring
 
 import (
-	"fmt"
-	db "server/database"
+    "fmt"
+    db "server/database"
 	"time"
 )
 
@@ -228,7 +228,7 @@ func (s *Scorer) getRankingScore(teamId string) int {
     }
 }
 
-func (s *Scorer) scoreTeam(teamId string) int {
+func (s *Scorer) ScoreTeam(teamId string) int {
     //Query all matches for team
     //Get all of the scores
     //Add ranking score
