@@ -7,3 +7,4 @@ CREATE TABLE Players(Id SERIAL PRIMARY KEY, NAME char(255);
 CREATE TABLE Picks(Id SERIAL PRIMARY KEY, PickOrder smallint, draftId int REFERENCES drafts(Id), player int REFERENCES players(Id), pickedTeam char(10) REFERENCES teams(tbaId));
 ALTER TABLE Matches_Teams ADD isDqed BOOLEAN;
 ALTER TABLE Matches_Teams ADD alliance char(4);
+ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (NAME);
