@@ -1,9 +1,9 @@
 package scoring
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
-    "encoding/json"
 )
 
 const (

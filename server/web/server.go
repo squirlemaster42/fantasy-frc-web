@@ -6,7 +6,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-    scoring "server/scoring"
+	scoring "server/scoring"
+	"strings"
 )
 
 type server struct {
@@ -38,12 +39,12 @@ func CreateServer(scorer *scoring.Scorer) {
 }
 
 func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
-    fmt.Printf("got / request\n")
-    io.WriteString(w, "This is another line\n")
+    fmt.Printf("got scores request\n")
+    io.WriteString(w, "Welcome to FantasyFRC\n")
     for _, draft := range getDrafts(s.scorer) {
-        io.WriteString(w, fmt.Sprintf("-------- Draft: %s --------", draft.name))
+        io.WriteString(w, fmt.Sprintf("-------- %s --------\n", draft.name))
         for name, player := range draft.Players {
-            io.WriteString(w, fmt.Sprintf("%s scored %d points", name, player.totalScore))
+            io.WriteString(w, fmt.Sprintf("%s scored %d points\n", strings.TrimSpace(name), player.totalScore))
         }
     }
 }
@@ -58,9 +59,9 @@ func getDrafts(s *scoring.Scorer) map[int]*Draft {
     d.Name As DraftName,
     pl.Name As PlayerName,
     p.pickedTeam
-    From Drafts
+    From Drafts d
     Left Join Picks p On p.draftId = d.Id
-    Left Join Players pl On pl.Id = d.player
+    Left Join Players pl On pl.Id = p.player
     `)
     defer rows.Close()
 
@@ -98,6 +99,8 @@ func getDrafts(s *scoring.Scorer) map[int]*Draft {
             draft.Players[playerName].picks = append(draft.Players[playerName].picks, pickedTeam)
             draft.Players[playerName].totalScore += s.ScoreTeam(pickedTeam)
         }
+
+        drafts[draftId] = draft
     }
 
     return drafts

@@ -1,11 +1,10 @@
-CREATE TABLE Teams(tbaId char(10) PRIMARY KEY, name char(255));
-CREATE TABLE Matches(tbaId char(20) PRIMARY KEY, redAllianceScore smallint, blueAllianceScore smallint, compLevel char(10), winningAlliance char(4), Played boolean);
-CREATE TABLE Matches_Teams(team_tbaId char(10) REFERENCES teams(tbaId) ON UPDATE CASCADE ON DELETE CASCADE, match_tbaId char(20) REFERENCES matches(tbaId) ON UPDATE CASCADE, CONSTRAINT match_team_pkey PRIMARY KEY (team_tbaId, match_tbaId));
-CREATE TABLE Drafts(Id SERIAL PRIMARY KEY, Name char(255));
-//TODO Player name needs a unique constaint
-CREATE TABLE Players(Id SERIAL PRIMARY KEY, NAME char(255);
-CREATE TABLE Picks(Id SERIAL PRIMARY KEY, PickOrder smallint, draftId int REFERENCES drafts(Id), player int REFERENCES players(Id), pickedTeam char(10) REFERENCES teams(tbaId));
+CREATE TABLE Teams(tbaId varchar(10) PRIMARY KEY, name varchar(255));
+CREATE TABLE Matches(tbaId varchar(20) PRIMARY KEY, redAllianceScore smallint, blueAllianceScore smallint, compLevel varchar(10), winningAlliance varchar(4), Played boolean);
+CREATE TABLE Matches_Teams(team_tbaId varchar(10) REFERENCES teams(tbaId) ON UPDATE CASCADE ON DELETE CASCADE, match_tbaId varchar(20) REFERENCES matches(tbaId) ON UPDATE CASCADE, CONSTRAINT match_team_pkey PRIMARY KEY (team_tbaId, match_tbaId));
+CREATE TABLE Drafts(Id SERIAL PRIMARY KEY, Name varchar(255));
+CREATE TABLE Players(Id SERIAL PRIMARY KEY, Name varchar(255);
+CREATE TABLE Picks(Id SERIAL PRIMARY KEY, PickOrder smallint, draftId int REFERENCES drafts(Id), player int REFERENCES players(Id), pickedTeam varchar(10) REFERENCES teams(tbaId));
 ALTER TABLE Matches_Teams ADD isDqed BOOLEAN;
-ALTER TABLE Matches_Teams ADD alliance char(4);
-ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (NAME);
+ALTER TABLE Matches_Teams ADD alliance varchar(4);
+ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (Name);
 ALTER TABLE Drafts ADD CONSTRAINT uniqueDrafts UNIQUE (Name);

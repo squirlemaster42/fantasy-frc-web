@@ -98,7 +98,7 @@ func parseCSVToPlayers(lines []string) map[string][]string {
         splitLine := strings.Split(line, ",")
         for j := 0; j < len(splitLine); j++ {
             p := playerNames[j]
-            teamsForPlayers[p][i] = fmt.Sprintf("tba%s", splitLine[j])
+            teamsForPlayers[p][i] = fmt.Sprintf("frc%s", splitLine[j])
         }
     }
 
