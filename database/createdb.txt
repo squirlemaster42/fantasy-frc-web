@@ -8,3 +8,4 @@ CREATE TABLE Picks(Id SERIAL PRIMARY KEY, PickOrder smallint, draftId int REFERE
 ALTER TABLE Matches_Teams ADD isDqed BOOLEAN;
 ALTER TABLE Matches_Teams ADD alliance char(4);
 ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (NAME);
+ALTER TABLE Drafts ADD CONSTRAINT uniqueDrafts UNIQUE (Name);

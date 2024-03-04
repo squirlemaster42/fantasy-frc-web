@@ -1,6 +1,12 @@
 package database
 
-import "database/sql"
+import (
+	"database/sql"
+	"log"
+    "fmt"
+
+    _ "github.com/lib/pq"
+)
 
 type DatabaseDriver struct {
     Username string
@@ -22,7 +28,7 @@ func CreateDatabaseDriver(username string, password string, ip string, dbName st
 
     db, err := sql.Open("postgres", connStr)
     if err != nil {
-        return nil
+        log.Fatal(err)
     }
     driver.Connection = db
 
@@ -33,16 +39,18 @@ func (driver *DatabaseDriver) createConnectionString() string {
     return "postgresql://" + driver.Username + ":" + driver.Password + "@" + driver.Ip + "/" + driver.DbName + "?sslmode=disable"
 }
 
-//TODO Add a type
 func (driver *DatabaseDriver) RunQuery(query string) *sql.Rows {
     rows, err := driver.Connection.Query(query)
     if err != nil {
-        return nil
+        log.Fatal(err)
     }
 
     return rows
 }
 
 func (driver *DatabaseDriver) RunExec(query string) {
-    driver.Connection.Exec(query)
+    _, err := driver.Connection.Exec(query)
+    if err != nil {
+        log.Fatal(err)
+    }
 }
