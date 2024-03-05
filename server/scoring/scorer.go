@@ -146,9 +146,7 @@ func (s *Scorer) getMatchFromDb(matchId string) *DbMatch {
 	err := driver.Connection.QueryRow("Select tbaId, redAllianceScore, blueAllianceScore, compLevel, winningAlliance, Played From matches where tbaId = '" + matchId + "'").Scan(&match.tbaId, &match.redAllianceScore, &match.blueAllianceScore, &match.compLevel, &match.winningAlliance, &match.Played)
 
 	if err != nil {
-		fmt.Printf("Match %s does not exist in the database\n", matchId)
         log.Print(err)
-        fmt.Println("Done")
 		return nil
 	}
 
@@ -241,10 +239,13 @@ func (s *Scorer) ScoreTeam(teamId string) int {
 	//Query all matches for team
 	//Get all of the scores
 	//Add ranking score
-	//TODO need to cache this in the database
-	score := s.getRankingScore(teamId)
-
 	driver := s.DbDriver
+	var score int;
+	err := driver.Connection.QueryRow("Select rankingScore From Teams Where tbaId = '" + strings.TrimSpace(teamId) + "';").Scan(&score)
+    if err != nil {
+        log.Print(err)
+    }
+
 	fmt.Printf("-------- Scoring %s --------\n", teamId)
 	fmt.Println("Getting previous match scores")
 	rows := driver.RunQuery(fmt.Sprintf(`Select redAllianceScore, blueAllianceScore, Played, alliance, isDqed From Matches m
@@ -282,13 +283,13 @@ func (s *Scorer) ScoreTeam(teamId string) int {
 	return score
 }
 
-func (s *Scorer) upsertTeam(teamId string, teamName string) {
-	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name)
-    VALUES ('%s', '%s')
+func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int) {
+	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore)
+    VALUES ('%s', '%s', %d)
     ON CONFLICT(tbaId)
     DO UPDATE SET
-    name = EXCLUDED.name;`, teamId, html.EscapeString(teamName))
-	s.DbDriver.RunExec(query)
+    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, teamId, html.EscapeString(teamName), rankingScore)
+    s.DbDriver.RunExec(query)
 }
 
 func (s *Scorer) getAllPickedTeams() []string {
@@ -338,7 +339,7 @@ func (s *Scorer) RunScorer() {
 				teams := s.TbaHandler.makeTeamsAtEventRequest(event)
 				for _, team := range teams {
 					fmt.Printf("Scoring team: %s\n", team.Key)
-					s.upsertTeam(team.Key, team.Nickname)
+					s.upsertTeam(team.Key, team.Nickname, s.getRankingScore(strings.TrimSpace(team.Key)))
 					eventToTeam[team.Key] = event
 				}
 			}

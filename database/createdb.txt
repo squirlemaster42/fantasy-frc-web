@@ -8,3 +8,4 @@ ALTER TABLE Matches_Teams ADD isDqed BOOLEAN;
 ALTER TABLE Matches_Teams ADD alliance varchar(4);
 ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (Name);
 ALTER TABLE Drafts ADD CONSTRAINT uniqueDrafts UNIQUE (Name);
+ALTER TABLE Teams ADD rankingScore smallint;
