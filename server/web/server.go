@@ -1,13 +1,14 @@
 package web
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	scoring "server/scoring"
-	"strings"
+	"slices"
 )
 
 type server struct {
@@ -20,6 +21,7 @@ type Draft struct {
 }
 
 type Player struct {
+    name string
     totalScore int
     picks []string
 }
@@ -43,10 +45,21 @@ func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
     io.WriteString(w, "Welcome to FantasyFRC\n")
     for _, draft := range getDrafts(s.scorer) {
         io.WriteString(w, fmt.Sprintf("-------- %s --------\n", draft.name))
-        for name, player := range draft.Players {
-            io.WriteString(w, fmt.Sprintf("%s scored %d points\n", strings.TrimSpace(name), player.totalScore))
+        for i, player := range sortPlayersByScore(draft.Players) {
+            io.WriteString(w, fmt.Sprintf("%d. %s scored %d points\n", i + 1, player.name, player.totalScore))
         }
     }
+}
+
+func sortPlayersByScore(players map[string]*Player) []*Player{
+    var playerList []*Player
+    for _, player := range players {
+        playerList = append(playerList, player)
+    }
+    slices.SortFunc(playerList, func(a, b *Player) int {
+        return cmp.Compare(b.totalScore, a.totalScore)
+    })
+    return playerList
 }
 
 func getDrafts(s *scoring.Scorer) map[int]*Draft {
@@ -93,7 +106,7 @@ func getDrafts(s *scoring.Scorer) map[int]*Draft {
         if player == nil {
             picks := make([]string, 8)
             picks[0] = pickedTeam
-            player := Player{totalScore: s.ScoreTeam(pickedTeam), picks: picks}
+            player := Player{name: playerName, totalScore: s.ScoreTeam(pickedTeam), picks: picks}
             draft.Players[playerName] = &player
         } else {
             draft.Players[playerName].picks = append(draft.Players[playerName].picks, pickedTeam)
