@@ -16,6 +16,7 @@ import (
 
 func main() {
     initDir := flag.String("initDir", "", "The directory containing drafts to initialize the scorer. This should only be done one each time the drafts change. Drafts with the same names as the files will be overriden")
+    skipScoring := flag.String("skipScoring", "", "When true is entered, the scorer will not be started")
     flag.Parse()
 
     godotenv.Load()
@@ -44,6 +45,8 @@ func main() {
     }
 
     scorer := scoring.NewScorer(tbaHandler, dbDriver)
-    scorer.RunScorer()
+    if !(*skipScoring == "true") {
+        scorer.RunScorer()
+    }
     server.CreateServer(scorer)
 }
