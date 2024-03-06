@@ -1,9 +1,14 @@
 package components
 
-struct LoginPage type {
-
+type LoginPage struct {
+    user string
 }
 
 templ loginTemplate() {
+    <form hx-post="/login" hx-swap="none">
+        {{ yeild inputField(name="email", title="Email")}}
+        {{ yeild inputField(name="password", title="Password")}}
 
+        <button class=btn">Create</button>
+    </form>
 }
