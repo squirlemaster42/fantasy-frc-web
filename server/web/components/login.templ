@@ -4,11 +4,19 @@ type LoginPage struct {
     user string
 }
 
-templ loginTemplate() {
-    <form hx-post="/login" hx-swap="none">
-        {{ yeild inputField(name="email", title="Email")}}
-        {{ yeild inputField(name="password", title="Password")}}
-
-        <button class=btn">Create</button>
-    </form>
+templ loginTemplate(global, session it) {
+    <form id="loginForm" action="/login" method="POST" hx-post="/login" hx-select="#loginForm" hx-swap="outerHTML">
+		<div class="columns">
+			<div class={ "column", "has-text-centered", "is-primary", border }>
+				<h1 class="title is-size-1 has-text-centered">{ strconv.Itoa(global) }</h1>
+				<p class="subtitle has-text-centered">Global</p>
+				<div><button class="button is-primary" type="submit" name="global" value="global">+1</button></div>
+			</div>
+			<div class={ "column", "has-text-centered", border }>
+				<h1 class="title is-size-1 has-text-centered">{ strconv.Itoa(session) }</h1>
+				<p class="subtitle has-text-centered">Session</p>
+				<div><button class="button is-secondary" type="submit" name="session" value="session">+1</button></div>
+			</div>
+		</div>
+	</form>
 }

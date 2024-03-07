@@ -30,6 +30,7 @@ func CreateServer(scorer *scoring.Scorer) {
     mux := http.NewServeMux()
     server := server{scorer: scorer}
     mux.HandleFunc("/scores", server.getScores)
+    mux.HandleFunc("/login", server.login)
 
     err := http.ListenAndServe(":3333", mux)
     if errors.Is(err, http.ErrServerClosed) {
@@ -38,6 +39,10 @@ func CreateServer(scorer *scoring.Scorer) {
         fmt.Printf("errors starting server: %s\n", err)
         os.Exit(1)
     }
+}
+
+func (s *server) login (w http.ResponseWriter, r *http.Request) {
+
 }
 
 func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
