@@ -2,13 +2,14 @@ package web
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	scoring "server/scoring"
+	"server/web/handler"
 	"slices"
+
+	"github.com/labstack/echo/v4"
 )
 
 type server struct {
@@ -27,10 +28,19 @@ type Player struct {
 }
 
 func CreateServer(scorer *scoring.Scorer) {
+    app := echo.New()
+
+    loginHandler := handler.LoginHandler{}
+    app.GET("/login", loginHandler.HandleLoginShow)
+
+    app.Start(":3000")
+    fmt.Println("Started Web Server On Port 3000")
+
+
+    /*
     mux := http.NewServeMux()
     server := server{scorer: scorer}
     mux.HandleFunc("/scores", server.getScores)
-    mux.HandleFunc("/login", server.login)
 
     err := http.ListenAndServe(":3333", mux)
     if errors.Is(err, http.ErrServerClosed) {
@@ -39,10 +49,7 @@ func CreateServer(scorer *scoring.Scorer) {
         fmt.Printf("errors starting server: %s\n", err)
         os.Exit(1)
     }
-}
-
-func (s *server) login (w http.ResponseWriter, r *http.Request) {
-
+    */
 }
 
 func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
