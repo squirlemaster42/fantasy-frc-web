@@ -72,47 +72,51 @@ func (s *Scorer) scoreMatch(matchId string, override bool) *DbMatch {
 			blueScore += 2
 		}
 	} else if tbaMatch.CompLevel == "f" {
+        fmt.Println("Scoring Finals")
 		if tbaMatch.EventKey == "cmptx" {
 			if tbaMatch.WinningAlliance == "red" {
 				redScore += 36
-			} else if tbaMatch.WinningAlliance == "blueScore" {
+			} else if tbaMatch.WinningAlliance == "blue" {
 				blueScore += 36
 			}
 		} else {
 			if tbaMatch.WinningAlliance == "red" {
 				redScore += 18
-			} else if tbaMatch.WinningAlliance == "blueScore" {
+			} else if tbaMatch.WinningAlliance == "blue" {
 				blueScore += 18
 			}
 		}
 	} else if tbaMatch.CompLevel == "sf" {
+        fmt.Println("Scoring Semi Finals")
 		if tbaMatch.MatchNumber == 5 || tbaMatch.MatchNumber == 6 || tbaMatch.MatchNumber == 9 || tbaMatch.MatchNumber == 10 || tbaMatch.MatchNumber == 12 || tbaMatch.MatchNumber == 13 {
 			//Lower Bracket
+            fmt.Println("Scoring Lower Bracket")
 			if tbaMatch.EventKey == "cmptx" {
 				if tbaMatch.WinningAlliance == "red" {
 					redScore += 18
-				} else if tbaMatch.WinningAlliance == "blueScore" {
+				} else if tbaMatch.WinningAlliance == "blue" {
 					blueScore += 18
 				}
 			} else {
 				if tbaMatch.WinningAlliance == "red" {
 					redScore += 9
-				} else if tbaMatch.WinningAlliance == "blueScore" {
+				} else if tbaMatch.WinningAlliance == "blue" {
 					blueScore += 9
 				}
 			}
 		} else {
 			//Upper Breacker
+            fmt.Println("Scoring Upper Bracket")
 			if tbaMatch.EventKey == "cmptx" {
 				if tbaMatch.WinningAlliance == "red" {
 					redScore += 30
-				} else if tbaMatch.WinningAlliance == "blueScore" {
+				} else if tbaMatch.WinningAlliance == "blue" {
 					blueScore += 30
 				}
 			} else {
 				if tbaMatch.WinningAlliance == "red" {
 					redScore += 15
-				} else if tbaMatch.WinningAlliance == "blueScore" {
+				} else if tbaMatch.WinningAlliance == "blue" {
 					blueScore += 15
 				}
 			}
@@ -163,13 +167,11 @@ func (s *Scorer) saveMatchToDb(match *DbMatch) {
 			match.redAllianceScore, match.blueAllianceScore, match.compLevel, match.winningAlliance, match.Played, match.tbaId))
 
 		for _, team := range match.redAllianceTeams {
-			fmt.Println("Adding red alliance teams")
 			s.DbDriver.RunExec(fmt.Sprintf("UPDATE Matches_Teams SET isDqed = %t WHERE team_tbaId = '%s' AND match_tbaId = '%s'",
 				s.isTeamDqed(team, match), team, match.tbaId))
 		}
 
 		for _, team := range match.blueAllianceTeams {
-			fmt.Println("Adding blue alliance teams")
 			s.DbDriver.RunExec(fmt.Sprintf("UPDATE Matches_Teams SET isDqed = %t WHERE team_tbaId = '%s' AND match_tbaId = '%s'",
 				s.isTeamDqed(team, match), team, match.tbaId))
 		}
@@ -180,13 +182,11 @@ func (s *Scorer) saveMatchToDb(match *DbMatch) {
 			match.tbaId, match.redAllianceScore, match.blueAllianceScore, match.compLevel, match.winningAlliance, match.Played))
 
 		for _, team := range match.redAllianceTeams {
-			fmt.Println("Adding red alliance teams")
 			s.DbDriver.RunExec(fmt.Sprintf("INSERT INTO Matches_Teams (team_tbaId, match_TbaId, isDqed, alliance) VALUES ('%s', '%s', %t, 'red')",
 				team, match.tbaId, s.isTeamDqed(team, match)))
 		}
 
 		for _, team := range match.blueAllianceTeams {
-			fmt.Println("Adding blue alliance teams")
 			s.DbDriver.RunExec(fmt.Sprintf("INSERT INTO Matches_Teams (team_tbaId, match_TbaId, isDqed, alliance) VALUES ('%s', '%s', %t, 'blue')",
 				team, match.tbaId, s.isTeamDqed(team, match)))
 		}
