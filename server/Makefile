@@ -1,3 +1,3 @@
 run:
 	@templ generate
-	@go run main.go
+	@go run . -initDir ../initData/ -skipScoring true

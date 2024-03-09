@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	scoring "server/scoring"
-	"server/web/handler"
 	"slices"
 
 	"github.com/labstack/echo/v4"
@@ -29,29 +28,22 @@ type Player struct {
 
 func CreateServer(scorer *scoring.Scorer) {
     app := echo.New()
+    app.Static("/", "./assets")
 
-    loginHandler := handler.LoginHandler{}
-    app.GET("/login", loginHandler.HandleLoginShow)
+    //Setup Session Store
 
+    //Setup base routes
+
+    //Setup protected routes
+
+    //Start Setver
     app.Start(":3000")
     fmt.Println("Started Web Server On Port 3000")
-
-
-    /*
-    mux := http.NewServeMux()
-    server := server{scorer: scorer}
-    mux.HandleFunc("/scores", server.getScores)
-
-    err := http.ListenAndServe(":3333", mux)
-    if errors.Is(err, http.ErrServerClosed) {
-        fmt.Printf("server closed\n")
-    } else if err != nil {
-        fmt.Printf("errors starting server: %s\n", err)
-        os.Exit(1)
-    }
-    */
 }
 
+
+
+//TODO Move this code to a handler
 func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
     fmt.Printf("got scores request\n")
     io.WriteString(w, "Welcome to FantasyFRC\n")
