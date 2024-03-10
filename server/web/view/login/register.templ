@@ -1,8 +1,8 @@
 package login
 
-import "server/web/view/index"
+import "server/web/view"
 
-templ RegisterIntex(fromProtected bool) {
+templ RegisterIndex(fromProtected bool) {
     <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8">
         <div class="card-body pb-2">
             <h1 class="card-title border-b border-b-slate-600 pb-[4px]">
@@ -68,7 +68,7 @@ templ RegisterIntex(fromProtected bool) {
 }
 
 templ Register(page string, fromProtected bool, cmp templ.Component) {
-    @index.Index(page, fromProtected, "") {
+    @view.Index(page, fromProtected, "") {
         @cmp
     }
 }

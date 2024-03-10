@@ -6,8 +6,11 @@ import (
 	"io"
 	"net/http"
 	scoring "server/scoring"
+	"server/web/handler"
 	"slices"
 
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
 )
 
@@ -26,13 +29,26 @@ type Player struct {
     picks []string
 }
 
-func CreateServer(scorer *scoring.Scorer) {
+func CreateServer(scorer *scoring.Scorer, sessionSecret string) {
     app := echo.New()
     app.Static("/", "./assets")
+    app.Use(session.Middleware(sessions.NewCookieStore([]byte(sessionSecret))))
 
     //Setup Session Store
 
     //Setup base routes
+    homeHandler := handler.HomeHandler{}
+    app.GET("/", homeHandler.HandleViewHome)
+    loginHandler := handler.LoginHandler{
+        DbHandler: scorer.DbDriver,
+    }
+    app.GET("/login", loginHandler.HandleViewLogin)
+    app.POST("/login", loginHandler.HandleViewLogin)
+    registrationHandler := handler.RegistrationHandler{
+        DbHandler: scorer.DbDriver,
+    }
+    app.GET("/register", registrationHandler.HandleViewRegister)
+    app.POST("/register", registrationHandler.HandleViewRegister)
 
     //Setup protected routes
 

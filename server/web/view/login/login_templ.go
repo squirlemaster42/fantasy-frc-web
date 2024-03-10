@@ -10,7 +10,7 @@ import "context"
 import "io"
 import "bytes"
 
-import "server/web/view/index"
+import "server/web/view"
 
 func LoginIndex(fromProtected bool) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
@@ -25,7 +25,7 @@ func LoginIndex(fromProtected bool) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<section class=\"card w-fit bg-base-200 shadow-xl mx-auto mb-8\"><div class=\"card-body pb-2\"><h1 class=\"card-title border-b border-b-slate-600 pb-[4px]\">Log In</h1><form hx-swap=\"transition:true\" class=\"rounded-x1 drop-shadow-x1- flex flex-col gap-4 w-96 p8\" action=\"\" method=\"post\"><label class=\"flex flex-col justify-start gap-2\">Email: <input class=\"input input-bordered input-primary bg-slate-800\" type=\"email\" name=\"email\" required autofocus")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<section class=\"card w-fit bg-base-200 shadow-xl mx-auto mb-8\"><div class=\"card-body pb-2\"><h1 class=\"card-title border-b border-b-slate-600 pb-[4px]\">Log In</h1><form hx-swap=\"transition:true\" class=\"rounded-xl drop-shadow-xl flex flex-col gap-4 w-96 p-8\" action=\"\" method=\"post\"><label class=\"flex flex-col justify-start gap-2\">Email: <input class=\"input input-bordered input-primary bg-slate-800\" type=\"email\" name=\"email\" required autofocus")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -36,7 +36,7 @@ func LoginIndex(fromProtected bool) templ.Component {
 			}
 		}
 		if fromProtected {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" value=\"disabled\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" value=\"disabled \"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -52,7 +52,7 @@ func LoginIndex(fromProtected bool) templ.Component {
 			}
 		}
 		if fromProtected {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" value=\"disabled\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" value=\"disabled \"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -106,7 +106,7 @@ func Login(page string, fromProtected bool, cmp templ.Component) templ.Component
 			}
 			return templ_7745c5c3_Err
 		})
-		templ_7745c5c3_Err = index.Index(page, fromProtected, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = view.Index(page, fromProtected, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
