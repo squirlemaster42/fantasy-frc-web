@@ -1,0 +1,14 @@
+package draft
+
+import "server/web/view"
+import "server/web/model"
+
+templ DraftPickIndex (draft model.Draft) {
+
+}
+
+templ DraftPick (page string, fromProtected bool, cmp templ.Component) {
+    @view.Index(page, fromProtected, "") {
+        @cmp
+    }
+}

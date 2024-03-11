@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 	"server/database"
+	"server/web/model"
 	"server/web/view"
 	"server/web/view/login"
 
@@ -39,11 +39,11 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
             log.Print(err)
             return err
         }
-        _ = c.FormValue("email")
-        _ = c.FormValue("password")
+        username := c.FormValue("username")
+        password := c.FormValue("password")
+        valid := model.ValidateUserLogin(username, password, *l.DbHandler)
 
         ses, err := session.Get("session", c)
-        fmt.Println(ses.Values["foo"])
         if err != nil {
             return err
         }
@@ -51,11 +51,18 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
         ses.Options = &sessions.Options{
             MaxAge: 86400 * 7,
         }
-        ses.Values["foo"] = "bar"
+        sessionHandler := SessionHandler{DbHandler: l.DbHandler}
+        ses.Values["token"] = sessionHandler.registerSession(0, 864000 * 7)
         ses.Save(c.Request(), c.Response())
+
+        if valid {
+            //Redirect to logged in page
+            err = render(c, login)
+        }
+    } else {
+        err = render(c, login)
     }
 
-    err = render(c, login)
     if err != nil {
         return err
     }

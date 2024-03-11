@@ -40,3 +40,22 @@ func GetPlayerById(id string, dbHandler database.DatabaseDriver) (Player, error)
 
     return player, nil
 }
+
+func ValidateUserLogin(username string, password string, dbHandler database.DatabaseDriver) bool {
+    var dbPassword string
+    query := `SELECT password FROM Players WHERE username=$1`
+
+    stmt, err := dbHandler.Connection.Prepare(query)
+    defer stmt.Close()
+
+    err = stmt.QueryRow(username).Scan(&dbPassword)
+
+    err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
+
+    if err != nil {
+        return false
+    }
+
+    return true
+}
+
