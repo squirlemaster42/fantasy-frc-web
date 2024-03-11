@@ -36,12 +36,13 @@ func (s *SessionHandler) registerSession(playerId int, validDuration int) string
 }
 
 func (s *SessionHandler) validateSession(playerId int, sessionTok string) bool {
-    query := `SELECT authTok From Players WHERE Id = $1`
+    query := `SELECT authTok, NOW() < tokExpirationDate From Players WHERE Id = $1`
     stmt, err := s.DbHandler.Connection.Prepare(query)
     defer stmt.Close()
 
     var encryptTok string
-    err = stmt.QueryRow(playerId).Scan(&encryptTok)
+    var expired bool
+    err = stmt.QueryRow(playerId).Scan(&encryptTok, &expired)
     if err != nil {
         log.Fatalf("Could not retrieve auth token for player with id %d", playerId)
     }
@@ -51,5 +52,5 @@ func (s *SessionHandler) validateSession(playerId int, sessionTok string) bool {
         return false
     }
 
-    return true
+    return expired
 }
