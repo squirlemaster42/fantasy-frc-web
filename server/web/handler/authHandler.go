@@ -29,9 +29,6 @@ type LoginHandler struct {
 }
 
 func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
-    loginIndex := login.LoginIndex(false)
-    login := login.Login(" | Login", false, loginIndex)
-
     var err error
     if c.Request().Method == "POST" {
         err = c.Request().ParseForm()
@@ -57,11 +54,18 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
 
         if valid {
             //TODO Redirect to logged in page
+            loginIndex := login.LoginIndex(false, "")
+            login := login.Login(" | Login", false, loginIndex)
             err = render(c, login)
         } else {
+            errorMessage := "Username or password is incorrect"
+            loginIndex := login.LoginIndex(false, errorMessage)
+            login := login.Login(" | Login", false, loginIndex)
             err = render(c, login)
         }
     } else {
+        loginIndex := login.LoginIndex(false, "")
+        login := login.Login(" | Login", false, loginIndex)
         err = render(c, login)
     }
 
@@ -77,8 +81,6 @@ type RegistrationHandler struct {
 }
 
 func (r *RegistrationHandler) HandleViewRegister (c echo.Context) error {
-    registerIndex := login.RegisterIndex(false)
-    register := login.Register(" | Register", false, registerIndex)
 
 
     var err error
@@ -90,16 +92,22 @@ func (r *RegistrationHandler) HandleViewRegister (c echo.Context) error {
         }
         username := c.FormValue("username")
         password := c.FormValue("password")
-        confirmPassword := c.FormValue("password")
+        confirmPassword := c.FormValue("confirmPassword")
 
         if password != confirmPassword {
+            registerIndex := login.RegisterIndex(false, "Passwords do not match")
+            register := login.Register(" | Register", false, registerIndex)
             err = render(c, register)
         } else {
             model.CreateUser(model.Player{Username: username, Password: password}, *r.DbHandler)
+            registerIndex := login.RegisterIndex(false, "")
+            register := login.Register(" | Register", false, registerIndex)
             //TODO Move to authorized page
             err = render(c, register)
         }
     } else {
+        registerIndex := login.RegisterIndex(false, "")
+        register := login.Register(" | Register", false, registerIndex)
         err = render(c, register)
     }
 

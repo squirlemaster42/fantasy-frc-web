@@ -2,16 +2,18 @@ package login
 
 import "server/web/view"
 
-templ RegisterIndex(fromProtected bool) {
+templ RegisterIndex(fromProtected bool, errorMessage string) {
     <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8">
         <div class="card-body pb-2">
             <h1 class="card-title border-b border-b-slate-600 pb-[4px]">
                 Register User
             </h1>
+            <h2 style="color: red; text-align: center;">{ errorMessage }</h2>
             <form
                 hx-swap="transition:true"
                 class="rounded-x1 drop-shadow-x1 flex flex-col hap-4 w-96 p-8"
                 action=""
+                style="margin-top: -20px;"
                 method="post"
             >
                 <label class="flex flex-col justify-start gap-2">
@@ -47,7 +49,7 @@ templ RegisterIndex(fromProtected bool) {
                     <input
                         class="input input-bordered input-primary bg-slate-800"
                         type="password"
-                        name="password"
+                        name="confirmPassword"
                         required
                         minlength="4"
                         maxlength="64"
