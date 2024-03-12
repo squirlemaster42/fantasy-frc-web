@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 	"server/database"
 	"server/web/model"
@@ -58,10 +57,8 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
 
         if valid {
             //TODO Redirect to logged in page
-            fmt.Println("Valid Login")
             err = render(c, login)
         } else {
-            fmt.Println("Login Was Not Valid")
             err = render(c, login)
         }
     } else {
@@ -91,11 +88,21 @@ func (r *RegistrationHandler) HandleViewRegister (c echo.Context) error {
             log.Print(err)
             return err
         }
-        _ = c.FormValue("email")
-        _ = c.FormValue("password")
+        username := c.FormValue("username")
+        password := c.FormValue("password")
+        confirmPassword := c.FormValue("password")
+
+        if password != confirmPassword {
+            err = render(c, register)
+        } else {
+            model.CreateUser(model.Player{Username: username, Password: password}, *r.DbHandler)
+            //TODO Move to authorized page
+            err = render(c, register)
+        }
+    } else {
+        err = render(c, register)
     }
 
-    err = render(c, register)
     if err != nil {
         return err
     }

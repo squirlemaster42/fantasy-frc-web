@@ -65,4 +65,3 @@ func ValidateUserLogin(username string, password string, dbHandler database.Data
 
     return true
 }
-

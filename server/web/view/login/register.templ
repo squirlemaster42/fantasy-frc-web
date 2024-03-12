@@ -15,11 +15,11 @@ templ RegisterIndex(fromProtected bool) {
                 method="post"
             >
                 <label class="flex flex-col justify-start gap-2">
-                    Email:
+                    Username:
                     <input
                         class="input input-bordered input-primary bg-slate-800"
-                        type="email"
-                        name="email"
+                        type="text"
+                        name="username"
                         required
                         autofocus
                         disabled?={ fromProtected }
@@ -43,11 +43,11 @@ templ RegisterIndex(fromProtected bool) {
                     />
                 </label>
                 <label class="flex flex-col justify-start gap-2">
-                    Username:
+                    Confirm Password:
                     <input
                         class="input input-bordered input-primary bg-slate-800"
-                        type="text"
-                        name="username"
+                        type="password"
+                        name="password"
                         required
                         minlength="4"
                         maxlength="64"
@@ -57,7 +57,7 @@ templ RegisterIndex(fromProtected bool) {
                         }
                     />
                 </label>
-                <footer class="card-actions justify-end">
+                <footer class="card-actions justify-end" style="padding-top: 10px;">
                     <button class="badge badge-primary px-6 py-4 hover:scale-[1.1]" disabled?={ fromProtected }>
                         Register User
                     </button>
