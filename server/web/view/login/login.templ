@@ -15,11 +15,11 @@ templ LoginIndex(fromProtected bool) {
  				method="post"
 			>
 				<label class="flex flex-col justify-start gap-2">
-					Email:
+					Username:
 					<input
  						class="input input-bordered input-primary bg-slate-800"
- 						type="email"
- 						name="email"
+ 						type="string"
+ 						name="username"
  						required
  						autofocus
  						disabled?={ fromProtected }
@@ -32,7 +32,7 @@ templ LoginIndex(fromProtected bool) {
 					Password:
 					<input
  						class="input input-bordered input-primary bg-slate-800"
- 						type="password"
+ 						type="text"
  						name="password"
  						required
  						minlength="6"

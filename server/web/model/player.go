@@ -1,6 +1,7 @@
 package model
 
 import (
+	"log"
 	"server/database"
 
 	"golang.org/x/crypto/bcrypt"
@@ -43,12 +44,18 @@ func GetPlayerById(id string, dbHandler database.DatabaseDriver) (Player, error)
 
 func ValidateUserLogin(username string, password string, dbHandler database.DatabaseDriver) bool {
     var dbPassword string
-    query := `SELECT password FROM Players WHERE username=$1`
+    query := `SELECT password FROM Players WHERE name=$1`
 
     stmt, err := dbHandler.Connection.Prepare(query)
     defer stmt.Close()
 
     err = stmt.QueryRow(username).Scan(&dbPassword)
+
+    if err != nil {
+        log.Printf("Login attempt for %s failed because user does not exist\n", username)
+        log.Println(err)
+        return false
+    }
 
     err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
 

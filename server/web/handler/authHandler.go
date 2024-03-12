@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log"
 	"server/database"
 	"server/web/model"
@@ -56,7 +57,11 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
         ses.Save(c.Request(), c.Response())
 
         if valid {
-            //Redirect to logged in page
+            //TODO Redirect to logged in page
+            fmt.Println("Valid Login")
+            err = render(c, login)
+        } else {
+            fmt.Println("Login Was Not Valid")
             err = render(c, login)
         }
     } else {

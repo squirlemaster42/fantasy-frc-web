@@ -51,6 +51,7 @@ func CreateServer(scorer *scoring.Scorer, sessionSecret string) {
     app.POST("/register", registrationHandler.HandleViewRegister)
 
     //Setup protected routes
+    //draftGroup := app.Group("/draft", )
 
     //Start Setver
     app.Start(":3000")
