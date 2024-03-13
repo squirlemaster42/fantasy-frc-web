@@ -7,4 +7,4 @@
 <td style=\"border: 1px solid gray; border-collapse: collapse;\">
 </td>
 </tr>
-</tbody></table></section><section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\"> <button style=\"padding-left: 5px;\">Submit Pick</button></div></section>
+</tbody></table></section><section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\"> <button class=\"badge badge-primary px-4 py-3 hover:scale-[1.1]\" style=\"margin-left: 5px;\">Submit Pick</button></div></section>
