@@ -1,5 +1,9 @@
 package model
 
 type Draft struct {
-    name string
+    Name string
+    Players []struct {
+        Name string
+        Picks []string
+    }
 }

@@ -4,7 +4,23 @@ import "server/web/view"
 import "server/web/model"
 
 templ DraftPickIndex (draft model.Draft) {
-
+    <h1>{ draft.Name }</h1>
+    <table>
+        <thead>
+            for _, player := range draft.Players {
+                <th>{ player.Name }</th>
+            }
+        </thead>
+        <tbody>
+            for i := range draft.Players[0].Picks {
+                <tr>
+                    for _, player := range draft.Players {
+                        <td>{ player.Picks[i] }</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
 templ DraftPick (page string, fromProtected bool, cmp templ.Component) {
