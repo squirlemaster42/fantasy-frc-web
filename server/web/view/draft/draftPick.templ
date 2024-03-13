@@ -4,23 +4,33 @@ import "server/web/view"
 import "server/web/model"
 
 templ DraftPickIndex (draft model.Draft) {
-    <h1>{ draft.Name }</h1>
-    <table>
-        <thead>
-            for _, player := range draft.Players {
-                <th>{ player.Name }</th>
-            }
-        </thead>
-        <tbody>
-            for i := range draft.Players[0].Picks {
-                <tr>
-                    for _, player := range draft.Players {
-                        <td>{ player.Picks[i] }</td>
-                    }
-                </tr>
-            }
-        </tbody>
-    </table>
+    <section class="card bg-base-200 shadow-xl mx-auto" style="width: 90%; height: 90%;">
+        <h1 class="border-b border-b-slate-600 pb-[4x]" style="text-align: center; font-size: 1.5em;">{ draft.Name }</h1>
+        <hr/>
+        <table style="border: 1px solid gray; border-collapse: collapse; margin: 10px;">
+            <thead>
+                for _, player := range draft.Players {
+                    <th style="border: 1px solid gray; border-collapse: collapse;">{ player.Name }</th>
+                }
+            </thead>
+            <tbody>
+                for i := range draft.Players[0].Picks {
+                    <tr>
+                        for _, player := range draft.Players {
+                            <td style="border: 1px solid gray; border-collapse: collapse;">{ player.Picks[i] }</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+    <section class="card bg-base-200 shadow-xl mx-auto" style="width: 90%; height: 90%;">
+        <div style="display: flex; flex-direction: row; justify-content: center;">
+            <label style="padding-right: 5px;" for="pickInput">Enter your pick:</label>
+            <input id="pickInput"/>
+            <button style="padding-left: 5px;">Submit Pick</button>
+        </div>
+    </section>
 }
 
 templ DraftPick (page string, fromProtected bool, cmp templ.Component) {
