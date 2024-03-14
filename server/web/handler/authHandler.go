@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log"
+	"net/http"
 	"server/database"
 	"server/web/model"
 	"server/web/view"
@@ -45,6 +46,7 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
             return err
         }
 
+        //TODO We should only make a session if the request is valid
         ses.Options = &sessions.Options{
             MaxAge: 86400 * 7,
         }
@@ -54,9 +56,7 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
 
         if valid {
             //TODO Redirect to logged in page
-            loginIndex := login.LoginIndex(false, "")
-            login := login.Login(" | Login", false, loginIndex)
-            err = render(c, login)
+            err = c.Redirect(http.StatusSeeOther, "/draft")
         } else {
             errorMessage := "Username or password is incorrect"
             loginIndex := login.LoginIndex(false, errorMessage)
@@ -70,6 +70,7 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
     }
 
     if err != nil {
+        log.Println(err)
         return err
     }
 

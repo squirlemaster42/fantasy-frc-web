@@ -13,7 +13,7 @@ type DraftHandler struct {
 }
 
 func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
-   draftModel := model.Draft{
+    draftModel := model.Draft{
         Name: "Test Draft",
         Players: []struct {
             Name  string
