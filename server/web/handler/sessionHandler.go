@@ -36,7 +36,7 @@ func (s *SessionHandler) registerSession(playerId int, validDuration int) string
 }
 
 func (s *SessionHandler) validateSession(playerId int, sessionTok string) bool {
-    query := `SELECT authTok, NOW() < tokExpirationDate From Players WHERE Id = $1`
+    query := `SELECT COALESCE(authTok, '') as expired, COALESCE(NOW() < tokExpirationDate, false) as authTok From Players WHERE Id = $1`
     stmt, err := s.DbHandler.Connection.Prepare(query)
     defer stmt.Close()
 
@@ -44,7 +44,8 @@ func (s *SessionHandler) validateSession(playerId int, sessionTok string) bool {
     var expired bool
     err = stmt.QueryRow(playerId).Scan(&encryptTok, &expired)
     if err != nil {
-        log.Fatalf("Could not retrieve auth token for player with id %d", playerId)
+        log.Printf("Could not retrieve auth token for player with id %d", playerId)
+        log.Fatalln(err)
     }
 
     valid := bcrypt.CompareHashAndPassword([]byte(encryptTok), []byte(sessionTok))

@@ -40,6 +40,7 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
         username := c.FormValue("username")
         password := c.FormValue("password")
         valid := model.ValidateUserLogin(username, password, *l.DbHandler)
+        user, err := model.GetPlayerByUsername(username, *l.DbHandler)
 
         ses, err := session.Get("session", c)
         if err != nil {
@@ -51,11 +52,14 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
             MaxAge: 86400 * 7,
         }
         sessionHandler := SessionHandler{DbHandler: l.DbHandler}
-        ses.Values["token"] = sessionHandler.registerSession(0, 864000 * 7)
+        sessionString := sessionHandler.registerSession(user.Id, 864000 * 7)
+        ses.Values["token"] = sessionString
+        ses.Values["seerId"] = user.Id
         ses.Save(c.Request(), c.Response())
 
         if valid {
             //TODO Redirect to logged in page
+            log.Println("Login request valid, redirecting to draft")
             err = c.Redirect(http.StatusSeeOther, "/draft")
         } else {
             errorMessage := "Username or password is incorrect"

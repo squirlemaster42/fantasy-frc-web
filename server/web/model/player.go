@@ -26,8 +26,8 @@ func CreateUser(player Player, dbHandler database.DatabaseDriver) error {
     return err
 }
 
-func GetPlayerById(id string, dbHandler database.DatabaseDriver) (Player, error) {
-    query := `SELECT * FROM Players WHERE id=$1`
+func GetPlayerById(id int, dbHandler database.DatabaseDriver) (Player, error) {
+    query := `SELECT Id, Name, Password FROM Players WHERE id=$1`
 
     stmt, err := dbHandler.Connection.Prepare(query)
 
@@ -35,6 +35,22 @@ func GetPlayerById(id string, dbHandler database.DatabaseDriver) (Player, error)
 
     var player Player
     err = stmt.QueryRow(id).Scan(&player.Id, &player.Username, &player.Password)
+    if err != nil {
+        return Player{}, err
+    }
+
+    return player, nil
+}
+
+func GetPlayerByUsername(username string, dbHandler database.DatabaseDriver) (Player, error) {
+    query := `SELECT Id, Name, Password FROM Players WHERE name=$1`
+
+    stmt, err := dbHandler.Connection.Prepare(query)
+
+    defer stmt.Close()
+
+    var player Player
+    err = stmt.QueryRow(username).Scan(&player.Id, &player.Username, &player.Password)
     if err != nil {
         return Player{}, err
     }
