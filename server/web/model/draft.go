@@ -78,7 +78,7 @@ func LoadDraftFromDatabase (draftId int, dbDriver *database.DatabaseDriver) *Dra
             draft.Players[playerOrder].Picks = make([]string, 8)
         }
 
-        draft.Players[playerOrder].Picks[pickOrder] = pickedTeam
+        draft.Players[playerOrder].Picks[pickOrder] = pickedTeam[3:len(pickedTeam)]
     }
 
 
