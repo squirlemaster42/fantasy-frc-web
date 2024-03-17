@@ -54,6 +54,7 @@ func CreateServer(scorer *scoring.Scorer, sessionSecret string) {
     //draftGroup := app.Group("/draft", )
     draftHandlder := handler.DraftHandler{DbDriver: scorer.DbDriver}
     app.GET("/draft", draftHandlder.HandleViewDraft)
+    app.POST("/draft", draftHandlder.HandleViewDraft)
 
     //Start Setver
     app.Start(":3000")

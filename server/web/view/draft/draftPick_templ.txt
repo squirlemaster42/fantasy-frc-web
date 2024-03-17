@@ -1,4 +1,4 @@
-<section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><h1 class=\"border-b border-b-slate-600 pb-[4x]\" style=\"text-align: center; font-size: 1.5em;\">
+<div id=\"draftPicks\"><section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><h1 class=\"border-b border-b-slate-600 pb-[4x]\" style=\"text-align: center; font-size: 1.5em;\">
 </h1><hr><table style=\"border: 1px solid gray; border-collapse: collapse; margin: 10px;\"><thead>
 <th style=\"border: 1px solid gray; border-collapse: collapse;\">
 </th>
@@ -7,4 +7,4 @@
 <td style=\"border: 1px solid gray; border-collapse: collapse;\">
 </td>
 </tr>
-</tbody></table></section><section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\"> <button class=\"badge badge-primary px-4 py-3 hover:scale-[1.1]\" style=\"margin-left: 5px;\">Submit Pick</button></div></section>
+</tbody></table></section><section class=\"card bg-base-200 shadow-xl mx-auto\" style=\"width: 90%; height: 90%;\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><form hx-post=\"/draft\" hx-target=\"#draftPicks\" hx-swap=\"outerHTML\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\"> <button class=\"badge badge-primary px-6 py-4 hover:scale-[1.1]\">Submit Pick</button></form></div></section></div>

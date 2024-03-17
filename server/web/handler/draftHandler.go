@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log"
 	"server/database"
 	"server/web/model"
@@ -39,6 +40,12 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
     draftModel := model.LoadDraftFromDatabase(1, d.DbDriver)
     draftIndex := draft.DraftPickIndex(*draftModel)
     draftView := draft.DraftPick(" | Draft", false, draftIndex)
-    err = render(c, draftView)
+
+    if c.Request().Method == "POST" {
+        err = render(c, draftIndex)
+    } else {
+        err = render(c, draftView)
+    }
+
     return err
 }
