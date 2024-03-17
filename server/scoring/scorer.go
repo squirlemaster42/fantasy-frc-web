@@ -283,12 +283,12 @@ func (s *Scorer) ScoreTeam(teamId string) int {
 	return score
 }
 
-func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int) {
-	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore)
-    VALUES ('%s', '%s', %d)
+func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int, isValid bool) {
+	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore, validPick)
+    VALUES ('%s', '%s', %d, %t)
     ON CONFLICT(tbaId)
     DO UPDATE SET
-    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, teamId, html.EscapeString(teamName), rankingScore)
+    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, teamId, html.EscapeString(teamName), rankingScore, isValid)
     s.DbDriver.RunExec(query)
 }
 
@@ -329,7 +329,7 @@ func (s *Scorer) RunScorer() {
 		iteration := 0
 		for {
 			fmt.Println("Starting new scoring iteration")
-			rescore := iteration%72 == 0
+			rescore := iteration % 72 == 0
 
 			events := s.getChampEvents()
 
@@ -339,7 +339,7 @@ func (s *Scorer) RunScorer() {
 				teams := s.TbaHandler.makeTeamsAtEventRequest(event)
 				for _, team := range teams {
 					fmt.Printf("Scoring team: %s\n", team.Key)
-					s.upsertTeam(team.Key, team.Nickname, s.getRankingScore(strings.TrimSpace(team.Key)))
+					s.upsertTeam(team.Key, team.Nickname, s.getRankingScore(strings.TrimSpace(team.Key)), true)
 					eventToTeam[team.Key] = event
 				}
 			}
