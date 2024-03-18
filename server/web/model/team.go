@@ -38,3 +38,36 @@ func getTeam(tbaId string, dbDriver *database.DatabaseDriver) *Team {
 
     return &team
 }
+
+func getAllTeamNames(dbDriver *database.DatabaseDriver) map[string]bool {
+    teamValidity := make(map[string]bool)
+
+    query := `Select tbaId, validPick From Teams`
+    stmt, err := dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        log.Println(err)
+    }
+
+    rows, err := stmt.Query()
+    defer rows.Close()
+
+    if err != nil {
+        log.Println(err)
+    }
+
+    for rows.Next() {
+        var tbaId string
+        var isValid bool
+
+        err = rows.Scan(&tbaId, &isValid)
+
+        if err != nil {
+            log.Println(err)
+        }
+
+        teamValidity[tbaId] = isValid
+    }
+
+    return teamValidity
+}
