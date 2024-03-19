@@ -39,7 +39,17 @@ func getTeam(tbaId string, dbDriver *database.DatabaseDriver) *Team {
     return &team
 }
 
-func getAllTeamNames(dbDriver *database.DatabaseDriver) map[string]bool {
+func UpdateTeamValidity(tbaId string, isValid bool, dbDriver *database.DatabaseDriver) {
+    query := fmt.Sprintf(`INSERT INTO Teams (tbaId, validPick)
+    VALUES ('%s', %t)
+    ON CONFLICT(tbaId)
+    DO UPDATE SET
+    validPick = EXCLUDED.validPick;`, tbaId, isValid)
+    dbDriver.RunExec(query)
+
+}
+
+func GetTeamValidity(dbDriver *database.DatabaseDriver) map[string]bool {
     teamValidity := make(map[string]bool)
 
     query := `Select tbaId, validPick From Teams`

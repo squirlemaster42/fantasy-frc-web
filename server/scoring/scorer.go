@@ -7,6 +7,7 @@ import (
 	db "server/database"
 	"strings"
 	"time"
+    "server/web/model"
 )
 
 type Scorer struct {
@@ -290,6 +291,24 @@ func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int, is
     DO UPDATE SET
     name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, teamId, html.EscapeString(teamName), rankingScore, isValid)
     s.DbDriver.RunExec(query)
+}
+
+func (s *Scorer) updateTeamValidity() {
+    currentTeams := model.GetTeamValidity(s.DbDriver)
+
+    for teamName := range currentTeams {
+        currentTeams[teamName] = false
+    }
+
+    for _, eventName := range s.getChampEvents() {
+        for _, teamName := range s.TbaHandler.makeTeamsAtEventRequest(eventName) {
+            currentTeams[teamName.Name] = true
+        }
+    }
+
+    for team, valid := range currentTeams {
+        model.UpdateTeamValidity(team, valid, s.DbDriver)
+    }
 }
 
 func (s *Scorer) getAllPickedTeams() []string {
