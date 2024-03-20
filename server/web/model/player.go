@@ -81,3 +81,8 @@ func ValidateUserLogin(username string, password string, dbHandler database.Data
 
     return true
 }
+
+
+func MakePick(playerId int, pickOrder int, playerOrder int, draftId int, pickedTeam string) {
+
+}

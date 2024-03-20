@@ -42,10 +42,17 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
     draftView := draft.DraftPick(" | Draft", false, draftIndex)
 
     if c.Request().Method == "POST" {
-        pick := c.FormValue("pickInput")
+        pick := "tba" + c.FormValue("pickInput")
         fmt.Println(pick)
         // Validate that the pick is valid (not duplicated and at valid events)
         // Find the pick order and player order and make the pick
+        team := model.GetTeam(pick, d.DbDriver)
+
+        if team.Name != "" && team.ValidPick {
+
+        } else {
+            log.Println("Invalid Pick")
+        }
 
         err = render(c, draftIndex)
     } else {

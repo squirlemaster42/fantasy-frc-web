@@ -8,10 +8,10 @@ import (
 )
 
 type Team struct {
-    tbaId string
-    name string
-    rankingScore int
-    validPick bool
+    TbaId string
+    Name string
+    RankingScore int
+    ValidPick bool
 }
 
 func upsertTeam(team *Team, dbDriver *database.DatabaseDriver) {
@@ -19,11 +19,11 @@ func upsertTeam(team *Team, dbDriver *database.DatabaseDriver) {
     VALUES ('%s', '%s', %d, %t)
     ON CONFLICT(tbaId)
     DO UPDATE SET
-    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, team.tbaId, html.EscapeString(team.name), team.rankingScore, team.validPick)
+    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, team.TbaId, html.EscapeString(team.Name), team.RankingScore, team.ValidPick)
     dbDriver.RunExec(query)
 }
 
-func getTeam(tbaId string, dbDriver *database.DatabaseDriver) *Team {
+func GetTeam(tbaId string, dbDriver *database.DatabaseDriver) *Team {
     query := `SELECT tbaId, name, rankingScore, validPick FROM Teams WHERE tbaId = $1`
     stmt, err := dbDriver.Connection.Prepare(query)
 
@@ -34,7 +34,7 @@ func getTeam(tbaId string, dbDriver *database.DatabaseDriver) *Team {
 
     var team Team
 
-    stmt.QueryRow(tbaId).Scan(&team.tbaId, &team.name, &team.rankingScore, &team.validPick)
+    stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.RankingScore, &team.ValidPick)
 
     return &team
 }

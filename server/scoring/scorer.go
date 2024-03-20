@@ -343,12 +343,17 @@ func (s *Scorer) RunScorer() {
 	//We choose the matches to score from the picks table
 	//Periodically we will want to rescore everything to ensure that we account for replays
 	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
+    //In this iteration we also update the valid teams
 
 	go func(s *Scorer) {
 		iteration := 0
 		for {
 			fmt.Println("Starting new scoring iteration")
 			rescore := iteration % 72 == 0
+
+            if rescore {
+                s.updateTeamValidity()
+            }
 
 			events := s.getChampEvents()
 
