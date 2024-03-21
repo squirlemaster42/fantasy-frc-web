@@ -13,9 +13,12 @@ type Pick struct {
     PickedTeam int
 }
 
-func GetNextPlayerPickOrder(draftId int, dbDriver *database.DatabaseDriver) (int, int) {
+//Returns playerOrder then pickOrder
+func GetNextPlayerPickOrder(draftId int, playerId int, dbDriver *database.DatabaseDriver) (int, int) {
     query := `Select PlayerOrder, PickOrder From Picks
-    Inner Join (Select Max(Id) As Id From Picks Where draftId = $1) m On m.Id = Picks.Id;`
+    Inner Join (
+        Select Max(Id) As Id From Picks Where draftId = $1 And playerId = $2
+    ) m On m.Id = Picks.Id;`
     stmt, err := dbDriver.Connection.Prepare(query)
 
     if err != nil {
@@ -24,9 +27,9 @@ func GetNextPlayerPickOrder(draftId int, dbDriver *database.DatabaseDriver) (int
 
     var playerOrder int
     var pickOrder int
-    err = stmt.QueryRow(draftId).Scan(&playerOrder, &pickOrder)
+    err = stmt.QueryRow(draftId, playerId).Scan(&playerOrder, &pickOrder)
 
-    return 0, 0
+    return playerOrder, pickOrder + 1
 }
 
 func MakePick(playerId int, pickOrder int, playerOrder int, draftId int, pickedTeam string, dbDriver *database.DatabaseDriver) {
