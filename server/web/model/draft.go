@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"log"
 	"server/database"
 )
@@ -83,4 +84,24 @@ func LoadDraftFromDatabase (draftId int, dbDriver *database.DatabaseDriver) *Dra
 
 
     return &draft
+}
+
+func CheckIfDraftExists(draftId int, dbDriver *database.DatabaseDriver) bool {
+    query := `Select Id From Drafts Where Id = $1`
+    stmt, err := dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        fmt.Println(err)
+        return false
+    }
+
+    var id int
+    err = stmt.QueryRow(draftId).Scan(&id)
+
+    if err != nil {
+        fmt.Println(err)
+        return false
+    }
+
+    return true
 }

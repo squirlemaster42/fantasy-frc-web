@@ -3,9 +3,11 @@ package handler
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"server/database"
 	"server/web/model"
 	"server/web/view/draft"
+	"strconv"
 
 	"github.com/labstack/echo-contrib/session"
 	"github.com/labstack/echo/v4"
@@ -37,7 +39,24 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
         log.Println("Invalid Login Detected")
     }
 
-    draftModel := model.LoadDraftFromDatabase(1, d.DbDriver)
+    draftIdParam := c.QueryParam("draftId")
+
+    if draftIdParam == "" {
+        return echo.NewHTTPError(http.StatusNotFound, "This draft does not exist")
+    }
+
+    draftId, err := strconv.Atoi(draftIdParam)
+
+    //TODO We need to do permission checks here
+    if err != nil {
+        return echo.NewHTTPError(http.StatusNotFound, "You must specify a draft id")
+    }
+
+    if !model.CheckIfDraftExists(draftId, d.DbDriver) {
+        return echo.NewHTTPError(http.StatusNotFound, "This draft does not exist")
+    }
+
+    draftModel := model.LoadDraftFromDatabase(draftId, d.DbDriver)
     draftIndex := draft.DraftPickIndex(*draftModel)
     draftView := draft.DraftPick(" | Draft", false, draftIndex)
 

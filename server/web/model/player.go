@@ -83,6 +83,8 @@ func ValidateUserLogin(username string, password string, dbHandler database.Data
 }
 
 
+/*
 func MakePick(playerId int, pickOrder int, playerOrder int, draftId int, pickedTeam string) {
 
 }
+*/
