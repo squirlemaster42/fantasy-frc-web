@@ -66,9 +66,10 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
         // Validate that the pick is valid (not duplicated and at valid events)
         // Find the pick order and player order and make the pick
         team := model.GetTeam(pick, d.DbDriver)
+        playerOrder, pickOrder := model.GetNextPlayerPickOrder(draftId, player.Id, d.DbDriver)
 
         if team.Name != "" && team.ValidPick {
-
+            model.MakePick(player.Id, pickOrder, playerOrder, draftId, pick, d.DbDriver)
         } else {
             log.Println("Invalid Pick")
         }
