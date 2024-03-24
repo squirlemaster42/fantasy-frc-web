@@ -110,7 +110,7 @@ func CheckIfDraftExists(draftId int, dbDriver *database.DatabaseDriver) bool {
 //The array uses the player ids
 func CreateDraft(draftName string, players []int, dbDriver *database.DatabaseDriver) error {
     //Create the draft
-    query := `INSERT INTO Drafts (Name) Values ($1);`
+    query := `INSERT INTO Drafts (Name) Values ($1) RETURNING Id;`
     stmt, err := dbDriver.Connection.Prepare(query)
 
     //TODO Do we want to return friendly errors here or handle that when we make the frontend?
@@ -118,14 +118,12 @@ func CreateDraft(draftName string, players []int, dbDriver *database.DatabaseDri
         return err
     }
 
-    _, err = stmt.Exec(draftName)
+    var draftId int
+    err = stmt.QueryRow(draftName).Scan(&draftId)
 
     if err != nil {
         return err
     }
-
-    //Get the draft id for the draft we created
-    draftId := 0
 
     //Add players to DraftPlayers
     for order, player := range players {
