@@ -15,3 +15,10 @@ ALTER TABLE Players ADD password varchar(100);
 ALTER TABLE Players ADD authTok varchar(100);
 ALTER TABLE Players ADD tokExpirationDate TIMESTAMP;
 ALTER TABLE Players ADD lastLoginTime TIMESTAMP;
+ALTER TABLE Teams ADD validPick BOOLEAN;
+
+//Rearchitect Drafts
+CREATE TABLE DraftPlayers(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(Id), playerOrder smallint);
+//When current player is null the draft is complete
+ALTER TABLE Drafts ADD currentPlayer int REFERENCES Players(Id);
+ALTER TABLE DraftPlayers ADD player int REFERENCES Players(Id);
