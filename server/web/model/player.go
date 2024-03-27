@@ -13,17 +13,23 @@ type Player struct {
     Password string
 }
 
-func CreateUser(player Player, dbHandler database.DatabaseDriver) error {
+func CreateUser(player Player, dbHandler database.DatabaseDriver) (int, error) {
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(player.Password), 8)
     if err != nil {
-        return err
+        return -1, err
     }
 
-    stmt := `INSERT INTO Players (name, password) Values ($1, $2);`
+    query := `INSERT INTO Players (name, password) Values ($1, $2) RETURNING Id;`
+    stmt, err := dbHandler.Connection.Prepare(query)
 
-    _, err = dbHandler.Connection.Exec(stmt, player.Username, string(hashedPassword))
+    if err != nil {
+        return -1, err
+    }
 
-    return err
+    var playerId int
+    err = stmt.QueryRow(player.Username, string(hashedPassword)).Scan(&playerId)
+
+    return playerId, err
 }
 
 func GetPlayerById(id int, dbHandler database.DatabaseDriver) (Player, error) {

@@ -62,14 +62,14 @@ func TestCreateDraft(t *testing.T) {
         Password: "",
     }
 
-    player1Id := CreateUser(player1, *dbDriver)
-    player2Id := CreateUser(player2, *dbDriver)
-    player3Id := CreateUser(player3, *dbDriver)
-    player4Id := CreateUser(player4, *dbDriver)
-    player5Id := CreateUser(player5, *dbDriver)
-    player6Id := CreateUser(player6, *dbDriver)
-    player7Id := CreateUser(player7, *dbDriver)
-    player8Id := CreateUser(player8, *dbDriver)
+    player1Id, _ := CreateUser(player1, *dbDriver)
+    player2Id, _ := CreateUser(player2, *dbDriver)
+    player3Id, _ := CreateUser(player3, *dbDriver)
+    player4Id, _ := CreateUser(player4, *dbDriver)
+    player5Id, _ := CreateUser(player5, *dbDriver)
+    player6Id, _ := CreateUser(player6, *dbDriver)
+    player7Id, _ := CreateUser(player7, *dbDriver)
+    player8Id, _ := CreateUser(player8, *dbDriver)
 
     draftName := uuid.New().String()
 
@@ -85,4 +85,16 @@ func TestCreateDraft(t *testing.T) {
     }
 
     draftId, err := CreateDraft(draftName, players, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    if draftId < 0 {
+        t.Errorf("Draft with id %d has an invalid id", draftId)
+    }
+
+    //Check player orders are correct
+
+    //Delete draft and players
 }
