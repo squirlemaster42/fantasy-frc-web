@@ -146,3 +146,29 @@ func CreateDraft(draftName string, players []int, dbDriver *database.DatabaseDri
 
     return draftId, nil
 }
+
+func DeleteDraft(draftId int, dbDriver *database.DatabaseDriver) error {
+    query := `Delete From DraftPlayers Where draftId = $1`
+    stmt, err := dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        return err
+    }
+
+    _, err = stmt.Exec(draftId)
+
+    if err != nil {
+        return err
+    }
+
+    query = `Delete From Drafts Where Id = $1`
+    stmt, err = dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        return err
+    }
+
+    _, err = stmt.Exec(draftId)
+
+    return err
+}

@@ -95,6 +95,95 @@ func TestCreateDraft(t *testing.T) {
     }
 
     //Check player orders are correct
+    query := `SELECT playerOrder, player FROM DraftPlayers where draftId = $1`
+    stmt, err := dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    rows, err := stmt.Query(draftId)
+
+    for rows.Next() {
+        var playerOrder int
+        var player int
+        err = rows.Scan(&playerOrder, &player)
+
+        if err != nil {
+            t.Error(err)
+        }
+
+        if player == player1Id  && playerOrder != 0{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 0, playerOrder)
+        } else if player == player2Id  && playerOrder != 1{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 1, playerOrder)
+        } else if player == player3Id  && playerOrder != 2{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 2, playerOrder)
+        } else if player == player4Id  && playerOrder != 3{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 3, playerOrder)
+        } else if player == player5Id  && playerOrder != 4{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 4, playerOrder)
+        } else if player == player6Id  && playerOrder != 5{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 5, playerOrder)
+        } else if player == player7Id  && playerOrder != 6{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 6, playerOrder)
+        } else if player == player8Id  && playerOrder != 7{
+            t.Errorf("Player %d had expected player order %d but was %d", player, 7, playerOrder)
+        }
+    }
 
     //Delete draft and players
+    err = DeleteDraft(draftId, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player1Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player2Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player3Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player4Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player5Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player6Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player7Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
+
+    err = DeletePlayer(player8Id, dbDriver)
+
+    if err != nil {
+        t.Error(err)
+    }
 }

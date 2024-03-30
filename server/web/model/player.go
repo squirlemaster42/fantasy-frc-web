@@ -88,6 +88,19 @@ func ValidateUserLogin(username string, password string, dbHandler database.Data
     return true
 }
 
+func DeletePlayer(playerId int, dbDriver *database.DatabaseDriver) error {
+    query := `Delete From Players Where Id = $1`
+    stmt, err := dbDriver.Connection.Prepare(query)
+
+    if err != nil {
+        return err
+    }
+
+    _, err = stmt.Exec(playerId)
+
+    return err
+}
+
 
 /*
 func MakePick(playerId int, pickOrder int, playerOrder int, draftId int, pickedTeam string) {
