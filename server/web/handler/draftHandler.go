@@ -81,3 +81,64 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
 
     return err
 }
+
+
+func (d *DraftHandler) HandleViewCreateDraft (c echo.Context) error {
+    ses, err := session.Get("session", c)
+
+    if err != nil {
+        return err
+    }
+
+    sessionToken := ses.Values["token"].(string)
+    userId := ses.Values["userId"].(int)
+
+    sessionHandler := SessionHandler{DbHandler: d.DbDriver}
+    player, err := model.GetPlayerById(userId, *d.DbDriver)
+    isValid := sessionHandler.validateSession(player.Id, sessionToken)
+
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    if !isValid {
+        log.Println("Invalid Login Detected")
+    }
+
+    draftCreateIndex := draft.DraftCreateIndex()
+    draftCreateView := draft.DraftCreate(" | Create Draft", false, draftCreateIndex)
+
+    err = render(c, draftCreateView)
+
+    return err
+}
+
+func (d *DraftHandler) HandleViewInviteToDraft (c echo.Context) error {
+    ses, err := session.Get("session", c)
+
+    if err != nil {
+        return err
+    }
+
+    sessionToken := ses.Values["token"].(string)
+    userId := ses.Values["userId"].(int)
+
+    sessionHandler := SessionHandler{DbHandler: d.DbDriver}
+    player, err := model.GetPlayerById(userId, *d.DbDriver)
+    isValid := sessionHandler.validateSession(player.Id, sessionToken)
+
+    if err != nil {
+        log.Fatalln(err)
+    }
+
+    if !isValid {
+        log.Println("Invalid Login Detected")
+    }
+
+    draftInviteIndex := draft.DraftInviteIndex()
+    draftInviteView := draft.DraftInvite(" | Invite To Draft", false, draftInviteIndex)
+
+    err = render(c, draftInviteView)
+
+    return err
+}

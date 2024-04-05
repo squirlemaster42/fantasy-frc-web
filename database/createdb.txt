@@ -22,3 +22,6 @@ CREATE TABLE DraftPlayers(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(I
 //When current player is null the draft is complete
 ALTER TABLE Drafts ADD currentPlayer int REFERENCES Players(Id);
 ALTER TABLE DraftPlayers ADD player int REFERENCES Players(Id);
+
+//Draft Invites
+CREATE TABLE DraftInvites(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(id), invitedPlayer int REFERENCES players(id), invitingPlayer int REFERENCES players(id), accepted boolean);
