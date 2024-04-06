@@ -54,13 +54,14 @@ func (l *LoginHandler) HandleViewLogin (c echo.Context) error {
         sessionHandler := SessionHandler{DbHandler: l.DbHandler}
         sessionString := sessionHandler.registerSession(user.Id, 864000 * 7)
         ses.Values["token"] = sessionString
-        ses.Values["seerId"] = user.Id
+        ses.Values["userId"] = user.Id
         ses.Save(c.Request(), c.Response())
 
         if valid {
             //TODO Redirect to logged in page
             log.Println("Login request valid, redirecting to draft")
-            err = c.Redirect(http.StatusSeeOther, "/draft")
+            //TODO Need to specify a draft id
+            err = c.Redirect(http.StatusSeeOther, "/draft?draftId=1")
         } else {
             errorMessage := "Username or password is incorrect"
             loginIndex := login.LoginIndex(false, errorMessage)

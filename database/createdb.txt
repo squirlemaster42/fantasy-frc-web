@@ -25,3 +25,4 @@ ALTER TABLE DraftPlayers ADD player int REFERENCES Players(Id);
 
 //Draft Invites
 CREATE TABLE DraftInvites(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(id), invitedPlayer int REFERENCES players(id), invitingPlayer int REFERENCES players(id), accepted boolean);
+ALTER TABLE Drafts ADD draftOwner int REFERENCES Players(Id);

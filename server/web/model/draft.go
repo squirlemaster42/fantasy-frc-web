@@ -111,7 +111,9 @@ func CheckIfDraftExists(draftId int, dbDriver *database.DatabaseDriver) bool {
 // Creates a draft where the pick order is the order of the players array
 // The array uses the player ids
 // Return the created draft id
-func CreateDraft(draftName string, players []int, dbDriver *database.DatabaseDriver) (int, error) {
+
+//TODO Depricate this
+func CreateDraftFromTemplate(draftName string, players []int, dbDriver *database.DatabaseDriver) (int, error) {
 	//Create the draft
 	query := `INSERT INTO Drafts (Name) Values ($1) RETURNING Id;`
 	stmt, err := dbDriver.Connection.Prepare(query)
@@ -147,6 +149,25 @@ func CreateDraft(draftName string, players []int, dbDriver *database.DatabaseDri
 	stmt.Exec(firstPlayer, draftId)
 
 	return draftId, nil
+}
+
+func CreateDraft(draftName string, draftOwner int, dbDriver *database.DatabaseDriver) (int, error) {
+    //Create the draft
+	query := `INSERT INTO Drafts (Name, DraftOwner) Values ($1, $2) RETURNING Id;`
+	stmt, err := dbDriver.Connection.Prepare(query)
+
+	if err != nil {
+		return -1, err
+	}
+
+	var draftId int
+	err = stmt.QueryRow(draftName, draftOwner).Scan(&draftId)
+
+	if err != nil {
+		return -1, err
+	}
+
+    return draftId, nil
 }
 
 func DeleteDraft(draftId int, dbDriver *database.DatabaseDriver) error {

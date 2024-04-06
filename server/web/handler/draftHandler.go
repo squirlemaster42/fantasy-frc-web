@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"server/database"
@@ -24,6 +23,7 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
         return err
     }
 
+    //TODO we need to handle the case where these are null, even though that should never happen
     sessionToken := ses.Values["token"].(string)
     userId := ses.Values["userId"].(int)
 
@@ -62,7 +62,6 @@ func (d *DraftHandler) HandleViewDraft (c echo.Context) error {
 
     if c.Request().Method == "POST" {
         pick := "tba" + c.FormValue("pickInput")
-        fmt.Println(pick)
         // Validate that the pick is valid (not duplicated and at valid events)
         // Find the pick order and player order and make the pick
         team := model.GetTeam(pick, d.DbDriver)
@@ -105,7 +104,7 @@ func (d *DraftHandler) HandleViewCreateDraft (c echo.Context) error {
         log.Println("Invalid Login Detected")
     }
 
-    draftCreateIndex := draft.DraftCreateIndex()
+    draftCreateIndex := draft.DraftCreateIndex(false, "")
     draftCreateView := draft.DraftCreate(" | Create Draft", false, draftCreateIndex)
 
     err = render(c, draftCreateView)
