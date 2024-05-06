@@ -7,24 +7,12 @@ import (
 	db "server/database"
 	"strings"
 	"time"
-    "server/web/model"
+    models "server/web/model"
 )
 
 type Scorer struct {
 	TbaHandler *TbaHandler
 	DbDriver   *db.DatabaseDriver
-}
-
-type DbMatch struct {
-	tbaId             string
-	redAllianceScore  int
-	blueAllianceScore int
-	compLevel         string
-	winningAlliance   string
-	Played            bool
-	redAllianceTeams  []string
-	blueAllianceTeams []string
-	dqed              []string
 }
 
 func NewScorer(tbaHandler *TbaHandler, dbDriver *db.DatabaseDriver) *Scorer {
@@ -35,172 +23,120 @@ func NewScorer(tbaHandler *TbaHandler, dbDriver *db.DatabaseDriver) *Scorer {
 	return &scorer
 }
 
-func (s *Scorer) scoreMatch(matchId string, override bool) *DbMatch {
+func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *models.DbMatch {
 	//Check if the match exists in the database and is scored
 	//Use Db score if possible
 	//If not, query tba and score the match
 	fmt.Printf("Scoring match %s\n", matchId)
-	dbMatch := s.getMatchFromDb(matchId)
+	dbMatch := models.GetMatchFromDb(matchId, s.DbDriver)
 	if (dbMatch != nil && dbMatch.Played) && !override {
 		return dbMatch
 	}
 
 	//Get match from tba and score it and then save it in the database
 	tbaMatch := s.TbaHandler.makeMatchReq(matchId)
-	redScore := 0
+	dbMatch = s.scoreMatch(tbaMatch)
+	models.SaveMatchToDb(dbMatch, s.DbDriver)
+
+	return dbMatch
+}
+
+func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
+    redScore := 0
 	blueScore := 0
 
-	if tbaMatch.CompLevel == "qm" {
-		if tbaMatch.WinningAlliance == "red" {
+	if match.CompLevel == "qm" {
+		if match.WinningAlliance == "red" {
 			redScore += 4
-		} else if tbaMatch.WinningAlliance == "blue" {
+		} else if match.WinningAlliance == "blue" {
 			blueScore += 4
 		}
 
-		if tbaMatch.ScoreBreakdown.Red.MelodyBonusAchieved {
+		if match.ScoreBreakdown.Red.MelodyBonusAchieved {
 			redScore += 2
 		}
 
-		if tbaMatch.ScoreBreakdown.Red.EnsembleBonusAchieved {
+		if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
 			redScore += 2
 		}
 
-		if tbaMatch.ScoreBreakdown.Blue.MelodyBonusAchieved {
+		if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
 			blueScore += 2
 		}
 
-		if tbaMatch.ScoreBreakdown.Blue.EnsembleBonusAchieved {
+		if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
 			blueScore += 2
 		}
-	} else if tbaMatch.CompLevel == "f" {
+	} else if match.CompLevel == "f" {
         fmt.Println("Scoring Finals")
-		if tbaMatch.EventKey == "cmptx" {
-			if tbaMatch.WinningAlliance == "red" {
+		if match.EventKey == "cmptx" {
+			if match.WinningAlliance == "red" {
 				redScore += 36
-			} else if tbaMatch.WinningAlliance == "blue" {
+			} else if match.WinningAlliance == "blue" {
 				blueScore += 36
 			}
 		} else {
-			if tbaMatch.WinningAlliance == "red" {
+			if match.WinningAlliance == "red" {
 				redScore += 18
-			} else if tbaMatch.WinningAlliance == "blue" {
+			} else if match.WinningAlliance == "blue" {
 				blueScore += 18
 			}
 		}
-	} else if tbaMatch.CompLevel == "sf" {
+	} else if match.CompLevel == "sf" {
         fmt.Println("Scoring Semi Finals")
-		if tbaMatch.MatchNumber == 5 || tbaMatch.MatchNumber == 6 || tbaMatch.MatchNumber == 9 || tbaMatch.MatchNumber == 10 || tbaMatch.MatchNumber == 12 || tbaMatch.MatchNumber == 13 {
+		if match.MatchNumber == 5 || match.MatchNumber == 6 || match.MatchNumber == 9 || match.MatchNumber == 10 || match.MatchNumber == 12 || match.MatchNumber == 13 {
 			//Lower Bracket
             fmt.Println("Scoring Lower Bracket")
-			if tbaMatch.EventKey == "cmptx" {
-				if tbaMatch.WinningAlliance == "red" {
+			if match.EventKey == "cmptx" {
+				if match.WinningAlliance == "red" {
 					redScore += 18
-				} else if tbaMatch.WinningAlliance == "blue" {
+				} else if match.WinningAlliance == "blue" {
 					blueScore += 18
 				}
 			} else {
-				if tbaMatch.WinningAlliance == "red" {
+				if match.WinningAlliance == "red" {
 					redScore += 9
-				} else if tbaMatch.WinningAlliance == "blue" {
+				} else if match.WinningAlliance == "blue" {
 					blueScore += 9
 				}
 			}
 		} else {
 			//Upper Breacker
             fmt.Println("Scoring Upper Bracket")
-			if tbaMatch.EventKey == "cmptx" {
-				if tbaMatch.WinningAlliance == "red" {
+			if match.EventKey == "cmptx" {
+				if match.WinningAlliance == "red" {
 					redScore += 30
-				} else if tbaMatch.WinningAlliance == "blue" {
+				} else if match.WinningAlliance == "blue" {
 					blueScore += 30
 				}
 			} else {
-				if tbaMatch.WinningAlliance == "red" {
+				if match.WinningAlliance == "red" {
 					redScore += 15
-				} else if tbaMatch.WinningAlliance == "blue" {
+				} else if match.WinningAlliance == "blue" {
 					blueScore += 15
 				}
 			}
 		}
 	}
 
-	dqedTeams := tbaMatch.Alliances.Red.DqTeamKeys
-	dqedTeams = append(dqedTeams, tbaMatch.Alliances.Blue.DqTeamKeys...)
-	dqedTeams = append(dqedTeams, tbaMatch.Alliances.Red.SurrogateTeamKeys...)
-	dqedTeams = append(dqedTeams, tbaMatch.Alliances.Blue.SurrogateTeamKeys...)
+	dqedTeams := match.Alliances.Red.DqTeamKeys
+	dqedTeams = append(dqedTeams, match.Alliances.Blue.DqTeamKeys...)
+	dqedTeams = append(dqedTeams, match.Alliances.Red.SurrogateTeamKeys...)
+	dqedTeams = append(dqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
 
-	dbMatch = &DbMatch{
-		tbaId:             tbaMatch.Key,
-		redAllianceScore:  redScore,
-		blueAllianceScore: blueScore,
-		compLevel:         tbaMatch.CompLevel,
-		winningAlliance:   tbaMatch.WinningAlliance,
-		Played:            tbaMatch.ActualTime != 0,
-		redAllianceTeams:  tbaMatch.Alliances.Red.TeamKeys,
-		blueAllianceTeams: tbaMatch.Alliances.Blue.TeamKeys,
-		dqed:              dqedTeams,
-	}
-	s.saveMatchToDb(dbMatch)
-
-	return dbMatch
-}
-
-func (s *Scorer) getMatchFromDb(matchId string) *DbMatch {
-	driver := s.DbDriver
-	match := DbMatch{}
-	err := driver.Connection.QueryRow("Select tbaId, redAllianceScore, blueAllianceScore, compLevel, winningAlliance, Played From matches where tbaId = '" + matchId + "'").Scan(&match.tbaId, &match.redAllianceScore, &match.blueAllianceScore, &match.compLevel, &match.winningAlliance, &match.Played)
-
-	if err != nil {
-        log.Print(err)
-		return nil
+    dbMatch := &models.DbMatch{
+		TbaId:             match.Key,
+		RedAllianceScore:  redScore,
+		BlueAllianceScore: blueScore,
+		CompLevel:         match.CompLevel,
+		WinningAlliance:   match.WinningAlliance,
+		Played:            match.ActualTime != 0,
+		RedAllianceTeams:  match.Alliances.Red.TeamKeys,
+		BlueAllianceTeams: match.Alliances.Blue.TeamKeys,
+		Dqed:              dqedTeams,
 	}
 
-	return &match
-}
-
-func (s *Scorer) saveMatchToDb(match *DbMatch) {
-	//When we save the relationship between teams and matches we should store if the team was dqed or not
-	fmt.Printf("Updating match %s in database\n", match.tbaId)
-	if s.getMatchFromDb(match.tbaId) != nil {
-		//We need to run updates
-		fmt.Printf("Updating match %s to database\n", match.tbaId)
-		s.DbDriver.RunExec(fmt.Sprintf("UPDATE Matches SET redAllianceScore = %d, blueAllianceScore = %d, compLevel = '%s', winningAlliance = '%s', Played = %t WHERE tbaId = '%s'",
-			match.redAllianceScore, match.blueAllianceScore, match.compLevel, match.winningAlliance, match.Played, match.tbaId))
-
-		for _, team := range match.redAllianceTeams {
-			s.DbDriver.RunExec(fmt.Sprintf("UPDATE Matches_Teams SET isDqed = %t WHERE team_tbaId = '%s' AND match_tbaId = '%s'",
-				s.isTeamDqed(team, match), team, match.tbaId))
-		}
-
-		for _, team := range match.blueAllianceTeams {
-			s.DbDriver.RunExec(fmt.Sprintf("UPDATE Matches_Teams SET isDqed = %t WHERE team_tbaId = '%s' AND match_tbaId = '%s'",
-				s.isTeamDqed(team, match), team, match.tbaId))
-		}
-	} else {
-		//We need to insert into the db
-		fmt.Printf("Adding match %s to database\n", match.tbaId)
-		s.DbDriver.RunExec(fmt.Sprintf("INSERT INTO Matches (tbaId, redAllianceScore, blueAllianceScore, compLevel, winningAlliance, Played) VALUES ('%s', %d, %d, '%s', '%s', %t)",
-			match.tbaId, match.redAllianceScore, match.blueAllianceScore, match.compLevel, match.winningAlliance, match.Played))
-
-		for _, team := range match.redAllianceTeams {
-			s.DbDriver.RunExec(fmt.Sprintf("INSERT INTO Matches_Teams (team_tbaId, match_TbaId, isDqed, alliance) VALUES ('%s', '%s', %t, 'red')",
-				team, match.tbaId, s.isTeamDqed(team, match)))
-		}
-
-		for _, team := range match.blueAllianceTeams {
-			s.DbDriver.RunExec(fmt.Sprintf("INSERT INTO Matches_Teams (team_tbaId, match_TbaId, isDqed, alliance) VALUES ('%s', '%s', %t, 'blue')",
-				team, match.tbaId, s.isTeamDqed(team, match)))
-		}
-	}
-}
-
-func (s *Scorer) isTeamDqed(teamId string, match *DbMatch) bool {
-	for _, team := range match.dqed {
-		if teamId == team {
-			return true
-		}
-	}
-	return false
+    return dbMatch
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
@@ -284,6 +220,7 @@ func (s *Scorer) ScoreTeam(teamId string) int {
 	return score
 }
 
+//TODO mode to models
 func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int, isValid bool) {
 	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore, validPick)
     VALUES ('%s', '%s', %d, %t)
@@ -294,7 +231,7 @@ func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int, is
 }
 
 func (s *Scorer) updateTeamValidity() {
-    currentTeams := model.GetTeamValidity(s.DbDriver)
+    currentTeams := models.GetTeamValidity(s.DbDriver)
 
     for teamName := range currentTeams {
         currentTeams[teamName] = false
@@ -307,7 +244,7 @@ func (s *Scorer) updateTeamValidity() {
     }
 
     for team, valid := range currentTeams {
-        model.UpdateTeamValidity(team, valid, s.DbDriver)
+        models.UpdateTeamValidity(team, valid, s.DbDriver)
     }
 }
 
@@ -376,7 +313,7 @@ func (s *Scorer) RunScorer() {
 			}
 
 			for match := range matchesToScore {
-				s.scoreMatch(strings.TrimSpace(match), rescore)
+				s.scoreMatchIfNecessary(strings.TrimSpace(match), rescore)
 			}
 
 			iteration++
