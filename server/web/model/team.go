@@ -14,7 +14,7 @@ type Team struct {
     ValidPick bool
 }
 
-func upsertTeam(team *Team, dbDriver *database.DatabaseDriver) {
+func UpsertTeam(team *Team, dbDriver *database.DatabaseDriver) {
 	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore, validPick)
     VALUES ('%s', '%s', %d, %t)
     ON CONFLICT(tbaId)
