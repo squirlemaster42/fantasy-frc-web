@@ -9,3 +9,20 @@ ALTER TABLE Matches_Teams ADD alliance varchar(4);
 ALTER TABLE Players ADD CONSTRAINT uniquePlayers UNIQUE (Name);
 ALTER TABLE Drafts ADD CONSTRAINT uniqueDrafts UNIQUE (Name);
 ALTER TABLE Teams ADD rankingScore smallint;
+ALTER TABLE Players ADD password varchar(100);
+
+//Version 2.0
+ALTER TABLE Players ADD authTok varchar(100);
+ALTER TABLE Players ADD tokExpirationDate TIMESTAMP;
+ALTER TABLE Players ADD lastLoginTime TIMESTAMP;
+ALTER TABLE Teams ADD validPick BOOLEAN;
+
+//Rearchitect Drafts
+CREATE TABLE DraftPlayers(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(Id), playerOrder smallint);
+//When current player is null the draft is complete
+ALTER TABLE Drafts ADD currentPlayer int REFERENCES Players(Id);
+ALTER TABLE DraftPlayers ADD player int REFERENCES Players(Id);
+
+//Draft Invites
+CREATE TABLE DraftInvites(Id SERIAL PRIMARY KEY, draftId int REFERENCES drafts(id), invitedPlayer int REFERENCES players(id), invitingPlayer int REFERENCES players(id), accepted boolean);
+ALTER TABLE Drafts ADD draftOwner int REFERENCES Players(Id);

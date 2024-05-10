@@ -43,9 +43,13 @@ func LoadCSVIntoDb(dbHandler *database.DatabaseDriver, path string) {
 
     //Add picks for the players
     fmt.Println("Adding picks to database")
-    for player, picks := range players {
-        playerId := getPlayerId(strings.TrimSpace(player), dbHandler)
-        for index, pick := range picks {
+    for playerOrder, playerName := range parsePlayerOrder(lines[0] ){
+        playerId := getPlayerId(strings.TrimSpace(playerName), dbHandler)
+
+        //Add player order to database
+        dbHandler.RunExec(fmt.Sprintf("Insert Into DraftPlayers (draftId, playerOrder, player) Values (%d, %d, %d)", draftId, playerOrder, playerId))
+
+        for index, pick := range players[playerName] {
             if !teamExists(strings.TrimSpace(pick), dbHandler) {
                 fmt.Printf("Adding team %s to database\n", strings.TrimSpace(pick))
                 dbHandler.RunExec(fmt.Sprintf("INSERT INTO Teams (tbaid) VALUES ('%s')", strings.TrimSpace(pick)))
@@ -82,6 +86,10 @@ func teamExists(tbaId string, dbHandler *database.DatabaseDriver) bool {
         return false
     }
     return true
+}
+
+func parsePlayerOrder(line string) []string {
+    return strings.Split(line, ",")
 }
 
 func parseCSVToPlayers(lines []string) map[string][]string {

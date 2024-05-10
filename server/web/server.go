@@ -2,13 +2,16 @@ package web
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	scoring "server/scoring"
+	"server/web/handler"
 	"slices"
+
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/session"
+	"github.com/labstack/echo/v4"
 )
 
 type server struct {
@@ -26,20 +29,46 @@ type Player struct {
     picks []string
 }
 
-func CreateServer(scorer *scoring.Scorer) {
-    mux := http.NewServeMux()
-    server := server{scorer: scorer}
-    mux.HandleFunc("/scores", server.getScores)
+func CreateServer(scorer *scoring.Scorer, sessionSecret string) {
+    app := echo.New()
+    app.Static("/", "./assets")
+    app.Use(session.Middleware(sessions.NewCookieStore([]byte(sessionSecret))))
 
-    err := http.ListenAndServe(":3333", mux)
-    if errors.Is(err, http.ErrServerClosed) {
-        fmt.Printf("server closed\n")
-    } else if err != nil {
-        fmt.Printf("errors starting server: %s\n", err)
-        os.Exit(1)
+    //Setup Session Store
+
+    //Setup base routes
+    homeHandler := handler.HomeHandler{}
+    app.GET("/", homeHandler.HandleViewHome)
+    loginHandler := handler.LoginHandler{
+        DbHandler: scorer.DbDriver,
     }
+    app.GET("/login", loginHandler.HandleViewLogin)
+    app.POST("/login", loginHandler.HandleViewLogin)
+    registrationHandler := handler.RegistrationHandler{
+        DbHandler: scorer.DbDriver,
+    }
+    app.GET("/register", registrationHandler.HandleViewRegister)
+    app.POST("/register", registrationHandler.HandleViewRegister)
+
+    //Setup protected routes
+    //draftGroup := app.Group("/draft", )
+    draftHandler:= handler.DraftHandler{DbDriver: scorer.DbDriver}
+    app.GET("/draft", draftHandler.HandleViewDraft)
+    app.POST("/draft", draftHandler.HandleViewDraft)
+    app.GET("/createDraft", draftHandler.HandleViewCreateDraft)
+    app.POST("/createDraft", draftHandler.HandleViewCreateDraft)
+    //These should live under /draft
+    app.GET("/inviteDraft", draftHandler.HandleViewInviteToDraft)
+    app.POST("/inviteDraft", draftHandler.HandleViewInviteToDraft)
+
+    //Start Setver
+    app.Start(":3000")
+    fmt.Println("Started Web Server On Port 3000")
 }
 
+
+
+//TODO Move this code to a handler
 func (s *server) getScores (w http.ResponseWriter, r *http.Request) {
     fmt.Printf("got scores request\n")
     io.WriteString(w, "Welcome to FantasyFRC\n")

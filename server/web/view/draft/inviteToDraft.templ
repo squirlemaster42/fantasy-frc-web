@@ -1,0 +1,13 @@
+package draft
+
+import "server/web/view"
+
+templ DraftInviteIndex () {
+
+}
+
+templ DraftInvite (page string, fromProtected bool, cmp templ.Component) {
+    @view.Index(page, fromProtected, "") {
+        @cmp
+    }
+}

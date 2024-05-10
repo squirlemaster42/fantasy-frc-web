@@ -25,6 +25,7 @@ func main() {
     dbUsername := os.Getenv("DB_USERNAME")
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
+    sessionSecret := os.Getenv("SESSION_SECRET")
     tbaHandler := scoring.NewHandler(tbaTok)
     dbDriver := database.CreateDatabaseDriver(dbUsername, dbPassword, dbIp, dbName)
 
@@ -48,5 +49,5 @@ func main() {
     if !(*skipScoring == "true") {
         scorer.RunScorer()
     }
-    server.CreateServer(scorer)
+    server.CreateServer(scorer, sessionSecret)
 }
