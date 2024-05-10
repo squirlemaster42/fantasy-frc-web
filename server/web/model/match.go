@@ -39,7 +39,6 @@ func isTeamDqed(teamId string, match *DbMatch) bool {
 	return false
 }
 
-//TODO figure out where we want to put the validity things
 func SaveMatchToDb(match *DbMatch, driver *database.DatabaseDriver) {
 	//When we save the relationship between teams and matches we should store if the team was dqed or not
 	fmt.Printf("Updating match %s in database\n", match.TbaId)

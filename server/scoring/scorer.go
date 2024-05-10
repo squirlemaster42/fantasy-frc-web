@@ -161,17 +161,6 @@ func (s *Scorer) getChampEvents() []string {
 	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
 }
 
-func (s *Scorer) getRankingScore(teamId string) int {
-	event := s.TbaHandler.makeTeamEventStatusRequest(strings.TrimSpace(teamId), s.getChampEventForTeam(teamId))
-	score := (25 - event.Qual.Ranking.Rank) * 2
-
-	if score > 0 {
-		return score
-	} else {
-		return 0
-	}
-}
-
 func (s *Scorer) ScoreTeam(teamId string) int {
 	//Query all matches for team
 	//Get all of the scores
@@ -218,16 +207,6 @@ func (s *Scorer) ScoreTeam(teamId string) int {
 	}
 
 	return score
-}
-
-//TODO mode to models
-func (s *Scorer) upsertTeam(teamId string, teamName string, rankingScore int, isValid bool) {
-	query := fmt.Sprintf(`INSERT INTO Teams (tbaId, name, rankingScore, validPick)
-    VALUES ('%s', '%s', %d, %t)
-    ON CONFLICT(tbaId)
-    DO UPDATE SET
-    name = EXCLUDED.name, rankingScore = EXCLUDED.rankingScore;`, teamId, html.EscapeString(teamName), rankingScore, isValid)
-    s.DbDriver.RunExec(query)
 }
 
 func (s *Scorer) updateTeamValidity() {
@@ -300,7 +279,13 @@ func (s *Scorer) RunScorer() {
 				teams := s.TbaHandler.makeTeamsAtEventRequest(event)
 				for _, team := range teams {
 					fmt.Printf("Scoring team: %s\n", team.Key)
-					s.upsertTeam(team.Key, team.Nickname, s.getRankingScore(strings.TrimSpace(team.Key)), true)
+                    teamModel := &models.Team{
+                        TbaId: team.Key,
+                        Name: team.Nickname,
+                        RankingScore: 0,
+                        ValidPick: true,
+                    }
+					models.UpsertTeam(teamModel, s.DbDriver)
 					eventToTeam[team.Key] = event
 				}
 			}
