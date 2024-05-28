@@ -112,7 +112,7 @@ func CheckIfDraftExists(draftId int, dbDriver *database.DatabaseDriver) bool {
 // The array uses the player ids
 // Return the created draft id
 
-//TODO Depricate this
+// TODO Depricate this or move it somewhere so we can use it just as a testing helper
 func CreateDraftFromTemplate(draftName string, players []int, dbDriver *database.DatabaseDriver) (int, error) {
 	//Create the draft
 	query := `INSERT INTO Drafts (Name) Values ($1) RETURNING Id;`
@@ -152,7 +152,7 @@ func CreateDraftFromTemplate(draftName string, players []int, dbDriver *database
 }
 
 func CreateDraft(draftName string, draftOwner int, dbDriver *database.DatabaseDriver) (int, error) {
-    //Create the draft
+	//Create the draft
 	query := `INSERT INTO Drafts (Name, DraftOwner) Values ($1, $2) RETURNING Id;`
 	stmt, err := dbDriver.Connection.Prepare(query)
 
@@ -167,7 +167,7 @@ func CreateDraft(draftName string, draftOwner int, dbDriver *database.DatabaseDr
 		return -1, err
 	}
 
-    return draftId, nil
+	return draftId, nil
 }
 
 func DeleteDraft(draftId int, dbDriver *database.DatabaseDriver) error {

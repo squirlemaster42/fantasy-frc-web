@@ -2,7 +2,6 @@ package scoring
 
 import (
 	"fmt"
-	"html"
 	"log"
 	db "server/database"
 	"strings"
@@ -161,7 +160,12 @@ func (s *Scorer) getChampEvents() []string {
 	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
 }
 
-func (s *Scorer) ScoreTeam(teamId string) int {
+//This was capital but that seemed wrong
+//TODO Can we write this without requiring the database
+//I think we could just pass in a list of matches and
+//the required event information
+//something like scoreTeam(matches []Match, event Event)
+func (s *Scorer) scoreTeam(teamId string) int {
 	//Query all matches for team
 	//Get all of the scores
 	//Add ranking score

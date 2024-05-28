@@ -84,7 +84,7 @@ func TestCreateDraft(t *testing.T) {
         player8Id,
     }
 
-    draftId, err := CreateDraft(draftName, players, dbDriver)
+    draftId, err := CreateDraftFromTemplate(draftName, players, dbDriver)
 
     if err != nil {
         t.Error(err)
