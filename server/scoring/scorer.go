@@ -3,31 +3,29 @@ package scoring
 import (
 	"fmt"
 	"log"
-	db "server/database"
+	"server/model"
 	"strings"
 	"time"
-    models "server/web/model"
 )
 
 type Scorer struct {
 	TbaHandler *TbaHandler
-	DbDriver   *db.DatabaseDriver
+    database *sql.DB
 }
 
-func NewScorer(tbaHandler *TbaHandler, dbDriver *db.DatabaseDriver) *Scorer {
+func NewScorer(tbaHandler *TbaHandler) *Scorer {
 	scorer := Scorer{
 		TbaHandler: tbaHandler,
-		DbDriver:   dbDriver,
 	}
 	return &scorer
 }
 
-func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *models.DbMatch {
+func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *model.Match {
 	//Check if the match exists in the database and is scored
 	//Use Db score if possible
 	//If not, query tba and score the match
 	fmt.Printf("Scoring match %s\n", matchId)
-	dbMatch := models.GetMatchFromDb(matchId, s.DbDriver)
+	_, dbMatch := model.GetMatch(s.database, matchId)
 	if (dbMatch != nil && dbMatch.Played) && !override {
 		return dbMatch
 	}

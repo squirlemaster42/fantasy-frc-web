@@ -1,5 +1,10 @@
 package model
 
+import (
+	"database/sql"
+	"server/assert"
+)
+
 type Match struct {
     TbaId string
     Played bool
@@ -7,18 +12,18 @@ type Match struct {
     BlueScore int
 }
 
-func AddMatch(tbaId string) error {
-    return nil
+func AddMatch(database *sql.DB, tbaId string) {
+    query := `INSERT INTO Matches (tbaid, played, redscore, bluescore) Values ($1, $2, $3, $4);`
+    stmt, err := database.Prepare(query)
+    assert.NoErrorCF(err, "Failed to prepare add match query")
+    _, err = stmt.Exec(tbaId, false, 0, 0)
+    assert.NoErrorCF(err, "Failed to insert match into database")
 }
 
-func AddMatchWithScore(tbaId string, redScore int, blueScore int) error {
-    return nil
+func UpdateScore(database *sql.DB, tbaId string, redScore int, blueScore int) {
+
 }
 
-func UpdateScore(tbaId string, redScore int, blueScore int) error {
-    return nil
-}
-
-func GetMatch(tbaId string) (error, Match) {
+func GetMatch(database *sql.DB, tbaId string) (error, Match) {
     return nil, Match{}
 }

@@ -7,10 +7,6 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type DatabaseDriver struct {
-    Connection *sql.DB
-}
-
 func RegisterDatabaseConnection(username string, password string, ip string, dbName string) *sql.DB{
     connStr := createConnectionString(username, password, ip, dbName)
 
