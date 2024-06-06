@@ -5,39 +5,39 @@ import (
 	"log/slog"
 )
 
-type Assert struct {
+type assert struct {
     name string
     context map[string]any
 }
 
-func CreateAssertWithContext(name string) *Assert {
-    return &Assert{
+func CreateAssertWithContext(name string) *assert {
+    return &assert{
         name: name,
     }
 }
 
-func (a *Assert) addContext(key string, value any) {
+func (a *assert) AddContext(key string, value any) {
     a.context[key] = value
 }
 
-func (a *Assert) removeContext(key string) {
+func (a *assert) RemoveContext(key string) {
     delete(a.context, key)
 }
 
-func (a *Assert) runAssert(predicate bool, msg string) {
+func (a *assert) RunAssert(predicate bool, msg string) {
     if !predicate {
         a.printContext(msg)
     }
 }
 
-func (a *Assert) printContext(msg string) {
+func (a *assert) printContext(msg string) {
     for k, v := range a.context {
         slog.Error(a.name, "key", k, "value", v)
     }
     log.Fatal(msg)
 }
 
-func (a *Assert) noError(err error, msg string) {
+func (a *assert) NoError(err error, msg string) {
     if err != nil {
         slog.Error("NoError#error encountered", "error", err)
         a.printContext(msg);

@@ -2,7 +2,7 @@ package database
 
 import (
 	"database/sql"
-	"log"
+	"server/assert"
 
 	_ "github.com/lib/pq"
 )
@@ -14,10 +14,11 @@ type DatabaseDriver struct {
 func RegisterDatabaseConnection(username string, password string, ip string, dbName string) *sql.DB{
     connStr := createConnectionString(username, password, ip, dbName)
 
+    a := assert.CreateAssertWithContext("Register DB")
+
     db, err := sql.Open("postgres", connStr)
-    if err != nil {
-        log.Fatal(err)
-    }
+    a.NoError(err, "Could not open database connection")
+    a.NoError(db.Ping(), "Failed to ping database")
 
     return db
 }
