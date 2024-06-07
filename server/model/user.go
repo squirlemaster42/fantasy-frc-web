@@ -11,5 +11,14 @@ func RegisterUser(user User) error {
     return nil
 }
 
-//Validate login
-//Update password
+func UsernameTaken(username string) bool {
+    return false
+}
+
+func ValidateLogin(username string, password string) bool {
+    return false
+}
+
+func UpdatePassword(username, oldPassword string, newPassword string) bool {
+    return false
+}

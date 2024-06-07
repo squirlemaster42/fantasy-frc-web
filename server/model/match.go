@@ -34,6 +34,15 @@ func UpdateScore(database *sql.DB, tbaId string, redScore int, blueScore int) {
     a.NoError(err, "Failed to update in database")
 }
 
-func GetMatch(database *sql.DB, tbaId string) (error, Match) {
-    return nil, Match{}
+//All validity checks should be done before now, so we can have this many asserts here
+func GetMatch(database *sql.DB, tbaId string) *Match {
+    query := `Select tbaid, played, redscore, bluescore Where tbaid = $1;`
+    stmt, err := database.Prepare(query)
+    a := assert.CreateAssertWithContext("Add Match")
+    a.AddContext("MatchTbaId", tbaId)
+    a.NoError(err, "Failed to prepare query")
+    match := Match{}
+    err = stmt.QueryRow(tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
+    a.NoError(err, "Failed to query from database")
+    return &match
 }

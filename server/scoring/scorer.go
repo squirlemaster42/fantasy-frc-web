@@ -1,6 +1,7 @@
 package scoring
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"server/model"
@@ -25,20 +26,20 @@ func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *model.Mat
 	//Use Db score if possible
 	//If not, query tba and score the match
 	fmt.Printf("Scoring match %s\n", matchId)
-	_, dbMatch := model.GetMatch(s.database, matchId)
-	if (dbMatch != nil && dbMatch.Played) && !override {
+	dbMatch := model.GetMatch(s.database, matchId)
+	if (dbMatch.Played) && !override {
 		return dbMatch
 	}
 
 	//Get match from tba and score it and then save it in the database
 	tbaMatch := s.TbaHandler.makeMatchReq(matchId)
 	dbMatch = s.scoreMatch(tbaMatch)
-	models.SaveMatchToDb(dbMatch, s.DbDriver)
+	model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
 
 	return dbMatch
 }
 
-func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
+func (s *Scorer) scoreMatch(match model.Match) *model.Match {
     redScore := 0
 	blueScore := 0
 

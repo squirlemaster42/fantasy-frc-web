@@ -4,12 +4,22 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-    models "server/web/model"
 )
-
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
+
+type Match struct {
+
+}
+
+type Event struct {
+
+}
+
+type Team struct {
+
+}
 
 type TbaHandler struct {
     tbaToken string
@@ -41,15 +51,14 @@ func (t *TbaHandler) makeRequest(url string) []byte {
         return nil
     }
 
-
     return body
 }
 
 //Make functions to make tba requests
-func (t *TbaHandler) makeMatchListReq(teamId string, eventId string) []models.Match {
+func (t *TbaHandler) makeMatchListReq(teamId string, eventId string) []Match {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
     jsonData := t.makeRequest(url)
-    var matches []models.Match
+    var matches []Match
     json.Unmarshal(jsonData, &matches)
     return matches
 }
@@ -62,9 +71,9 @@ func (t *TbaHandler) makeEventListReq(teamId string) []string {
     return events
 }
 
-func (t *TbaHandler) makeMatchReq(matchId string) models.Match {
+func (t *TbaHandler) makeMatchReq(matchId string) Match {
     url := BASE_URL + "match/" + matchId
-    var match models.Match
+    var match Match
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &match)
     return match
@@ -86,17 +95,17 @@ func (t *TbaHandler) makeMatchKeysYearRequest(teamId string) []string {
     return matches
 }
 
-func (t *TbaHandler) makeTeamEventStatusRequest(teamId string, eventId string) models.Event {
+func (t *TbaHandler) makeTeamEventStatusRequest(teamId string, eventId string) Event {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
-    var event models.Event
+    var event Event
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &event)
     return event
 }
 
-func (t *TbaHandler) makeTeamsAtEventRequest(eventId string) []models.TbaTeam {
+func (t *TbaHandler) makeTeamsAtEventRequest(eventId string) []Team {
     url := BASE_URL + "event/" + eventId + "/teams/simple"
-    var teams []models.TbaTeam
+    var teams []Team
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &teams)
     return teams
