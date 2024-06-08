@@ -14,7 +14,7 @@ type Draft struct {
 
 type Pick struct {
     Id int
-    Player int //User
+    Player int //DraftPlayer
     PickOrder int
     Pick string //Team
     PickTime time.Time
@@ -44,7 +44,7 @@ func CreateDraft(database *sql.DB, owner int, displayName string) {
 
 //TODO should this return the invite id? probably
 func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer int) {
-    query := `INSERT INTO DraftInvites (draftId, invitingPlayer, invitedPlayer, sentTime, accepted) Values ($1, $2, $3, $4, $5)`
+    query := `INSERT INTO DraftInvites (draftId, invitingPlayer, invitedPlayer, sentTime, accepted) Values ($1, $2, $3, $4, $5);`
     assert := assert.CreateAssertWithContext("Invite Player")
     assert.AddContext("Draft", draft)
     assert.AddContext("Inviting Player", invitingPlayer)
@@ -55,22 +55,55 @@ func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer
     assert.NoError(err, "Failed to insert invite player")
 }
 
-func AcceptInvite(draft int, player int) error {
-    return nil
+func AcceptInvite(database *sql.DB, inviteId int) {
+    query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
+    assert := assert.CreateAssertWithContext("Accept Invite")
+    assert.AddContext("Invite Id", inviteId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(true, time.Now(), inviteId)
+    assert.NoError(err, "Failed to accept invite")
 }
 
-func GetInvites(player int) (error, []int) {
-    return nil, []int{}
+func GetInvites(database *sql.DB, player int) []DraftInvite {
+    query := `SELECT id, draftId, invitingPlayer, invitedPlayer, sentTime, acceptedTime, accepted Where invitedPlayer = $1;`
+    assert := assert.CreateAssertWithContext("Get Invites")
+    assert.AddContext("Player", player)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query(player)
+    var invites []DraftInvite
+    for rows.Next() {
+        invite := DraftInvite{}
+        rows.Scan(&invite.id, &invite.draftId, &invite.invitingPlayer, &invite.invitedPlayer, &invite.sentTime, &invite.accepted, &invite.accepted)
+        invites = append(invites, invite)
+    }
+    return invites
 }
 
-func GetPicks(draft int) (error, []Pick) {
-    return nil, []Pick{}
+func GetPicks(database *sql.DB, draft int) []Pick {
+    query := `SELECT
+    Picks.id, Picks,player, Picks,pickOrder, Picks,pick, Picks.pickTime
+    From Picks
+    Inner Join DraftPlayers On DraftPlayers.id = Picks.player
+    Where DraftPlayers.draftId = $1;`
+    assert := assert.CreateAssertWithContext("Get Picks")
+    assert.AddContext("Draft", draft)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query(draft)
+    var picks []Pick
+    for rows.Next() {
+        pick := Pick{}
+        rows.Scan(&pick.Id, &pick.Player, &pick.PickOrder, &pick.Pick, &pick.PickTime)
+        picks = append(picks, pick)
+    }
+    return picks
 }
 
-func GetNextPick(draft int) (error, Pick) {
-    return nil, Pick{}
+func GetNextPick(draft int) Pick {
+    return Pick{}
 }
 
-func MakePick(pick Pick) error {
-    return nil
+func MakePick(pick Pick) {
 }
