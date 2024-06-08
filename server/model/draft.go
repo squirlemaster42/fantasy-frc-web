@@ -101,9 +101,21 @@ func GetPicks(database *sql.DB, draft int) []Pick {
     return picks
 }
 
-func GetNextPick(draft int) Pick {
+//TODO Figure out how we want this to work. should we have a next pick field on the draft or something?
+func GetNextPick(database *sql.DB, draft int) Pick {
     return Pick{}
 }
 
-func MakePick(pick Pick) {
+//Is using the struct here better?
+func MakePick(database *sql.DB, pick Pick) {
+    query := `INSERT INTO Picks (player, pickOrder, pick, pickTime) Values ($1, $2, $3, $4);`
+    assert := assert.CreateAssertWithContext("Make Pick")
+    assert.AddContext("Player", pick.Player)
+    assert.AddContext("Pick Order", pick.PickOrder)
+    assert.AddContext("Team", pick.Pick)
+    assert.AddContext("Pick Time", pick.PickTime)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(pick.Player, pick.PickOrder, pick.Pick, pick.PickTime)
+    assert.NoError(err, "Failed to insert pick")
 }

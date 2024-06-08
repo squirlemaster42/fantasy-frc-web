@@ -1,16 +1,21 @@
 package model
 
+import "database/sql"
+
 type Team struct {
     TbaId string
     Name string
     RankingScore int
 }
 
-func GetTeam(tbaId string) (error, Team) {
-    return nil, Team{}
+func GetTeam(database *sql.DB, tbaId string) Team {
+    return Team{}
 }
 
-func UpsertTeam(team Team) error {
-    return nil
+func CreateTeam(database *sql.DB, team Team) {
+
 }
 
+func UpdateTeamRankingScore(datbase *sql.DB, tbaId string, rankingScore int) {
+
+}
