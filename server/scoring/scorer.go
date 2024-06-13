@@ -3,6 +3,8 @@ package scoring
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
+	"server/assert"
 	"server/model"
 	"time"
 )
@@ -191,9 +193,41 @@ func sortMatchesByPlayOrder(matches []string) []string {
     return []string{}
 }
 
+func matchPrecidence() map[string]int {
+    return map[string]int{
+        "qm": 0,
+        "qf": 1,
+        "sf": 2,
+        "f": 3,
+    }
+}
+
 //Return true if matchA comes before matchB
 func compareMatchOrder(matchA string, matchB string) bool {
-    return false
+    assert := assert.CreateAssertWithContext("Compare Match Order")
+    assert.AddContext("Match A", matchA)
+    assert.AddContext("Match B", matchB)
+    matchALevel := getMatchLevel(matchA)
+    matchBLevel := getMatchLevel(matchB)
+    assert.AddContext("Match A Level", matchALevel)
+    assert.AddContext("Match B Level", matchBLevel)
+    aPrecidence, ok := matchPrecidence()[matchALevel]
+    assert.RunAssert(ok, "Match Precidence Was Not Found")
+    bPrecidence, ok := matchPrecidence()[matchBLevel]
+    assert.RunAssert(ok, "Match Precidence Was Not Found")
+
+
+    return aPrecidence < bPrecidence
+}
+
+func getMatchLevel(matchKey string) string {
+    assert := assert.CreateAssertWithContext("Get Match Level")
+    assert.AddContext("Match Key", matchKey)
+    pattern := regexp.MustCompile("_[a-z]+")
+    match := pattern.FindString(matchKey)[1:]
+    assert.AddContext("Match", match)
+    assert.RunAssert(len(match) == 2 || len(match) == 1, "Match did not return string of expected length")
+    return match
 }
 
 func (s *Scorer) RunScorer() {
