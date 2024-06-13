@@ -10,7 +10,7 @@ import "context"
 import "io"
 import "bytes"
 
-import "server/web/view"
+import "server/view"
 
 func RegisterIndex(fromProtected bool, errorMessage string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
@@ -32,7 +32,7 @@ func RegisterIndex(fromProtected bool, errorMessage string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMessage)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/login/register.templ`, Line: 10, Col: 70}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/login/register.templ`, Line: 10, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

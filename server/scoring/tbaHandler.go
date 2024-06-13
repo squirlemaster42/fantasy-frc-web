@@ -255,6 +255,14 @@ func (t *TbaHandler) makeMatchKeysRequest(teamId string, eventId string) []strin
     return keys
 }
 
+func (t *TbaHandler) makeEventMatchKeysRequest(eventId string) []string {
+    url := BASE_URL + "event/" + eventId + "/matches/keys"
+    var keys []string
+    jsonData := t.makeRequest(url)
+    json.Unmarshal(jsonData, &keys)
+    return keys
+}
+
 func (t *TbaHandler) makeMatchKeysYearRequest(teamId string) []string {
     url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
     var matches []string

@@ -3,70 +3,119 @@ package scoring
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"server/model"
-	"strings"
 	"time"
 )
 
+var RESCORE_INTERATION_COUNT = 72
+
 type Scorer struct {
-	TbaHandler *TbaHandler
+	tbaHandler *TbaHandler
     database *sql.DB
+    scoringIteration int
 }
 
-func NewScorer(tbaHandler *TbaHandler) *Scorer {
-	scorer := Scorer{
-		TbaHandler: tbaHandler,
+func NewScorer(tbaHandler *TbaHandler, database *sql.DB) *Scorer {
+	return &Scorer{
+		tbaHandler: tbaHandler,
+        database: database,
+        scoringIteration:  0,
 	}
-	return &scorer
 }
 
-func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *model.Match {
-	//Check if the match exists in the database and is scored
-	//Use Db score if possible
-	//If not, query tba and score the match
-	fmt.Printf("Scoring match %s\n", matchId)
-	dbMatch := model.GetMatch(s.database, matchId)
-	if (dbMatch.Played) && !override {
-		return dbMatch
-	}
-
-	//Get match from tba and score it and then save it in the database
-	tbaMatch := s.TbaHandler.makeMatchReq(matchId)
-	dbMatch = s.scoreMatch(tbaMatch)
-	model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-
-	return dbMatch
+func (s *Scorer) shouldScoreMatch(matchId string) bool {
+    return s.scoringIteration % RESCORE_INTERATION_COUNT == 0 || !model.GetMatch(s.database, matchId).Played
 }
 
-func (s *Scorer) scoreMatch(match model.Match) *model.Match {
+func playoffMatchCompLevels() map[string]bool {
+    return map[string]bool{
+        "f": true,
+        "sf": true,
+        "qf": true,
+    }
+}
+
+func (s *Scorer) scoreMatch(matchId string) model.Match {
+    match := s.tbaHandler.makeMatchReq(matchId)
+
+    scoredMatch := model.Match{
+        TbaId: match.Key,
+        Played: match.PostResultTime > 0,
+        RedScore: 0,
+        BlueScore: 0,
+    }
+
+    if !scoredMatch.Played {
+        return scoredMatch
+    }
+
+    if match.CompLevel == "qm" {
+        scoredMatch.RedScore, scoredMatch.BlueScore = getQualMatchScore(match)
+    } else if playoffMatchCompLevels()[match.CompLevel] {
+        scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(match)
+    }
+
+    return scoredMatch
+}
+
+func getQualMatchScore(match Match) (int, int) {
     redScore := 0
-	blueScore := 0
+    blueScore := 0
 
-	if match.CompLevel == "qm" {
-		if match.WinningAlliance == "red" {
-			redScore += 4
-		} else if match.WinningAlliance == "blue" {
-			blueScore += 4
-		}
+    if match.WinningAlliance == "red" {
+        redScore += 4
+    } else if match.WinningAlliance == "blue" {
+        blueScore += 4
+    }
 
-		if match.ScoreBreakdown.Red.MelodyBonusAchieved {
-			redScore += 2
-		}
+    if match.ScoreBreakdown.Red.MelodyBonusAchieved {
+        redScore += 2
+    }
 
-		if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
-			redScore += 2
-		}
+    if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
+        redScore += 2
+    }
 
-		if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
-			blueScore += 2
-		}
+    if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
+        blueScore += 2
+    }
 
-		if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
-			blueScore += 2
-		}
-	} else if match.CompLevel == "f" {
-        fmt.Println("Scoring Finals")
+    if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
+        blueScore += 2
+    }
+
+    return redScore, blueScore
+}
+
+func getUpperBracketMatchIds() map[int]bool {
+    return map[int]bool{
+        1: true,
+        2: true,
+        3: true,
+        4: true,
+        7: true,
+        8: true,
+        12: true,
+    }
+}
+
+func getLowerBracketMatchIds() map[int]bool {
+    return map[int]bool{
+        5: true,
+        6: true,
+        9: true,
+        10: true,
+        12: true,
+        13: true,
+    }
+}
+
+//RedScore, BlueScore
+func getPlayoffMatchScore(match Match) (int, int) {
+    redScore := 0
+    blueScore := 0
+
+	if match.CompLevel == "f" {
 		if match.EventKey == "cmptx" {
 			if match.WinningAlliance == "red" {
 				redScore += 36
@@ -81,10 +130,8 @@ func (s *Scorer) scoreMatch(match model.Match) *model.Match {
 			}
 		}
 	} else if match.CompLevel == "sf" {
-        fmt.Println("Scoring Semi Finals")
-		if match.MatchNumber == 5 || match.MatchNumber == 6 || match.MatchNumber == 9 || match.MatchNumber == 10 || match.MatchNumber == 12 || match.MatchNumber == 13 {
+		if getLowerBracketMatchIds()[match.MatchNumber] {
 			//Lower Bracket
-            fmt.Println("Scoring Lower Bracket")
 			if match.EventKey == "cmptx" {
 				if match.WinningAlliance == "red" {
 					redScore += 18
@@ -98,10 +145,9 @@ func (s *Scorer) scoreMatch(match model.Match) *model.Match {
 					blueScore += 9
 				}
 			}
-		} else {
-			//Upper Breacker
-            fmt.Println("Scoring Upper Bracket")
-			if match.EventKey == "cmptx" {
+		} else if getUpperBracketMatchIds()[match.MatchNumber] {
+			//Upper Bracket
+			if match.EventKey == "cmptx" { //TODO is there a better way to check the champ event?
 				if match.WinningAlliance == "red" {
 					redScore += 30
 				} else if match.WinningAlliance == "blue" {
@@ -117,141 +163,37 @@ func (s *Scorer) scoreMatch(match model.Match) *model.Match {
 		}
 	}
 
-	dqedTeams := match.Alliances.Red.DqTeamKeys
-	dqedTeams = append(dqedTeams, match.Alliances.Blue.DqTeamKeys...)
-	dqedTeams = append(dqedTeams, match.Alliances.Red.SurrogateTeamKeys...)
-	dqedTeams = append(dqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
-
-    dbMatch := &models.DbMatch{
-		TbaId:             match.Key,
-		RedAllianceScore:  redScore,
-		BlueAllianceScore: blueScore,
-		CompLevel:         match.CompLevel,
-		WinningAlliance:   match.WinningAlliance,
-		Played:            match.ActualTime != 0,
-		RedAllianceTeams:  match.Alliances.Red.TeamKeys,
-		BlueAllianceTeams: match.Alliances.Blue.TeamKeys,
-		Dqed:              dqedTeams,
-	}
-
-    return dbMatch
+    return redScore, blueScore
 }
 
-func (s *Scorer) getChampEventForTeam(teamId string) string {
-	//Get list of teams events from tba
-	//Check which event is in the list of champ events
-	//We are going to ignore Einstein here since we just use this to determin the ranking score
-	//which does not apply to Einstein
-	events := s.TbaHandler.makeEventListReq(strings.TrimSpace(teamId))
-	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
-	//the number of champs field, both will be small so this is probably faster than a hashset
-	for _, event := range events {
-		for _, champEvent := range s.getChampEvents() {
-			if event == champEvent {
-				return event
-			}
-		}
-	}
-	return ""
+func einstein() string {
+    return "2024cmptx"
 }
 
-func (s *Scorer) getChampEvents() []string {
-	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
-}
-
-//This was capital but that seemed wrong
-//TODO Can we write this without requiring the database
-//I think we could just pass in a list of matches and
-//the required event information
-//something like scoreTeam(matches []Match, event Event)
-func (s *Scorer) scoreTeam(teamId string) int {
-	//Query all matches for team
-	//Get all of the scores
-	//Add ranking score
-	driver := s.DbDriver
-	var score int;
-	err := driver.Connection.QueryRow("Select rankingScore From Teams Where tbaId = '" + strings.TrimSpace(teamId) + "';").Scan(&score)
-    if err != nil {
-        log.Print(err)
-    }
-
-	fmt.Printf("-------- Scoring %s --------\n", teamId)
-	fmt.Println("Getting previous match scores")
-	rows := driver.RunQuery(fmt.Sprintf(`Select redAllianceScore, blueAllianceScore, Played, alliance, isDqed From Matches m
-    Left Join Matches_Teams mt On m.tbaId = mt.match_tbaId WHERE mt.team_tbaId = '%s'`, teamId))
-	defer rows.Close()
-
-	if rows == nil {
-		return score
-	}
-
-	fmt.Printf("Raning score: %d\n", score)
-
-	for rows.Next() {
-		var redScore int
-		var blueScore int
-		var played bool
-		var alliance string
-		var dqed bool
-		err := rows.Scan(&redScore, &blueScore, &played, &alliance, &dqed)
-		if err != nil {
-			return score
-		}
-
-		if !played || dqed {
-			continue
-		}
-
-		if alliance == "red" {
-			score += redScore
-		} else if alliance == "blue" {
-			score += blueScore
-		}
-	}
-
-	return score
-}
-
-func (s *Scorer) updateTeamValidity() {
-    currentTeams := models.GetTeamValidity(s.DbDriver)
-
-    for teamName := range currentTeams {
-        currentTeams[teamName] = false
-    }
-
-    for _, eventName := range s.getChampEvents() {
-        for _, teamName := range s.TbaHandler.makeTeamsAtEventRequest(eventName) {
-            currentTeams[teamName.Name] = true
-        }
-    }
-
-    for team, valid := range currentTeams {
-        models.UpdateTeamValidity(team, valid, s.DbDriver)
+func events() []string {
+    //TODO can we do this programatically?
+    return []string{
+        "2024new",
+        "2024mil",
+        "2024joh",
+        "2024hop",
+        "2024gal",
+        "2024dal",
+        "2024cur",
+        "2024arc",
     }
 }
 
-func (s *Scorer) getAllPickedTeams() []string {
-	var teams []string
+func sortMatchesByPlayOrder(matches []string) []string {
+    //Matches are almost sorted
+    //We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
 
-	driver := s.DbDriver
-	fmt.Println("Getting all picked teams")
-	rows := driver.RunQuery("Select pickedTeam from Picks")
-	defer rows.Close()
+    return []string{}
+}
 
-	if rows == nil {
-		return teams
-	}
-
-	for rows.Next() {
-		var pick string
-		err := rows.Scan(&pick)
-		if err != nil {
-			return teams
-		}
-		teams = append(teams, pick)
-	}
-
-	return teams
+//Return true if matchA comes before matchB
+func compareMatchOrder(matchA string, matchB string) bool {
+    return false
 }
 
 func (s *Scorer) RunScorer() {
@@ -265,46 +207,20 @@ func (s *Scorer) RunScorer() {
     //In this iteration we also update the valid teams
 
 	go func(s *Scorer) {
-		iteration := 0
 		for {
 			fmt.Println("Starting new scoring iteration")
-			rescore := iteration % 72 == 0
 
-            if rescore {
-                s.updateTeamValidity()
+            //Get a list of matches to score and
+            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end)
+            matches := make(map[string][]string)
+            for _, event := range events() {
+                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.makeEventMatchKeysRequest(event))
             }
 
-			events := s.getChampEvents()
 
-			eventToTeam := make(map[string]string)
-			for _, event := range events {
-				fmt.Printf("Scoring event: %s\n", event)
-				teams := s.TbaHandler.makeTeamsAtEventRequest(event)
-				for _, team := range teams {
-					fmt.Printf("Scoring team: %s\n", team.Key)
-                    teamModel := &models.Team{
-                        TbaId: team.Key,
-                        Name: team.Nickname,
-                        RankingScore: 0,
-                        ValidPick: true,
-                    }
-					models.UpsertTeam(teamModel, s.DbDriver)
-					eventToTeam[team.Key] = event
-				}
-			}
+            //Score matches until we hit one that has not been played
 
-			matchesToScore := make(map[string]bool)
-			for _, team := range s.getAllPickedTeams() {
-				for _, match := range s.TbaHandler.makeMatchKeysRequest(strings.TrimSpace(team), eventToTeam[strings.TrimSpace(team)]) {
-					matchesToScore[match] = true
-				}
-			}
-
-			for match := range matchesToScore {
-				s.scoreMatchIfNecessary(strings.TrimSpace(match), rescore)
-			}
-
-			iteration++
+			s.scoringIteration++
 			fmt.Println("Finished scoring iteration")
 			time.Sleep(5 * time.Minute)
 		}

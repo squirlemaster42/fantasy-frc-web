@@ -10,7 +10,7 @@ import "context"
 import "io"
 import "bytes"
 
-import "server/web/view/partials"
+import "server/view/partials"
 
 func Index(page string, fromProtected bool, username string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
@@ -32,7 +32,7 @@ func Index(page string, fromProtected bool, username string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(page)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/view/index.templ`, Line: 16, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/index.templ`, Line: 16, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

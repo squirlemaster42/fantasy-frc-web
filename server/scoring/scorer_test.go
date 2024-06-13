@@ -14,116 +14,13 @@ func getTbaTok() string {
     return os.Getenv("TBA_TOKEN")
 }
 
-func TestScoreSingleMatchWithNoRankingPoints(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatch := tbaHandler.makeMatchReq("2024cur_qm10")
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 0)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-}
-
-func TestScoreSingleMatchWithOneRankingPoint(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatchId := "2024cur_qm10"
-    testMatch := tbaHandler.makeMatchReq(testMatchId)
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.Equal(t, testMatchId, scoredMatch.TbaId)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 0)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-
-}
-
-func TestScoreSingleMatchWithOtherRankingPoint(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatchId := "2024cur_qm10"
-    testMatch := tbaHandler.makeMatchReq(testMatchId)
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 0)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-
-}
-
-func TestScoreSingleMatchWithBothRankingPoints(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatchId := "2024cur_qm10"
-    testMatch := tbaHandler.makeMatchReq(testMatchId)
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 0)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-
-}
-
-func TestScoringMatchWithSurrogate(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatchId := "2024cur_qm10"
-    testMatch := tbaHandler.makeMatchReq(testMatchId)
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 1)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-
-}
-
-func TestScoringMatchWithDq(t *testing.T) {
-    //TODO Load tba token
-    tbaHandler := NewHandler(getTbaTok())
-    //TODO Check that this is a good match
-    testMatchId := "2024cur_qm10"
-    testMatch := tbaHandler.makeMatchReq(testMatchId)
-    //We should write these tests so they dont need the database
-    scorer := NewScorer(tbaHandler, nil)
-    scoredMatch := scorer.scoreMatch(testMatch)
-    assert.True(t, scoredMatch.Played)
-    assert.Len(t, scoredMatch.Dqed, 1)
-    assert.Equal(t, 8, scoredMatch.RedAllianceScore)
-    assert.Equal(t, 8, scoredMatch.BlueAllianceScore)
-}
-
-func TestScoreSingleTeam(t *testing.T) {
-
-}
-
-func TestScoringTeamWithSurrogateMatch(t *testing.T) {
-
-}
-
-func TestScoringTeamWithDqMatch(t *testing.T) {
-
-}
-
-func TestCompleteTeamAllianceSelectionScore(t *testing.T) {
-
-}
-
-func ScoreSinglePlayer(t *testing.T) {
-
+func TestCompareMatches(t *testing.T) {
+    assert.True(t, compareMatchOrder("2024cur_f1m1", "2024cur_f1m2"))
+    assert.False(t, compareMatchOrder("2024cur_f1m1", "2024cur_qm1"))
+    assert.True(t, compareMatchOrder("2024cur_qm10", "2024cur_qm112"))
+    assert.False(t, compareMatchOrder("2024cur_qm116", "2024cur_qm11"))
+    assert.True(t, compareMatchOrder("2024cur_sf2m1", "2024cur_sf9m1"))
+    assert.False(t, compareMatchOrder("2024cur_f1m2", "2024cur_sf12m1"))
+    assert.True(t, compareMatchOrder("2024cur_qm90", "2024cur_sf12m1"))
+    assert.False(t, compareMatchOrder("2024cur_sf12m1", "2024cur_qm72"))
 }

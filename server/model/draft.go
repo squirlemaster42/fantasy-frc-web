@@ -22,12 +22,12 @@ type Pick struct {
 
 type DraftInvite struct {
     Id int
-    draftId int //Draft
-    invitedPlayer int //User
-    invitingPlayer int //User
-    sentTime time.Time
-    acceptedTime time.Time
-    accepted bool
+    DraftId int //Draft
+    InvitedPlayer int //User
+    InvitingPlayer int //User
+    SentTime time.Time
+    AcceptedTime time.Time
+    Accepted bool
 }
 
 //TODO should this return the draft id? probably
@@ -75,7 +75,7 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
     var invites []DraftInvite
     for rows.Next() {
         invite := DraftInvite{}
-        rows.Scan(&invite.id, &invite.draftId, &invite.invitingPlayer, &invite.invitedPlayer, &invite.sentTime, &invite.accepted, &invite.accepted)
+        rows.Scan(&invite.Id, &invite.DraftId, &invite.InvitingPlayer, &invite.InvitedPlayer, &invite.SentTime, &invite.Accepted, &invite.Accepted)
         invites = append(invites, invite)
     }
     return invites
