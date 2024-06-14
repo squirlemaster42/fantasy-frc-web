@@ -188,11 +188,47 @@ func events() []string {
     }
 }
 
+//Matches are almost sorted
+//We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
 func sortMatchesByPlayOrder(matches []string) []string {
-    //Matches are almost sorted
-    //We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
+    if len(matches) <= 1 {
+        return matches
+    }
 
-    return []string{}
+    mid := len(matches) / 2
+    left := matches[:mid]
+    right := matches[mid:]
+
+    sortedLeft := sortMatchesByPlayOrder(left)
+    sortedRight := sortMatchesByPlayOrder(right)
+
+    return merge(sortedLeft, sortedRight)
+}
+
+func merge(left []string, right []string) []string {
+    var result []string
+    i := 0
+    j := 0
+
+    for i < len(left) && j < len(right) {
+        if compareMatchOrder(left[i], right[j]) {
+            result = append(result, left[i])
+            i++
+        } else {
+            result = append(result, right[j])
+            j++
+        }
+    }
+
+    for _, elem := range left[i:] {
+        result = append(result, elem)
+    }
+
+    for _, elem := range right[j:] {
+        result = append(result, elem)
+    }
+
+    return result
 }
 
 func matchPrecidence() map[string]int {
