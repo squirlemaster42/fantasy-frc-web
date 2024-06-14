@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"server/assert"
 	"server/model"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -216,8 +218,81 @@ func compareMatchOrder(matchA string, matchB string) bool {
     bPrecidence, ok := matchPrecidence()[matchBLevel]
     assert.RunAssert(ok, "Match Precidence Was Not Found")
 
+    if aPrecidence != bPrecidence {
+        return aPrecidence < bPrecidence
+    }
 
-    return aPrecidence < bPrecidence
+    assert.RunAssert(matchALevel == matchBLevel, "Match levels are not the same")
+
+    if matchALevel == "qm" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[1][2:])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[1][2:])
+        assert.NoError(err, "Match B num Atoi failed")
+        return matchANum < matchBNum
+    }
+
+    if matchALevel == "f" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        splitMatchA = strings.Split(splitMatchA[1][1:], "m")
+        splitMatchB = strings.Split(splitMatchB[1][1:], "m")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[0])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[0])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        if matchANum != matchBNum {
+            return matchANum < matchBNum
+        }
+
+        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
+
+        matchANum, err = strconv.Atoi(splitMatchA[1])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err = strconv.Atoi(splitMatchB[1])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        return matchANum < matchBNum
+    }
+
+    if matchALevel == "sf" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        splitMatchA = strings.Split(splitMatchA[1][2:], "m")
+        splitMatchB = strings.Split(splitMatchB[1][2:], "m")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[0])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[0])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        if matchANum != matchBNum {
+            return matchANum < matchBNum
+        }
+
+        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
+
+        matchANum, err = strconv.Atoi(splitMatchA[1])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err = strconv.Atoi(splitMatchB[1])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        return matchANum < matchBNum
+    }
+
+    panic("Unhandled match type")
 }
 
 func getMatchLevel(matchKey string) string {

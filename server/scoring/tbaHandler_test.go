@@ -1,17 +1,17 @@
 package scoring
 
 import (
-	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMatchListReq(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     matches := handler.makeMatchListReq("frc1690", "2024isde1")
+    assert.True(t, len(matches) > 0, "No matches were found")
     firstMatch := matches[0]
     if (firstMatch.EventKey != "2024isde1") {
         t.Fatalf("Match Key Incorrect")
@@ -23,8 +23,8 @@ func TestMatchListReq(t *testing.T) {
 }
 
 func TestEventListReq(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     events := handler.makeEventListReq("frc1690")
     if (len(events) == 0) {
@@ -33,8 +33,8 @@ func TestEventListReq(t *testing.T) {
 }
 
 func TestMatchReq(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     match := handler.makeMatchReq("2024isde1_qm36")
     if (match.ScoreBreakdown.Blue.TeleopPoints == 0) {
@@ -43,8 +43,8 @@ func TestMatchReq(t *testing.T) {
 }
 
 func TestMatchKeysRequest(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     keys := handler.makeMatchKeysRequest("frc1690", "2024isde1")
     if (len(keys) == 0) {
@@ -53,8 +53,8 @@ func TestMatchKeysRequest(t *testing.T) {
 }
 
 func TestMatchKeysYearRequest(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     keys := handler.makeMatchKeysYearRequest("frc1690")
     if (len(keys) == 0) {
@@ -63,8 +63,8 @@ func TestMatchKeysYearRequest(t *testing.T) {
 }
 
 func TestTeamEventStatusRequest(t *testing.T) {
-    godotenv.Load()
-    tbaTok := os.Getenv("TBA_TOKEN")
+    tbaTok := getTbaTok()
+    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok)
     event := handler.makeTeamEventStatusRequest("frc1690", "2024isde1")
     if (event.LastMatchKey == "") {

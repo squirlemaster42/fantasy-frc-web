@@ -35,5 +35,4 @@ func TestGetMatchLevel(t *testing.T) {
     assert.Equal(t, "sf", getMatchLevel("2024cur_sf12m1"))
     assert.Equal(t, "sf", getMatchLevel("2024cur_sf12m1"))
     assert.Equal(t, "qm", getMatchLevel("2025cur_qm72"))
-
 }
