@@ -39,6 +39,7 @@ func playoffMatchCompLevels() map[string]bool {
     }
 }
 
+//Match, dqed teams
 func (s *Scorer) scoreMatch(matchId string) model.Match {
     match := s.tbaHandler.makeMatchReq(matchId)
 
@@ -58,7 +59,9 @@ func (s *Scorer) scoreMatch(matchId string) model.Match {
     } else if playoffMatchCompLevels()[match.CompLevel] {
         scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(match)
     }
-
+    scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
+    scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
+    scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
     return scoredMatch
 }
 
@@ -369,6 +372,15 @@ func getMatchLevel(matchKey string) string {
     return match
 }
 
+func isDqed(team string, dqedTeams []string) bool {
+    for _, dqed := range dqedTeams {
+        if team == dqed {
+            return true
+        }
+    }
+    return false
+}
+
 func (s *Scorer) RunScorer() {
 	//This function will run on its own routine
 	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
@@ -414,6 +426,14 @@ func (s *Scorer) RunScorer() {
                     event := strings.Split(match, "_")[1]
                     currentMatch[event] = currentMatch[event] + 1
                     scoringQueue = append(scoringQueue, matches[event][0])
+                }
+
+                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+                for _, team := range dbMatch.BlueAlliance {
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+                }
+                for _, team := range dbMatch.RedAlliance {
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
                 }
 
                 if len(scoringQueue) == 0 {

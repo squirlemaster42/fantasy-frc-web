@@ -10,6 +10,9 @@ type Match struct {
     Played bool
     RedScore int
     BlueScore int
+    RedAlliance []string
+    BlueAlliance []string
+    DqedTeams []string
 }
 
 func AddMatch(database *sql.DB, tbaId string) {
