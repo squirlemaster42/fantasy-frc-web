@@ -203,11 +203,11 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Check which event is in the list of champ events
 	//We are going to ignore Einstein here since we just use this to determin the ranking score
 	//which does not apply to Einstein
-	events := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
+	eventsList := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
-	for _, event := range events {
-		for _, champEvent := range s.getChampEvents() {
+	for _, event := range eventsList {
+		for _, champEvent := range events() {
 			if event == champEvent {
 				return event
 			}
@@ -216,9 +216,6 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
     panic(fmt.Sprintf("Champ event not found for team %s", teamId))
 }
 
-func (s *Scorer) getChampEvents() []string {
-	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
-}
 //Matches are almost sorted
 //We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
 func sortMatchesByPlayOrder(matches []string) []string {
@@ -410,8 +407,6 @@ func (s *Scorer) RunScorer() {
                 scoringQueue = append(scoringQueue, matches[event][0])
             }
 
-            //TODO Write matches to database
-            //TODO Handle dqs
             for {
                 match := scoringQueue[0]
                 scoringQueue = scoringQueue[1:]
