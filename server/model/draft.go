@@ -92,6 +92,7 @@ func GetPicks(database *sql.DB, draft int) []Pick {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     rows, err := stmt.Query(draft)
+    assert.NoError(err, "Failed to query for picks")
     var picks []Pick
     for rows.Next() {
         pick := Pick{}
@@ -118,4 +119,21 @@ func MakePick(database *sql.DB, pick Pick) {
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(pick.Player, pick.PickOrder, pick.Pick, pick.PickTime)
     assert.NoError(err, "Failed to insert pick")
+}
+
+func GetAllPicks(database *sql.DB) []string {
+    query := `Select pick From Picks;`
+    assert := assert.CreateAssertWithContext("Get All Picks")
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query()
+    assert.NoError(err, "Failed to query picks")
+    var picks []string
+    for rows.Next() {
+        var pick string
+        rows.Scan(&pick)
+        picks = append(picks, pick)
+    }
+
+    return picks
 }

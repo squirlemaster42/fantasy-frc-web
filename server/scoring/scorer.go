@@ -170,6 +170,13 @@ func getPlayoffMatchScore(match Match) (int, int) {
     return redScore, blueScore
 }
 
+func (s *Scorer) getTeamRankingScore(team string) int {
+    event := s.getChampEventForTeam(team)
+    status := s.tbaHandler.makeTeamEventStatusRequest(team, event)
+    score := max(status.Qual.Ranking.Rank, 0)
+    return score
+}
+
 func einstein() string {
     return "2024cmptx"
 }
@@ -188,6 +195,27 @@ func events() []string {
     }
 }
 
+func (s *Scorer) getChampEventForTeam(teamId string) string {
+	//Get list of teams events from tba
+	//Check which event is in the list of champ events
+	//We are going to ignore Einstein here since we just use this to determin the ranking score
+	//which does not apply to Einstein
+	events := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
+	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
+	//the number of champs field, both will be small so this is probably faster than a hashset
+	for _, event := range events {
+		for _, champEvent := range s.getChampEvents() {
+			if event == champEvent {
+				return event
+			}
+		}
+	}
+    panic(fmt.Sprintf("Champ event not found for team %s", teamId))
+}
+
+func (s *Scorer) getChampEvents() []string {
+	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
+}
 //Matches are almost sorted
 //We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
 func sortMatchesByPlayOrder(matches []string) []string {
@@ -356,14 +384,51 @@ func (s *Scorer) RunScorer() {
 			fmt.Println("Starting new scoring iteration")
 
             //Get a list of matches to score and
-            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end)
+            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
             matches := make(map[string][]string)
             for _, event := range events() {
                 matches[event] = sortMatchesByPlayOrder(s.tbaHandler.makeEventMatchKeysRequest(event))
             }
 
-
             //Score matches until we hit one that has not been played
+            var scoringQueue []string
+            currentMatch := make(map[string]int)
+            for event := range matches {
+                currentMatch[event] = 1
+                scoringQueue = append(scoringQueue, matches[event][0])
+            }
+
+            //TODO Write matches to database
+            //TODO Handle dqs
+            for {
+                match := scoringQueue[0]
+                scoringQueue = scoringQueue[1:]
+
+                dbMatch := *model.GetMatch(s.database, match)
+
+                if !dbMatch.Played {
+                    dbMatch = s.scoreMatch(match)
+                }
+
+                if dbMatch.Played {
+                    event := strings.Split(match, "_")[1]
+                    currentMatch[event] = currentMatch[event] + 1
+                    scoringQueue = append(scoringQueue, matches[event][0])
+                }
+
+                if len(scoringQueue) == 0 {
+                    break
+                }
+            }
+
+            //Update ranking scores
+            //Get all picked teams
+            picks := model.GetAllPicks(s.database)
+
+            //Update the ranking scores for all picked teams
+            for _, pick := range picks {
+                model.UpdateTeamRankingScore(s.database, pick, s.getTeamRankingScore(pick))
+            }
 
 			s.scoringIteration++
 			fmt.Println("Finished scoring iteration")
