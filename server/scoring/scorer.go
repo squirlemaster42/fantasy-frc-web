@@ -39,10 +39,9 @@ func playoffMatchCompLevels() map[string]bool {
     }
 }
 
+//TODO This should take in a match and not a match id
 //Match, dqed teams
-func (s *Scorer) scoreMatch(matchId string) model.Match {
-    match := s.tbaHandler.makeMatchReq(matchId)
-
+func (s *Scorer) scoreMatch(match Match) model.Match {
     scoredMatch := model.Match{
         TbaId: match.Key,
         Played: match.PostResultTime > 0,
@@ -102,7 +101,7 @@ func getUpperBracketMatchIds() map[int]bool {
         4: true,
         7: true,
         8: true,
-        12: true,
+        11: true,
     }
 }
 
@@ -123,7 +122,7 @@ func getPlayoffMatchScore(match Match) (int, int) {
     blueScore := 0
 
 	if match.CompLevel == "f" {
-		if match.EventKey == "cmptx" {
+		if match.EventKey == einstein() {
 			if match.WinningAlliance == "red" {
 				redScore += 36
 			} else if match.WinningAlliance == "blue" {
@@ -137,9 +136,9 @@ func getPlayoffMatchScore(match Match) (int, int) {
 			}
 		}
 	} else if match.CompLevel == "sf" {
-		if getLowerBracketMatchIds()[match.MatchNumber] {
+		if getLowerBracketMatchIds()[match.SetNumber] {
 			//Lower Bracket
-			if match.EventKey == "cmptx" {
+			if match.EventKey == einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 18
 				} else if match.WinningAlliance == "blue" {
@@ -152,9 +151,9 @@ func getPlayoffMatchScore(match Match) (int, int) {
 					blueScore += 9
 				}
 			}
-		} else if getUpperBracketMatchIds()[match.MatchNumber] {
+		} else if getUpperBracketMatchIds()[match.SetNumber] {
 			//Upper Bracket
-			if match.EventKey == "cmptx" { //TODO is there a better way to check the champ event?
+			if match.EventKey == einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 30
 				} else if match.WinningAlliance == "blue" {
@@ -414,6 +413,7 @@ func (s *Scorer) RunScorer() {
                 dbMatch := *model.GetMatch(s.database, match)
 
                 if !dbMatch.Played {
+                    match := s.tbaHandler.makeMatchReq(dbMatch.TbaId)
                     dbMatch = s.scoreMatch(match)
                 }
 
