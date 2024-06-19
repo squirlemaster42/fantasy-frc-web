@@ -1,5 +1,6 @@
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
+use std::{thread, time};
 
 fn main() {
     println!("-------- Starting Load Balancer --------");
@@ -17,14 +18,9 @@ fn main() {
     balancer.add_message("test 6");
     balancer.add_message("test 7");
     balancer.add_message("test 8");
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
-    balancer.balance();
+    balancer.start();
+    thread::sleep(time::Duration::from_millis(5000));
+    balancer.stop();
 }
 
 trait BalanceTarget {
@@ -47,6 +43,8 @@ pub struct LoadBalancer<'bal> {
     last_target: usize,
     sender: Sender<&'bal str>,
     receiver: Receiver<&'bal str>,
+    thread: Option<std::thread::JoinHandle<()>>,
+    running: bool,
 }
 
 impl<'bal> LoadBalancer<'bal> {
@@ -57,7 +55,25 @@ impl<'bal> LoadBalancer<'bal> {
             last_target: 0,
             sender: tx,
             receiver: rx,
+            thread: None,
+            running: false,
         };
+    }
+
+    fn start(&mut self) {
+        if !self.running {
+            self.thread = Some(thread::spawn(move || {
+                while self.running {
+                    self.balance();
+                }
+            }));
+        }
+        self.running = true;
+    }
+
+    fn stop(&mut self) {
+        self.thread.take().unwrap().join().unwrap();
+        self.running = false;
     }
 
     fn add_balance_target(&mut self, target: &'bal (dyn BalanceTarget + 'bal)) {
