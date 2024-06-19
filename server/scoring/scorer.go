@@ -411,7 +411,7 @@ func (s *Scorer) RunScorer() {
 
                 dbMatch := *model.GetMatch(s.database, match)
 
-                if !dbMatch.Played {
+                if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
                     match := s.tbaHandler.makeMatchReq(dbMatch.TbaId)
                     dbMatch = s.scoreMatch(match)
                 }
