@@ -175,7 +175,7 @@ func getPlayoffMatchScore(match Match) (int, int) {
 func (s *Scorer) getTeamRankingScore(team string) int {
     event := s.getChampEventForTeam(team)
     status := s.tbaHandler.makeTeamEventStatusRequest(team, event)
-    score := max(status.Qual.Ranking.Rank, 0)
+    score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
     return score
 }
 

@@ -127,5 +127,17 @@ func TestScoreMatches(t *testing.T) {
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 18, scoredMatch.BlueScore)
+}
 
+func TestScoreTeamRankings(t *testing.T) {
+    tbaHandler := NewHandler(getTbaTok())
+    scorer := NewScorer(tbaHandler, nil)
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc2200"))
+    assert.Equal(t, 42, scorer.getTeamRankingScore("frc3847"))
+    assert.Equal(t, 16, scorer.getTeamRankingScore("frc624"))
+    assert.Equal(t, 26, scorer.getTeamRankingScore("frc503"))
+    assert.Equal(t, 34, scorer.getTeamRankingScore("frc2521"))
+    assert.Equal(t, 36, scorer.getTeamRankingScore("frc8608"))
+    assert.Equal(t, 18, scorer.getTeamRankingScore("frc7226"))
+    assert.Equal(t, 2, scorer.getTeamRankingScore("frc5687"))
 }
