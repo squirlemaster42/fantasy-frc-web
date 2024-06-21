@@ -1,72 +1,128 @@
 package scoring
 
 import (
+	"database/sql"
 	"fmt"
-	"log"
+	"regexp"
+	"server/assert"
 	"server/model"
+	"strconv"
 	"strings"
 	"time"
 )
 
+var RESCORE_INTERATION_COUNT = 72
+
 type Scorer struct {
-	TbaHandler *TbaHandler
+	tbaHandler *TbaHandler
     database *sql.DB
+    scoringIteration int
 }
 
-func NewScorer(tbaHandler *TbaHandler) *Scorer {
-	scorer := Scorer{
-		TbaHandler: tbaHandler,
+func NewScorer(tbaHandler *TbaHandler, database *sql.DB) *Scorer {
+	return &Scorer{
+		tbaHandler: tbaHandler,
+        database: database,
+        scoringIteration:  0,
 	}
-	return &scorer
 }
 
-func (s *Scorer) scoreMatchIfNecessary(matchId string, override bool) *model.Match {
-	//Check if the match exists in the database and is scored
-	//Use Db score if possible
-	//If not, query tba and score the match
-	fmt.Printf("Scoring match %s\n", matchId)
-	_, dbMatch := model.GetMatch(s.database, matchId)
-	if (dbMatch != nil && dbMatch.Played) && !override {
-		return dbMatch
-	}
-
-	//Get match from tba and score it and then save it in the database
-	tbaMatch := s.TbaHandler.makeMatchReq(matchId)
-	dbMatch = s.scoreMatch(tbaMatch)
-	models.SaveMatchToDb(dbMatch, s.DbDriver)
-
-	return dbMatch
+func (s *Scorer) shouldScoreMatch(matchId string) bool {
+    return s.scoringIteration % RESCORE_INTERATION_COUNT == 0 || !model.GetMatch(s.database, matchId).Played
 }
 
-func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
+func playoffMatchCompLevels() map[string]bool {
+    return map[string]bool{
+        "f": true,
+        "sf": true,
+        "qf": true,
+    }
+}
+
+//TODO This should take in a match and not a match id
+//Match, dqed teams
+func (s *Scorer) scoreMatch(match Match) model.Match {
+    scoredMatch := model.Match{
+        TbaId: match.Key,
+        Played: match.PostResultTime > 0,
+        RedScore: 0,
+        BlueScore: 0,
+    }
+
+    if !scoredMatch.Played {
+        return scoredMatch
+    }
+
+    if match.CompLevel == "qm" {
+        scoredMatch.RedScore, scoredMatch.BlueScore = getQualMatchScore(match)
+    } else if playoffMatchCompLevels()[match.CompLevel] {
+        scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(match)
+    }
+    scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
+    scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
+    scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
+    return scoredMatch
+}
+
+func getQualMatchScore(match Match) (int, int) {
     redScore := 0
-	blueScore := 0
+    blueScore := 0
 
-	if match.CompLevel == "qm" {
-		if match.WinningAlliance == "red" {
-			redScore += 4
-		} else if match.WinningAlliance == "blue" {
-			blueScore += 4
-		}
+    if match.WinningAlliance == "red" {
+        redScore += 4
+    } else if match.WinningAlliance == "blue" {
+        blueScore += 4
+    }
 
-		if match.ScoreBreakdown.Red.MelodyBonusAchieved {
-			redScore += 2
-		}
+    if match.ScoreBreakdown.Red.MelodyBonusAchieved {
+        redScore += 2
+    }
 
-		if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
-			redScore += 2
-		}
+    if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
+        redScore += 2
+    }
 
-		if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
-			blueScore += 2
-		}
+    if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
+        blueScore += 2
+    }
 
-		if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
-			blueScore += 2
-		}
-	} else if match.CompLevel == "f" {
-        fmt.Println("Scoring Finals")
-		if match.EventKey == "cmptx" {
+    if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
+        blueScore += 2
+    }
+
+    return redScore, blueScore
+}
+
+func getUpperBracketMatchIds() map[int]bool {
+    return map[int]bool{
+        1: true,
+        2: true,
+        3: true,
+        4: true,
+        7: true,
+        8: true,
+        11: true,
+    }
+}
+
+func getLowerBracketMatchIds() map[int]bool {
+    return map[int]bool{
+        5: true,
+        6: true,
+        9: true,
+        10: true,
+        12: true,
+        13: true,
+    }
+}
+
+//RedScore, BlueScore
+func getPlayoffMatchScore(match Match) (int, int) {
+    redScore := 0
+    blueScore := 0
+
+	if match.CompLevel == "f" {
+		if match.EventKey == einstein() {
 			if match.WinningAlliance == "red" {
 				redScore += 36
 			} else if match.WinningAlliance == "blue" {
@@ -80,11 +136,9 @@ func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
 			}
 		}
 	} else if match.CompLevel == "sf" {
-        fmt.Println("Scoring Semi Finals")
-		if match.MatchNumber == 5 || match.MatchNumber == 6 || match.MatchNumber == 9 || match.MatchNumber == 10 || match.MatchNumber == 12 || match.MatchNumber == 13 {
+		if getLowerBracketMatchIds()[match.SetNumber] {
 			//Lower Bracket
-            fmt.Println("Scoring Lower Bracket")
-			if match.EventKey == "cmptx" {
+			if match.EventKey == einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 18
 				} else if match.WinningAlliance == "blue" {
@@ -97,10 +151,9 @@ func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
 					blueScore += 9
 				}
 			}
-		} else {
-			//Upper Breacker
-            fmt.Println("Scoring Upper Bracket")
-			if match.EventKey == "cmptx" {
+		} else if getUpperBracketMatchIds()[match.SetNumber] {
+			//Upper Bracket
+			if match.EventKey == einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 30
 				} else if match.WinningAlliance == "blue" {
@@ -116,24 +169,32 @@ func (s *Scorer) scoreMatch(match models.Match) *models.DbMatch {
 		}
 	}
 
-	dqedTeams := match.Alliances.Red.DqTeamKeys
-	dqedTeams = append(dqedTeams, match.Alliances.Blue.DqTeamKeys...)
-	dqedTeams = append(dqedTeams, match.Alliances.Red.SurrogateTeamKeys...)
-	dqedTeams = append(dqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
+    return redScore, blueScore
+}
 
-    dbMatch := &models.DbMatch{
-		TbaId:             match.Key,
-		RedAllianceScore:  redScore,
-		BlueAllianceScore: blueScore,
-		CompLevel:         match.CompLevel,
-		WinningAlliance:   match.WinningAlliance,
-		Played:            match.ActualTime != 0,
-		RedAllianceTeams:  match.Alliances.Red.TeamKeys,
-		BlueAllianceTeams: match.Alliances.Blue.TeamKeys,
-		Dqed:              dqedTeams,
-	}
+func (s *Scorer) getTeamRankingScore(team string) int {
+    event := s.getChampEventForTeam(team)
+    status := s.tbaHandler.makeTeamEventStatusRequest(team, event)
+    score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
+    return score
+}
 
-    return dbMatch
+func einstein() string {
+    return "2024cmptx"
+}
+
+func events() []string {
+    //TODO can we do this programatically?
+    return []string{
+        "2024new",
+        "2024mil",
+        "2024joh",
+        "2024hop",
+        "2024gal",
+        "2024dal",
+        "2024cur",
+        "2024arc",
+    }
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
@@ -141,116 +202,179 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Check which event is in the list of champ events
 	//We are going to ignore Einstein here since we just use this to determin the ranking score
 	//which does not apply to Einstein
-	events := s.TbaHandler.makeEventListReq(strings.TrimSpace(teamId))
+	eventsList := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
-	for _, event := range events {
-		for _, champEvent := range s.getChampEvents() {
+	for _, event := range eventsList {
+		for _, champEvent := range events() {
 			if event == champEvent {
 				return event
 			}
 		}
 	}
-	return ""
+    panic(fmt.Sprintf("Champ event not found for team %s", teamId))
 }
 
-func (s *Scorer) getChampEvents() []string {
-	return []string{"2024cthar", "2024casj"} //TODO add the rest of the events
-}
-
-//This was capital but that seemed wrong
-//TODO Can we write this without requiring the database
-//I think we could just pass in a list of matches and
-//the required event information
-//something like scoreTeam(matches []Match, event Event)
-func (s *Scorer) scoreTeam(teamId string) int {
-	//Query all matches for team
-	//Get all of the scores
-	//Add ranking score
-	driver := s.DbDriver
-	var score int;
-	err := driver.Connection.QueryRow("Select rankingScore From Teams Where tbaId = '" + strings.TrimSpace(teamId) + "';").Scan(&score)
-    if err != nil {
-        log.Print(err)
+//Matches are almost sorted
+//We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
+func sortMatchesByPlayOrder(matches []string) []string {
+    if len(matches) <= 1 {
+        return matches
     }
 
-	fmt.Printf("-------- Scoring %s --------\n", teamId)
-	fmt.Println("Getting previous match scores")
-	rows := driver.RunQuery(fmt.Sprintf(`Select redAllianceScore, blueAllianceScore, Played, alliance, isDqed From Matches m
-    Left Join Matches_Teams mt On m.tbaId = mt.match_tbaId WHERE mt.team_tbaId = '%s'`, teamId))
-	defer rows.Close()
+    mid := len(matches) / 2
+    left := matches[:mid]
+    right := matches[mid:]
 
-	if rows == nil {
-		return score
-	}
+    sortedLeft := sortMatchesByPlayOrder(left)
+    sortedRight := sortMatchesByPlayOrder(right)
 
-	fmt.Printf("Raning score: %d\n", score)
-
-	for rows.Next() {
-		var redScore int
-		var blueScore int
-		var played bool
-		var alliance string
-		var dqed bool
-		err := rows.Scan(&redScore, &blueScore, &played, &alliance, &dqed)
-		if err != nil {
-			return score
-		}
-
-		if !played || dqed {
-			continue
-		}
-
-		if alliance == "red" {
-			score += redScore
-		} else if alliance == "blue" {
-			score += blueScore
-		}
-	}
-
-	return score
+    return merge(sortedLeft, sortedRight)
 }
 
-func (s *Scorer) updateTeamValidity() {
-    currentTeams := models.GetTeamValidity(s.DbDriver)
+func merge(left []string, right []string) []string {
+    var result []string
+    i := 0
+    j := 0
 
-    for teamName := range currentTeams {
-        currentTeams[teamName] = false
-    }
-
-    for _, eventName := range s.getChampEvents() {
-        for _, teamName := range s.TbaHandler.makeTeamsAtEventRequest(eventName) {
-            currentTeams[teamName.Name] = true
+    for i < len(left) && j < len(right) {
+        if compareMatchOrder(left[i], right[j]) {
+            result = append(result, left[i])
+            i++
+        } else {
+            result = append(result, right[j])
+            j++
         }
     }
 
-    for team, valid := range currentTeams {
-        models.UpdateTeamValidity(team, valid, s.DbDriver)
+    for _, elem := range left[i:] {
+        result = append(result, elem)
+    }
+
+    for _, elem := range right[j:] {
+        result = append(result, elem)
+    }
+
+    return result
+}
+
+func matchPrecidence() map[string]int {
+    return map[string]int{
+        "qm": 0,
+        "qf": 1,
+        "sf": 2,
+        "f": 3,
     }
 }
 
-func (s *Scorer) getAllPickedTeams() []string {
-	var teams []string
+//Return true if matchA comes before matchB
+func compareMatchOrder(matchA string, matchB string) bool {
+    assert := assert.CreateAssertWithContext("Compare Match Order")
+    assert.AddContext("Match A", matchA)
+    assert.AddContext("Match B", matchB)
+    matchALevel := getMatchLevel(matchA)
+    matchBLevel := getMatchLevel(matchB)
+    assert.AddContext("Match A Level", matchALevel)
+    assert.AddContext("Match B Level", matchBLevel)
+    aPrecidence, ok := matchPrecidence()[matchALevel]
+    assert.RunAssert(ok, "Match Precidence Was Not Found")
+    bPrecidence, ok := matchPrecidence()[matchBLevel]
+    assert.RunAssert(ok, "Match Precidence Was Not Found")
 
-	driver := s.DbDriver
-	fmt.Println("Getting all picked teams")
-	rows := driver.RunQuery("Select pickedTeam from Picks")
-	defer rows.Close()
+    if aPrecidence != bPrecidence {
+        return aPrecidence < bPrecidence
+    }
 
-	if rows == nil {
-		return teams
-	}
+    assert.RunAssert(matchALevel == matchBLevel, "Match levels are not the same")
 
-	for rows.Next() {
-		var pick string
-		err := rows.Scan(&pick)
-		if err != nil {
-			return teams
-		}
-		teams = append(teams, pick)
-	}
+    if matchALevel == "qm" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[1][2:])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[1][2:])
+        assert.NoError(err, "Match B num Atoi failed")
+        return matchANum < matchBNum
+    }
 
-	return teams
+    if matchALevel == "f" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        splitMatchA = strings.Split(splitMatchA[1][1:], "m")
+        splitMatchB = strings.Split(splitMatchB[1][1:], "m")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[0])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[0])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        if matchANum != matchBNum {
+            return matchANum < matchBNum
+        }
+
+        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
+
+        matchANum, err = strconv.Atoi(splitMatchA[1])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err = strconv.Atoi(splitMatchB[1])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        return matchANum < matchBNum
+    }
+
+    if matchALevel == "sf" {
+        splitMatchA := strings.Split(matchA, "_")
+        splitMatchB := strings.Split(matchB, "_")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        splitMatchA = strings.Split(splitMatchA[1][2:], "m")
+        splitMatchB = strings.Split(splitMatchB[1][2:], "m")
+        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
+        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
+        matchANum, err := strconv.Atoi(splitMatchA[0])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err := strconv.Atoi(splitMatchB[0])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        if matchANum != matchBNum {
+            return matchANum < matchBNum
+        }
+
+        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
+
+        matchANum, err = strconv.Atoi(splitMatchA[1])
+        assert.NoError(err, "Match A num Atoi failed")
+        matchBNum, err = strconv.Atoi(splitMatchB[1])
+        assert.NoError(err, "Match B num Atoi failed")
+
+        return matchANum < matchBNum
+    }
+
+    panic("Unhandled match type")
+}
+
+func getMatchLevel(matchKey string) string {
+    assert := assert.CreateAssertWithContext("Get Match Level")
+    assert.AddContext("Match Key", matchKey)
+    pattern := regexp.MustCompile("_[a-z]+")
+    match := pattern.FindString(matchKey)[1:]
+    assert.AddContext("Match", match)
+    assert.RunAssert(len(match) == 2 || len(match) == 1, "Match did not return string of expected length")
+    return match
+}
+
+func isDqed(team string, dqedTeams []string) bool {
+    for _, dqed := range dqedTeams {
+        if team == dqed {
+            return true
+        }
+    }
+    return false
 }
 
 func (s *Scorer) RunScorer() {
@@ -264,46 +388,63 @@ func (s *Scorer) RunScorer() {
     //In this iteration we also update the valid teams
 
 	go func(s *Scorer) {
-		iteration := 0
 		for {
-			fmt.Println("Starting new scoring iteration")
-			rescore := iteration % 72 == 0
-
-            if rescore {
-                s.updateTeamValidity()
+            //TODO Need to add something that allows for rescoring all matches on a set interval
+            //Get a list of matches to score and
+            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
+            matches := make(map[string][]string)
+            for _, event := range events() {
+                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.makeEventMatchKeysRequest(event))
             }
 
-			events := s.getChampEvents()
+            //Score matches until we hit one that has not been played
+            var scoringQueue []string
+            currentMatch := make(map[string]int)
+            for event := range matches {
+                currentMatch[event] = 1
+                scoringQueue = append(scoringQueue, matches[event][0])
+            }
 
-			eventToTeam := make(map[string]string)
-			for _, event := range events {
-				fmt.Printf("Scoring event: %s\n", event)
-				teams := s.TbaHandler.makeTeamsAtEventRequest(event)
-				for _, team := range teams {
-					fmt.Printf("Scoring team: %s\n", team.Key)
-                    teamModel := &models.Team{
-                        TbaId: team.Key,
-                        Name: team.Nickname,
-                        RankingScore: 0,
-                        ValidPick: true,
-                    }
-					models.UpsertTeam(teamModel, s.DbDriver)
-					eventToTeam[team.Key] = event
-				}
-			}
+            for {
+                match := scoringQueue[0]
+                scoringQueue = scoringQueue[1:]
 
-			matchesToScore := make(map[string]bool)
-			for _, team := range s.getAllPickedTeams() {
-				for _, match := range s.TbaHandler.makeMatchKeysRequest(strings.TrimSpace(team), eventToTeam[strings.TrimSpace(team)]) {
-					matchesToScore[match] = true
-				}
-			}
+                dbMatch := *model.GetMatch(s.database, match)
 
-			for match := range matchesToScore {
-				s.scoreMatchIfNecessary(strings.TrimSpace(match), rescore)
-			}
+                if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
+                    match := s.tbaHandler.makeMatchReq(dbMatch.TbaId)
+                    dbMatch = s.scoreMatch(match)
+                }
 
-			iteration++
+                if dbMatch.Played {
+                    event := strings.Split(match, "_")[1]
+                    currentMatch[event] = currentMatch[event] + 1
+                    scoringQueue = append(scoringQueue, matches[event][0])
+                }
+
+                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+                for _, team := range dbMatch.BlueAlliance {
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+                }
+                for _, team := range dbMatch.RedAlliance {
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                }
+
+                if len(scoringQueue) == 0 {
+                    break
+                }
+            }
+
+            //Update ranking scores
+            //Get all picked teams
+            picks := model.GetAllPicks(s.database)
+
+            //Update the ranking scores for all picked teams
+            for _, pick := range picks {
+                model.UpdateTeamRankingScore(s.database, pick, s.getTeamRankingScore(pick))
+            }
+
+			s.scoringIteration++
 			fmt.Println("Finished scoring iteration")
 			time.Sleep(5 * time.Minute)
 		}

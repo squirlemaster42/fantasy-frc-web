@@ -13,6 +13,7 @@ type assert struct {
 func CreateAssertWithContext(name string) *assert {
     return &assert{
         name: name,
+        context: make(map[string]any),
     }
 }
 
