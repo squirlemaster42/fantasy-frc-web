@@ -47,7 +47,8 @@ func main() {
 
     scorer := scoring.NewScorer(tbaHandler, database)
     if !(*skipScoring == "true") {
+        fmt.Println("Starting with Scoring")
         scorer.RunScorer()
     }
-    //server.CreateServer(scorer, sessionSecret)
+    CreateServer(database)
 }
