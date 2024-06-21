@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 use std::sync::mpsc::{Sender, Receiver};
-use std::{thread, time};
+use std::{thread, time, sync};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 fn main() {
     println!("-------- Starting Load Balancer --------");
@@ -44,7 +45,7 @@ pub struct LoadBalancer<'bal> {
     sender: Sender<&'bal str>,
     receiver: Receiver<&'bal str>,
     thread: Option<std::thread::JoinHandle<()>>,
-    running: bool,
+    running: sync::Arc<AtomicBool>,
 }
 
 impl<'bal> LoadBalancer<'bal> {
@@ -56,24 +57,26 @@ impl<'bal> LoadBalancer<'bal> {
             sender: tx,
             receiver: rx,
             thread: None,
-            running: false,
+            running: sync::Arc::new(AtomicBool::new(false)),
         };
     }
 
     fn start(&mut self) {
-        if !self.running {
-            self.thread = Some(thread::spawn(move || {
-                while self.running {
-                    self.balance();
-                }
-            }));
-        }
-        self.running = true;
+        self.running.store(true, Ordering::SeqCst);
+        let alive = self.running.clone();
+
+        self.thread = Some(thread::spawn(move || {
+            while alive.load(Ordering::SeqCst) {
+                self.balance();
+            }
+        }));
     }
 
     fn stop(&mut self) {
-        self.thread.take().unwrap().join().unwrap();
-        self.running = false;
+        self.running.store(false, Ordering::SeqCst);
+        self.thread
+            .take().expect("Called stop on non-running thread")
+            .join().expect("Could not join spawned thread");
     }
 
     fn add_balance_target(&mut self, target: &'bal (dyn BalanceTarget + 'bal)) {
