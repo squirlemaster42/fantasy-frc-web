@@ -17,7 +17,7 @@ func HandleViewLogin(c echo.Context) error {
 }
 
 func generateSessionToken(user *model.User) (string, error) {
-    return "", nil
+    return "token", nil
 }
 
 func HandleLoginPost(c echo.Context) error {
