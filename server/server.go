@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"server/assert"
 	"server/handler"
 
@@ -10,13 +9,13 @@ import (
 )
 
 func CreateServer(database *sql.DB) {
-    fmt.Println("Creating Server")
     assert := assert.CreateAssertWithContext("Create Server")
     app := echo.New()
     app.Static("/", "./assets")
 
     //Setup Routes
-    app.GET("/", handler.HandleViewLogin)
+    app.GET("/login", handler.HandleViewLogin)
+    app.POST("/login", handler.HandleLoginPost)
 
     err := app.Start(":3000")
     assert.NoError(err, "Failed to start server")
