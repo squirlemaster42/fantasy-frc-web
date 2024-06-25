@@ -13,6 +13,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
  				hx-swap="transition:true"
  				class="rounded-xl drop-shadow-xl flex flex-col gap-4 w-96 p-8"
                 style="-top: -20px;"
+                hx-post="/login"
  				action=""
  				method="post"
 			>

@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"fmt"
 	"server/assert"
 	"server/view/login"
 
@@ -30,5 +31,7 @@ func generateSessionToken() string {
 }
 
 func HandleLoginPost(c echo.Context) error {
+    fmt.Println("Login Post")
+    fmt.Println(c)
     return nil
 }
