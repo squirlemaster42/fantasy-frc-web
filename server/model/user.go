@@ -1,6 +1,7 @@
 package model
 
 import (
+	"crypto"
 	"database/sql"
 	"server/assert"
 )
@@ -51,7 +52,8 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
 }
 
 //The old password logic should happen before this
-//TODO Should we move more logic here?
+//Should we move more logic here? No, we want to be able to
+//send back error messages which we should need to check the database for
 func UpdatePassword(database *sql.DB, username string, newPassword string) {
     query := `Update Users Set password = $1 Where username = $2;`
     assert := assert.CreateAssertWithContext("Update Password")
@@ -61,4 +63,55 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(newPassword, username)
     assert.NoError(err, "Failed to Update Password")
+}
+
+//TODO We need a session token clean up service
+//This can probably clean up session that expired more than a month ago or something
+//Actually it can probably be sooner than that because expire tokens should never be reissued
+func RegisterSession(database *sql.DB, userId int, sessionToken string) {
+    query := `Insert Into UserSession (userId, sessionToken, expirationDate) Value ($1, $2, now()::timestamp + 10);`
+    assert := assert.CreateAssertWithContext("Register Session")
+    assert.AddContext("UserId", userId)
+    //I dont think I'm worried about the session tokens being here because if this fails we have bigger issues
+    assert.AddContext("SessionToken", sessionToken)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+    hasher := crypto.SHA256.New()
+    hasher.Write([]byte(sessionToken))
+    _, err = stmt.Exec(userId, hasher.Sum(nil))
+    assert.NoError(err, "Fauled to register session")
+}
+
+func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) {
+    //We want to make sure we only update the session token that the user logged in with
+    query := `Update UserSession Set expirationDate = now()::timestamp + 10 Where userId = $1 And sessionToken = $2;`
+    assert := assert.CreateAssertWithContext("Update Session Expiration")
+    assert.AddContext("User Id", userId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+    hasher := crypto.SHA256.New()
+    hasher.Write([]byte(sessionToken))
+    _, err = stmt.Exec(userId, hasher.Sum(nil))
+    assert.NoError(err, "Failed to update session expiraton")
+}
+
+//Check if the session token is in the database and that it is not expired
+func ValidateSessionToken(database *sql.DB, userId int, sessionToken string) bool {
+    //I think <= is fine, it probably doesn't matter though
+    query := `Select Count(*) From UserSessions Where userId = $1 and sessionToken = $2 and now()::timezone <= expirationDate;`
+    assert := assert.CreateAssertWithContext("Validate Session Token")
+    assert.AddContext("User Id", userId)
+    //This one is a little more concerning, but its probably fine
+    assert.AddContext("Session Token", sessionToken)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+    hasher := crypto.SHA256.New()
+    hasher.Write([]byte(sessionToken))
+    var count int
+    err = stmt.QueryRow(userId, hasher.Sum(nil)).Scan(&count)
+    assert.NoError(err, "Failed to validate session")
+    //If the count is greater than one there is a problem
+    //It probably means that we inserted the same token twice which shouldn't happen
+    //Do we want to invalidate the session in that case
+    return count == 1
 }
