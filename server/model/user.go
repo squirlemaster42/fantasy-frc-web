@@ -37,7 +37,7 @@ func UsernameTaken(database *sql.DB, username string) bool {
 }
 
 //All crypto should happen before this since this just communicates with the DB
-//TODO Should the crypto be rolled into this?
+//TODO Should the crypto be rolled into this? Yes, I think so
 func ValidateLogin(database *sql.DB, username string, password string) bool {
     query := `Select password From Users Where username = $1;`
     assert := assert.CreateAssertWithContext("Validate Login")
