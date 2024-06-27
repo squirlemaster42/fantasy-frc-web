@@ -14,7 +14,7 @@ type User struct {
 }
 
 func RegisterUser(database *sql.DB, username string, password string) {
-    query := `INSERT INTO Users (username, password) Value($1, $2);`
+    query := `INSERT INTO Users (username, password) Values ($1, $2);`
     assert := assert.CreateAssertWithContext("Register User")
     assert.AddContext("Username", username)
     assert.AddContext("Password", password)
@@ -34,6 +34,18 @@ func UsernameTaken(database *sql.DB, username string) bool {
     err = stmt.QueryRow(username).Scan(&count)
     assert.NoError(err, "Failed to check username taken")
     return count > 0
+}
+
+func GetUserIdByUsername(database *sql.DB, username string) int {
+    query := `Select Id From Users Where username = $1;`
+    assert := assert.CreateAssertWithContext("Get User Id By Username")
+    assert.AddContext("Username", username)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var id int
+    err = stmt.QueryRow(username).Scan(&id)
+    assert.NoError(err, "Failed to get user")
+    return id
 }
 
 //All crypto should happen before this since this just communicates with the DB
@@ -69,7 +81,7 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
 //This can probably clean up session that expired more than a month ago or something
 //Actually it can probably be sooner than that because expire tokens should never be reissued
 func RegisterSession(database *sql.DB, userId int, sessionToken string) {
-    query := `Insert Into UserSession (userId, sessionToken, expirationDate) Value ($1, $2, now()::timestamp + 10);`
+    query := `Insert Into UserSessions (userId, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
     assert := assert.CreateAssertWithContext("Register Session")
     assert.AddContext("UserId", userId)
     //I dont think I'm worried about the session tokens being here because if this fails we have bigger issues
@@ -84,7 +96,7 @@ func RegisterSession(database *sql.DB, userId int, sessionToken string) {
 
 func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) {
     //We want to make sure we only update the session token that the user logged in with
-    query := `Update UserSession Set expirationDate = now()::timestamp + 10 Where userId = $1 And sessionToken = $2;`
+    query := `Update UserSession Set expirationDate = now()::timestamp + '10 days' Where userId = $1 And sessionToken = $2;`
     assert := assert.CreateAssertWithContext("Update Session Expiration")
     assert.AddContext("User Id", userId)
     stmt, err := database.Prepare(query)

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
+	"net/http"
 	"server/assert"
 	"server/model"
 	"server/view/login"
@@ -39,16 +40,29 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
     //Here we need to validate the login
     //We then want to pass a session token as a cookie
     //And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
-
-    //TODO We need a database here. How do we want to get that
-    //Can we put it on the context? We could, there is a middlewhere that we could use or we could make a handler struct
-    //The handler struct might be nicer because we can put the logger on it too
+    //TODO we need to introduce encryption here
     valid := model.ValidateLogin(h.Database, username, password)
     if valid {
         h.Logger.Log(fmt.Sprintf("Valid login attempt for user: %s", username))
     } else {
         h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
+        loginIndex := login.LoginIndex(false, "")
+        login := login.Login(" | Login", false, loginIndex)
+        err := Render(c, login)
+        assert.NoErrorCF(err, "Handle View Login Failed To Render")
+        return nil
     }
+
+    userId := model.GetUserIdByUsername(h.Database, username)
+    sessionTok := generateSessionToken()
+    model.RegisterSession(h.Database, userId, sessionTok)
+
+	cookie := new(http.Cookie)
+	cookie.Name = "sessionToken"
+	cookie.Value = sessionTok
+    cookie.HttpOnly = true
+    cookie.Secure = true
+	c.SetCookie(cookie)
 
     return nil
 }
