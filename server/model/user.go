@@ -4,6 +4,8 @@ import (
 	"crypto"
 	"database/sql"
 	"server/assert"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 //TODO The primary key here is not good. I should fix that.
@@ -20,7 +22,10 @@ func RegisterUser(database *sql.DB, username string, password string) {
     assert.AddContext("Password", password)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(username, password)
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+    assert.NoError(err, "Failed to generate password hash")
+    //TODO Do we want to change this to a byte array in the database
+    _, err = stmt.Exec(username, string(hashedPassword))
     assert.NoError(err, "Failed to register user")
 }
 
@@ -49,7 +54,6 @@ func GetUserIdByUsername(database *sql.DB, username string) int {
 }
 
 //All crypto should happen before this since this just communicates with the DB
-//TODO Should the crypto be rolled into this? Yes, I think so
 func ValidateLogin(database *sql.DB, username string, password string) bool {
     query := `Select password From Users Where username = $1;`
     assert := assert.CreateAssertWithContext("Validate Login")
@@ -60,7 +64,8 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
     var dbPassword string
     err = stmt.QueryRow(username).Scan(&dbPassword)
     assert.NoError(err, "Failed to validate login")
-    return dbPassword == password
+    err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
+    return err == nil
 }
 
 //The old password logic should happen before this
@@ -73,7 +78,10 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
     assert.AddContext("New Password", newPassword)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(newPassword, username)
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
+    assert.NoError(err, "Failed to generate password hash")
+    //TODO Do we want to change this to a byte array in the database
+    _, err = stmt.Exec(string(hashedPassword), username)
     assert.NoError(err, "Failed to Update Password")
 }
 

@@ -30,8 +30,8 @@ type Logger struct {
     running bool
 }
 
-func NewLogger(logWriter LogWriter) Logger {
-    return Logger{
+func NewLogger(logWriter LogWriter) *Logger {
+    return &Logger{
         messages: make(chan string, 100),
         writer: logWriter,
         running: false,

@@ -40,7 +40,6 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
     //Here we need to validate the login
     //We then want to pass a session token as a cookie
     //And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
-    //TODO we need to introduce encryption here
     valid := model.ValidateLogin(h.Database, username, password)
     if valid {
         h.Logger.Log(fmt.Sprintf("Valid login attempt for user: %s", username))
