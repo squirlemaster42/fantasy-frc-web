@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//TODO The primary key here is not good. I should fix that.
 type User struct {
     Id int
     Username string
@@ -85,7 +84,6 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
     assert.NoError(err, "Failed to Update Password")
 }
 
-//TODO We need a session token clean up service
 //This can probably clean up session that expired more than a month ago or something
 //Actually it can probably be sooner than that because expire tokens should never be reissued
 func RegisterSession(database *sql.DB, userId int, sessionToken string) {

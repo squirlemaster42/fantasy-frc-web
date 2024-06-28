@@ -45,7 +45,6 @@ func (c *CleanupService) Stop() error {
 }
 
 func (c *CleanupService) CleanExpiredSessionTokens() {
-    //TODO This function should clean up all expired session tokens
     query := `Delete from UserSessions Where expirationTime < (now()::timestamp + '2 hours');`
     assert := assert.CreateAssertWithContext("Clean Expired Session Tokens")
     stmt, err := c.database.Prepare(query)
