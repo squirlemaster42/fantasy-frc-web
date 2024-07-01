@@ -37,31 +37,34 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
     username := c.FormValue("username")
     password := c.FormValue("password")
 
+
     //Here we need to validate the login
     //We then want to pass a session token as a cookie
     //And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
-    valid := model.ValidateLogin(h.Database, username, password)
+    //We wont validate the password if the user does not exist
+    valid := model.UsernameTaken(h.Database, username) && model.ValidateLogin(h.Database, username, password)
     if valid {
         h.Logger.Log(fmt.Sprintf("Valid login attempt for user: %s", username))
-    } else {
-        h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
-        loginIndex := login.LoginIndex(false, "")
-        login := login.Login(" | Login", false, loginIndex)
-        err := Render(c, login)
-        assert.NoErrorCF(err, "Handle View Login Failed To Render")
+        userId := model.GetUserIdByUsername(h.Database, username)
+        sessionTok := generateSessionToken()
+        model.RegisterSession(h.Database, userId, sessionTok)
+
+        cookie := new(http.Cookie)
+        cookie.Name = "sessionToken"
+        cookie.Value = sessionTok
+        cookie.HttpOnly = true
+        cookie.Secure = true
+        c.SetCookie(cookie)
+        //TODO We probably want to redirect the user to the home page here
+
         return nil
     }
 
-    userId := model.GetUserIdByUsername(h.Database, username)
-    sessionTok := generateSessionToken()
-    model.RegisterSession(h.Database, userId, sessionTok)
-
-	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
-	cookie.Value = sessionTok
-    cookie.HttpOnly = true
-    cookie.Secure = true
-	c.SetCookie(cookie)
+    h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
+    login := login.LoginIndex(false, "You have entered an invalid username or password")
+    //TODO We need to display an error message to the user that lets them know their login was not valid
+    err := Render(c, login)
+    assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
     return nil
 }
