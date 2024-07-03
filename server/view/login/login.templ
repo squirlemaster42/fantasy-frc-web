@@ -10,12 +10,11 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
 			</h1>
             <h2 style="color: red; text-align: center;">{ errorMessage }</h2>
 			<form
- 				hx-swap="transition:true"
+ 				hx-swap="outerHTML transition:true"
  				class="rounded-xl drop-shadow-xl flex flex-col gap-4 w-96 p-8"
                 style="-top: -20px;"
                 hx-post="/login"
                 hx-target="#login-box"
-                hx-swap="outerHTML"
  				action=""
  				method="post"
 			>
