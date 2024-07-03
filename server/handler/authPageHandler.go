@@ -16,6 +16,7 @@ import (
 func (h *Handler) HandleViewLogin(c echo.Context) error {
     loginIndex := login.LoginIndex(false, "")
     login := login.Login(" | Login", false, loginIndex)
+    //TODO We should probably make tailwind work offline to make the dev experience better
     err := Render(c, login)
     assert.NoErrorCF(err, "Handle View Login Failed To Render")
     return nil
@@ -62,7 +63,6 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
     h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
     login := login.LoginIndex(false, "You have entered an invalid username or password")
-    //TODO We need to display an error message to the user that lets them know their login was not valid
     err := Render(c, login)
     assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
