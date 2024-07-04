@@ -1,31 +1,42 @@
 package view
 
+import "fmt"
+
 templ HomeIndex(fromProtected bool) {
-    <section class="mx-auto w-fit flex flex-col gap-8 text-center">
-        <h1 class="text-5x1 font-bold">Welcome to Fantasy FRC!</h1>
-        <p class="text-2x1 font-thin">
-            Here you can create drafts and view scores for Fantasy FRC
-        </p>
-        if !fromProtected {
-			<hr class="my-4 w-4/5 mx-auto opacity-25"/>
-			<p class="text-base font-thin">You have an account?</p>
-			<footer class="flex gap-4 justify-center">
-				<a
- 					hx-swap="transition:true"
- 					href="/login"
- 					class="badge badge-primary px-6 py-4 hover:scale-[1.1] text-lg font-thin"
-				>
-					Log In
-				</a>
-				<a
- 					hx-swap="transition:true"
- 					href="/register"
- 					class="badge badge-neutral px-6 py-4 hover:scale-[1.1] text-lg font-thin"
-				>
-					Sign Up
-				</a>
-			</footer>
-		}
+    <section class="mx-auto w-fit flex flex-col gap-8">
+        <div class="grid grid-cols-4 gap-x-16 gap-y-8">
+            for i := 0; i < 10; i++ {
+                <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
+                    <div class="card-body">
+                        <div class="card-title pb-[4px] justify-around">
+                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" width="80" height="80"></img>
+                            <h1>
+                                { fmt.Sprintf("Draft: %d", i) }
+                            </h1>
+                        </div>
+                        <label class="border-t border-b border-slate-600 pl-2">
+                            Status: Picking
+                        </label>
+                        <h4>Players:</h4>
+                        <div class="grid grid-cols-4 gap-2 border-b border-slate-600 pb-2">
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 1</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 2</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 3</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 4</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 5</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 6</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 7</label>
+                            <label class="border border-slate-400 pl-2 pr-2 rounded-xl">Player 8</label>
+                        </div>
+                        <footer class="card-actions w-full">
+                            <button class="badge badge-primary px-6 py-4 hover:scale-[1.1] w-full">
+                                Open
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+            }
+        </div>
     </section>
 }
 
