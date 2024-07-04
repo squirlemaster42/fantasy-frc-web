@@ -6,10 +6,24 @@ import (
 	"time"
 )
 
+const (
+    WAITING_TO_START = iota
+    PICKING
+    TEAMS_PLAYING
+    COMPLETE
+)
+
 type Draft struct {
     Id int
     DisplayName string
     Owner int //User
+    Status int
+    Players []DraftPlayer
+}
+
+type DraftPlayer struct {
+    User User
+    Pending bool
 }
 
 type Pick struct {
@@ -28,6 +42,10 @@ type DraftInvite struct {
     SentTime time.Time
     AcceptedTime time.Time
     Accepted bool
+}
+
+func GetDraftsForUser(database *sql.DB, user *User) *[]Draft {
+    return nil
 }
 
 //TODO should this return the draft id? probably
