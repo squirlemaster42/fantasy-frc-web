@@ -19,7 +19,7 @@ func GetTeam(database *sql.DB, tbaId string) Team {
     assert.NoError(err, "Failed to prepare statement")
     team := Team{}
     _, err = stmt.Exec(&team.TbaId, &team.Name, &team.RankingScore)
-    assert.NoError(err, "Failed to Get Teab")
+    assert.NoError(err, "Failed to Get Team")
     return team
 }
 

@@ -3,16 +3,18 @@ package login
 import "server/view"
 
 templ LoginIndex(fromProtected bool, errorMessage string) {
-   <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8">
+   <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8" id="login-box">
 		<div class="card-body pb-2">
 			<h1 class="card-title border-b border-b-slate-600 pb-[4px]">
 				Log In
 			</h1>
             <h2 style="color: red; text-align: center;">{ errorMessage }</h2>
 			<form
- 				hx-swap="transition:true"
+ 				hx-swap="outerHTML transition:true"
  				class="rounded-xl drop-shadow-xl flex flex-col gap-4 w-96 p-8"
                 style="-top: -20px;"
+                hx-post="/login"
+                hx-target="#login-box"
  				action=""
  				method="post"
 			>

@@ -53,5 +53,5 @@ func main() {
     if !(*skipScoring == "true") {
         scorer.RunScorer()
     }
-    //server.CreateServer(scorer, sessionSecret)
+    CreateServer(database, logger)
 }
