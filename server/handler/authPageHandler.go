@@ -13,6 +13,7 @@ import (
 )
 
 //TODO Do we want to do some sort of redirect here if the user already has a valid session token
+//We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
     loginIndex := login.LoginIndex(false, "")
     login := login.Login(" | Login", false, loginIndex)
@@ -56,7 +57,8 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
         cookie.HttpOnly = true
         cookie.Secure = true
         c.SetCookie(cookie)
-        //TODO We probably want to redirect the user to the home page here
+        err := c.Redirect(http.StatusSeeOther, "/home")
+        assert.NoErrorCF(err, "Failed to redirect on successful login")
 
         return nil
     }
