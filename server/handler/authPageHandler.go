@@ -88,8 +88,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     if model.UsernameTaken(h.Database, username) {
         h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user: %s ----", username))
 
-        registerIndex := login.RegisterIndex(false, "Username Taken")
-        register := login.Register(" | Register", false, registerIndex)
+        register := login.RegisterIndex(false, "Username Taken")
         err := Render(c, register)
         assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
@@ -100,8 +99,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     if password != confirmPassword {
         h.Logger.Log(fmt.Sprintf("---- Password and Confirm Password do not match for user attempting to register: %s ----", username))
 
-        registerIndex := login.RegisterIndex(false, "Passwords Do Not Match")
-        register := login.Register(" | Register", false, registerIndex)
+        register := login.RegisterIndex(false, "Passwords Do Not Match")
         err := Render(c, register)
         assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
@@ -114,7 +112,6 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     userId := model.GetUserIdByUsername(h.Database, username)
     sessionTok := generateSessionToken()
     model.RegisterSession(h.Database, userId, sessionTok)
-
     cookie := new(http.Cookie)
     cookie.Name = "sessionToken"
     cookie.Value = sessionTok
