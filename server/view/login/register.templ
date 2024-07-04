@@ -3,14 +3,17 @@ package login
 import "server/view"
 
 templ RegisterIndex(fromProtected bool, errorMessage string) {
-    <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8">
+    <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8" id="register-box">
         <div class="card-body pb-2">
             <h1 class="card-title border-b border-b-slate-600 pb-[4px]">
                 Register User
             </h1>
-            <h2 style="color: red; text-align: center;">{ errorMessage }</h2> <form
-                hx-swap="transition:true"
+            <h2 style="color: red; text-align: center;">{ errorMessage }</h2>
+            <form
+                hx-swap="outerHTML transition:true"
                 class="rounded-x1 drop-shadow-x1 flex flex-col hap-4 w-96 p-8"
+                hx-target="#register-box"
+                hx-post="/register"
                 action=""
                 style="margin-top: -20px;"
                 method="post"

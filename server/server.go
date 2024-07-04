@@ -21,6 +21,8 @@ func CreateServer(database *sql.DB, logger *logging.Logger) {
     }
     app.GET("/login", h.HandleViewLogin)
     app.POST("/login", h.HandleLoginPost)
+    app.GET("/register", h.HandleViewRegister)
+    app.POST("/register", h.HandlerRegisterPost)
     app.GET("/home", h.HandleViewHome)
 
     err := app.Start(":3000")
