@@ -70,3 +70,56 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
     return nil
 }
+
+func (h *Handler) HandleViewRegister(c echo.Context) error {
+    registerIndex := login.RegisterIndex(false, "")
+    register := login.Register(" | Register", false, registerIndex)
+    err := Render(c, register)
+    assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+    return nil
+}
+
+func (h *Handler) HandlerRegisterPost(c echo.Context) error {
+    username := c.FormValue("username")
+    password := c.FormValue("password")
+    confirmPassword := c.FormValue("confirmPassword")
+
+    //TODO We need to make sure the user does not already exist
+    if model.UsernameTaken(h.Database, username) {
+        h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user: %s ----", username))
+
+        register := login.RegisterIndex(false, "Username Taken")
+        err := Render(c, register)
+        assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+
+        return nil
+
+    }
+
+    if password != confirmPassword {
+        h.Logger.Log(fmt.Sprintf("---- Password and Confirm Password do not match for user attempting to register: %s ----", username))
+
+        register := login.RegisterIndex(false, "Passwords Do Not Match")
+        err := Render(c, register)
+        assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+
+        return nil
+    }
+
+    h.Logger.Log(fmt.Sprintf("Valid registration for user: %s", username))
+    model.RegisterUser(h.Database, username, password)
+    //TODO We should make register user return the user id so we dont need two queries
+    userId := model.GetUserIdByUsername(h.Database, username)
+    sessionTok := generateSessionToken()
+    model.RegisterSession(h.Database, userId, sessionTok)
+    cookie := new(http.Cookie)
+    cookie.Name = "sessionToken"
+    cookie.Value = sessionTok
+    cookie.HttpOnly = true
+    cookie.Secure = true
+    c.SetCookie(cookie)
+    err := c.Redirect(http.StatusSeeOther, "/home")
+    assert.NoErrorCF(err, "Failed to redirect on successful registration")
+
+    return nil
+}
