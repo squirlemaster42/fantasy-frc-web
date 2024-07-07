@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"fmt"
 	"server/assert"
 	"time"
 )
@@ -19,7 +18,7 @@ type Draft struct {
     Id int
     DisplayName string
     Owner User //User
-    Status int
+    Status string
     Players []DraftPlayer
 }
 
@@ -46,6 +45,24 @@ type DraftInvite struct {
     Accepted bool
 }
 
+func GetStatusString(status int) string {
+    switch status {
+    case FILLING:
+        return "Filling"
+    case WAITING_TO_START:
+        return "Waiting To Start"
+    case PICKING:
+        return "Picking"
+    case TEAMS_PLAYING:
+        return "Teams Playing"
+    case COMPLETE:
+        return "Complete"
+    default:
+        return "Invalid"
+    }
+}
+
+//TODO Need to include next pick in this and profile picture
 func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
     query := `SELECT DISTINCT
         Drafts.Id,
@@ -81,7 +98,7 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
                 Id: ownerId,
                 Username: ownerUsername,
             },
-            Status: status,
+            Status: GetStatusString(status),
             Players: make([]DraftPlayer, 0),
         }
 
@@ -106,11 +123,6 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
             var accepted bool
 
             playerRows.Scan(&userId, &username, &accepted)
-
-            fmt.Println(userId)
-            fmt.Println(username)
-            fmt.Println(accepted)
-
             draftPlayer := DraftPlayer{
                 User: User{
                     Id: userId,
