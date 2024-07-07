@@ -1,31 +1,57 @@
 package view
 
-templ HomeIndex(fromProtected bool) {
-    <section class="mx-auto w-fit flex flex-col gap-8 text-center">
-        <h1 class="text-5x1 font-bold">Welcome to Fantasy FRC!</h1>
-        <p class="text-2x1 font-thin">
-            Here you can create drafts and view scores for Fantasy FRC
-        </p>
-        if !fromProtected {
-			<hr class="my-4 w-4/5 mx-auto opacity-25"/>
-			<p class="text-base font-thin">You have an account?</p>
-			<footer class="flex gap-4 justify-center">
-				<a
- 					hx-swap="transition:true"
- 					href="/login"
- 					class="badge badge-primary px-6 py-4 hover:scale-[1.1] text-lg font-thin"
-				>
-					Log In
-				</a>
-				<a
- 					hx-swap="transition:true"
- 					href="/register"
- 					class="badge badge-neutral px-6 py-4 hover:scale-[1.1] text-lg font-thin"
-				>
-					Sign Up
-				</a>
-			</footer>
-		}
+import (
+    "server/model"
+)
+
+templ HomeIndex(drafts *[]model.Draft) {
+    <section class="mx-auto w-fit flex flex-col gap-8">
+        <div class="grid grid-cols-4 gap-x-16 gap-y-8">
+            for _, draft := range *drafts {
+                <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
+                    <div class="card-body p-5">
+                        <div class="card-title pb-[4px] justify-around">
+                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" width="80" height="80"></img>
+                            <h1>
+                                { draft.DisplayName }
+                            </h1>
+                        </div>
+                        <div class="grid grid-cols-2 border-b border-slate-600">
+                            <label class="border-t border-b border-slate-600 pl-2">
+                                Status: { draft.Status }
+                            </label>
+                            <label class="border-t border-b border-slate-600 pl-2 pb-1">
+                                Next Pick: <div class="badge badge-primary">TODO</div>
+                            </label>
+                        </div>
+                        <h4>Players:</h4>
+                        <div class="grid grid-cols-4 gap-2 border-b border-slate-600 pb-2">
+                            for _, player := range draft.Players {
+                                if !player.Pending {
+                                    <div class="badge badge-primary">{ player.User.Username }</div>
+                                }
+                            }
+                        </div>
+                        <h4>Pending Players:</h4>
+                        <div class="grid grid-cols-4 gap-2 border-b border-slate-600 pb-2">
+                            for _, player := range draft.Players {
+                                if player.Pending {
+                                    <div class="badge badge-primary">{ player.User.Username }</div>
+                                }
+                            }
+                        </div>
+                        <footer class="card-actions w-full">
+                            <button class="badge badge-primary px-6 py-4 hover:scale-[1.1] w-full">
+                                Open &nbsp;
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                </svg>
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+            }
+        </div>
     </section>
 }
 

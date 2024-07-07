@@ -52,6 +52,18 @@ func GetUserIdByUsername(database *sql.DB, username string) int {
     return id
 }
 
+func GetUsername(database *sql.DB, userId int) string {
+    query := `Select Username From Users Where Id = $1;`
+    assert := assert.CreateAssertWithContext("Get Username")
+    assert.AddContext("User Id", userId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var username string
+    err = stmt.QueryRow(userId).Scan(&username)
+    assert.NoError(err, "Failed to get user")
+    return username
+}
+
 //All crypto should happen before this since this just communicates with the DB
 func ValidateLogin(database *sql.DB, username string, password string) bool {
     query := `Select password From Users Where username = $1;`
@@ -100,9 +112,25 @@ func RegisterSession(database *sql.DB, userId int, sessionToken string) {
     assert.NoError(err, "Fauled to register session")
 }
 
+func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
+    query := `Select UserId From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+    assert := assert.CreateAssertWithContext("Get User By Session Token")
+    assert.AddContext("Session Token", sessionToken)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    hasher := crypto.SHA256.New()
+    hasher.Write([]byte(sessionToken))
+    assert.AddContext("Hashed Session Token", hasher.Sum(nil))
+    var userId int
+    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&userId)
+    assert.NoError(err, "Failed to get user")
+    UpdateSessionExpiration(database, userId, sessionToken)
+    return userId
+}
+
 func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) {
     //We want to make sure we only update the session token that the user logged in with
-    query := `Update UserSession Set expirationDate = now()::timestamp + '10 days' Where userId = $1 And sessionToken = $2;`
+    query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userId = $1 And sessionToken = $2;`
     assert := assert.CreateAssertWithContext("Update Session Expiration")
     assert.AddContext("User Id", userId)
     stmt, err := database.Prepare(query)
@@ -116,7 +144,7 @@ func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) 
 //Check if the session token is in the database and that it is not expired
 func ValidateSessionToken(database *sql.DB, userId int, sessionToken string) bool {
     //I think <= is fine, it probably doesn't matter though
-    query := `Select Count(*) From UserSessions Where userId = $1 and sessionToken = $2 and now()::timezone <= expirationDate;`
+    query := `Select Count(*) From UserSessions Where userId = $1 and sessionToken = $2 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Validate Session Token")
     assert.AddContext("User Id", userId)
     //This one is a little more concerning, but its probably fine

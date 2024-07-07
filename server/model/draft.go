@@ -6,10 +6,25 @@ import (
 	"time"
 )
 
+const (
+    FILLING = iota
+    WAITING_TO_START
+    PICKING
+    TEAMS_PLAYING
+    COMPLETE
+)
+
 type Draft struct {
     Id int
     DisplayName string
-    Owner int //User
+    Owner User //User
+    Status string
+    Players []DraftPlayer
+}
+
+type DraftPlayer struct {
+    User User
+    Pending bool
 }
 
 type Pick struct {
@@ -30,29 +45,126 @@ type DraftInvite struct {
     Accepted bool
 }
 
-//TODO should this return the draft id? probably
-func CreateDraft(database *sql.DB, owner int, displayName string) {
-    query := `INSERT INTO Drafts (DisplayName, Owner) Values ($1, $2);`
+func GetStatusString(status int) string {
+    switch status {
+    case FILLING:
+        return "Filling"
+    case WAITING_TO_START:
+        return "Waiting To Start"
+    case PICKING:
+        return "Picking"
+    case TEAMS_PLAYING:
+        return "Teams Playing"
+    case COMPLETE:
+        return "Complete"
+    default:
+        return "Invalid"
+    }
+}
+
+//TODO Need to include next pick in this and profile picture
+func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
+    query := `SELECT DISTINCT
+        Drafts.Id,
+        displayName,
+        owners.Id As ownerId,
+        owners.Username As OwnerUsername,
+        status
+    From Drafts
+    Left Join DraftPlayers On DraftPlayers.DraftId = Drafts.Id
+    Left Join DraftInvites On DraftInvites.DraftId = Drafts.Id And Drafts.Status = $1
+    Left Join Users dpUsers On DraftPlayers.Player = dpUsers.Id
+    Left Join Users diUsers On DraftInvites.InvitedPlayer = diUsers.Id
+    Left Join Users owners On Drafts.owner = owners.Id
+    Where DraftPlayers.Player = $2 Or DraftInvites.InvitedPlayer = $2;`
+    assert := assert.CreateAssertWithContext("Get Invites")
+    assert.AddContext("User", user)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query(FILLING, user)
+    var drafts []Draft
+    for rows.Next() {
+        var draftId int
+        var displayName string
+        var ownerId int
+        var ownerUsername string
+        var status int
+        rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+
+        draft := Draft{
+            Id: draftId,
+            DisplayName: displayName,
+            Owner: User{
+                Id: ownerId,
+                Username: ownerUsername,
+            },
+            Status: GetStatusString(status),
+            Players: make([]DraftPlayer, 0),
+        }
+
+        playerQuery := `Select
+            Users.Id As UserId,
+            Users.Username,
+            COALESCE(DraftInvites.accepted, 't') As Accepted
+        From Users
+        Left Join DraftPlayers On DraftPlayers.Player = Users.Id
+        Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
+        Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
+        Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
+        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1);`
+
+        playerStmt, err := database.Prepare(playerQuery)
+        assert.NoError(err, "Failed to prepare player query")
+        playerRows, err := playerStmt.Query(draftId)
+
+        for playerRows.Next() {
+            var userId int
+            var username string
+            var accepted bool
+
+            playerRows.Scan(&userId, &username, &accepted)
+            draftPlayer := DraftPlayer{
+                User: User{
+                    Id: userId,
+                    Username: username,
+                },
+                Pending: !accepted,
+            }
+
+            draft.Players = append(draft.Players, draftPlayer)
+        }
+
+        drafts = append(drafts, draft)
+    }
+
+    return &drafts
+}
+
+func CreateDraft(database *sql.DB, owner int, displayName string) int {
+    query := `INSERT INTO Drafts (DisplayName, Owner) Values ($1, $2) RETURNING Id;`
     assert := assert.CreateAssertWithContext("Create Draft")
     assert.AddContext("Owner", owner)
     assert.AddContext("Display Name", displayName)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(displayName, owner)
+    var draftId int
+    err = stmt.QueryRow(displayName, owner).Scan(&draftId)
     assert.NoError(err, "Failed to insert draft")
+    return draftId
 }
 
-//TODO should this return the invite id? probably
-func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer int) {
-    query := `INSERT INTO DraftInvites (draftId, invitingPlayer, invitedPlayer, sentTime, accepted) Values ($1, $2, $3, $4, $5);`
+func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer int) int {
+    query := `INSERT INTO DraftInvites (draftId, invitingPlayer, invitedPlayer, sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
     assert := assert.CreateAssertWithContext("Invite Player")
     assert.AddContext("Draft", draft)
     assert.AddContext("Inviting Player", invitingPlayer)
     assert.AddContext("Invited Player", invitedPlayer)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(draft, invitingPlayer, invitedPlayer, time.Now(), false)
+    var inviteId int
+    err = stmt.QueryRow(draft, invitingPlayer, invitedPlayer, time.Now(), false).Scan(&inviteId)
     assert.NoError(err, "Failed to insert invite player")
+    return inviteId
 }
 
 func AcceptInvite(database *sql.DB, inviteId int) {
@@ -62,6 +174,17 @@ func AcceptInvite(database *sql.DB, inviteId int) {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(true, time.Now(), inviteId)
+    assert.NoError(err, "Failed to accept invite")
+}
+
+func AddPlayerToDraft(database *sql.DB, draft int, player int) {
+    query := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
+    assert := assert.CreateAssertWithContext("Accept Invite")
+    assert.AddContext("Draft", draft)
+    assert.AddContext("Player", player)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(draft, player)
     assert.NoError(err, "Failed to accept invite")
 }
 
