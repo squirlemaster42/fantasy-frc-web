@@ -10,22 +10,23 @@ import (
 )
 
 func CreateServer(database *sql.DB, logger *logging.Logger) {
-    assert := assert.CreateAssertWithContext("Create Server")
-    app := echo.New()
-    app.Static("/", "./assets")
+	assert := assert.CreateAssertWithContext("Create Server")
+	app := echo.New()
+	app.Static("/", "./assets")
 
-    //Setup Routes
-    h := handler.Handler{
-        Database: database,
-        Logger: logger,
-    }
-    app.GET("/login", h.HandleViewLogin)
-    app.POST("/login", h.HandleLoginPost)
-    app.GET("/register", h.HandleViewRegister)
-    app.POST("/register", h.HandlerRegisterPost)
-    app.GET("/home", h.HandleViewHome)
+	//Setup Routes
+	h := handler.Handler{
+		Database: database,
+		Logger:   logger,
+	}
+	app.GET("/login", h.HandleViewLogin)
+	app.POST("/login", h.HandleLoginPost)
+	app.GET("/register", h.HandleViewRegister)
+	app.POST("/register", h.HandlerRegisterPost)
+	app.GET("/home", h.HandleViewHome)
+	app.GET("/", h.HandleViewLanding)
 
-    err := app.Start(":3000")
-    assert.NoError(err, "Failed to start server")
+	err := app.Start(":3000")
+	assert.NoError(err, "Failed to start server")
 
 }

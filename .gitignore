@@ -16,3 +16,4 @@ Cargo.lock
 *.env
 client/node_modules/
 client/package-lock.json
+.idea/*
