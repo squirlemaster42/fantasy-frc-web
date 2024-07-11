@@ -22,7 +22,7 @@ templ Index(page string, fromProtected bool, username string) {
             <header>
                 @partials.Navbar(fromProtected, username)
             </header>
-            <main class="pt-40">
+            <main class="fixed w-full top-16 bottom-0">
                 {children...}
             </main>
         </body>
