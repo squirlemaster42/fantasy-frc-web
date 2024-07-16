@@ -26,6 +26,8 @@ func CreateServer(database *sql.DB, logger *logging.Logger) {
     app.GET("/home", h.HandleViewHome)
     app.GET("/createDraft", h.HandleViewCreateDraft)
     app.POST("/createDraft", h.HandleCreateDraftPost)
+    app.GET("draft/:id/profile", h.HandleViewDraftProfile)
+    app.POST("draft/:id/profile", h.HandleUpdateDraftProfile)
 
     err := app.Start(":3000")
     assert.NoError(err, "Failed to start server")

@@ -163,9 +163,32 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
     stmt, err = database.Prepare(playerQuery)
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(draftId, draft.Owner.Id)
-    assert.NoError(err, "Failed to insert player")
+    assert.NoError(err, "Failed to insert draft")
     return draftId
 }
+
+//TODO We also need a get draft function
+func GetDraft(database *sql.DB, draftId int) Draft {
+    return Draft{}
+}
+
+func UpdateDraft(database *sql.DB, draft *Draft) {
+    //TODO This should update the draft instead
+    query := `INSERT INTO Drafts (DisplayName, Owner, Description, StartTime, EndTime, Interval) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
+    assert := assert.CreateAssertWithContext("Create Draft")
+    assert.AddContext("Owner", draft.Owner)
+    assert.AddContext("Display Name", draft.DisplayName)
+    assert.AddContext("Interval", draft.Interval)
+    assert.AddContext("Start Time", draft.StartTime)
+    assert.AddContext("End Time", draft.EndTime)
+    assert.AddContext("Status", draft.Status)
+    assert.AddContext("Description", draft.Description)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(draft.DisplayName, draft.Owner, draft.Description, draft.StartTime, draft.EndTime, draft.Interval)
+    assert.NoError(err, "Failed to insert draft")
+}
+
 
 func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer int) int {
     query := `INSERT INTO DraftInvites (draftId, invitingPlayer, invitedPlayer, sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
