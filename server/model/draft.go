@@ -17,6 +17,10 @@ const (
 type Draft struct {
     Id int
     DisplayName string
+    Description string
+    Interval int //Number of seconds to pick
+    StartTime time.Time
+    EndTime time.Time
     Owner User //User
     Status string
     Players []DraftPlayer
@@ -140,16 +144,26 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
     return &drafts
 }
 
-func CreateDraft(database *sql.DB, owner int, displayName string) int {
-    query := `INSERT INTO Drafts (DisplayName, Owner) Values ($1, $2) RETURNING Id;`
+func CreateDraft(database *sql.DB, draft *Draft) int {
+    query := `INSERT INTO Drafts (DisplayName, Owner, Description, StartTime, EndTime, Interval) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
     assert := assert.CreateAssertWithContext("Create Draft")
-    assert.AddContext("Owner", owner)
-    assert.AddContext("Display Name", displayName)
+    assert.AddContext("Owner", draft.Owner)
+    assert.AddContext("Display Name", draft.DisplayName)
+    assert.AddContext("Interval", draft.Interval)
+    assert.AddContext("Start Time", draft.StartTime)
+    assert.AddContext("End Time", draft.EndTime)
+    assert.AddContext("Status", draft.Status)
+    assert.AddContext("Description", draft.Description)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     var draftId int
-    err = stmt.QueryRow(displayName, owner).Scan(&draftId)
+    err = stmt.QueryRow(draft.DisplayName, draft.Owner, draft.Description, draft.StartTime, draft.EndTime, draft.Interval).Scan(&draftId)
     assert.NoError(err, "Failed to insert draft")
+    playerQuery := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
+    stmt, err = database.Prepare(playerQuery)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(draftId, draft.Owner.Id)
+    assert.NoError(err, "Failed to insert player")
     return draftId
 }
 

@@ -3,18 +3,24 @@ package draft
 import "server/view"
 
 templ DraftCreateIndex (fromProtected bool, errorMessage string) {
-    <form class="flex flex-row w-full h-full pl-16 pr-16">
+    <form
+        class="flex flex-row w-full h-full pl-16 pr-16"
+        hx-swap="outerHTML"
+        hx-post="/createDraft"
+        action=""
+        method="post"
+    >
         <div class="w-96 flex flex-col">
             <div class="card bg-base-200 m-2 p-2 h-56">
                 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" class="w-full h-full"></img>
             </div>
             <div class="card bg-base-200 m-2 p-2 grow">
-                <textarea class="h-full bg-transparent">Test Description</textarea>
+                <textarea name="description" class="h-full bg-transparent">Test Description</textarea>
             </div>
         </div>
         <div class="grow flex flex-col">
             <div class="card bg-base-200 m-2 p-2 h-24">
-                <input placeholder="Draft Name" class="h-full bg-transparent text-6xl p-4"/>
+                <input name="draftName" placeholder="Draft Name" class="h-full bg-transparent text-6xl p-4"/>
             </div>
             <div class="card bg-base-200 m-2 p-2 grow">
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-4xl">
@@ -22,15 +28,15 @@ templ DraftCreateIndex (fromProtected bool, errorMessage string) {
                 </h1>
                 <div class="flex flex-col pr-32 pl-32 pt-8">
                     <h2 class="pt-2">Time Between Picks</h2>
-                    <input type="range"/>
+                    <input name="interval" type="range"/>
                     <h2 class="pt-2">Start Time</h2>
-                    <input type="datetime-local"/>
+                    <input name="startTime" type="datetime-local"/>
                     <h2 class="pt-2">End Time</h2>
-                    <input type="datetime-local"/>
+                    <input name="endTime" type="datetime-local"/>
                 </div>
             </div>
             <div class="flex flex-row-reverse pb-2 pr-2">
-                <button class="badge badge-primary hover:scale-[1.1]" type="button">Save</button>
+                <button class="badge badge-primary hover:scale-[1.1]">Save</button>
             </div>
         </div>
     </form>
