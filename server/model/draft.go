@@ -167,9 +167,19 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
     return draftId
 }
 
-//TODO We also need a get draft function
+//TODO Do we need to get the draft owner
 func GetDraft(database *sql.DB, draftId int) Draft {
-    return Draft{}
+    query := `Select DisplayName, Description, StartTime, EndTime, Interval From Drafts Where DraftId = $1;`
+    assert := assert.CreateAssertWithContext("Get Draft")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    draft := Draft{
+        Id: draftId,
+    }
+    err = stmt.QueryRow(draftId).Scan(&draft.DisplayName, &draft.Description, &draft.StartTime, &draft.EndTime, &draft.Interval)
+    assert.NoError(err, "Failed to get draft")
+    return draft
 }
 
 func UpdateDraft(database *sql.DB, draft *Draft) {
