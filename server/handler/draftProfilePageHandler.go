@@ -13,10 +13,10 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle update Draft Profile")
     draftId, err := strconv.Atoi(c.Param("id"))
     assert.NoError(err, "Failed to convert draft id to int")
-    draft := model.GetDraft(h.Database, draftId)
+    _ = model.GetDraft(h.Database, draftId)
 
-    draftIndex := draftView.DraftCreateIndex(false, "")
-    draftView := draftView.DraftCreate(" | Draft Profile", false, draftIndex)
+    draftIndex := draftView.DraftProfileIndex(model.Draft{})
+    draftView := draftView.DraftProfile(" | Draft Profile", false, draftIndex)
     err = Render(c, draftView)
     return nil
 }

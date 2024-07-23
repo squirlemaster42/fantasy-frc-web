@@ -11,8 +11,8 @@ import (
 )
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
-    draftCreateIndex := draft.DraftCreateIndex(false, "")
-    draftCreate := draft.DraftCreate(" | Create Draft", false, draftCreateIndex)
+    draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
+    draftCreate := draft.DraftProfile(" | Create Draft", false, draftCreateIndex)
     //TODO We should probably make tailwind work offline to make the dev experience better
     err := Render(c, draftCreate)
     assert.NoErrorCF(err, "Handle View Draft Create Failed To Render")
@@ -50,8 +50,8 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     //TODO we should probably grab the new draft id and then redirecet to that settings page
     model.CreateDraft(h.Database, &draftModel)
 
-    draftCreateIndex := draft.DraftCreateIndex(false, "")
-    draftCreate := draft.DraftCreate(" | Create Draft", false, draftCreateIndex)
+    draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
+    draftCreate := draft.DraftProfile(" | Create Draft", false, draftCreateIndex)
     //TODO We should probably make tailwind work offline to make the dev experience better
     err = Render(c, draftCreate)
     assert.NoError(err, "Handle View Draft Create Failed To Render")

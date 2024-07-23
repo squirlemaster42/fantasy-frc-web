@@ -1,0 +1,82 @@
+package draft
+
+import (
+    "server/view"
+    "server/model"
+)
+
+templ DraftProfileIndex (draft model.Draft) {
+    <form
+        class="flex flex-row w-full h-full pl-16 pr-16"
+        hx-swap="outerHTML"
+        hx-post="/createDraft"
+        action=""
+        method="post"
+    >
+        <div class="w-96 flex flex-col">
+            <div class="card bg-base-200 m-2 p-2 h-56">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" class="w-full h-full"></img>
+            </div>
+            <div class="card bg-base-200 m-2 p-2 grow">
+                <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-4xl">
+                    Description
+                </h1>
+                <textarea name="description" class="h-full bg-transparent resize-none">{draft.Description}</textarea>
+            </div>
+        </div>
+        <div class="grow flex flex-col">
+            <div class="card bg-base-200 m-2 p-2 h-24">
+                <input name="draftName" placeholder="{draft.DisplayName}" class="h-full bg-transparent text-6xl p-4"/>
+            </div>
+            <div class="m-2 p-2 grow">
+                <div class="grid grid-cols-4 gap-x-8 gap-y-8">
+                    for i := 0; i < 8; i++ {
+                        <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
+                            <div class="card-body p-5">
+                                <div class="card-title pb-[4px] justify-around">
+                                    <h1>Test Player</h1>
+                                </div>
+                                Test Body
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="flex flex-row-reverse pb-2 pr-2">
+                <button class="badge badge-primary hover:scale-[1.1]">Save</button>
+            </div>
+        </div>
+        <div class="w-96 flex flex-col h-full">
+            <div class="card bg-base-200 m-2 p-2 h-24 h-full">
+                <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-4xl">
+                    Settings
+                </h1>
+                <div class="flex flex-col p-2 pt-8">
+                    <h2 class="pt-2">Time Between Picks</h2>
+                    <input name="interval" placeholder="{draft.Interval}" type="range"/>
+                    <h2 class="pt-2">Start Time</h2>
+                    <input name="startTime" placeholder="{draft.StartTime}" type="datetime-local"/>
+                    <h2 class="pt-2">End Time</h2>
+                    <input name="endTime" placeholder="{draft.EndTime}" type="datetime-local"/>
+                    <h2 class="pt-2">Event</h2>
+                    <select>
+                        <option>Test Event 1</option>
+                        <option>Test Event 2</option>
+                        <option>Test Event 3</option>
+                        <option>Test Event 4</option>
+                        <option>Test Event 5</option>
+                        <option>Test Event 6</option>
+                        <option>Test Event 7</option>
+                        <option>Test Event 8</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </form>
+}
+
+templ DraftProfile (page string, fromProtected bool, cmp templ.Component) {
+    @view.Index(page, fromProtected, "") {
+        @cmp
+    }
+}
