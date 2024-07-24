@@ -26,24 +26,22 @@ templ DraftProfileIndex (draft model.Draft) {
         </div>
         <div class="grow flex flex-col">
             <div class="card bg-base-200 m-2 p-2 h-24">
-                <input name="draftName" placeholder="{draft.DisplayName}" class="h-full bg-transparent text-6xl p-4"/>
+                <input name="draftName" placeholder="Draft Name" value={draft.DisplayName} class="h-full bg-transparent text-6xl p-4"/>
             </div>
             <div class="m-2 p-2 grow">
-                <div class="grid grid-cols-4 gap-x-8 gap-y-8">
+                <div class="grid grid-cols-4 gap-x-4 gap-y-4">
                     for i := 0; i < 8; i++ {
-                        <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
-                            <div class="card-body p-5">
-                                <div class="card-title pb-[4px] justify-around">
+                        <div class="card bg-slate-800 shadow-xl mx-auto mb-8 w-60">
+                            <div class="card-body p-5 flex justify-center items-center">
+                                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" width="100" height="100"></img>
+                                <div class="card-title pb-[4px] justify-around border-b border-b-slate-600">
                                     <h1>Test Player</h1>
                                 </div>
-                                Test Body
+                                Pick Order: 5
                             </div>
                         </div>
                     }
                 </div>
-            </div>
-            <div class="flex flex-row-reverse pb-2 pr-2">
-                <button class="badge badge-primary hover:scale-[1.1]">Save</button>
             </div>
         </div>
         <div class="w-96 flex flex-col h-full">
@@ -70,6 +68,9 @@ templ DraftProfileIndex (draft model.Draft) {
                         <option>Test Event 8</option>
                     </select>
                 </div>
+            </div>
+            <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
+                <button class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
             </div>
         </div>
     </form>
