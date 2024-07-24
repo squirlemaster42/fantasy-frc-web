@@ -13,9 +13,9 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle update Draft Profile")
     draftId, err := strconv.Atoi(c.Param("id"))
     assert.NoError(err, "Failed to convert draft id to int")
-    _ = model.GetDraft(h.Database, draftId)
+    draftModel := model.GetDraft(h.Database, draftId)
 
-    draftIndex := draftView.DraftProfileIndex(model.Draft{})
+    draftIndex := draftView.DraftProfileIndex(draftModel)
     draftView := draftView.DraftProfile(" | Draft Profile", false, draftIndex)
     err = Render(c, draftView)
     return nil

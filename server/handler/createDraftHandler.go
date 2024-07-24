@@ -20,18 +20,20 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 }
 
 func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Handle Create Draft Post")
     draftName := c.FormValue("draftName")
     description := c.FormValue("description")
     interval := c.FormValue("interval")
     startTime := c.FormValue("startTime")
     endTime := c.FormValue("endTime")
-    sessionToken, err := c.Cookie("SessionToken")
-    assert := assert.CreateAssertWithContext("Handle Create Draft Post")
+    //event := c.FormValue("event")
+    sessionToken, err := c.Cookie("sessionToken")
+    assert.NoError(err, "Failed to get session cookie")
 
     intInterval, err := strconv.Atoi(interval)
     assert.NoError(err, "Failed to parse interval")
 
-    layout := "2006-01-02 15:04:05"
+    layout := "2006-01-02T15:04"
     parsedStartTime, err := time.Parse(layout, startTime)
     assert.NoError(err, "Failed to parse start time")
     parsedEndTime, err := time.Parse(layout, endTime)
