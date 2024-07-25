@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 )
-
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
@@ -220,7 +219,6 @@ func (t *TbaHandler) makeRequest(url string) []byte {
         return nil
     }
 
-
     return body
 }
 
@@ -251,6 +249,14 @@ func (t *TbaHandler) makeMatchReq(matchId string) Match {
 
 func (t *TbaHandler) makeMatchKeysRequest(teamId string, eventId string) []string {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
+    var keys []string
+    jsonData := t.makeRequest(url)
+    json.Unmarshal(jsonData, &keys)
+    return keys
+}
+
+func (t *TbaHandler) makeEventMatchKeysRequest(eventId string) []string {
+    url := BASE_URL + "event/" + eventId + "/matches/keys"
     var keys []string
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &keys)

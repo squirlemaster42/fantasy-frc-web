@@ -1,16 +1,16 @@
 package draftInit
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"path/filepath"
-	"server/database"
 	"strings"
 )
 
-func LoadCSVIntoDb(dbHandler *database.DatabaseDriver, path string) {
+func LoadCSVIntoDb(database *sql.DB, path string) {
     //Load a csv at a give filepath
     //Add the relevant data to the database
     lines := loadFile(path)
@@ -20,44 +20,48 @@ func LoadCSVIntoDb(dbHandler *database.DatabaseDriver, path string) {
 
     //Delete old data related to this draft if it exists
     fmt.Println("Deleting old picks")
-    draftId := getDraftId(strings.TrimSpace(draftName), dbHandler)
+    draftId := getDraftId(strings.TrimSpace(draftName), database)
     if draftId != -1 {
-        dbHandler.RunExec(fmt.Sprintf("Delete From Picks Where draftId = %d", draftId))
+        database.Exec(fmt.Sprintf("Delete From Picks Where draftId = %d", draftId))
     }
 
     //Add draft to database
     if draftId == -1 {
         fmt.Println("Adding draft to the database")
-        dbHandler.RunExec(fmt.Sprintf("Insert Into Drafts (Name) Values ('%s')", strings.TrimSpace(draftName)))
-        draftId = getDraftId(strings.TrimSpace(draftName), dbHandler)
+        database.Exec(fmt.Sprintf("Insert Into Drafts (Name) Values ('%s')", strings.TrimSpace(draftName)))
+        draftId = getDraftId(strings.TrimSpace(draftName), database)
     }
 
     //Add players
     fmt.Println("Adding players to the database")
     for player := range players {
-        if getPlayerId(strings.TrimSpace(player), dbHandler) == -1 {
+        if getPlayerId(strings.TrimSpace(player), database) == -1 {
             fmt.Printf("Adding player: %s to the database\n", player)
-            dbHandler.RunExec(fmt.Sprintf("Insert Into Players (NAME) Values ('%s')", strings.TrimSpace(player)))
+            database.Exec(fmt.Sprintf("Insert Into Players (NAME) Values ('%s')", strings.TrimSpace(player)))
         }
     }
 
     //Add picks for the players
     fmt.Println("Adding picks to database")
-    for player, picks := range players {
-        playerId := getPlayerId(strings.TrimSpace(player), dbHandler)
-        for index, pick := range picks {
-            if !teamExists(strings.TrimSpace(pick), dbHandler) {
+    for playerOrder, playerName := range parsePlayerOrder(lines[0] ){
+        playerId := getPlayerId(strings.TrimSpace(playerName), database)
+
+        //Add player order to database
+        database.Exec(fmt.Sprintf("Insert Into DraftPlayers (draftId, playerOrder, player) Values (%d, %d, %d)", draftId, playerOrder, playerId))
+
+        for index, pick := range players[playerName] {
+            if !teamExists(strings.TrimSpace(pick), database) {
                 fmt.Printf("Adding team %s to database\n", strings.TrimSpace(pick))
-                dbHandler.RunExec(fmt.Sprintf("INSERT INTO Teams (tbaid) VALUES ('%s')", strings.TrimSpace(pick)))
+                database.Exec(fmt.Sprintf("INSERT INTO Teams (tbaid) VALUES ('%s')", strings.TrimSpace(pick)))
             }
-            dbHandler.RunExec(fmt.Sprintf("INSERT INTO Picks (draftId, player, PickOrder, pickedTeam) VALUES (%d, %d, %d, '%s')", draftId, playerId, index, strings.TrimSpace(pick)))
+            database.Exec(fmt.Sprintf("INSERT INTO Picks (draftId, player, PickOrder, pickedTeam) VALUES (%d, %d, %d, '%s')", draftId, playerId, index, strings.TrimSpace(pick)))
         }
     }
 }
 
-func getDraftId(draftName string, dbHandler *database.DatabaseDriver) int {
+func getDraftId(draftName string, database *sql.DB) int {
     var draftId int
-    err := dbHandler.Connection.QueryRow(fmt.Sprintf("Select Id From drafts Where Name = '%s'", draftName)).Scan(&draftId)
+    err := database.QueryRow(fmt.Sprintf("Select Id From drafts Where Name = '%s'", draftName)).Scan(&draftId)
     if err != nil {
         log.Print(err)
         return -1
@@ -65,23 +69,27 @@ func getDraftId(draftName string, dbHandler *database.DatabaseDriver) int {
     return draftId
 }
 
-func getPlayerId(playerName string, dbHandler *database.DatabaseDriver) int {
+func getPlayerId(playerName string, database *sql.DB) int {
     var playerId int
-    err := dbHandler.Connection.QueryRow(fmt.Sprintf("Select Id From Players Where Name = '%s'", playerName)).Scan(&playerId)
+    err := database.QueryRow(fmt.Sprintf("Select Id From Players Where Name = '%s'", playerName)).Scan(&playerId)
     if err != nil {
         return -1
     }
     return playerId
 }
 
-func teamExists(tbaId string, dbHandler *database.DatabaseDriver) bool {
+func teamExists(tbaId string, database *sql.DB) bool {
     var teamId string
-    err := dbHandler.Connection.QueryRow(fmt.Sprintf("Select tbaid From Teams Where tbaid = '%s'", tbaId)).Scan(&teamId)
+    err := database.QueryRow(fmt.Sprintf("Select tbaid From Teams Where tbaid = '%s'", tbaId)).Scan(&teamId)
     if err != nil {
         log.Print(err)
         return false
     }
     return true
+}
+
+func parsePlayerOrder(line string) []string {
+    return strings.Split(line, ",")
 }
 
 func parseCSVToPlayers(lines []string) map[string][]string {
