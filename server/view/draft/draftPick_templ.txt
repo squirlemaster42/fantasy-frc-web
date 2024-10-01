@@ -1,1 +1,4 @@
-<div id=\"draftPicks\" class=\"flex items-center justify-center\"><section class=\"card bg-base-200 shadow-xl mx-auto\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><form hx-post=\"/draft\" hx-target=\"#draftPicks\" hx-swap=\"outerHTML\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\" name=\"pickInput\" type=\"number\"> <button class=\"badge badge-primary px-6 py-4 hover:scale-[1.1]\">Submit Pick</button></form></div></section></div>
+<div id=\"draftPicks\" class=\"flex items-center justify-center\"><table class=\"w-4/5 text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-8\"><thead class=\"text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400\"><tr>
+<th scope=\"col\" class=\"px-6 py-3\">
+</th>
+</tr></thead> <tbody><tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\"><td class=\"px-6 py-4\">PickOne</td></tr></tbody></table></div>

@@ -24,6 +24,12 @@ func (t *TimestampedLogger) WriteMessage(message string) error {
     return nil
 }
 
+type StructuredLogger struct {}
+
+func (s *StructuredLogger) WriteMessage(message string) error {
+    return nil
+}
+
 type Logger struct {
     messages chan string
     writer LogWriter

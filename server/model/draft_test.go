@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"server/database"
@@ -45,8 +46,12 @@ func TestGetDraftsForUser(t *testing.T) {
     userEight := GetOrCreateUser(db, "UserEight")
 
     //Create a draft with user one as the owner
-    draftId := CreateDraft(db, userOne, t.Name())
-    AddPlayerToDraft(db, draftId, userOne)
+    d := Draft{
+        DisplayName: t.Name(),
+        Owner: User{ Id: userOne},
+        Status: GetStatusString(FILLING),
+    }
+    draftId := CreateDraft(db, &d)
 
     // Invite all other users to the draft
     userTwoInvite := InvitePlayer(db, draftId, userOne, userTwo)
@@ -95,7 +100,7 @@ func TestGetDraftsForUser(t *testing.T) {
     }
     assert.Equal(t, t.Name(), draft.DisplayName)
     assert.Equal(t, userOne, draft.Owner.Id)
-    assert.Equal(t, FILLING, draft.Status)
+    assert.Equal(t, GetStatusString(FILLING), draft.Status)
 
     var foundPlayers []int
     for _, player := range draft.Players {
