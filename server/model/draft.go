@@ -295,10 +295,11 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
     query := `SELECT
-    Picks.id, Picks,player, Picks,pickOrder, Picks,pick, Picks.pickTime
+    Picks.id, Picks.player, Picks, pickOrder, Picks,pick, Picks.pickTime
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
-    Where DraftPlayers.draftId = $1;`
+    Where DraftPlayers.draftId = $1
+    Order By PickTime Asc;`
     assert := assert.CreateAssertWithContext("Get Picks")
     assert.AddContext("Draft", draft)
     stmt, err := database.Prepare(query)
