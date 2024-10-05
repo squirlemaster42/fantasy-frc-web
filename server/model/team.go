@@ -47,3 +47,7 @@ func UpdateTeamRankingScore(database *sql.DB, tbaId string, rankingScore int) {
     _, err = stmt.Exec(rankingScore, tbaId)
     assert.NoError(err, "Failed to associate team")
 }
+
+func ValidPick(databse *sql.DB, tbaId string, draftId int) bool {
+    return false
+}
