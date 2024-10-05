@@ -35,9 +35,10 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
             if row == totalRows {
                 blanks := numPlayers - (len(picks) % numPlayers)
                 if blanks != 0 {
-                    for i := 0; i < blanks; i++ {
+                    for i := 0; i < blanks - 1; i++ {
                         stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
                     }
+                    stringBuilder.WriteString("<td class=\"border\"><input class=\"w-full h-full bg-transparent pl-4 border-none\"/></td>")
                 }
             }
             row++
