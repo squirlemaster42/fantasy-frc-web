@@ -11,7 +11,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
-
 //Returns the Id of the User
 func GetOrCreateUser(database *sql.DB, username string) int {
     if !UsernameTaken(database, username) {
@@ -217,6 +216,7 @@ func TestGetPicksInDraft(t *testing.T) {
     teamSix := *GetOrCreateTeam(db, "TeamSix")
     teamSeven := *GetOrCreateTeam(db, "TeamSeven")
     teamEight := *GetOrCreateTeam(db, "TeamEight")
+    teamNine:= *GetOrCreateTeam(db, "TeamNine")
 
     draftPlayerOne := GetDraftPlayerId(db, draftId, userOne)
     draftPlayerTwo := GetDraftPlayerId(db, draftId, userTwo)
@@ -290,8 +290,16 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    time.Sleep(1 * time.Second)
+    pick = Pick{
+        Player: draftPlayerEight,
+        PickOrder: 0,
+        Pick: teamNine.TbaId,
+        PickTime: time.Now(),
+    }
+    MakePick(db, pick)
     picks := GetPicks(db, draft.Id)
-    assert.Equal(t, 8, len(picks))
+    assert.Equal(t, 9, len(picks))
 
     assert.Equal(t, teamOne.TbaId, picks[0].Pick)
     assert.Equal(t, teamTwo.TbaId, picks[1].Pick)
@@ -301,4 +309,5 @@ func TestGetPicksInDraft(t *testing.T) {
     assert.Equal(t, teamSix.TbaId, picks[5].Pick)
     assert.Equal(t, teamSeven.TbaId, picks[6].Pick)
     assert.Equal(t, teamEight.TbaId, picks[7].Pick)
+    assert.Equal(t, teamNine.TbaId, picks[8].Pick)
 }

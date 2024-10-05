@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"fmt"
 	"server/model"
 	"server/view/draft"
 	"strconv"
@@ -24,7 +23,6 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
     var stringBuilder strings.Builder
     picks := model.GetPicks(db, draftId)
-    fmt.Println(picks)
 
     row := 0
     totalRows := len(picks) / numPlayers
@@ -38,17 +36,26 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
                 blanks := numPlayers - (len(picks) % numPlayers)
                 if blanks != 0 {
                     for i := 0; i < blanks; i++ {
-                        stringBuilder.WriteString("<td class=\"px-6 py-4\"></td>")
+                        stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
                     }
                 }
             }
             row++
         }
-        stringBuilder.WriteString("<td>")
+        stringBuilder.WriteString("<td class=\"border px-6 py-3\">")
         stringBuilder.WriteString(pick.Pick)
         stringBuilder.WriteString("</td>")
     }
-    stringBuilder.WriteString("</td>")
+    stringBuilder.WriteString("</tr>")
+
+    for row < 8 {
+        stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
+        for i := 0; i < numPlayers; i++ {
+            stringBuilder.WriteString("<td class=\"border px-6 py-5\"></td>")
+        }
+        stringBuilder.WriteString("</tr>")
+        row++
+    }
 
     return stringBuilder.String()
 }

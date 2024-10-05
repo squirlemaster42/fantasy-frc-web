@@ -19,8 +19,7 @@ func GetTeam(database *sql.DB, tbaId string) *Team {
     assert.NoError(err, "Failed to prepare statement")
     team := Team{}
     err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.RankingScore)
-    assert.NoError(err, "Failed to get team")
-    if team.TbaId == "" {
+    if err != nil || team.TbaId == "" {
         return nil
     }
     return &team
