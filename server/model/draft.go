@@ -106,16 +106,14 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 			Players: make([]DraftPlayer, 0),
 		}
 
-		playerQuery := `Select
+		playerQuery := `Select Distinct
             Users.Id As UserId,
             Users.Username,
             COALESCE(DraftInvites.accepted, 't') As Accepted
         From Users
         Left Join DraftPlayers On DraftPlayers.Player = Users.Id
         Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
-        Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
-        Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
-        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1);`
+        Where (DraftInvites.DraftId = $1 Or DraftPlayers.DraftId = $1)`;
 
 		playerStmt, err := database.Prepare(playerQuery)
 		assert.NoError(err, "Failed to prepare player query")
@@ -295,7 +293,7 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
     query := `SELECT
-    Picks.id, Picks.player, Picks, pickOrder, Picks,pick, Picks.pickTime
+    Picks.id, Picks.player, pickOrder, Picks.pick, Picks.pickTime
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
@@ -318,6 +316,19 @@ func GetPicks(database *sql.DB, draft int) []Pick {
 // TODO Figure out how we want this to work. should we have a next pick field on the draft or something?
 func GetNextPick(database *sql.DB, draft int) Pick {
     return Pick{}
+}
+
+func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
+    query := `Select Id From DraftPlayers Where draftId = $1 And player = $2`
+    assert := assert.CreateAssertWithContext("Get Draft Player Id")
+	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("Player Id", playerId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var draftPlayerId int
+	err = stmt.QueryRow(draftId, playerId).Scan(&draftPlayerId)
+	assert.NoError(err, "Failed to get draft player")
+	return draftPlayerId
 }
 
 // Is using the struct here better?

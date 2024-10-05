@@ -11,16 +11,19 @@ type Team struct {
     RankingScore int
 }
 
-func GetTeam(database *sql.DB, tbaId string) Team {
-    query := `Select tbaId, name, rankingScore From Teams Where tbaId = $1;`
+func GetTeam(database *sql.DB, tbaId string) *Team {
+    query := `Select tbaId, name, COALESCE(rankingScore, 0) As rankingScore From Teams Where tbaId = $1;`
     assert := assert.CreateAssertWithContext("Get Team")
     assert.AddContext("TbaId", tbaId)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     team := Team{}
-    _, err = stmt.Exec(&team.TbaId, &team.Name, &team.RankingScore)
-    assert.NoError(err, "Failed to Get Team")
-    return team
+    err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.RankingScore)
+    assert.NoError(err, "Failed to get team")
+    if team.TbaId == "" {
+        return nil
+    }
+    return &team
 }
 
 func CreateTeam(database *sql.DB, tbaId string, name string) {
