@@ -361,3 +361,21 @@ func GetAllPicks(database *sql.DB) []string {
 
 	return picks
 }
+
+func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
+    query := `SELECT
+    Count(*) As num
+    From Picks
+    Inner Join DraftPlayers On DraftPlayers.id = Picks.player
+    Where DraftPlayers.draftId = $1
+    And Picks.pick = $2;`
+    assert := assert.CreateAssertWithContext("Has Been Picked")
+    assert.AddContext("Draft", draftId)
+    assert.AddContext("Team", team)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var numPicked int
+    err = stmt.QueryRow(draftId, team).Scan(&numPicked)
+    assert.NoError(err, "Failed to query for picks")
+    return numPicked != 0
+}

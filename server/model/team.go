@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"server/assert"
+	"server/tbaHandler"
 )
 
 type Team struct {
@@ -48,6 +49,27 @@ func UpdateTeamRankingScore(database *sql.DB, tbaId string, rankingScore int) {
     assert.NoError(err, "Failed to associate team")
 }
 
-func ValidPick(databse *sql.DB, tbaId string, draftId int) bool {
-    return false
+func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) bool {
+    if tbaId == "" {
+        return false
+    }
+
+    picked := HasBeenPicked(database, draftId, tbaId)
+
+    events := handler.MakeEventListReq(tbaId)
+    //TODO we need to load events for this draft
+    draftEvents := []string{"a"}
+
+    validEvent := false
+    //Looping here should always be faster because of the small lists
+    for _, event := range events {
+        for _, draftEvent := range draftEvents {
+            if event  == draftEvent {
+                validEvent = true
+                break
+            }
+        }
+    }
+
+    return picked && validEvent
 }

@@ -10,7 +10,8 @@ import (
 	"server/database"
 	draftInit "server/draftInit"
 	"server/logging"
-	"server/scoring"
+	"server/scorer"
+	"server/tbaHandler"
 
 	"github.com/joho/godotenv"
 )
@@ -30,7 +31,7 @@ func main() {
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
     //sessionSecret := os.Getenv("SESSION_SECRET")
-    tbaHandler := scoring.NewHandler(tbaTok)
+    tbaHandler := tbaHandler.NewHandler(tbaTok)
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 
     //If we have an init dir, then parse all of the drafts in that folder
@@ -49,9 +50,9 @@ func main() {
         }
     }
 
-    scorer := scoring.NewScorer(tbaHandler, database)
+    scorer := scorer.NewScorer(tbaHandler, database)
     if !(*skipScoring == "true") {
         scorer.RunScorer()
     }
-    CreateServer(database, logger)
+    CreateServer(database, tbaHandler, logger)
 }

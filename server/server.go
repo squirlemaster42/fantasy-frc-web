@@ -5,11 +5,12 @@ import (
 	"server/assert"
 	"server/handler"
 	"server/logging"
+	"server/tbaHandler"
 
 	"github.com/labstack/echo/v4"
 )
 
-func CreateServer(database *sql.DB, logger *logging.Logger) {
+func CreateServer(database *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging.Logger) {
     assert := assert.CreateAssertWithContext("Create Server")
     app := echo.New()
     app.Static("/", "./assets")
@@ -18,6 +19,7 @@ func CreateServer(database *sql.DB, logger *logging.Logger) {
     h := handler.Handler{
         Database: database,
         Logger: logger,
+        TbaHandler: *tbaHandler,
     }
     app.GET("/login", h.HandleViewLogin)
     app.POST("/login", h.HandleLoginPost)

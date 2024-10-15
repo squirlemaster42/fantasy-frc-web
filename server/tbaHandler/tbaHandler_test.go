@@ -1,10 +1,19 @@
-package scoring
+package tbaHandler
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
+
+
+func getTbaTok() string {
+    godotenv.Load(filepath.Join("../", ".env"))
+    return os.Getenv("TBA_TOKEN")
+}
 
 func TestMatchListReq(t *testing.T) {
     tbaTok := getTbaTok()

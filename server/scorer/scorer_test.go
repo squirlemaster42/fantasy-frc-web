@@ -1,4 +1,4 @@
-package scoring
+package scorer
 
 import (
 	"os"
