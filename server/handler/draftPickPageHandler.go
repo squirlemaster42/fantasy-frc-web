@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+    "golang.org/x/net/websocket"
 	"github.com/labstack/echo/v4"
 )
 
@@ -38,7 +39,6 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
 					for i := 0; i < blanks-1; i++ {
 						stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
 					}
-					//TODO Need to figure out how to set the width of this
 					stringBuilder.WriteString("<td class=\"border\">")
 					//TODO Need to disable if its not the current persons pick
 					stringBuilder.WriteString("<input name=\"pickInput\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
@@ -114,4 +114,18 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick b
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
 	err := Render(c, pickPageView)
 	return err
+}
+
+func (h *Handler) PickNotifier(c echo.Context) error {
+    websocket.Handler(func (ws *websocket.Conn) {
+        defer ws.Close() //Need to unregister in other notifier
+        //TODO Get draft id
+        watcher := h.Notifier.RegisterWatcher(-1)
+        for {
+            msg := <- watcher.notifierQueue
+            err := websocket.Message.Send(ws, []byte(msg))
+            assert.NoErrorCF(err, "Websocket receive failed")
+        }
+    }).ServeHTTP(c.Response(), c.Request())
+    return nil
 }

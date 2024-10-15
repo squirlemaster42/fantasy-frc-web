@@ -32,6 +32,7 @@ func CreateServer(database *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *l
     app.POST("draft/updateDraft", h.HandleUpdateDraftProfile)
     app.GET("draft/:id/pick", h.ServePickPage)
     app.POST("draft/:id/makePick", h.HandlerPickRequest)
+    app.GET("draft/:id/pickNotifier", h.PickNotifier)
 
     err := app.Start(":3000")
     assert.NoError(err, "Failed to start server")

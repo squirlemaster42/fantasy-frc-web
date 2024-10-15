@@ -3,8 +3,6 @@ package handler
 import (
 	"database/sql"
 	"server/model"
-
-	"github.com/gorilla/websocket"
 )
 
 //We need to store a set of connected clients
@@ -17,27 +15,27 @@ import (
 //draft. We will need to disable the text input for anyone who is not making
 //the current pick.
 
-type pickNotifier struct {
+type PickNotifier struct {
     database *sql.DB
     watchers map[int][]watcher //map the draft id to the group watching that draft
 }
 
 type watcher struct {
     //TODO maybe we should give the watcher an id
-    ws *websocket.Conn
+    notifierQueue chan string
 }
 
-func (pn *pickNotifier) registerWatcher(draft model.Draft, ws *websocket.Conn) {
+func (pn *PickNotifier) RegisterWatcher(draftId int) *watcher {
     watcher := watcher {
-        ws: ws,
+        notifierQueue: make(chan string, 10), //TODO this can probably be smaller
     }
 
-    //TODO We need to make sure that we dont need to do some initialization here
     //TODO We also probably need to make sure that we dont register the same connection twice
-    pn.watchers[draft.Id] = append(pn.watchers[draft.Id], watcher)
+    pn.watchers[draftId] = append(pn.watchers[draftId], watcher)
+    return &watcher
 }
 
-func (pn *pickNotifier) unregiserWatcher(watcher watcher) {
+func (pn *PickNotifier) UnregiserWatcher(watcher watcher) {
     for key, watchers := range pn.watchers {
         index := -1
         for i, w := range watchers {
@@ -47,7 +45,6 @@ func (pn *pickNotifier) unregiserWatcher(watcher watcher) {
         }
         pn.watchers[key] = removeWatcher(watchers, index)
     }
-    watcher.ws.Close();
 }
 
 func removeWatcher(w []watcher, i int) []watcher {
@@ -55,8 +52,8 @@ func removeWatcher(w []watcher, i int) []watcher {
     return w[:len(w) - 1]
 }
 
-func (pn *pickNotifier) notifyWatchers(draft model.Draft) {
-    for _, watcher := range pn.watchers[draft.Id] {
-        watcher.ws.WriteMessage(websocket.TextMessage, []byte("Test"))
+func (pn *PickNotifier) NotifyWatchers(draftId int, replacementText string) {
+    for _, watcher := range pn.watchers[draftId] {
+        watcher.notifierQueue <- replacementText
     }
 }
