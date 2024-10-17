@@ -113,7 +113,8 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick bool) error {
 	draftModel := model.GetDraft(database, draftId)
 	url := fmt.Sprintf("/draft/%d/makePick", draftId)
-	pickPageIndex := draft.DraftPickIndex(draftModel, getPickHtml(database, draftId, len(draftModel.Players)), url, invalidPick)
+	notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
+	pickPageIndex := draft.DraftPickIndex(draftModel, getPickHtml(database, draftId, len(draftModel.Players)), url, invalidPick, notifierUrl)
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
 	err := Render(c, pickPageView)
 	return err
