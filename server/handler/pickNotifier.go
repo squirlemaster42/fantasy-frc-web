@@ -2,7 +2,8 @@ package handler
 
 import (
 	"database/sql"
-	"server/model"
+
+    "github.com/google/uuid"
 )
 
 //We need to store a set of connected clients
@@ -21,25 +22,25 @@ type PickNotifier struct {
 }
 
 type watcher struct {
-    //TODO maybe we should give the watcher an id
+    watcherId uuid.UUID
     notifierQueue chan string
 }
 
 func (pn *PickNotifier) RegisterWatcher(draftId int) *watcher {
     watcher := watcher {
-        notifierQueue: make(chan string, 10), //TODO this can probably be smaller
+        watcherId: uuid.New(),
+        notifierQueue: make(chan string, 10), //This can probably be smaller?
     }
 
-    //TODO We also probably need to make sure that we dont register the same connection twice
     pn.watchers[draftId] = append(pn.watchers[draftId], watcher)
     return &watcher
 }
 
-func (pn *PickNotifier) UnregiserWatcher(watcher watcher) {
+func (pn *PickNotifier) UnregiserWatcher(watcher *watcher) {
     for key, watchers := range pn.watchers {
         index := -1
         for i, w := range watchers {
-            if w == watcher { //TODO make sure that this is the correct way to identify the watcher
+            if w.watcherId == watcher.watcherId {
                 index = i
             }
         }

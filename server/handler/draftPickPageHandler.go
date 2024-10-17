@@ -103,6 +103,9 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	renderPickPage(c, h.Database, draftId, isInvalid)
 
 	//TODO Notify other users via the web socket
+    draftModel := model.GetDraft(h.Database, draftId)
+    draftText := getPickHtml(h.Database, draftId, len(draftModel.Players))
+    h.Notifier.NotifyWatchers(draftId, draftText)
 
 	return nil
 }
@@ -118,12 +121,15 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick b
 
 func (h *Handler) PickNotifier(c echo.Context) error {
     websocket.Handler(func (ws *websocket.Conn) {
-        defer ws.Close() //Need to unregister in other notifier
-        //TODO Get draft id
-        watcher := h.Notifier.RegisterWatcher(-1)
+        draftIdStr := c.Param("id")
+        draftId, err := strconv.Atoi(draftIdStr)
+        watcher := h.Notifier.RegisterWatcher(draftId)
+        defer ws.Close()
+        defer h.Notifier.UnregiserWatcher(watcher)
+        assert.NoErrorCF(err, "Could not parse draft id")
         for {
             msg := <- watcher.notifierQueue
-            err := websocket.Message.Send(ws, []byte(msg))
+            err = websocket.Message.Send(ws, []byte(msg))
             assert.NoErrorCF(err, "Websocket receive failed")
         }
     }).ServeHTTP(c.Response(), c.Request())
