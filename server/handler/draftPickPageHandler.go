@@ -98,14 +98,13 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
             PickTime:  time.Now(),
         }
         model.MakePick(h.Database, pickStruct)
+
+        draftModel := model.GetDraft(h.Database, draftId)
+        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players)) + "</tbody>"
+        h.Notifier.NotifyWatchers(draftId, draftText)
     }
 
 	renderPickPage(c, h.Database, draftId, isInvalid)
-
-	//TODO Notify other users via the web socket
-    draftModel := model.GetDraft(h.Database, draftId)
-    draftText := getPickHtml(h.Database, draftId, len(draftModel.Players))
-    h.Notifier.NotifyWatchers(draftId, draftText)
 
 	return nil
 }
@@ -114,13 +113,15 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick b
 	draftModel := model.GetDraft(database, draftId)
 	url := fmt.Sprintf("/draft/%d/makePick", draftId)
 	notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
-	pickPageIndex := draft.DraftPickIndex(draftModel, getPickHtml(database, draftId, len(draftModel.Players)), url, invalidPick, notifierUrl)
+    html := getPickHtml(database, draftId, len(draftModel.Players))
+	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
 	err := Render(c, pickPageView)
 	return err
 }
 
 func (h *Handler) PickNotifier(c echo.Context) error {
+    //TODO Need to do authentication
     websocket.Handler(func (ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)
@@ -130,7 +131,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         assert.NoErrorCF(err, "Could not parse draft id")
         for {
             msg := <- watcher.notifierQueue
-            err = websocket.Message.Send(ws, []byte(msg))
+            err = websocket.Message.Send(ws, msg)
             assert.NoErrorCF(err, "Websocket receive failed")
         }
     }).ServeHTTP(c.Response(), c.Request())

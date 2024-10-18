@@ -13,7 +13,7 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                 action=""
                 method="post"
             >
-                <div id="draft-table" hx-swap-oob="morphdom">
+                <div id="draft-table">
                     if invalidPick {
                         <span class="text-red-800">You have entered an invalid pick. Please pick again.</span>
                     }
@@ -25,7 +25,7 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                                 }
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="pickTableBody">
                             @templ.Raw(pickHtml)
                         </tbody>
                     </table>

@@ -71,5 +71,8 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
         }
     }
 
-    return picked && validEvent
+    //TODO Remove
+    validEvent = true
+
+    return !picked && validEvent
 }
