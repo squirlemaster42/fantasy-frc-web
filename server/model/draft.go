@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"math/rand"
 	"server/assert"
 	"time"
 )
@@ -190,7 +191,8 @@ func GetDraft(database *sql.DB, draftId int) Draft {
                     Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
                     Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
                         Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
-                        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1);`
+                        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1)
+                    Order By DraftPlayers.PlayerOrder;`
 
     playerStmt, err := database.Prepare(playerQuery)
     assert.NoError(err, "Failed to prepare player query")
@@ -278,6 +280,7 @@ func AddPlayerToDraft(database *sql.DB, draft int, player int) {
 func GetInvites(database *sql.DB, player int) []DraftInvite {
     query := `SELECT id, draftId, invitingPlayer, invitedPlayer, sentTime, acceptedTime, accepted Where invitedPlayer = $1;`
     assert := assert.CreateAssertWithContext("Get Invites")
+    Id int
     assert.AddContext("Player", player)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
@@ -378,4 +381,37 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
     err = stmt.QueryRow(draftId, team).Scan(&numPicked)
     assert.NoError(err, "Failed to query for picks")
     return numPicked != 0
+}
+
+func RandomizePickOrder(database *sql.DB, draftId int) {
+    draftModel := GetDraft(database, draftId)
+    awaitingAssignment := draftModel.Players
+    order := 0
+    assert := assert.CreateAssertWithContext("Randomize Pick Order")
+
+    for len(awaitingAssignment) > 0 {
+        selectedPlayer := rand.Intn(len(awaitingAssignment))
+        player := awaitingAssignment[selectedPlayer]
+        removePlayer(awaitingAssignment, selectedPlayer)
+        draftPlayerId := GetDraftPlayerId(database, draftId, player.User.Id)
+
+        query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
+        stmt, err := database.Prepare(query)
+        assert.NoError(err, "Failed to prepare statement")
+        stmt.Exec(order, draftPlayerId)
+        order++
+    }
+}
+
+func removePlayer(arr []DraftPlayer, i int) []DraftPlayer {
+    arr[i] = arr[len(arr)-1]
+    return arr[:len(arr)-1]
+}
+
+func NextPick(database *sql.DB, draftId int) DraftPlayer {
+    //We need to get the last two picks
+    //We can then figure out what direction
+    //we are going and if we hit the
+    //End then we decide what the next pick is
+    return DraftPlayer{}
 }

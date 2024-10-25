@@ -21,7 +21,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 	return err
 }
 
-func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
+func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) string {
 	var stringBuilder strings.Builder
 	picks := model.GetPicks(db, draftId)
 
@@ -44,7 +44,11 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int) string {
                 }
                 stringBuilder.WriteString("<td class=\"border\">")
                 //TODO Need to disable if its not the current persons pick
-                stringBuilder.WriteString("<input name=\"pickInput\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+                if currentPick {
+                    stringBuilder.WriteString("<input name=\"pickInput\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+                } else {
+                    stringBuilder.WriteString("<input name=\"pickInput\" disabled class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+                }
                 stringBuilder.WriteString("</td>")
             }
         }
@@ -120,7 +124,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         model.MakePick(h.Database, pickStruct)
 
         draftModel := model.GetDraft(h.Database, draftId)
-        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players)) + "</tbody>"
+        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
         h.Notifier.NotifyWatchers(draftId, draftText)
     }
 
@@ -133,7 +137,7 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick b
     draftModel := model.GetDraft(database, draftId)
     url := fmt.Sprintf("/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
-    html := getPickHtml(database, draftId, len(draftModel.Players))
+    html := getPickHtml(database, draftId, len(draftModel.Players), false)
 	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
 	err := Render(c, pickPageView)
