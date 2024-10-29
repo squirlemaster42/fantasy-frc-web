@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"server/database"
@@ -11,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
+
 //Returns the Id of the User
 func GetOrCreateUser(database *sql.DB, username string) int {
     if !UsernameTaken(database, username) {
@@ -236,7 +238,7 @@ func TestGetPicksInDraft(t *testing.T) {
     SetPlayerOrder(db, draftPlayerSeven, 6)
     SetPlayerOrder(db, draftPlayerEight, 7)
 
-    assert.Equal(t, draftPlayerOne, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerOne, NextPick(db, draftId).Id, fmt.Sprintf("Expected player One, got %s.", NextPick(db, draftId).User.Username))
     pick := Pick{
         Player: draftPlayerOne,
         PickOrder: 0,
@@ -244,7 +246,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerTwo, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerTwo, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Two, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerTwo,
@@ -253,7 +255,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerThree, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerThree, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Three, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerThree,
@@ -262,7 +264,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerFour, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerFour, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Four, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFour,
@@ -271,7 +273,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerFive, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerFive, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Five, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFive,
@@ -280,7 +282,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerSix, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerSix, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Six, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSix,
@@ -289,7 +291,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Seven, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSeven,
@@ -298,7 +300,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Eight, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
@@ -307,7 +309,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Eight, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
@@ -316,7 +318,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
-    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id)
+    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Seven, got %s.", NextPick(db, draftId).User.Username))
     picks := GetPicks(db, draft.Id)
     assert.Equal(t, 9, len(picks))
 

@@ -3,6 +3,7 @@ package scorer
 import (
 	"os"
 	"path/filepath"
+	"server/tbaHandler"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -71,58 +72,58 @@ func TestSortMatchOrder(t *testing.T) {
 
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
-    tbaHandler := NewHandler(getTbaTok())
+    tbaHandler := tbaHandler.NewHandler(getTbaTok())
     scorer := NewScorer(tbaHandler, nil)
 
-    match := tbaHandler.makeMatchReq("2024cur_qm2")
+    match := tbaHandler.MakeMatchReq("2024cur_qm2")
     scoredMatch := scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 8, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cur_qm3")
+    match = tbaHandler.MakeMatchReq("2024cur_qm3")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 8, scoredMatch.RedScore)
     assert.Equal(t, 2, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cur_qm17")
+    match = tbaHandler.MakeMatchReq("2024cur_qm17")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 8, scoredMatch.RedScore)
     assert.Equal(t, 4, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cur_sf2m1")
+    match = tbaHandler.MakeMatchReq("2024cur_sf2m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 15, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cur_sf12m1")
+    match = tbaHandler.MakeMatchReq("2024cur_sf12m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 9, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cmptx_sf2m1")
+    match = tbaHandler.MakeMatchReq("2024cmptx_sf2m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 30, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cmptx_sf12m1")
+    match = tbaHandler.MakeMatchReq("2024cmptx_sf12m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 18, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cmptx_f1m1")
+    match = tbaHandler.MakeMatchReq("2024cmptx_f1m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 36, scoredMatch.BlueScore)
 
-    match = tbaHandler.makeMatchReq("2024cur_f1m1")
+    match = tbaHandler.MakeMatchReq("2024cur_f1m1")
     scoredMatch = scorer.scoreMatch(match)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
@@ -130,7 +131,7 @@ func TestScoreMatches(t *testing.T) {
 }
 
 func TestScoreTeamRankings(t *testing.T) {
-    tbaHandler := NewHandler(getTbaTok())
+    tbaHandler := tbaHandler.NewHandler(getTbaTok())
     scorer := NewScorer(tbaHandler, nil)
     assert.Equal(t, 48, scorer.getTeamRankingScore("frc2200"))
     assert.Equal(t, 42, scorer.getTeamRankingScore("frc3847"))

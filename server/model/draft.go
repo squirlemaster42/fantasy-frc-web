@@ -440,8 +440,16 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks) - 1].Player)
         secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks) - 2].Player)
         direction := lastPlayer.PlayerOrder - secondLastPick.PlayerOrder
+        //TODO Clean up all of this nesting
+        if lastPlayer.User.Id == secondLastPick.User.Id {
+            if lastPlayer.PlayerOrder == len(draft.Players) - 1 {
+                direction = -1
+            } else {
+                direction = 1
+            }
+        }
         if len(picks) % 8 == 0 { //TODO Change to number of picks in draft
-            direction *= -1
+            direction = 0
         }
         //We know draft.players is order by player order
         nextPlayer = draft.Players[lastPlayer.PlayerOrder + direction]

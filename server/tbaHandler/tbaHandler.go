@@ -223,7 +223,7 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 }
 
 //Make functions to make tba requests
-func (t *TbaHandler) makeMatchListReq(teamId string, eventId string) []Match {
+func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []Match {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
     jsonData := t.makeRequest(url)
     var matches []Match
