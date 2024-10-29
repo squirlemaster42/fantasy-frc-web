@@ -227,6 +227,16 @@ func TestGetPicksInDraft(t *testing.T) {
     draftPlayerSeven := GetDraftPlayerId(db, draftId, userSeven)
     draftPlayerEight := GetDraftPlayerId(db, draftId, userEight)
 
+    SetPlayerOrder(db, draftPlayerOne, 0)
+    SetPlayerOrder(db, draftPlayerTwo, 1)
+    SetPlayerOrder(db, draftPlayerThree, 2)
+    SetPlayerOrder(db, draftPlayerFour, 3)
+    SetPlayerOrder(db, draftPlayerFive, 4)
+    SetPlayerOrder(db, draftPlayerSix, 5)
+    SetPlayerOrder(db, draftPlayerSeven, 6)
+    SetPlayerOrder(db, draftPlayerEight, 7)
+
+    assert.Equal(t, draftPlayerOne, NextPick(db, draftId).Id)
     pick := Pick{
         Player: draftPlayerOne,
         PickOrder: 0,
@@ -234,6 +244,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerTwo, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerTwo,
@@ -242,6 +253,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerThree, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerThree,
@@ -250,6 +262,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerFour, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFour,
@@ -258,6 +271,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerFive, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFive,
@@ -266,6 +280,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerSix, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSix,
@@ -274,6 +289,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSeven,
@@ -282,6 +298,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
@@ -290,6 +307,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id)
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
@@ -298,6 +316,7 @@ func TestGetPicksInDraft(t *testing.T) {
         PickTime: time.Now(),
     }
     MakePick(db, pick)
+    assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id)
     picks := GetPicks(db, draft.Id)
     assert.Equal(t, 9, len(picks))
 
