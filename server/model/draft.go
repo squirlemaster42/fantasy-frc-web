@@ -37,7 +37,6 @@ type DraftPlayer struct {
 type Pick struct {
 	Id        int
 	Player    int //DraftPlayer
-	PickOrder int
 	Pick      string //Team
 	PickTime  time.Time
 }
@@ -440,7 +439,6 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks) - 1].Player)
         secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks) - 2].Player)
         direction := lastPlayer.PlayerOrder - secondLastPick.PlayerOrder
-        //TODO Clean up all of this nesting
         if lastPlayer.User.Id == secondLastPick.User.Id {
             if lastPlayer.PlayerOrder == len(draft.Players) - 1 {
                 direction = -1

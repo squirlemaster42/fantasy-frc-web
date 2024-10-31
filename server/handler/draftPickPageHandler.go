@@ -15,8 +15,11 @@ import (
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
+    userTok, err := c.Cookie("sessionToken")
+    assert.NoErrorCF(err, "Failed to get user token")
+    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(c.Param("id"))
-	renderPickPage(c, h.Database, draftId, false)
+	renderPickPage(c, h.Database, draftId, userId, false)
 
 	return err
 }
@@ -43,7 +46,6 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) stri
                     stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
                 }
                 stringBuilder.WriteString("<td class=\"border\">")
-                //TODO Need to disable if its not the current persons pick
                 if currentPick {
                     stringBuilder.WriteString("<input name=\"pickInput\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
                 } else {
@@ -113,31 +115,31 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         h.Logger.Log("Invalid Pick")
     } else {
         //Make the pick
-        //TODO Get pick order (or maybe we should just drop that concept)
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
             Player:    draftPlayer,
-            PickOrder: 0,
             Pick:      pick,
             PickTime:  time.Now(),
         }
         model.MakePick(h.Database, pickStruct)
 
         draftModel := model.GetDraft(h.Database, draftId)
+        //We need to rethink this because we need to notify the watcher who has the next pick with differnt html
         draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
         h.Notifier.NotifyWatchers(draftId, draftText)
     }
 
-    renderPickPage(c, h.Database, draftId, isInvalid)
+    renderPickPage(c, h.Database, draftId, userId, isInvalid)
 
     return nil
 }
 
-func renderPickPage(c echo.Context, database *sql.DB, draftId int, invalidPick bool) error {
+func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, invalidPick bool) error {
     draftModel := model.GetDraft(database, draftId)
     url := fmt.Sprintf("/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
-    html := getPickHtml(database, draftId, len(draftModel.Players), false)
+    isPicking := model.NextPick(database, draftId).User.Id == userId
+    html := getPickHtml(database, draftId, len(draftModel.Players), isPicking)
 	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
 	err := Render(c, pickPageView)
@@ -155,6 +157,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         assert.NoErrorCF(err, "Could not parse draft id")
         for {
             msg := <- watcher.notifierQueue
+            //Enable the input for the current pick
+            userTok, err := c.Cookie("sessionToken")
+            assert.NoErrorCF(err, "Failed to get user token")
+            userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+            //Disabled should appear no where else in this string so we can just find and replace
+            if model.NextPick(h.Database, draftId).User.Id == userId {
+                msg = strings.Replace(msg, "disabled", "", -1)
+            }
             err = websocket.Message.Send(ws, msg)
             assert.NoErrorCF(err, "Websocket receive failed")
         }
