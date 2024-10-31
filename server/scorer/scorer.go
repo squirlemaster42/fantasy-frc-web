@@ -390,7 +390,7 @@ func (s *Scorer) RunScorer() {
 
 	go func(s *Scorer) {
 		for {
-            //TODO Need to add something that allows for rescoring all matches on a set interval
+            //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
             matches := make(map[string][]string)
