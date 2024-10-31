@@ -24,7 +24,6 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
     //TODO We need to update the draft settings
-    fmt.Println("HERE")
     file, err := c.FormFile("profiePic")
     if err != nil {
         fmt.Println(err)

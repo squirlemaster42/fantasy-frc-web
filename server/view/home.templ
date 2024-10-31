@@ -19,7 +19,7 @@ templ HomeIndex(drafts *[]model.Draft) {
                                 Status: { draft.Status }
                             </label>
                             <label class="border-t border-b border-slate-600 pl-2 pb-1">
-                                Next Pick: <div class="badge badge-primary">TODO</div>
+                                Next Pick: <div class="badge badge-primary">{draft.NextPick.User.Username}</div>
                             </label>
                         </div>
                         <h4>Players:</h4>

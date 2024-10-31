@@ -148,6 +148,7 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
 
 func (h *Handler) PickNotifier(c echo.Context) error {
     //TODO Need to do authentication
+    //Hopefully this can go through the middleware
     websocket.Handler(func (ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)

@@ -25,6 +25,7 @@ type Draft struct {
 	Owner       User //User
 	Status      string
 	Players     []DraftPlayer
+    NextPick DraftPlayer
 }
 
 type DraftPlayer struct {
@@ -106,6 +107,7 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 			},
 			Status:  GetStatusString(status),
 			Players: make([]DraftPlayer, 0),
+            NextPick: NextPick(database, draftId),
 		}
 
 		playerQuery := `Select Distinct
@@ -302,7 +304,7 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
     query := `SELECT
-    Picks.id, Picks.player, pickOrder, Picks.pick, Picks.pickTime
+    Picks.id, Picks.player, Picks.pick, Picks.pickTime
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
@@ -316,7 +318,7 @@ func GetPicks(database *sql.DB, draft int) []Pick {
     var picks []Pick
     for rows.Next() {
         pick := Pick{}
-        rows.Scan(&pick.Id, &pick.Player, &pick.PickOrder, &pick.Pick, &pick.PickTime)
+        rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime)
         picks = append(picks, pick)
     }
     return picks
@@ -336,15 +338,14 @@ func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
 }
 
 func MakePick(database *sql.DB, pick Pick) {
-	query := `INSERT INTO Picks (player, pickOrder, pick, pickTime) Values ($1, $2, $3, $4);`
+	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3, $4);`
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
-	assert.AddContext("Pick Order", pick.PickOrder)
 	assert.AddContext("Team", pick.Pick)
 	assert.AddContext("Pick Time", pick.PickTime)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	_, err = stmt.Exec(pick.Player, pick.PickOrder, pick.Pick, pick.PickTime)
+	_, err = stmt.Exec(pick.Player, pick.Pick, pick.PickTime)
 	assert.NoError(err, "Failed to insert pick")
 }
 
