@@ -1,1 +1,9 @@
-<div id=\"draftPicks\" class=\"flex items-center justify-center\"><section class=\"card bg-base-200 shadow-xl mx-auto\"><div style=\"display: flex; flex-direction: row; justify-content: center;\"><form hx-post=\"/draft\" hx-target=\"#draftPicks\" hx-swap=\"outerHTML\"><label style=\"padding-right: 5px;\" for=\"pickInput\">Enter your pick:</label> <input id=\"pickInput\" name=\"pickInput\" type=\"number\"> <button class=\"badge badge-primary px-6 py-4 hover:scale-[1.1]\">Submit Pick</button></form></div></section></div>
+<div id=\"draftPicks\" class=\"flex items-center justify-center\"><div hx-ext=\"ws\" ws-connect=\"
+\"><form hx-swap=\"outerHTML transition:true\" hx-post=\"
+\" hx-target=\"#draftPicks\" action=\"\" method=\"post\"><div id=\"draft-table\">
+<span class=\"text-red-800\">You have entered an invalid pick. Please pick again.</span>
+<table class=\"w-4/5 text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-8\"><thead class=\"text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400\"><tr>
+<th scope=\"col\" class=\"border px-6 py-3\">
+</th>
+</tr></thead> <tbody id=\"pickTableBody\">
+</tbody></table></div><button>Make Pick</button></form></div></div>

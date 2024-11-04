@@ -1,4 +1,4 @@
-package scoring
+package scorer
 
 import (
 	"database/sql"
@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"server/assert"
 	"server/model"
+	"server/tbaHandler"
 	"strconv"
 	"strings"
 	"time"
@@ -14,12 +15,12 @@ import (
 var RESCORE_INTERATION_COUNT = 72
 
 type Scorer struct {
-	tbaHandler *TbaHandler
+	tbaHandler *tbaHandler.TbaHandler
     database *sql.DB
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *TbaHandler, database *sql.DB) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
 	return &Scorer{
 		tbaHandler: tbaHandler,
         database: database,
@@ -41,7 +42,7 @@ func playoffMatchCompLevels() map[string]bool {
 
 //TODO This should take in a match and not a match id
 //Match, dqed teams
-func (s *Scorer) scoreMatch(match Match) model.Match {
+func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
     scoredMatch := model.Match{
         TbaId: match.Key,
         Played: match.PostResultTime > 0,
@@ -64,7 +65,7 @@ func (s *Scorer) scoreMatch(match Match) model.Match {
     return scoredMatch
 }
 
-func getQualMatchScore(match Match) (int, int) {
+func getQualMatchScore(match tbaHandler.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -117,7 +118,7 @@ func getLowerBracketMatchIds() map[int]bool {
 }
 
 //RedScore, BlueScore
-func getPlayoffMatchScore(match Match) (int, int) {
+func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -174,7 +175,7 @@ func getPlayoffMatchScore(match Match) (int, int) {
 
 func (s *Scorer) getTeamRankingScore(team string) int {
     event := s.getChampEventForTeam(team)
-    status := s.tbaHandler.makeTeamEventStatusRequest(team, event)
+    status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
     score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
     return score
 }
@@ -202,7 +203,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Check which event is in the list of champ events
 	//We are going to ignore Einstein here since we just use this to determin the ranking score
 	//which does not apply to Einstein
-	eventsList := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
+	eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
 	for _, event := range eventsList {
@@ -389,12 +390,12 @@ func (s *Scorer) RunScorer() {
 
 	go func(s *Scorer) {
 		for {
-            //TODO Need to add something that allows for rescoring all matches on a set interval
+            //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
             matches := make(map[string][]string)
             for _, event := range events() {
-                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.makeEventMatchKeysRequest(event))
+                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
             }
 
             //Score matches until we hit one that has not been played
@@ -412,7 +413,7 @@ func (s *Scorer) RunScorer() {
                 dbMatch := *model.GetMatch(s.database, match)
 
                 if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
-                    match := s.tbaHandler.makeMatchReq(dbMatch.TbaId)
+                    match := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
                     dbMatch = s.scoreMatch(match)
                 }
 

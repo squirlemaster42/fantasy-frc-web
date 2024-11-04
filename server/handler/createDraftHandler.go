@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+	"net/http"
 	"server/assert"
 	"server/model"
 	"server/view/draft"
@@ -49,13 +51,8 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
         Status: model.GetStatusString(model.FILLING),
     }
 
-    //TODO we should probably grab the new draft id and then redirecet to that settings page
-    model.CreateDraft(h.Database, &draftModel)
-
-    draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
-    draftCreate := draft.DraftProfile(" | Create Draft", false, draftCreateIndex)
-    //TODO We should probably make tailwind work offline to make the dev experience better
-    err = Render(c, draftCreate)
-    assert.NoError(err, "Handle View Draft Create Failed To Render")
+    draftId := model.CreateDraft(h.Database, &draftModel)
+    err = c.Redirect(http.StatusSeeOther, fmt.Sprintf("/draft/%d/profile", draftId))
+    assert.NoError(err, "Failed to redirect on successful draft creation")
     return nil
 }

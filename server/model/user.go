@@ -112,6 +112,7 @@ func RegisterSession(database *sql.DB, userId int, sessionToken string) {
     assert.NoError(err, "Fauled to register session")
 }
 
+//TODO refactor this to return an error if the user does not exists
 func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
     query := `Select UserId From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Get User By Session Token")

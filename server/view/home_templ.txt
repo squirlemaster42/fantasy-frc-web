@@ -1,7 +1,8 @@
 <section class=\"mx-auto w-fit flex flex-col gap-8\"><div class=\"grid grid-cols-4 gap-x-16 gap-y-8\">
 <div class=\"card bg-slate-800 shadow-xl mx-auto mb-8\"><div class=\"card-body p-5\"><div class=\"card-title pb-[4px] justify-around\"><img src=\"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&amp;s\" alt=\"Profile Image\" width=\"80\" height=\"80\"><h1>
 </h1></div><div class=\"grid grid-cols-2 border-b border-slate-600\"><label class=\"border-t border-b border-slate-600 pl-2\">Status: 
-</label> <label class=\"border-t border-b border-slate-600 pl-2 pb-1\">Next Pick: <div class=\"badge badge-primary\">TODO</div></label></div><h4>Players:</h4><div class=\"grid grid-cols-4 gap-2 border-b border-slate-600 pb-2\">
+</label> <label class=\"border-t border-b border-slate-600 pl-2 pb-1\">Next Pick: <div class=\"badge badge-primary\">
+</div></label></div><h4>Players:</h4><div class=\"grid grid-cols-4 gap-2 border-b border-slate-600 pb-2\">
 <div class=\"badge badge-primary\">
 </div>
 </div><h4>Pending Players:</h4><div class=\"grid grid-cols-4 gap-2 border-b border-slate-600 pb-2\">
