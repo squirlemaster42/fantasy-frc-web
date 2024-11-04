@@ -241,7 +241,6 @@ func TestGetPicksInDraft(t *testing.T) {
     assert.Equal(t, draftPlayerOne, NextPick(db, draftId).Id, fmt.Sprintf("Expected player One, got %s.", NextPick(db, draftId).User.Username))
     pick := Pick{
         Player: draftPlayerOne,
-        PickOrder: 0,
         Pick: teamOne.TbaId,
         PickTime: time.Now(),
     }
@@ -250,7 +249,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerTwo,
-        PickOrder: 0,
         Pick: teamTwo.TbaId,
         PickTime: time.Now(),
     }
@@ -259,7 +257,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerThree,
-        PickOrder: 0,
         Pick: teamThree.TbaId,
         PickTime: time.Now(),
     }
@@ -268,7 +265,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFour,
-        PickOrder: 0,
         Pick: teamFour.TbaId,
         PickTime: time.Now(),
     }
@@ -277,7 +273,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFive,
-        PickOrder: 0,
         Pick: teamFive.TbaId,
         PickTime: time.Now(),
     }
@@ -286,7 +281,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSix,
-        PickOrder: 0,
         Pick: teamSix.TbaId,
         PickTime: time.Now(),
     }
@@ -295,7 +289,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSeven,
-        PickOrder: 0,
         Pick: teamSeven.TbaId,
         PickTime: time.Now(),
     }
@@ -304,7 +297,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
-        PickOrder: 0,
         Pick: teamEight.TbaId,
         PickTime: time.Now(),
     }
@@ -313,7 +305,6 @@ func TestGetPicksInDraft(t *testing.T) {
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
-        PickOrder: 0,
         Pick: teamNine.TbaId,
         PickTime: time.Now(),
     }

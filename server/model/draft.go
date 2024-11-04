@@ -98,6 +98,11 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 		var status int
 		rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
 
+        nextPick := DraftPlayer{}
+        if GetStatusString(status) == GetStatusString(PICKING) {
+            nextPick = NextPick(database, draftId)
+        }
+
 		draft := Draft{
 			Id:          draftId,
 			DisplayName: displayName,
@@ -105,9 +110,9 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 				Id:       ownerId,
 				Username: ownerUsername,
 			},
-			Status:  GetStatusString(status),
+			Status: GetStatusString(status),
 			Players: make([]DraftPlayer, 0),
-            NextPick: NextPick(database, draftId),
+            NextPick: nextPick,
 		}
 
 		playerQuery := `Select Distinct
@@ -171,7 +176,7 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
 
 // TODO Do we need to get the draft owner
 func GetDraft(database *sql.DB, draftId int) Draft {
-    query := `Select DisplayName, Description, StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
+    query := `Select DisplayName, COALESCE(Description, ''), StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
 	assert := assert.CreateAssertWithContext("Get Draft")
 	assert.AddContext("Draft Id", draftId)
 	stmt, err := database.Prepare(query)
@@ -338,7 +343,7 @@ func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
 }
 
 func MakePick(database *sql.DB, pick Pick) {
-	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3, $4);`
+	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3);`
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
 	assert.AddContext("Team", pick.Pick)
