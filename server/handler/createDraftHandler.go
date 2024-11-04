@@ -52,7 +52,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     }
 
     draftId := model.CreateDraft(h.Database, &draftModel)
-    err = c.Redirect(http.StatusSeeOther, fmt.Sprintf("/draft/%d/profile", draftId))
+    err = c.Redirect(http.StatusSeeOther, fmt.Sprintf("/u/draft/%d/profile", draftId))
     assert.NoError(err, "Failed to redirect on successful draft creation")
     return nil
 }
