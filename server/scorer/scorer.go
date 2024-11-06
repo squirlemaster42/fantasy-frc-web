@@ -40,7 +40,6 @@ func playoffMatchCompLevels() map[string]bool {
     }
 }
 
-//TODO This should take in a match and not a match id
 //Match, dqed teams
 func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
     scoredMatch := model.Match{

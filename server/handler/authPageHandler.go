@@ -57,7 +57,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
         cookie.HttpOnly = true
         cookie.Secure = true
         c.SetCookie(cookie)
-        err := c.Redirect(http.StatusSeeOther, "/home")
+        err := c.Redirect(http.StatusSeeOther, "/u/home")
         assert.NoErrorCF(err, "Failed to redirect on successful login")
 
         return nil
@@ -118,7 +118,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     cookie.HttpOnly = true
     cookie.Secure = true
     c.SetCookie(cookie)
-    err := c.Redirect(http.StatusSeeOther, "/home")
+    err := c.Redirect(http.StatusSeeOther, "/u/home")
     assert.NoErrorCF(err, "Failed to redirect on successful registration")
 
     return nil
