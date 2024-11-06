@@ -15,6 +15,7 @@ import (
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
+    h.Logger.Log(fmt.Sprintf("Serving pick page to %s", c.RealIP()))
     userTok, err := c.Cookie("sessionToken")
     assert.NoErrorCF(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
