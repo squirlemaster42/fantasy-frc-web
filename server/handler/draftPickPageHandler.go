@@ -30,13 +30,16 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) stri
 	picks := model.GetPicks(db, draftId)
 
     start := 0
-    end := numPlayers
+    end := numPlayers - 1
     curRow := 0
 	totalRows := len(picks) / numPlayers
 	for {
-        row := picks[start:end]
-        if curRow % 2 == 1 {
-            row = reverseArray(row)
+        var row []model.Pick
+        if len(picks) != 0 {
+            row = picks[start:end]
+            if curRow % 2 == 1 {
+                row = reverseArray(row)
+            }
         }
 
         stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")

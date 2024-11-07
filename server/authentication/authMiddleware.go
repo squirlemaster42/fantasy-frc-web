@@ -26,7 +26,6 @@ func NewAuth(db *sql.DB, logger *logging.Logger) *Authenticator {
 
 func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
     return func (c echo.Context) error {
-        fmt.Println(c.Path())
         isValid := true
 
         //Grab the cookie from the session
