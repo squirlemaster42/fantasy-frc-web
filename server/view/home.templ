@@ -3,8 +3,8 @@ package view
 import "server/model"
 
 templ HomeIndex(drafts *[]model.Draft) {
-    <section class="mx-auto w-fit flex flex-col gap-8">
-        <div class="grid grid-cols-4 gap-x-16 gap-y-8">
+    <section class="mx-auto w-full flex flex-col gap-8">
+        <div class="grid grid-cols-4 gap-x-16 gap-y-8 overflow-y-auto w-full" style="max-height: calc(100vh - 65px);">
             for _, draft := range *drafts {
                 <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
                     <div class="card-body p-5">
