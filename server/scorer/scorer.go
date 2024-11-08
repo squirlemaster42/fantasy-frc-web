@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"server/assert"
+	"server/logging"
 	"server/model"
 	"server/tbaHandler"
 	"strconv"
@@ -17,14 +18,16 @@ var RESCORE_INTERATION_COUNT = 72
 type Scorer struct {
 	tbaHandler *tbaHandler.TbaHandler
     database *sql.DB
+    logger *logging.Logger
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
 	return &Scorer{
 		tbaHandler: tbaHandler,
         database: database,
         scoringIteration:  0,
+        logger: logger,
 	}
 }
 
@@ -61,6 +64,7 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
     scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
+
     return scoredMatch
 }
 

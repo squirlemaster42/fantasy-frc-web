@@ -3,6 +3,7 @@ package model
 import (
 	"crypto"
 	"database/sql"
+	"fmt"
 	"server/assert"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,6 +13,10 @@ type User struct {
     Id int
     Username string
     Password string
+}
+
+func (u *User) String() string {
+    return fmt.Sprintf("User: {\n Id: %d\n Username: %s\n}", u.Id, u.Username)
 }
 
 func RegisterUser(database *sql.DB, username string, password string) {

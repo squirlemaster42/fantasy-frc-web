@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"server/assert"
 	"server/tbaHandler"
 )
@@ -10,6 +11,10 @@ type Team struct {
     TbaId string
     Name string
     RankingScore int
+}
+
+func (t *Team) String() string {
+    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n RankingScore: %d\n}", t.TbaId, t.Name, t.RankingScore)
 }
 
 func GetTeam(database *sql.DB, tbaId string) *Team {
