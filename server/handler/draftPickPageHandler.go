@@ -15,6 +15,7 @@ import (
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
+    h.Logger.Log(fmt.Sprintf("Serving pick page to %s", c.RealIP()))
     userTok, err := c.Cookie("sessionToken")
     assert.NoErrorCF(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
@@ -29,13 +30,16 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) stri
 	picks := model.GetPicks(db, draftId)
 
     start := 0
-    end := numPlayers
+    end := numPlayers - 1
     curRow := 0
 	totalRows := len(picks) / numPlayers
 	for {
-        row := picks[start:end]
-        if curRow % 2 == 1 {
-            row = reverseArray(row)
+        var row []model.Pick
+        if len(picks) != 0 {
+            row = picks[start:end]
+            if curRow % 2 == 1 {
+                row = reverseArray(row)
+            }
         }
 
         stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
