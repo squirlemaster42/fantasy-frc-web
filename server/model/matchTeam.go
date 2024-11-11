@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"server/assert"
 )
 
@@ -10,6 +11,11 @@ type MatchTeam struct {
     MatchTbaId string
     Alliance string
     IsDqed bool
+}
+
+func (m *MatchTeam) String() string {
+    return fmt.Sprintf("MatchTeam: {\nTeamTbaId: %s\n MatchTbaId: %s\n Alliance: %s\n IsDqed: %t\n}",
+        m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
 func AssocateTeam(database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) {

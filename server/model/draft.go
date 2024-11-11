@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"server/assert"
+	"strings"
 	"time"
 )
 
@@ -29,7 +30,19 @@ type Draft struct {
     NextPick DraftPlayer
 }
 
-//BREAK! You left off here. You were about to write the string func for drafts
+func (d *Draft) String() string {
+    var stringBuilder strings.Builder
+    for i, p := range d.Players {
+        stringBuilder.WriteString("\nDraftPlayer - ")
+        stringBuilder.WriteString(string(i))
+        stringBuilder.WriteString(" {\n")
+        stringBuilder.WriteString(p.String())
+        stringBuilder.WriteString(" \n}")
+    }
+
+    return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n StartTime: %s\n EndTime: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
+        d.Id, d.DisplayName, d.Description, d.Interval, d.StartTime.String(), d.EndTime.String(), d.Owner.String(), stringBuilder.String(), d.NextPick.String())
+}
 
 type DraftPlayer struct {
     Id int
