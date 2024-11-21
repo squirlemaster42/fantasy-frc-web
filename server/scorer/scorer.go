@@ -65,6 +65,8 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
 
+    s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
+
     return scoredMatch
 }
 
@@ -216,6 +218,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 			}
 		}
 	}
+    //TODO This should not be a panic, but should instead surface something in the drafts
     panic(fmt.Sprintf("Champ event not found for team %s", teamId))
 }
 
@@ -359,6 +362,7 @@ func compareMatchOrder(matchA string, matchB string) bool {
         return matchANum < matchBNum
     }
 
+    //TODO We should not panic here
     panic("Unhandled match type")
 }
 
@@ -396,6 +400,7 @@ func (s *Scorer) RunScorer() {
             //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
+            s.logger.Log("Starting scoring iteration")
             matches := make(map[string][]string)
             for _, event := range events() {
                 matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
@@ -414,6 +419,7 @@ func (s *Scorer) RunScorer() {
                 scoringQueue = scoringQueue[1:]
 
                 dbMatch := *model.GetMatch(s.database, match)
+                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatch.String()))
 
                 if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
                     match := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
@@ -449,7 +455,7 @@ func (s *Scorer) RunScorer() {
             }
 
 			s.scoringIteration++
-			fmt.Println("Finished scoring iteration")
+            s.logger.Log("Finished scoring iteration")
 			time.Sleep(5 * time.Minute)
 		}
 	}(s)

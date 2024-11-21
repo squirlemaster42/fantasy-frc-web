@@ -6,9 +6,8 @@ import (
 	"io"
 	"net/http"
 	"server/logging"
-
-	"github.com/vertica/vertica-sql-go/logger"
 )
+
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
