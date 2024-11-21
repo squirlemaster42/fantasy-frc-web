@@ -2,7 +2,9 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"server/assert"
+	"strings"
 )
 
 type Match struct {
@@ -13,6 +15,11 @@ type Match struct {
     RedAlliance []string
     BlueAlliance []string
     DqedTeams []string
+}
+
+func (m *Match) String() string {
+    return fmt.Sprintf("Match: {\nTbaId: %s\n Played: %t\n RedScore: %d\n BlueScore: %d\n RedAlliance: %s\n BlueAlliance: %s\n DqedTeams: %s\n}",
+        m.TbaId, m.Played, m.RedScore, m.BlueScore, strings.Join(m.RedAlliance, ", "), strings.Join(m.BlueAlliance, ", "), strings.Join(m.DqedTeams, ", "))
 }
 
 func AddMatch(database *sql.DB, tbaId string) {

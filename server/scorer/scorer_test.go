@@ -3,6 +3,7 @@ package scorer
 import (
 	"os"
 	"path/filepath"
+	"server/logging"
 	"server/tbaHandler"
 	"testing"
 
@@ -72,8 +73,10 @@ func TestSortMatchOrder(t *testing.T) {
 
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
-    tbaHandler := tbaHandler.NewHandler(getTbaTok())
-    scorer := NewScorer(tbaHandler, nil)
+    logger := logging.NewLogger(&logging.TimestampedLogger{})
+    logger.Start()
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(), logger)
+    scorer := NewScorer(tbaHandler, nil, logger)
 
     match := tbaHandler.MakeMatchReq("2024cur_qm2")
     scoredMatch := scorer.scoreMatch(match)
@@ -131,8 +134,10 @@ func TestScoreMatches(t *testing.T) {
 }
 
 func TestScoreTeamRankings(t *testing.T) {
-    tbaHandler := tbaHandler.NewHandler(getTbaTok())
-    scorer := NewScorer(tbaHandler, nil)
+    logger := logging.NewLogger(&logging.TimestampedLogger{})
+    logger.Start()
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(), logger)
+    scorer := NewScorer(tbaHandler, nil, logger)
     assert.Equal(t, 48, scorer.getTeamRankingScore("frc2200"))
     assert.Equal(t, 42, scorer.getTeamRankingScore("frc3847"))
     assert.Equal(t, 16, scorer.getTeamRankingScore("frc624"))

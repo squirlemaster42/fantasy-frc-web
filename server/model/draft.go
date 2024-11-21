@@ -2,8 +2,10 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"math/rand"
 	"server/assert"
+	"strings"
 	"time"
 )
 
@@ -28,6 +30,20 @@ type Draft struct {
     NextPick DraftPlayer
 }
 
+func (d *Draft) String() string {
+    var stringBuilder strings.Builder
+    for i, p := range d.Players {
+        stringBuilder.WriteString("\nDraftPlayer - ")
+        stringBuilder.WriteString(string(i))
+        stringBuilder.WriteString(" {\n")
+        stringBuilder.WriteString(p.String())
+        stringBuilder.WriteString(" \n}")
+    }
+
+    return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n StartTime: %s\n EndTime: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
+        d.Id, d.DisplayName, d.Description, d.Interval, d.StartTime.String(), d.EndTime.String(), d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String())
+}
+
 type DraftPlayer struct {
     Id int
 	User    User
@@ -35,11 +51,20 @@ type DraftPlayer struct {
 	Pending bool
 }
 
+func (d *DraftPlayer) String() string {
+    return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %d\n PlayerOrder: %d\n Pending: %t\n}", d.Id, d.User.Id, d.PlayerOrder, d.Pending)
+}
+
+
 type Pick struct {
 	Id        int
 	Player    int //DraftPlayer
 	Pick      string //Team
 	PickTime  time.Time
+}
+
+func (p *Pick) String() string {
+    return fmt.Sprintf("Pick: {\nId: %d\n Player: %d\n Pick: %s\n PickTime: %s\n}", p.Id, p.Player, p.Pick, p.PickTime.String())
 }
 
 type DraftInvite struct {
@@ -50,6 +75,11 @@ type DraftInvite struct {
 	SentTime       time.Time
 	AcceptedTime   time.Time
 	Accepted       bool
+}
+
+func (d *DraftInvite) String() string {
+    return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingPlayer: %d\n InvitedPlayer: %d\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n}",
+        d.Id, d.DraftId, d.InvitingPlayer, d.InvitedPlayer, d.SentTime.String(), d.AcceptedTime.String(), d.Accepted)
 }
 
 func GetStatusString(status int) string {

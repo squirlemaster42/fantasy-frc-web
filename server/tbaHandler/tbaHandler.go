@@ -2,9 +2,12 @@ package tbaHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"server/logging"
 )
+
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
@@ -191,14 +194,19 @@ type Team struct {
 
 type TbaHandler struct {
     tbaToken string
+    logger *logging.Logger
 }
 
-func NewHandler(tbaToken string) *TbaHandler {
-    handler := &TbaHandler{tbaToken: tbaToken}
+func NewHandler(tbaToken string, logger *logging.Logger) *TbaHandler {
+    handler := &TbaHandler{
+        tbaToken: tbaToken,
+        logger: logger,
+    }
     return handler
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
+    t.logger.Log(fmt.Sprintf("Making TBA request to %s", url))
     client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)

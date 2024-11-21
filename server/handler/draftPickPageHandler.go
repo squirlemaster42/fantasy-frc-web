@@ -14,6 +14,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+//BREAK: you were going to write more logging here
+
 func (h *Handler) ServePickPage(c echo.Context) error {
     h.Logger.Log(fmt.Sprintf("Serving pick page to %s", c.RealIP()))
     userTok, err := c.Cookie("sessionToken")

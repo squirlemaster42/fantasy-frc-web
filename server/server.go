@@ -12,6 +12,7 @@ import (
 )
 
 func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging.Logger) {
+    logger.Log("Starting Server")
 	assert := assert.CreateAssertWithContext("Create Server")
     auth := authentication.NewAuth(db, logger)
 	app := echo.New()
