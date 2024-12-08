@@ -1,3 +1,3 @@
 run:
-	@templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -skipScoring=true"
+	@templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -skipScoring=false"
 	@go run .

@@ -180,6 +180,9 @@ func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
 
 func (s *Scorer) getTeamRankingScore(team string) int {
     event := s.getChampEventForTeam(team)
+    if event == "" {
+        return 0
+    }
     status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
     score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
     return score
@@ -218,8 +221,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 			}
 		}
 	}
-    //TODO This should not be a panic, but should instead surface something in the drafts
-    panic(fmt.Sprintf("Champ event not found for team %s", teamId))
+    return ""
 }
 
 //Matches are almost sorted

@@ -53,7 +53,7 @@ func main() {
         logger.Log("Finished loading draft")
     }
 
-    scorer := scorer.NewScorer(tbaHandler, database)
+    scorer := scorer.NewScorer(tbaHandler, database, logger)
     if !(*skipScoring == "true") {
         logger.Log("Started Scorer")
         scorer.RunScorer()

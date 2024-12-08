@@ -81,3 +81,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
     return !picked && validEvent
 }
+
+func GetScore(database *sql.DB, tbaId string) int {
+    return 0
+}

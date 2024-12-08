@@ -1,0 +1,29 @@
+package team
+
+import "server/model"
+import "server/view"
+
+templ TeamScoreIndex(team model.Team) {
+    <form
+        hx-swap="outerHTML transition:true"
+        hx-post="/u/team/score"
+        hx-target="#score-container"
+        action=""
+        method="post"
+    >
+        <label>
+            Team Number:
+            <input type="number" required autofocus name="teamNumber"/>
+        </label>
+        <footer>
+            <button>Get Score</button>
+        </footer>
+    </form>
+    <div id="score-container"></div>
+}
+
+templ TeamPick(page string, cmp templ.Component) {
+    @view.Index(page, false, "") {
+        @cmp
+    }
+}
