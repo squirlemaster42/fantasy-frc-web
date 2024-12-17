@@ -44,7 +44,7 @@ func playoffMatchCompLevels() map[string]bool {
 }
 
 //Match, dqed teams
-func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
+func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, bool) {
     scoredMatch := model.Match{
         TbaId: match.Key,
         Played: match.PostResultTime > 0,
@@ -52,8 +52,8 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
         BlueScore: 0,
     }
 
-    if !scoredMatch.Played {
-        return scoredMatch
+    if !scoredMatch.Played && !rescore {
+        return scoredMatch, false
     }
 
     if match.CompLevel == "qm" {
@@ -67,7 +67,7 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match) model.Match {
 
     s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
 
-    return scoredMatch
+    return scoredMatch, true
 }
 
 func getQualMatchScore(match tbaHandler.Match) (int, int) {
@@ -211,6 +211,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Check which event is in the list of champ events
 	//We are going to ignore Einstein here since we just use this to determin the ranking score
 	//which does not apply to Einstein
+    s.logger.Log("Getting Events For Team")
 	eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
@@ -420,26 +421,45 @@ func (s *Scorer) RunScorer() {
                 match := scoringQueue[0]
                 scoringQueue = scoringQueue[1:]
 
-                dbMatch := *model.GetMatch(s.database, match)
-                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatch.String()))
+                dbMatchPtr := model.GetMatch(s.database, match)
 
+                if dbMatchPtr == nil {
+                    model.AddMatch(s.database, match)
+                    dbMatchPtr = &model.Match{
+                        TbaId: match,
+                        BlueAlliance: []string{},
+                        RedAlliance: []string{},
+                        DqedTeams: []string{},
+                        Played: false,
+                    }
+                }
+
+                dbMatch := *dbMatchPtr
+                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
+
+                scored := false
                 if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
-                    match := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
-                    dbMatch = s.scoreMatch(match)
+                    s.logger.Log("Match was not played or rescoring all matches")
+                    tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
+                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration % RESCORE_INTERATION_COUNT == 0)
                 }
 
-                if dbMatch.Played {
-                    event := strings.Split(match, "_")[1]
-                    currentMatch[event] = currentMatch[event] + 1
+                event := strings.Split(match, "_")[0]
+                currentMatch[event] = currentMatch[event] + 1
+                if len (matches[event]) > 0 {
                     scoringQueue = append(scoringQueue, matches[event][0])
+                    matches[event] = matches[event][1:]
                 }
 
-                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-                for _, team := range dbMatch.BlueAlliance {
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
-                }
-                for _, team := range dbMatch.RedAlliance {
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                if scored {
+                    s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
+                    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+                    for _, team := range dbMatch.BlueAlliance {
+                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+                    }
+                    for _, team := range dbMatch.RedAlliance {
+                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                    }
                 }
 
                 if len(scoringQueue) == 0 {
@@ -453,6 +473,7 @@ func (s *Scorer) RunScorer() {
 
             //Update the ranking scores for all picked teams
             for _, pick := range picks {
+                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", pick))
                 model.UpdateTeamRankingScore(s.database, pick, s.getTeamRankingScore(pick))
             }
 

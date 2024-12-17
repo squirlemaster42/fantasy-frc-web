@@ -396,7 +396,7 @@ func SetPlayerOrder(database *sql.DB, draftPlayerId int, playerOrder int) {
 }
 
 func GetAllPicks(database *sql.DB) []string {
-	query := `Select pick From Picks;`
+	query := `Select Distinct pick From Picks;`
 	assert := assert.CreateAssertWithContext("Get All Picks")
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")

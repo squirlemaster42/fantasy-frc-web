@@ -40,7 +40,7 @@ func UpdateScore(database *sql.DB, tbaId string, redScore int, blueScore int) {
     a.AddContext("BlueScore", blueScore)
     stmt, err := database.Prepare(query)
     a.NoError(err, "Failed to prepare query")
-    _, err = stmt.Exec(true, 0, 0, tbaId)
+    _, err = stmt.Exec(true, redScore, blueScore, tbaId)
     a.NoError(err, "Failed to update in database")
 }
 
@@ -54,7 +54,7 @@ func GetMatch(database *sql.DB, tbaId string) *Match {
     match := Match{}
     err = stmt.QueryRow(tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
     if err != nil {
-        return &Match{}
+        return nil
     }
     return &match
 }

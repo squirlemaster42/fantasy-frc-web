@@ -76,12 +76,33 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
         }
     }
 
-    //TODO Remove
+    //TODO Remove we have this so we can pick test teams
     validEvent = true
 
     return !picked && validEvent
 }
 
 func GetScore(database *sql.DB, tbaId string) int {
-    return 0
+    query := `Select
+                mt.Team_TbaId,
+                Sum(Case When mt.Alliance = 'Red' then m.redscore
+                        When mt.Alliance = 'Blue' Then m.bluescore
+                        Else 0 End) As Score
+            From Matches_Teams mt
+            Inner Join Matches m On mt.Match_tbaId = m.tbaId
+            Group By mt.Team_TbaId
+            Where mt.Team_TbaId = $1;`;
+
+    assert := assert.CreateAssertWithContext("Get Score")
+    assert.AddContext("TbaId", tbaId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+
+    var score int
+    err = stmt.QueryRow(tbaId).Scan(&score)
+    if err != nil {
+        return  0
+    }
+
+    return score
 }
