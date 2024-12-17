@@ -1,0 +1,1 @@
+<form hx-swap=\"outerHTML transition:true\" hx-post=\"/u/team/score\" hx-target=\"#score-container\" action=\"\" method=\"post\"><label>Team Number: <input type=\"number\" required autofocus name=\"teamNumber\"></label><footer><button>Get Score</button></footer></form><div id=\"score-container\"></div>
