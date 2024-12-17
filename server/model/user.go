@@ -3,6 +3,7 @@ package model
 import (
 	"crypto"
 	"database/sql"
+	"fmt"
 	"server/assert"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,6 +13,10 @@ type User struct {
     Id int
     Username string
     Password string
+}
+
+func (u *User) String() string {
+    return fmt.Sprintf("User: {\n Id: %d\n Username: %s\n}", u.Id, u.Username)
 }
 
 func RegisterUser(database *sql.DB, username string, password string) {
@@ -112,6 +117,7 @@ func RegisterSession(database *sql.DB, userId int, sessionToken string) {
     assert.NoError(err, "Fauled to register session")
 }
 
+//TODO refactor this to return an error if the user does not exists
 func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
     query := `Select UserId From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Get User By Session Token")
@@ -142,11 +148,10 @@ func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) 
 }
 
 //Check if the session token is in the database and that it is not expired
-func ValidateSessionToken(database *sql.DB, userId int, sessionToken string) bool {
+func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
     //I think <= is fine, it probably doesn't matter though
-    query := `Select Count(*) From UserSessions Where userId = $1 and sessionToken = $2 and now()::timestamp <= expirationTime;`
+    query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Validate Session Token")
-    assert.AddContext("User Id", userId)
     //This one is a little more concerning, but its probably fine
     assert.AddContext("Session Token", sessionToken)
     stmt, err := database.Prepare(query)
@@ -154,7 +159,7 @@ func ValidateSessionToken(database *sql.DB, userId int, sessionToken string) boo
     hasher := crypto.SHA256.New()
     hasher.Write([]byte(sessionToken))
     var count int
-    err = stmt.QueryRow(userId, hasher.Sum(nil)).Scan(&count)
+    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&count)
     assert.NoError(err, "Failed to validate session")
     //If the count is greater than one there is a problem
     //It probably means that we inserted the same token twice which shouldn't happen

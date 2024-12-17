@@ -1,11 +1,13 @@
-package scoring
+package scorer
 
 import (
 	"database/sql"
 	"fmt"
 	"regexp"
 	"server/assert"
+	"server/logging"
 	"server/model"
+	"server/tbaHandler"
 	"strconv"
 	"strings"
 	"time"
@@ -14,16 +16,18 @@ import (
 var RESCORE_INTERATION_COUNT = 72
 
 type Scorer struct {
-	tbaHandler *TbaHandler
+	tbaHandler *tbaHandler.TbaHandler
     database *sql.DB
+    logger *logging.Logger
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *TbaHandler, database *sql.DB) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
 	return &Scorer{
 		tbaHandler: tbaHandler,
         database: database,
         scoringIteration:  0,
+        logger: logger,
 	}
 }
 
@@ -39,9 +43,8 @@ func playoffMatchCompLevels() map[string]bool {
     }
 }
 
-//TODO This should take in a match and not a match id
 //Match, dqed teams
-func (s *Scorer) scoreMatch(match Match) model.Match {
+func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, bool) {
     scoredMatch := model.Match{
         TbaId: match.Key,
         Played: match.PostResultTime > 0,
@@ -49,8 +52,8 @@ func (s *Scorer) scoreMatch(match Match) model.Match {
         BlueScore: 0,
     }
 
-    if !scoredMatch.Played {
-        return scoredMatch
+    if !scoredMatch.Played && !rescore {
+        return scoredMatch, false
     }
 
     if match.CompLevel == "qm" {
@@ -61,10 +64,13 @@ func (s *Scorer) scoreMatch(match Match) model.Match {
     scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
-    return scoredMatch
+
+    s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
+
+    return scoredMatch, true
 }
 
-func getQualMatchScore(match Match) (int, int) {
+func getQualMatchScore(match tbaHandler.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -117,7 +123,7 @@ func getLowerBracketMatchIds() map[int]bool {
 }
 
 //RedScore, BlueScore
-func getPlayoffMatchScore(match Match) (int, int) {
+func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -174,7 +180,10 @@ func getPlayoffMatchScore(match Match) (int, int) {
 
 func (s *Scorer) getTeamRankingScore(team string) int {
     event := s.getChampEventForTeam(team)
-    status := s.tbaHandler.makeTeamEventStatusRequest(team, event)
+    if event == "" {
+        return 0
+    }
+    status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
     score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
     return score
 }
@@ -202,7 +211,8 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Check which event is in the list of champ events
 	//We are going to ignore Einstein here since we just use this to determin the ranking score
 	//which does not apply to Einstein
-	eventsList := s.tbaHandler.makeEventListReq(strings.TrimSpace(teamId))
+    s.logger.Log("Getting Events For Team")
+	eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
 	for _, event := range eventsList {
@@ -212,7 +222,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 			}
 		}
 	}
-    panic(fmt.Sprintf("Champ event not found for team %s", teamId))
+    return ""
 }
 
 //Matches are almost sorted
@@ -355,6 +365,7 @@ func compareMatchOrder(matchA string, matchB string) bool {
         return matchANum < matchBNum
     }
 
+    //TODO We should not panic here
     panic("Unhandled match type")
 }
 
@@ -389,12 +400,13 @@ func (s *Scorer) RunScorer() {
 
 	go func(s *Scorer) {
 		for {
-            //TODO Need to add something that allows for rescoring all matches on a set interval
+            //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
+            s.logger.Log("Starting scoring iteration")
             matches := make(map[string][]string)
             for _, event := range events() {
-                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.makeEventMatchKeysRequest(event))
+                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
             }
 
             //Score matches until we hit one that has not been played
@@ -409,25 +421,45 @@ func (s *Scorer) RunScorer() {
                 match := scoringQueue[0]
                 scoringQueue = scoringQueue[1:]
 
-                dbMatch := *model.GetMatch(s.database, match)
+                dbMatchPtr := model.GetMatch(s.database, match)
 
+                if dbMatchPtr == nil {
+                    model.AddMatch(s.database, match)
+                    dbMatchPtr = &model.Match{
+                        TbaId: match,
+                        BlueAlliance: []string{},
+                        RedAlliance: []string{},
+                        DqedTeams: []string{},
+                        Played: false,
+                    }
+                }
+
+                dbMatch := *dbMatchPtr
+                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
+
+                scored := false
                 if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
-                    match := s.tbaHandler.makeMatchReq(dbMatch.TbaId)
-                    dbMatch = s.scoreMatch(match)
+                    s.logger.Log("Match was not played or rescoring all matches")
+                    tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
+                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration % RESCORE_INTERATION_COUNT == 0)
                 }
 
-                if dbMatch.Played {
-                    event := strings.Split(match, "_")[1]
-                    currentMatch[event] = currentMatch[event] + 1
+                event := strings.Split(match, "_")[0]
+                currentMatch[event] = currentMatch[event] + 1
+                if len (matches[event]) > 0 {
                     scoringQueue = append(scoringQueue, matches[event][0])
+                    matches[event] = matches[event][1:]
                 }
 
-                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-                for _, team := range dbMatch.BlueAlliance {
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
-                }
-                for _, team := range dbMatch.RedAlliance {
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                if scored {
+                    s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
+                    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+                    for _, team := range dbMatch.BlueAlliance {
+                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+                    }
+                    for _, team := range dbMatch.RedAlliance {
+                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                    }
                 }
 
                 if len(scoringQueue) == 0 {
@@ -441,11 +473,12 @@ func (s *Scorer) RunScorer() {
 
             //Update the ranking scores for all picked teams
             for _, pick := range picks {
+                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", pick))
                 model.UpdateTeamRankingScore(s.database, pick, s.getTeamRankingScore(pick))
             }
 
 			s.scoringIteration++
-			fmt.Println("Finished scoring iteration")
+            s.logger.Log("Finished scoring iteration")
 			time.Sleep(5 * time.Minute)
 		}
 	}(s)

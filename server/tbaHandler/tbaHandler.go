@@ -1,10 +1,13 @@
-package scoring
+package tbaHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"server/logging"
 )
+
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
@@ -191,14 +194,19 @@ type Team struct {
 
 type TbaHandler struct {
     tbaToken string
+    logger *logging.Logger
 }
 
-func NewHandler(tbaToken string) *TbaHandler {
-    handler := &TbaHandler{tbaToken: tbaToken}
+func NewHandler(tbaToken string, logger *logging.Logger) *TbaHandler {
+    handler := &TbaHandler{
+        tbaToken: tbaToken,
+        logger: logger,
+    }
     return handler
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
+    t.logger.Log(fmt.Sprintf("Making TBA request to %s", url))
     client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)
@@ -223,7 +231,7 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 }
 
 //Make functions to make tba requests
-func (t *TbaHandler) makeMatchListReq(teamId string, eventId string) []Match {
+func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []Match {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
     jsonData := t.makeRequest(url)
     var matches []Match
@@ -231,7 +239,7 @@ func (t *TbaHandler) makeMatchListReq(teamId string, eventId string) []Match {
     return matches
 }
 
-func (t *TbaHandler) makeEventListReq(teamId string) []string {
+func (t *TbaHandler) MakeEventListReq(teamId string) []string {
     url := BASE_URL + "team/" + teamId + "/events/2024/keys"
     var events []string
     jsonData := t.makeRequest(url)
@@ -239,7 +247,7 @@ func (t *TbaHandler) makeEventListReq(teamId string) []string {
     return events
 }
 
-func (t *TbaHandler) makeMatchReq(matchId string) Match {
+func (t *TbaHandler) MakeMatchReq(matchId string) Match {
     url := BASE_URL + "match/" + matchId
     var match Match
     jsonData := t.makeRequest(url)
@@ -247,7 +255,7 @@ func (t *TbaHandler) makeMatchReq(matchId string) Match {
     return match
 }
 
-func (t *TbaHandler) makeMatchKeysRequest(teamId string, eventId string) []string {
+func (t *TbaHandler) MakeMatchKeysRequest(teamId string, eventId string) []string {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
     var keys []string
     jsonData := t.makeRequest(url)
@@ -255,7 +263,7 @@ func (t *TbaHandler) makeMatchKeysRequest(teamId string, eventId string) []strin
     return keys
 }
 
-func (t *TbaHandler) makeEventMatchKeysRequest(eventId string) []string {
+func (t *TbaHandler) MakeEventMatchKeysRequest(eventId string) []string {
     url := BASE_URL + "event/" + eventId + "/matches/keys"
     var keys []string
     jsonData := t.makeRequest(url)
@@ -263,7 +271,7 @@ func (t *TbaHandler) makeEventMatchKeysRequest(eventId string) []string {
     return keys
 }
 
-func (t *TbaHandler) makeMatchKeysYearRequest(teamId string) []string {
+func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
     url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
     var matches []string
     jsonData := t.makeRequest(url)
@@ -271,7 +279,7 @@ func (t *TbaHandler) makeMatchKeysYearRequest(teamId string) []string {
     return matches
 }
 
-func (t *TbaHandler) makeTeamEventStatusRequest(teamId string, eventId string) Event {
+func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) Event {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
     var event Event
     jsonData := t.makeRequest(url)
@@ -279,7 +287,7 @@ func (t *TbaHandler) makeTeamEventStatusRequest(teamId string, eventId string) E
     return event
 }
 
-func (t *TbaHandler) makeTeamsAtEventRequest(eventId string) []Team {
+func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []Team {
     url := BASE_URL + "event/" + eventId + "/teams/simple"
     var teams []Team
     jsonData := t.makeRequest(url)

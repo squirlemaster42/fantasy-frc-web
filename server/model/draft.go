@@ -2,7 +2,10 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"math/rand"
 	"server/assert"
+	"strings"
 	"time"
 )
 
@@ -24,19 +27,44 @@ type Draft struct {
 	Owner       User //User
 	Status      string
 	Players     []DraftPlayer
+    NextPick DraftPlayer
+}
+
+func (d *Draft) String() string {
+    var stringBuilder strings.Builder
+    for i, p := range d.Players {
+        stringBuilder.WriteString("\nDraftPlayer - ")
+        stringBuilder.WriteString(string(i))
+        stringBuilder.WriteString(" {\n")
+        stringBuilder.WriteString(p.String())
+        stringBuilder.WriteString(" \n}")
+    }
+
+    return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n StartTime: %s\n EndTime: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
+        d.Id, d.DisplayName, d.Description, d.Interval, d.StartTime.String(), d.EndTime.String(), d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String())
 }
 
 type DraftPlayer struct {
+    Id int
 	User    User
+    PlayerOrder int
 	Pending bool
 }
+
+func (d *DraftPlayer) String() string {
+    return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %d\n PlayerOrder: %d\n Pending: %t\n}", d.Id, d.User.Id, d.PlayerOrder, d.Pending)
+}
+
 
 type Pick struct {
 	Id        int
 	Player    int //DraftPlayer
-	PickOrder int
 	Pick      string //Team
 	PickTime  time.Time
+}
+
+func (p *Pick) String() string {
+    return fmt.Sprintf("Pick: {\nId: %d\n Player: %d\n Pick: %s\n PickTime: %s\n}", p.Id, p.Player, p.Pick, p.PickTime.String())
 }
 
 type DraftInvite struct {
@@ -47,6 +75,11 @@ type DraftInvite struct {
 	SentTime       time.Time
 	AcceptedTime   time.Time
 	Accepted       bool
+}
+
+func (d *DraftInvite) String() string {
+    return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingPlayer: %d\n InvitedPlayer: %d\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n}",
+        d.Id, d.DraftId, d.InvitingPlayer, d.InvitedPlayer, d.SentTime.String(), d.AcceptedTime.String(), d.Accepted)
 }
 
 func GetStatusString(status int) string {
@@ -95,6 +128,11 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 		var status int
 		rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
 
+        nextPick := DraftPlayer{}
+        if GetStatusString(status) == GetStatusString(PICKING) {
+            nextPick = NextPick(database, draftId)
+        }
+
 		draft := Draft{
 			Id:          draftId,
 			DisplayName: displayName,
@@ -102,20 +140,19 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 				Id:       ownerId,
 				Username: ownerUsername,
 			},
-			Status:  GetStatusString(status),
+			Status: GetStatusString(status),
 			Players: make([]DraftPlayer, 0),
+            NextPick: nextPick,
 		}
 
-		playerQuery := `Select
+		playerQuery := `Select Distinct
             Users.Id As UserId,
             Users.Username,
             COALESCE(DraftInvites.accepted, 't') As Accepted
         From Users
         Left Join DraftPlayers On DraftPlayers.Player = Users.Id
         Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
-        Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
-        Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
-        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1);`
+        Where (DraftInvites.DraftId = $1 Or DraftPlayers.DraftId = $1)`;
 
 		playerStmt, err := database.Prepare(playerQuery)
 		assert.NoError(err, "Failed to prepare player query")
@@ -169,7 +206,7 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
 
 // TODO Do we need to get the draft owner
 func GetDraft(database *sql.DB, draftId int) Draft {
-    query := `Select DisplayName, Description, StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
+    query := `Select DisplayName, COALESCE(Description, ''), StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
 	assert := assert.CreateAssertWithContext("Get Draft")
 	assert.AddContext("Draft Id", draftId)
 	stmt, err := database.Prepare(query)
@@ -186,13 +223,16 @@ func GetDraft(database *sql.DB, draftId int) Draft {
     playerQuery := `Select
                         Users.Id As UserId,
                         Users.Username,
-                        COALESCE(DraftInvites.accepted, 't') As Accepted
+                        COALESCE(DraftInvites.accepted, 't') As Accepted,
+                        COALESCE(DraftPlayers.PlayerOrder, -1) As PlayerOrder,
+                        COALESCE(DraftPlayers.Id, DraftInvites.Id) As Id
                     From Users
                     Left Join DraftPlayers On DraftPlayers.Player = Users.Id
                     Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
                     Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
                         Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
-                        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1);`
+                        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1)
+                    Order By DraftPlayers.PlayerOrder ASC;`
 
     playerStmt, err := database.Prepare(playerQuery)
     assert.NoError(err, "Failed to prepare player query")
@@ -202,6 +242,8 @@ func GetDraft(database *sql.DB, draftId int) Draft {
         var userId int
         var username string
         var accepted bool
+        var playerOrder int
+        var playerId int
 
         if userId == ownerId {
             draft.Owner = User{
@@ -210,12 +252,14 @@ func GetDraft(database *sql.DB, draftId int) Draft {
             }
         }
 
-        playerRows.Scan(&userId, &username, &accepted)
+        playerRows.Scan(&userId, &username, &accepted, &playerOrder, &playerId)
         draftPlayer := DraftPlayer{
+            Id: playerId,
             User: User{
                 Id: userId,
                 Username: username,
             },
+            PlayerOrder: playerOrder,
             Pending: !accepted,
         }
 
@@ -295,10 +339,11 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
     query := `SELECT
-    Picks.id, Picks,player, Picks,pickOrder, Picks,pick, Picks.pickTime
+    Picks.id, Picks.player, Picks.pick, Picks.pickTime
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
-    Where DraftPlayers.draftId = $1;`
+    Where DraftPlayers.draftId = $1
+    Order By PickTime Asc;`
     assert := assert.CreateAssertWithContext("Get Picks")
     assert.AddContext("Draft", draft)
     stmt, err := database.Prepare(query)
@@ -308,33 +353,50 @@ func GetPicks(database *sql.DB, draft int) []Pick {
     var picks []Pick
     for rows.Next() {
         pick := Pick{}
-        rows.Scan(&pick.Id, &pick.Player, &pick.PickOrder, &pick.Pick, &pick.PickTime)
+        rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime)
         picks = append(picks, pick)
     }
     return picks
 }
 
-// TODO Figure out how we want this to work. should we have a next pick field on the draft or something?
-func GetNextPick(database *sql.DB, draft int) Pick {
-    return Pick{}
+func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
+    query := `Select Id From DraftPlayers Where draftId = $1 And player = $2`
+    assert := assert.CreateAssertWithContext("Get Draft Player Id")
+	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("Player Id", playerId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var draftPlayerId int
+	err = stmt.QueryRow(draftId, playerId).Scan(&draftPlayerId)
+	assert.NoError(err, "Failed to get draft player")
+	return draftPlayerId
 }
 
-// Is using the struct here better?
 func MakePick(database *sql.DB, pick Pick) {
-	query := `INSERT INTO Picks (player, pickOrder, pick, pickTime) Values ($1, $2, $3, $4);`
+	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3);`
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
-	assert.AddContext("Pick Order", pick.PickOrder)
 	assert.AddContext("Team", pick.Pick)
 	assert.AddContext("Pick Time", pick.PickTime)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	_, err = stmt.Exec(pick.Player, pick.PickOrder, pick.Pick, pick.PickTime)
+	_, err = stmt.Exec(pick.Player, pick.Pick, pick.PickTime)
 	assert.NoError(err, "Failed to insert pick")
 }
 
+func SetPlayerOrder(database *sql.DB, draftPlayerId int, playerOrder int) {
+	query := `Update DraftPlayers Set PlayerOrder = $1 Where DraftPlayers.Id = $2;`
+	assert := assert.CreateAssertWithContext("Set Player Order")
+	assert.AddContext("Draft Player", draftPlayerId)
+	assert.AddContext("Player Order", playerOrder)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	_, err = stmt.Exec(playerOrder, draftPlayerId)
+	assert.NoError(err, "Failed to set player order")
+}
+
 func GetAllPicks(database *sql.DB) []string {
-	query := `Select pick From Picks;`
+	query := `Select Distinct pick From Picks;`
 	assert := assert.CreateAssertWithContext("Get All Picks")
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
@@ -348,4 +410,95 @@ func GetAllPicks(database *sql.DB) []string {
 	}
 
 	return picks
+}
+
+func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
+    query := `SELECT
+    Count(*) As num
+    From Picks
+    Inner Join DraftPlayers On DraftPlayers.id = Picks.player
+    Where DraftPlayers.draftId = $1
+    And Picks.pick = $2;`
+    assert := assert.CreateAssertWithContext("Has Been Picked")
+    assert.AddContext("Draft", draftId)
+    assert.AddContext("Team", team)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var numPicked int
+    err = stmt.QueryRow(draftId, team).Scan(&numPicked)
+    assert.NoError(err, "Failed to query for picks")
+    return numPicked != 0
+}
+
+func RandomizePickOrder(database *sql.DB, draftId int) {
+    draftModel := GetDraft(database, draftId)
+    awaitingAssignment := draftModel.Players
+    order := 0
+    assert := assert.CreateAssertWithContext("Randomize Pick Order")
+
+    for len(awaitingAssignment) > 0 {
+        selectedPlayer := rand.Intn(len(awaitingAssignment))
+        player := awaitingAssignment[selectedPlayer]
+        removePlayer(awaitingAssignment, selectedPlayer)
+        draftPlayerId := GetDraftPlayerId(database, draftId, player.User.Id)
+
+        query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
+        stmt, err := database.Prepare(query)
+        assert.NoError(err, "Failed to prepare statement")
+        stmt.Exec(order, draftPlayerId)
+        order++
+    }
+}
+
+func removePlayer(arr []DraftPlayer, i int) []DraftPlayer {
+    arr[i] = arr[len(arr)-1]
+    return arr[:len(arr)-1]
+}
+
+func NextPick(database *sql.DB, draftId int) DraftPlayer {
+    //We need to get the last two picks
+    picks := GetPicks(database, draftId)
+    draft := GetDraft(database, draftId)
+    var nextPlayer DraftPlayer
+
+    //I dont think we need to account for the case where there are only two players
+    if len(picks) < 2 {
+        for _, player := range draft.Players {
+            if player.PlayerOrder == len(picks) {
+                nextPlayer = player
+            }
+        }
+    } else {
+        //We can then figure out what direction
+        //we are going and if we hit the
+        //End then we decide what the next pick is
+        lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks) - 1].Player)
+        secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks) - 2].Player)
+        direction := lastPlayer.PlayerOrder - secondLastPick.PlayerOrder
+        if lastPlayer.User.Id == secondLastPick.User.Id {
+            if lastPlayer.PlayerOrder == len(draft.Players) - 1 {
+                direction = -1
+            } else {
+                direction = 1
+            }
+        }
+        if len(picks) % 8 == 0 { //TODO Change to number of picks in draft
+            direction = 0
+        }
+        //We know draft.players is order by player order
+        nextPlayer = draft.Players[lastPlayer.PlayerOrder + direction]
+    }
+
+    //Take the pick and make it into a draft player
+
+    return nextPlayer
+}
+
+func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
+    for _, p := range draft.Players {
+        if p.Id == draftPlayerId {
+            return p
+        }
+    }
+    return DraftPlayer{} //TODO Error if we fail to find?
 }

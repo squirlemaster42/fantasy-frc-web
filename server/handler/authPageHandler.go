@@ -12,12 +12,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-//TODO Do we want to do some sort of redirect here if the user already has a valid session token
 //We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
     loginIndex := login.LoginIndex(false, "")
     login := login.Login(" | Login", false, loginIndex)
-    //TODO We should probably make tailwind work offline to make the dev experience better
     err := Render(c, login)
     assert.NoErrorCF(err, "Handle View Login Failed To Render")
     return nil
@@ -57,7 +55,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
         cookie.HttpOnly = true
         cookie.Secure = true
         c.SetCookie(cookie)
-        err := c.Redirect(http.StatusSeeOther, "/home")
+        err := c.Redirect(http.StatusSeeOther, "/u/home")
         assert.NoErrorCF(err, "Failed to redirect on successful login")
 
         return nil
@@ -86,7 +84,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
     //TODO We need to make sure the user does not already exist
     if model.UsernameTaken(h.Database, username) {
-        h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user: %s ----", username))
+        h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user but username was taken: %s ----", username))
 
         register := login.RegisterIndex(false, "Username Taken")
         err := Render(c, register)
@@ -118,7 +116,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     cookie.HttpOnly = true
     cookie.Secure = true
     c.SetCookie(cookie)
-    err := c.Redirect(http.StatusSeeOther, "/home")
+    err := c.Redirect(http.StatusSeeOther, "/u/home")
     assert.NoErrorCF(err, "Failed to redirect on successful registration")
 
     return nil
