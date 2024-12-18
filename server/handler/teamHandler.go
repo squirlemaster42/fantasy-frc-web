@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) HandleTeamScore(c echo.Context) error {
-    teamIndex := team.TeamScoreIndex(model.Team{})
+    teamIndex := team.TeamScoreIndex()
     team := team.TeamPick(" | Team Score", teamIndex)
     Render(c, team)
     return nil
@@ -20,10 +20,9 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
     h.Logger.Log(fmt.Sprintf("Getting score for %s\n", teamNumber))
 
     //Get team score
-    //teamModel := model.GetTeam(h.Database, fmt.Sprintf("tba%s", teamNumber))
+    score := model.GetScore(h.Database, "tba" + teamNumber)
 
-    teamIndex := team.TeamScoreIndex(model.Team{})
-    team := team.TeamPick(" | Team Score", teamIndex)
+    team := team.TeamScoreReport(teamNumber, score)
     Render(c, team)
     return nil
 }

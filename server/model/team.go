@@ -83,6 +83,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 }
 
 func GetScore(database *sql.DB, tbaId string) int {
+    //TODO Need to get the ranking score in here
     query := `Select
                 mt.Team_TbaId,
                 Sum(Case When mt.Alliance = 'Red' then m.redscore
@@ -90,8 +91,8 @@ func GetScore(database *sql.DB, tbaId string) int {
                         Else 0 End) As Score
             From Matches_Teams mt
             Inner Join Matches m On mt.Match_tbaId = m.tbaId
-            Group By mt.Team_TbaId
-            Where mt.Team_TbaId = $1;`;
+            Where mt.Team_TbaId = $1
+            Group By mt.Team_TbaId;`;
 
     assert := assert.CreateAssertWithContext("Get Score")
     assert.AddContext("TbaId", tbaId)
