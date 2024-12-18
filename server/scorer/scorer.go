@@ -404,6 +404,7 @@ func (s *Scorer) RunScorer() {
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
             s.logger.Log("Starting scoring iteration")
+            allTeams := make(map[string]bool)
             matches := make(map[string][]string)
             for _, event := range events() {
                 matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
@@ -455,9 +456,11 @@ func (s *Scorer) RunScorer() {
                     s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
                     model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
                     for _, team := range dbMatch.BlueAlliance {
+                        allTeams[team] = true
                         model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
                     }
                     for _, team := range dbMatch.RedAlliance {
+                        allTeams[team] = true
                         model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
                     }
                 }
@@ -468,13 +471,9 @@ func (s *Scorer) RunScorer() {
             }
 
             //Update ranking scores
-            //Get all picked teams
-            picks := model.GetAllPicks(s.database)
-
-            //Update the ranking scores for all picked teams
-            for _, pick := range picks {
-                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", pick))
-                model.UpdateTeamRankingScore(s.database, pick, s.getTeamRankingScore(pick))
+            for team := range allTeams {
+                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", team))
+                model.UpdateTeamRankingScore(s.database, team, s.getTeamRankingScore(team))
             }
 
 			s.scoringIteration++

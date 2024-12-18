@@ -83,9 +83,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 }
 
 func GetScore(database *sql.DB, tbaId string) int {
-    //TODO Need to get the ranking score in here
     query := `Select
-                mt.Team_TbaId,
                 Sum(Case When mt.Alliance = 'Red' then m.redscore
                         When mt.Alliance = 'Blue' Then m.bluescore
                         Else 0 End) As Score
@@ -99,11 +97,29 @@ func GetScore(database *sql.DB, tbaId string) int {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
 
-    var score int
-    err = stmt.QueryRow(tbaId).Scan(&score)
+    var matchScore int
+    err = stmt.QueryRow(tbaId).Scan(&matchScore)
     if err != nil {
         return  0
     }
 
-    return score
+    query = `Select
+                Sum(Case When mt.Alliance = 'Red' then m.redscore
+                        When mt.Alliance = 'Blue' Then m.bluescore
+                        Else 0 End) As Score
+            From Matches_Teams mt
+            Inner Join Matches m On mt.Match_tbaId = m.tbaId
+            Where mt.Team_TbaId = $1
+            Group By mt.Team_TbaId;`;
+
+    stmt, err = database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+
+    var rankingScore int
+    err = stmt.QueryRow(tbaId).Scan(&rankingScore)
+    if err != nil {
+        return  0
+    }
+
+    return matchScore + rankingScore
 }
