@@ -203,6 +203,7 @@ func events() []string {
         "2024dal",
         "2024cur",
         "2024arc",
+        "2024cmptx",
     }
 }
 

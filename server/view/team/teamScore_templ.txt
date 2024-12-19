@@ -1,4 +1,7 @@
 <div class=\"flex justify-center pt-10\"><form hx-swap=\"beforeend transition:true\" hx-post=\"/u/team/score\" hx-target=\"#score-container\" action=\"\" method=\"post\"><p class=\"text-xl\">Enter a team number to score:</p><input class=\"w-full mt-4\" type=\"number\" required autofocus name=\"teamNumber\"><footer class=\"pt-4 w-full\"><button class=\"w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full\">Get Score</button></footer></form></div><div id=\"score-container\" class=\"overflow-auto\" style=\"height: calc(100vh - 240px)\"></div>
 <div class=\"ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700\"><h5 class=\"mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white\">Team 
-</h5><hr><p class=\"font-normal text-gray-700 dark:text-gray-400\">Qual Score:</p><p class=\"font-normal text-gray-700 dark:text-gray-400\">Playoff Score:</p><p class=\"font-normal text-gray-700 dark:text-gray-400\">Einstein Score:</p><p class=\"font-normal text-gray-700 dark:text-gray-400\">Total Score: 
-</p></div>
+</h5><hr>
+<p class=\"font-normal text-gray-700 dark:text-gray-400\">
+: 
+</p>
+</div>

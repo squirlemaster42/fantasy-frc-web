@@ -20,9 +20,9 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
     h.Logger.Log(fmt.Sprintf("Getting score for %s\n", teamNumber))
 
     //Get team score
-    score := model.GetScore(h.Database, "frc" + teamNumber)
+    scores := model.GetScore(h.Database, "frc" + teamNumber)
 
-    team := team.TeamScoreReport(teamNumber, score)
+    team := team.TeamScoreReport(teamNumber, scores)
     Render(c, team)
     return nil
 }

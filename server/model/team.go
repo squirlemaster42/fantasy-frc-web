@@ -82,44 +82,59 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
     return !picked && validEvent
 }
 
-func GetScore(database *sql.DB, tbaId string) int {
+// Keys are the string that represents display name and the value is the score
+// for that display name
+// Display names: Qual Score, Playoff Score, Ranking Score, Einstein Score, Total Score
+func GetScore(database *sql.DB, tbaId string) map[string]int {
     query := `Select
-                Sum(Case When mt.Alliance = 'Red' then m.redscore
-                        When mt.Alliance = 'Blue' Then m.bluescore
-                        Else 0 End) As Score
-            From Matches_Teams mt
-            Inner Join Matches m On mt.Match_tbaId = m.tbaId
-            Where mt.Team_TbaId = $1
-            Group By mt.Team_TbaId;`;
+                t.RankingScore
+            From Teams t
+            Where t.TbaId = $1`;
 
     assert := assert.CreateAssertWithContext("Get Score")
     assert.AddContext("TbaId", tbaId)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
 
-    var matchScore int
-    err = stmt.QueryRow(tbaId).Scan(&matchScore)
+    var rankingScore int
+    err = stmt.QueryRow(tbaId).Scan(&rankingScore)
     if err != nil {
-        return  0
+        return  nil
     }
 
     query = `Select
-                Sum(Case When mt.Alliance = 'Red' then m.redscore
-                        When mt.Alliance = 'Blue' Then m.bluescore
-                        Else 0 End) As Score
-            From Matches_Teams mt
-            Inner Join Matches m On mt.Match_tbaId = m.tbaId
-            Where mt.Team_TbaId = $1
-            Group By mt.Team_TbaId;`;
+                Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
+                     Else 'Playoff Match' End As DisplayName,
+                Sum(Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End) As Score
+             From Matches_Teams mt
+             Inner Join Matches m On mt.Match_tbaId = m.tbaId
+             Where mt.Team_TbaId = $1
+             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
+                     Else 'Playoff Match' End
+             Order By mt.Team_TbaId`;
 
     stmt, err = database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
 
-    var rankingScore int
-    err = stmt.QueryRow(tbaId).Scan(&rankingScore)
+    var displayName string
+    var matchScore int
+    rows, err := stmt.Query(tbaId)
     if err != nil {
-        return  0
+        return  nil
     }
 
-    return matchScore + rankingScore
+    scores := make(map[string]int)
+    total := 0
+    for rows.Next() {
+        rows.Scan(&displayName, &matchScore)
+        total += matchScore
+        scores[displayName] = matchScore
+    }
+
+    scores["Ranking Score"] = rankingScore
+    scores["Total Score"] = total + rankingScore
+
+    return scores
 }
