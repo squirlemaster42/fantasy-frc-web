@@ -11,6 +11,7 @@ import (
 )
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
+    h.Logger.Log("Got a request to serve the draft profile page")
     assert := assert.CreateAssertWithContext("Handle update Draft Profile")
     draftId, err := strconv.Atoi(c.Param("id"))
     assert.NoError(err, "Failed to convert draft id to int")

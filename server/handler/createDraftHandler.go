@@ -13,6 +13,7 @@ import (
 )
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
+    h.Logger.Log("Got request to server the create draft page")
     draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
     draftCreate := draft.DraftProfile(" | Create Draft", false, draftCreateIndex)
     err := Render(c, draftCreate)
@@ -21,6 +22,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 }
 
 func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
+    h.Logger.Log("Got request to create a draft")
     assert := assert.CreateAssertWithContext("Handle Create Draft Post")
     draftName := c.FormValue("draftName")
     description := c.FormValue("description")
