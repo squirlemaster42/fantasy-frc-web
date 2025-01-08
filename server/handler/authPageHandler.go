@@ -79,7 +79,6 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
     password := c.FormValue("password")
     confirmPassword := c.FormValue("confirmPassword")
 
-    //TODO We need to make sure the user does not already exist
     if model.UsernameTaken(h.Database, username) {
         h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user but username was taken: %s ----", username))
 
