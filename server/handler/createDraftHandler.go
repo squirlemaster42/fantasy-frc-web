@@ -14,9 +14,20 @@ import (
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     h.Logger.Log("Got request to server the create draft page")
+
+    userTok, err := c.Cookie("sessionToken")
+    //TODO We should have already checked that the user has a token
+    //here since they should not be able to access the page otherwise
+    //There might be some sort of weird thing here where the middleware
+    //validates the session token is good and then it expires a second later
+    assert.NoErrorCF(err, "Failed to get user token")
+
+    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userId)
+
     draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
-    draftCreate := draft.DraftProfile(" | Create Draft", false, draftCreateIndex)
-    err := Render(c, draftCreate)
+    draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex)
+    err = Render(c, draftCreate)
     assert.NoErrorCF(err, "Handle View Draft Create Failed To Render")
     return nil
 }
@@ -42,8 +53,11 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     parsedEndTime, err := time.Parse(layout, endTime)
     assert.NoError(err, "Failed to parse end time")
 
+    userId := model.GetUserBySessionToken(h.Database, sessionToken.Value)
+    username := model.GetUsername(h.Database, userId)
+
     draftModel := model.Draft{
-        Owner: model.User{Id: model.GetUserBySessionToken(h.Database, sessionToken.Value)},
+        Owner: model.User{Id: userId},
         DisplayName: draftName,
         Description: description,
         Interval: intInterval,
@@ -52,7 +66,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
         Status: model.GetStatusString(model.FILLING),
     }
 
-    h.Logger.Log(fmt.Sprintf("Created Draft: %s", draftModel.String()))
+    h.Logger.Log(fmt.Sprintf("Created Draft: %s for user %s", draftModel.String(), username))
 
     draftId := model.CreateDraft(h.Database, &draftModel)
     err = c.Redirect(http.StatusSeeOther, fmt.Sprintf("/u/draft/%d/profile", draftId))

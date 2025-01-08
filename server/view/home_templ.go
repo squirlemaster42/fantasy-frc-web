@@ -135,7 +135,7 @@ func HomeIndex(drafts *[]model.Draft) templ.Component {
 	})
 }
 
-func Home(page string, fromProtected bool, cmp templ.Component) templ.Component {
+func Home(page string, fromProtected bool, username string, cmp templ.Component) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -163,7 +163,7 @@ func Home(page string, fromProtected bool, cmp templ.Component) templ.Component 
 			}
 			return templ_7745c5c3_Err
 		})
-		templ_7745c5c3_Err = Index(page, fromProtected, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Index(page, fromProtected, username).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

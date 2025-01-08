@@ -94,7 +94,7 @@ func DraftPickIndex(draft model.Draft, pickHtml string, pickUrl string, invalidP
 	})
 }
 
-func DraftPick(page string, fromProtected bool, cmp templ.Component) templ.Component {
+func DraftPick(page string, fromProtected bool, username string, cmp templ.Component) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, templ_7745c5c3_W io.Writer) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templ_7745c5c3_W.(*bytes.Buffer)
 		if !templ_7745c5c3_IsBuffer {
@@ -122,7 +122,7 @@ func DraftPick(page string, fromProtected bool, cmp templ.Component) templ.Compo
 			}
 			return templ_7745c5c3_Err
 		})
-		templ_7745c5c3_Err = view.Index(page, fromProtected, "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = view.Index(page, fromProtected, username).Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

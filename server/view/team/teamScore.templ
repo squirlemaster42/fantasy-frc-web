@@ -22,8 +22,8 @@ templ TeamScoreIndex() {
     <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
 }
 
-templ TeamPick(page string, cmp templ.Component) {
-    @view.Index(page, false, "") {
+templ TeamPick(page string, fromProtected bool, username string, cmp templ.Component) {
+    @view.Index(page, fromProtected, username) {
         @cmp
     }
 }

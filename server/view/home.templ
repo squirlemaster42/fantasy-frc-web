@@ -68,8 +68,8 @@ templ HomeIndex(drafts *[]model.Draft) {
     </section>
 }
 
-templ Home(page string, fromProtected bool, cmp templ.Component) {
-    @Index(page, fromProtected, "") {
+templ Home(page string, fromProtected bool, username string, cmp templ.Component) {
+    @Index(page, fromProtected, username) {
         @cmp
     }
 }

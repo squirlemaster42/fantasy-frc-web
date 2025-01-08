@@ -146,7 +146,8 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
     isPicking := model.NextPick(database, draftId).User.Id == userId
     html := getPickHtml(database, draftId, len(draftModel.Players), isPicking)
 	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
-	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, false, pickPageIndex)
+    username := model.GetUsername(database, userId)
+	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, true, username, pickPageIndex)
 	err := Render(c, pickPageView)
 	return err
 }

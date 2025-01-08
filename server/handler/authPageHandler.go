@@ -55,10 +55,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
         cookie.HttpOnly = true
         cookie.Secure = true
         c.SetCookie(cookie)
-        err := c.Redirect(http.StatusSeeOther, "/u/home")
-        assert.NoErrorCF(err, "Failed to redirect on successful login")
-
-        return nil
+        c.Response().Header().Set("HX-Redirect", "/u/home")
     }
 
     h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
