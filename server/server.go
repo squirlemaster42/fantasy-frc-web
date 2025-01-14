@@ -45,6 +45,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
 	protected.GET("/draft/:id/pickNotifier", h.PickNotifier)
     protected.GET("/team/score", h.HandleTeamScore)
     protected.POST("/team/score", h.HandleGetTeamScore)
+    protected.POST("/searchPlayers", h.SearchPlayers)
 
 	err := app.Start(":3000")
 	assert.NoError(err, "Failed to start server")

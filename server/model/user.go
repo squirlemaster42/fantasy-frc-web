@@ -166,3 +166,31 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
     //Do we want to invalidate the session in that case
     return count == 1
 }
+
+func SearchUsers(database *sql.DB, searchString string) []User {
+    query := "Select Id, username from Users Where username Like '%$1%';"
+    assert := assert.CreateAssertWithContext("Search Users")
+    assert.AddContext("Search String", searchString)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    userRows, err := stmt.Query(searchString)
+
+    users := make([]User, 0)
+
+    for userRows.Next() {
+        var userId int
+        var username string
+
+        userRows.Scan(&userId, &username)
+
+        user := User {
+            Id: userId,
+            Username: username,
+        }
+
+        users = append(users, user)
+    }
+
+    return users
+}

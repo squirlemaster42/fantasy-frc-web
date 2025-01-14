@@ -51,3 +51,14 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
     return nil
 }
+
+func (h *Handler) SearchPlayers(c echo.Context) error {
+    searchInput := c.FormValue("search")
+    h.Logger.Log("Got request to search users")
+    users := model.SearchUsers(h.Database, searchInput)
+
+    searchResults := draftView.PlayerSearchResults(users)
+    err := Render(c, searchResults)
+
+    return err
+}

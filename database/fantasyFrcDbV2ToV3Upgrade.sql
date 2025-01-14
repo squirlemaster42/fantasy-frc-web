@@ -1,4 +1,4 @@
-ALTER TABLE Drafts Add Status smallint;
+ALTER TABLE Drafts Add Status varchar;
 
 CREATE TABLE DraftReaders(
     Id SERIAL PRIMARY KEY,
