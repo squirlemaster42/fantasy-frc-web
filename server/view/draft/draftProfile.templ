@@ -67,12 +67,13 @@ templ DraftProfileIndex (draft model.Draft) {
                     Invite Players
                 </h1>
                 <div class="flex flex-col p-2 pt-8">
-                    Search: <input class="form-control" type="search" name="search"
-                        placeholder="Search by username..."
-                        hx-post="/u/searchPlayers"
-                        hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
-                        hx-target="#searchResults"
-                        hx-indicator=".htmx-indicator"
+                    Search: <input class="form-control" type="search"
+                    name="search" placeholder="Search Users..."
+                    hx-post="/u/searchPlayers"
+                    hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
+                    hx-target="#searchResults"
+                    hx-indicator=".htmx-indicator"
+                    hx-swap="innerHTML"
                     />
                     <div id="searchResults">
                     </div>
@@ -92,7 +93,7 @@ templ DraftProfile (page string, fromProtected bool, username string, cmp templ.
 }
 
 templ PlayerSearchResults(users []model.User) {
-    <table>
+    <table class="w-full">
         <thead>
             <th></th>
             <th>Username</th>
