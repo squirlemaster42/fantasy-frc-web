@@ -168,13 +168,25 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 }
 
 func SearchUsers(database *sql.DB, searchString string) []User {
-    query := "Select Id, username from Users Where username Like '%$1%';"
+    query := "Select Id, username from Users"
+    if searchString != "" {
+        query += " Where Username Like CONCAT('%', CAST($1 As VARCHAR), '%');"
+    } else {
+        query += ";"
+    }
     assert := assert.CreateAssertWithContext("Search Users")
     assert.AddContext("Search String", searchString)
+    assert.AddContext("Query", query)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare query")
 
-    userRows, err := stmt.Query(searchString)
+    var userRows *sql.Rows
+    if searchString != "" {
+        userRows, err = stmt.Query(searchString)
+    } else {
+        userRows, err = stmt.Query()
+    }
+    assert.NoError(err, "Failed to search users")
 
     users := make([]User, 0)
 
