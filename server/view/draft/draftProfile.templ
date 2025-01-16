@@ -66,18 +66,26 @@ templ DraftProfileIndex (draft model.Draft) {
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl">
                     Invite Players
                 </h1>
-                <div class="flex flex-col p-2 pt-8">
-                    Search: <input class="form-control" type="search"
-                    name="search" placeholder="Search Users..."
-                    hx-post="/u/searchPlayers"
-                    hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
-                    hx-target="#searchResults"
-                    hx-indicator=".htmx-indicator"
-                    hx-swap="innerHTML"
-                    />
+                if draft.Id != 0 {
+                    <div class="flex flex-col p-2 pt-8">
+                        Search: <input class="form-control" type="search"
+                        name="search" placeholder="Search Users..."
+                        hx-post="/u/searchPlayers"
+                        hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
+                        hx-target="#searchResults"
+                        hx-indicator=".htmx-indicator"
+                        hx-swap="innerHTML"
+                        />
                     <div id="searchResults">
                     </div>
-                </div>
+                    </div>
+                } else {
+                    <div class="flex justify-center w-full h-full flex-row text-center">
+                        <div class="flex h-full w-full flex-col justify-center text-rose-600">
+                            You must save your draft in order to invite players.
+                        </div>
+                    </div>
+                }
             </div>
             <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
                 <button class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
@@ -92,7 +100,7 @@ templ DraftProfile (page string, fromProtected bool, username string, cmp templ.
     }
 }
 
-templ PlayerSearchResults(users []model.User) {
+templ PlayerSearchResults(users []model.User, draftId int) {
     <table class="w-full">
         <thead>
             <th></th>
@@ -102,7 +110,7 @@ templ PlayerSearchResults(users []model.User) {
             for _, user := range users {
                 <tr>
                     <td>
-                        <button type="button">Invite</button>
+                        <button type="button" hx-indicator="closest tr" hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
                     </td>
                     <td>
                         { user.Username }

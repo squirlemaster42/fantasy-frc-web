@@ -8,8 +8,12 @@
 </div></div></div><div class=\"w-64 flex flex-col h-full\"><div class=\"card bg-base-200 m-2 p-2 h-24 h-full\"><h1 class=\"card-title border-b border-b-slate-600 pl-4 pr-4 text-4xl\">Settings</h1><div class=\"flex flex-col p-2 pt-8\"><h2 class=\"pt-2\">Time Between Picks</h2><input name=\"interval\" value=\"
 \" type=\"range\"><h2 class=\"pt-2\">Start Time</h2><input name=\"startTime\" value=\"
 \" type=\"datetime-local\"><h2 class=\"pt-2\">End Time</h2><input name=\"endTime\" value=\"
-\" type=\"datetime-local\"></div><h1 class=\"card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl\">Invite Players</h1><div class=\"flex flex-col p-2 pt-8\">Search: <input class=\"form-control\" type=\"search\" name=\"search\" placeholder=\"Search Users...\" hx-post=\"/u/searchPlayers\" hx-trigger=\"input changed delay:500ms, keyup[key==&#39;Enter&#39;], load\" hx-target=\"#searchResults\" hx-indicator=\".htmx-indicator\" hx-swap=\"innerHTML\"><div id=\"searchResults\"></div></div></div><div class=\"flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full\"><button class=\"badge badge-primary hover:scale-[1.1] w-full h-8 text-xl\">Save</button></div></div></form>
+\" type=\"datetime-local\"></div><h1 class=\"card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl\">Invite Players</h1>
+<div class=\"flex flex-col p-2 pt-8\">Search: <input class=\"form-control\" type=\"search\" name=\"search\" placeholder=\"Search Users...\" hx-post=\"/u/searchPlayers\" hx-trigger=\"input changed delay:500ms, keyup[key==&#39;Enter&#39;], load\" hx-target=\"#searchResults\" hx-indicator=\".htmx-indicator\" hx-swap=\"innerHTML\"><div id=\"searchResults\"></div></div>
+<div class=\"flex justify-center w-full h-full flex-row text-center\"><div class=\"flex h-full w-full flex-col justify-center text-rose-600\">You must save your draft in order to invite players.</div></div>
+</div><div class=\"flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full\"><button class=\"badge badge-primary hover:scale-[1.1] w-full h-8 text-xl\">Save</button></div></div></form>
 <table class=\"w-full\"><thead><th></th><th>Username</th></thead> <tbody>
-<tr><td><button type=\"button\">Invite</button></td><td>
+<tr><td><button type=\"button\" hx-indicator=\"closest tr\" hx-post=\"
+\">Invite</button></td><td>
 </td></tr>
 </tbody></table>

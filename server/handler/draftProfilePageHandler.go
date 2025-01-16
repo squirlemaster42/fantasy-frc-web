@@ -6,6 +6,7 @@ import (
 	"server/model"
 	draftView "server/view/draft"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -53,12 +54,15 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 }
 
 func (h *Handler) SearchPlayers(c echo.Context) error {
+    splitSource := strings.Split(c.Request().Header["Hx-Current-Url"][0], "/")
+    draftId, err := strconv.Atoi(splitSource[len(splitSource) - 2])
+    assert.NoErrorCF(err, "Failed to parse draft Id")
     searchInput := c.FormValue("search")
     h.Logger.Log("Got request to search users")
     users := model.SearchUsers(h.Database, searchInput)
 
-    searchResults := draftView.PlayerSearchResults(users)
-    err := Render(c, searchResults)
+    searchResults := draftView.PlayerSearchResults(users, draftId)
+    err = Render(c, searchResults)
 
     return err
 }
