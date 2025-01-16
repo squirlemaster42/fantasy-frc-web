@@ -66,3 +66,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
     return err
 }
+
+func (h *Handler) InviteDraftPlayer(c echo.Context) error {
+    return nil
+}

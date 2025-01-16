@@ -43,6 +43,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
 	protected.GET("/draft/:id/pick", h.ServePickPage)
 	protected.POST("/draft/:id/makePick", h.HandlerPickRequest)
 	protected.GET("/draft/:id/pickNotifier", h.PickNotifier)
+    protected.POST("/draft/:id/invitePlayer", h.InviteDraftPlayer)
     protected.GET("/team/score", h.HandleTeamScore)
     protected.POST("/team/score", h.HandleGetTeamScore)
     protected.POST("/searchPlayers", h.SearchPlayers)
