@@ -1,0 +1,28 @@
+package draft
+
+import "server/view"
+
+templ DraftInviteIndex () {
+    <table class="table-auto">
+        <thead>
+            <tr>
+            <th></th>
+            <th>Draft</th>
+            <th>Invited By</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>The Sliding Mr. Bones (Next Stop, Pottersville)</td>
+                <td>Malcolm Lockyer</td>
+                <td>1961</td>
+            </tr>
+        </tbody>
+        </table>
+}
+
+templ DraftInvite (page string, fromProtected bool, username string, cmp templ.Component) {
+    @view.Index(page, fromProtected, username) {
+        @cmp
+    }
+}
