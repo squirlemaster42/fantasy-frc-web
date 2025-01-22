@@ -101,7 +101,7 @@ templ DraftProfile (page string, fromProtected bool, username string, cmp templ.
 }
 
 templ PlayerSearchResults(users []model.User, draftId int) {
-    <table class="w-full">
+    <table class="w-full" id="inviteTable">
         <thead>
             <th></th>
             <th>Username</th>
@@ -110,7 +110,7 @@ templ PlayerSearchResults(users []model.User, draftId int) {
             for _, user := range users {
                 <tr>
                     <td>
-                        <button type="button" hx-indicator="closest tr" hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
+                        <button hx-target="#inviteTable" hx-swap="outerHTML" name="userId" value={ fmt.Sprintf("%d", user.Id) } hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
                     </td>
                     <td>
                         { user.Username }
