@@ -10,7 +10,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.31.0
-	golang.org/x/net v0.23.0
+	golang.org/x/net v0.33.0
 )
 
 require (
