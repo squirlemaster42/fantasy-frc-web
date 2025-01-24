@@ -1,1 +1,5 @@
-<table class=\"table-auto\"><thead><tr><th>Song</th><th>Artist</th><th>Year</th></tr></thead> <tbody><tr><td>The Sliding Mr. Bones (Next Stop, Pottersville)</td><td>Malcolm Lockyer</td><td>1961</td></tr><tr><td>Witchy Woman</td><td>The Eagles</td><td>1972</td></tr><tr><td>Shining Star</td><td>Earth, Wind, and Fire</td><td>1975</td></tr></tbody></table>
+<div class=\"w-full flex items-center justify-center overflow-y-auto\" style=\"max-height: calc(100vh - 65px);\"><table class=\"w-4/5 text-lg text-left rtl:text-right text-gray-500 dark:text-gray-400\"><thead class=\"text-lg text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400\"><tr><th scope=\"col\" class=\"border px-6 py-3\"></th><th scope=\"col\" class=\"border px-6 py-3\">Draft</th><th scope=\"col\" class=\"border px-6 py-3\">Invited By</th></tr></thead> <tbody>
+<tr><td class=\"bg-white border dark:bg-gray-800 dark:border:gray-700\"><button>Accept</button></td><td class=\"bg-white border dark:bg-gray-800 dark:border:gray-700\">
+</td><td class=\"bg-white border dark:bg-gray-800 dark:border:gray-700\">
+</td></tr>
+</tbody></table></div>

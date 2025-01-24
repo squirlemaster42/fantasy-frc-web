@@ -68,13 +68,15 @@ func (p *Pick) String() string {
 }
 
 type DraftInvite struct {
-	Id             int
-	DraftId        int //Draft
-	InvitedPlayer  int //User
+	Id int
+	DraftId int //Draft
+    DraftName string
+	InvitedPlayer int //User
 	InvitingPlayer int //User
-	SentTime       time.Time
-	AcceptedTime   time.Time
-	Accepted       bool
+    InvitingPlayerName string
+	SentTime time.Time
+	AcceptedTime time.Time
+	Accepted bool
 }
 
 func (d *DraftInvite) String() string {
@@ -322,7 +324,20 @@ func AddPlayerToDraft(database *sql.DB, draft int, player int) {
 }
 
 func GetInvites(database *sql.DB, player int) []DraftInvite {
-    query := `SELECT id, draftId, invitingPlayer, invitedPlayer, sentTime, acceptedTime, accepted Where invitedPlayer = $1;`
+    query := `SELECT
+            di.Id,
+            draftId,
+            invitingPlayer,
+            u.username,
+            invitedPlayer,
+            sentTime,
+            acceptedTime,
+            accepted,
+            d.Displayname
+        From DraftInvites di
+        Inner Join Drafts d On di.DraftId = d.Id
+        Inner Join Users u On di.InvitingPlayer = u.Id
+        Where invitedPlayer = $1;`
     assert := assert.CreateAssertWithContext("Get Invites")
     assert.AddContext("Player", player)
     stmt, err := database.Prepare(query)
@@ -331,7 +346,16 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
     var invites []DraftInvite
     for rows.Next() {
         invite := DraftInvite{}
-        rows.Scan(&invite.Id, &invite.DraftId, &invite.InvitingPlayer, &invite.InvitedPlayer, &invite.SentTime, &invite.Accepted, &invite.Accepted)
+        rows.Scan(&invite.Id,
+            &invite.DraftId,
+            //TODO we will want to get the name here
+            &invite.InvitingPlayer,
+            &invite.InvitingPlayerName,
+            &invite.InvitedPlayer,
+            &invite.SentTime,
+            &invite.AcceptedTime,
+            &invite.Accepted,
+            &invite.DraftName)
         invites = append(invites, invite)
     }
     return invites

@@ -1,24 +1,35 @@
 package draft
 
 import "server/view"
+import "server/model"
 
-templ DraftInviteIndex () {
-    <table class="table-auto">
-        <thead>
-            <tr>
-            <th></th>
-            <th>Draft</th>
-            <th>Invited By</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>The Sliding Mr. Bones (Next Stop, Pottersville)</td>
-                <td>Malcolm Lockyer</td>
-                <td>1961</td>
-            </tr>
-        </tbody>
+templ DraftInviteIndex (invites []model.DraftInvite) {
+    <div class="w-full flex items-center justify-center overflow-y-auto" style="max-height: calc(100vh - 65px);">
+        <table class="w-4/5 text-lg text-left rtl:text-right text-gray-500 dark:text-gray-400">
+            <thead class="text-lg text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                <tr>
+                    <th scope="col" class="border px-6 py-3"></th>
+                    <th scope="col" class="border px-6 py-3">Draft</th>
+                    <th scope="col" class="border px-6 py-3">Invited By</th>
+                </tr>
+            </thead>
+            <tbody>
+                for _, invite := range invites {
+                    <tr>
+                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700">
+                            <button>Accept</button>
+                        </td>
+                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700">
+                            { invite.DraftName }
+                        </td>
+                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700">
+                            { invite.InvitingPlayerName }
+                        </td>
+                    </tr>
+                }
+            </tbody>
         </table>
+    </div>
 }
 
 templ DraftInvite (page string, fromProtected bool, username string, cmp templ.Component) {
