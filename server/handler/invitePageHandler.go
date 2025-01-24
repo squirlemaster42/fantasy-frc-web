@@ -9,7 +9,11 @@ import (
 )
 
 func (h *Handler) HandleViewInvites(c echo.Context) error {
-    assert := assert.CreateAssertWithContext("Handle View Invites")
+    return renderInviteTable(h, c)
+}
+
+func renderInviteTable(h *Handler, c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Render Invite Table")
 
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
@@ -23,4 +27,10 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
     inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
     err = Render(c, inviteView)
     return err
+}
+
+func (h *Handler) HandleAcceptInvite(c echo.Context) error {
+    //TODO Accept invite
+
+    return renderInviteTable(h, c)
 }

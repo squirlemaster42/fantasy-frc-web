@@ -4,7 +4,7 @@ import "server/view"
 import "server/model"
 
 templ DraftInviteIndex (invites []model.DraftInvite) {
-    <div class="overflow-y-auto ml-16 mr-16" style="max-height: calc(100vh - 65px);">
+    <div class="overflow-y-auto ml-16 mr-16" style="max-height: calc(100vh - 65px);" id="pendingTable">
         <table class="w-full w-4/5 text-lg text-left rtl:text-right text-gray-500 dark:text-gray-400 table-auto">
             <thead class="text-lg text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
@@ -17,7 +17,7 @@ templ DraftInviteIndex (invites []model.DraftInvite) {
                 for _, invite := range invites {
                     <tr>
                         <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
-                            <button>Accept</button>
+                            <button hx-target="#pendingTable" hx-swap=""outerHTML" name="inviteId" value={ invite.Id } hx-post="/u/acceptInvite">Accept</button>
                         </td>
                         <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
                             { invite.DraftName }
