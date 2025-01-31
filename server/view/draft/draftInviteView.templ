@@ -2,6 +2,7 @@ package draft
 
 import "server/view"
 import "server/model"
+import "fmt"
 
 templ DraftInviteIndex (invites []model.DraftInvite) {
     <div class="overflow-y-auto ml-16 mr-16" style="max-height: calc(100vh - 65px);" id="pendingTable">
@@ -17,7 +18,7 @@ templ DraftInviteIndex (invites []model.DraftInvite) {
                 for _, invite := range invites {
                     <tr>
                         <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
-                            <button hx-target="#pendingTable" hx-swap=""outerHTML" name="inviteId" value={ invite.Id } hx-post="/u/acceptInvite">Accept</button>
+                            <button hx-target="#pendingTable" hx-swap="outerHTML" name="inviteId" value={ fmt.Sprintf("%d", invite.Id) } hx-post="/u/acceptInvite">Accept</button>
                         </td>
                         <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
                             { invite.DraftName }

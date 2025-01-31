@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/labstack/echo/v4"
 
 	"server/assert"
@@ -30,7 +32,9 @@ func renderInviteTable(h *Handler, c echo.Context) error {
 }
 
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
-    //TODO Accept invite
+    inviteId, err := strconv.Atoi(c.FormValue("inviteId"))
+    assert.NoErrorCF(err, "Failed to parse invite id")
+    model.AcceptInvite(h.Database, inviteId)
 
     return renderInviteTable(h, c)
 }
