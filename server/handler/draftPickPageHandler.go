@@ -16,9 +16,10 @@ import (
 
 
 func (h *Handler) ServePickPage(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Server Pick Page")
     h.Logger.Log(fmt.Sprintf("Serving pick page to %s", c.RealIP()))
     userTok, err := c.Cookie("sessionToken")
-    assert.NoErrorCF(err, "Failed to get user token")
+    assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(c.Param("id"))
 	renderPickPage(c, h.Database, draftId, userId, false)
@@ -97,6 +98,7 @@ func reverseArray(s []model.Pick) []model.Pick {
 }
 
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Handle Pick Request")
     //We need to validate that the curent player is allowed to make a pick for the draft
     //they are on. We then need to make that pick at the draft that they are on
     //Get the player, draft id and the pick
@@ -104,12 +106,12 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     //TODO maybe we should change validate login to just take in the context type
     //so we dont hape to parse out the token every time
     userTok, err := c.Cookie("sessionToken")
-    assert.NoErrorCF(err, "Failed to get user token")
+    assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
     pick := c.FormValue("pickInput")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
-    assert.NoErrorCF(err, "Invalid draft id")
+    assert.NoError(err, "Invalid draft id")
 
     //Make sure that the pick is valid
     //TODO Check that we actually got the session token
@@ -153,6 +155,7 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
 }
 
 func (h *Handler) PickNotifier(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Pick Notifier")
     //TODO Need to do authentication
     //Hopefully this can go through the middleware
     websocket.Handler(func (ws *websocket.Conn) {
@@ -161,19 +164,19 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         watcher := h.Notifier.RegisterWatcher(draftId)
         defer ws.Close()
         defer h.Notifier.UnregiserWatcher(watcher)
-        assert.NoErrorCF(err, "Could not parse draft id")
+        assert.NoError(err, "Could not parse draft id")
         for {
             msg := <- watcher.notifierQueue
             //Enable the input for the current pick
             userTok, err := c.Cookie("sessionToken")
-            assert.NoErrorCF(err, "Failed to get user token")
+            assert.NoError(err, "Failed to get user token")
             userId := model.GetUserBySessionToken(h.Database, userTok.Value)
             //Disabled should appear no where else in this string so we can just find and replace
             if model.NextPick(h.Database, draftId).User.Id == userId {
                 msg = strings.Replace(msg, "disabled", "", -1)
             }
             err = websocket.Message.Send(ws, msg)
-            assert.NoErrorCF(err, "Websocket receive failed")
+            assert.NoError(err, "Websocket receive failed")
         }
     }).ServeHTTP(c.Response(), c.Request())
     return nil

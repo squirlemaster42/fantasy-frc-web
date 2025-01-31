@@ -32,8 +32,9 @@ func (a *assert) RunAssert(predicate bool, msg string) {
 }
 
 func (a *assert) printContext(msg string) {
+    slog.Error(a.name)
     for k, v := range a.context {
-        slog.Error(a.name, "key", k, "value", v)
+        slog.Error("key: ", k, "value: ", v)
     }
     log.Fatal(msg)
 }

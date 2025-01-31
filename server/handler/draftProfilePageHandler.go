@@ -75,15 +75,16 @@ func (h *Handler) renderSearchPlayers(c echo.Context) error {
 }
 
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Invite Draft Player")
     userTok, err := c.Cookie("sessionToken")
-    assert.NoErrorCF(err, "Failed to get user token")
+    assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
     invitingPlayer := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
-    assert.NoErrorCF(err, "Invalid draft id")
+    assert.NoError(err, "Invalid draft id")
     userIdStr := c.FormValue("userId")
     userId, err := strconv.Atoi(userIdStr)
-    assert.NoErrorCF(err, "Failed to parse user id")
+    assert.NoError(err, "Failed to parse user id")
 
     model.InvitePlayer(h.Database, draftId, invitingPlayer, userId)
 

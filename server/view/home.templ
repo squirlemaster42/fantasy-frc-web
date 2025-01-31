@@ -1,11 +1,11 @@
 package view
 
 import (
-        "server/model"
-        "fmt"
+    "server/model"
+    "fmt"
 )
 
-templ HomeIndex(drafts *[]model.Draft) {
+templ HomeIndex (drafts *[]model.Draft) {
     <section class="mr-6 ml-6 mx-auto flex flex-col gap-8">
         <div class="grid grid-cols-4 gap-x-10 gap-y-8 overflow-y-auto w-full" style="max-height: calc(100vh - 65px);">
             for _, draft := range *drafts {
@@ -31,7 +31,7 @@ templ HomeIndex(drafts *[]model.Draft) {
                             </label>
                         </div>
                         <h4>Players:</h4>
-                        <div class="grid grid-cols-4 gap-2 border-b border-slate-600 pb-2">
+                        <div class="grid grid-cols-3 gap-2 border-b border-slate-600 pb-2">
                             for _, player := range draft.Players {
                                 if !player.Pending {
                                     <div class="badge badge-primary">{ player.User.Username }</div>
@@ -39,7 +39,7 @@ templ HomeIndex(drafts *[]model.Draft) {
                             }
                         </div>
                         <h4>Pending Players:</h4>
-                        <div class="grid grid-cols-4 gap-2 border-b border-slate-600 pb-2">
+                        <div class="grid grid-cols-3 gap-2 border-b border-slate-600 pb-2">
                             for _, player := range draft.Players {
                                 if player.Pending {
                                     <div class="badge badge-primary">{ player.User.Username }</div>

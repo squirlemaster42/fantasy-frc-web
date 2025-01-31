@@ -5,10 +5,10 @@
 <div class=\"badge badge-primary\">
 </div>
 N/A
-</label></div><h4>Players:</h4><div class=\"grid grid-cols-4 gap-2 border-b border-slate-600 pb-2\">
+</label></div><h4>Players:</h4><div class=\"grid grid-cols-3 gap-2 border-b border-slate-600 pb-2\">
 <div class=\"badge badge-primary\">
 </div>
-</div><h4>Pending Players:</h4><div class=\"grid grid-cols-4 gap-2 border-b border-slate-600 pb-2\">
+</div><h4>Pending Players:</h4><div class=\"grid grid-cols-3 gap-2 border-b border-slate-600 pb-2\">
 <div class=\"badge badge-primary\">
 </div>
 </div><footer class=\"card-actions w-full\"><a class=\"badge badge-primary px-6 py-4 hover:scale-[1.1] w-full\" href=\"

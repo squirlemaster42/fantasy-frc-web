@@ -13,6 +13,7 @@ import (
 )
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Handle View Create Draft")
     h.Logger.Log("Got request to server the create draft page")
 
     userTok, err := c.Cookie("sessionToken")
@@ -20,7 +21,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     //here since they should not be able to access the page otherwise
     //There might be some sort of weird thing here where the middleware
     //validates the session token is good and then it expires a second later
-    assert.NoErrorCF(err, "Failed to get user token")
+    assert.NoError(err, "Failed to get user token")
 
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userId)
@@ -28,7 +29,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
     draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex)
     err = Render(c, draftCreate)
-    assert.NoErrorCF(err, "Handle View Draft Create Failed To Render")
+    assert.NoError(err, "Handle View Draft Create Failed To Render")
     return nil
 }
 
