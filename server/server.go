@@ -29,7 +29,9 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
             Watchers: make(map[int][]handler.Watcher),
         },
 	}
-    app.GET("/", h.HandleViewHome)
+    //TODO Make the base route. Something about
+    //having this here breaks everything?
+    //app.GET("/", h.HandleViewHome)
 	app.GET("/login", h.HandleViewLogin)
 	app.POST("/login", h.HandleLoginPost)
 	app.GET("/register", h.HandleViewRegister)

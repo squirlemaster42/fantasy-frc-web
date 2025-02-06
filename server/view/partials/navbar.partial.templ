@@ -7,10 +7,12 @@ templ Navbar(fromProtected bool, username string) {
                 Fantasy FRC
             </a>
         </div>
-        <div class="flex justify-around w-full">
-            <a href="/u/viewInvites" class="btn btn-ghost text-x1">Invites</a>
-            <a href="/u/team/score" class="btn btn-ghost text-x1">Team Scores</a>
-        </div>
+        if fromProtected {
+            <div class="flex justify-around w-full">
+                <a href="/u/viewInvites" class="btn btn-ghost text-x1">Invites</a>
+                <a href="/u/team/score" class="btn btn-ghost text-x1">Team Scores</a>
+            </div>
+        }
         <div class="navbar-end">
             if fromProtected {
                 <span class="font-bold text-indigo-700 mr-8">

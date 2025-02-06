@@ -222,23 +222,40 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 
     //TODO we need to include pick order, maybe we also want to include the picks
     //We probably want to show the status
-    playerQuery := `Select
-                        Users.Id As UserId,
-                        Users.Username,
-                        COALESCE(DraftInvites.accepted, 't') As Accepted,
-                        COALESCE(DraftPlayers.PlayerOrder, -1) As PlayerOrder,
-                        COALESCE(DraftPlayers.Id, DraftInvites.Id) As Id
-                    From Users
-                    Left Join DraftPlayers On DraftPlayers.Player = Users.Id
-                    Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
-                    Where (DraftInvites.DraftId = $1 And DraftPlayers.DraftId = $1)
-                        Or (DraftInvites.Id Is Null And DraftPlayers.DraftId = $1)
-                        Or (DraftPlayers.Id Is Null And DraftInvites.DraftId = $1)
-                    Order By DraftPlayers.PlayerOrder ASC;`
+    playerQuery := `SELECT
+	                    USERID,
+	                    USERNAME,
+	                    BOOL_OR(ACCEPTED) AS ACCEPTED,
+	                    MAX(PLAYERORDER) AS PLAYERORDER,
+	                    Max(PlayerId) As PlayerId
+                    FROM (
+		                    SELECT
+			                    USERS.ID AS USERID,
+			                    USERS.USERNAME,
+			                    't' AS ACCEPTED,
+			                    DRAFTPLAYERS.PLAYERORDER,
+			                    DraftPlayers.Id As PlayerId
+		                    FROM USERS
+		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.PLAYER = USERS.ID
+		                    WHERE DRAFTPLAYERS.DRAFTID = $1
+		                    UNION
+		                    SELECT
+			                    USERS.ID AS USERID,
+			                    USERS.USERNAME,
+			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
+			                    -1 AS PLAYERORDER,
+			                    -1 As PlayerId
+		                    FROM USERS
+		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.INVITEDPLAYER = USERS.ID
+		                    WHERE DRAFTINVITES.DRAFTID = $1
+	                    ) U
+                    GROUP BY USERID, USERNAME
+                    ORDER BY PLAYERORDER;`
 
     playerStmt, err := database.Prepare(playerQuery)
     assert.NoError(err, "Failed to prepare player query")
     playerRows, err := playerStmt.Query(draftId)
+    assert.NoError(err, "Failed to run player query")
 
     for playerRows.Next() {
         var userId int
