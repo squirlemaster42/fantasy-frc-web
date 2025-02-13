@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"server/assert"
 	"server/tbaHandler"
+	"server/utils"
 )
 
 type Team struct {
@@ -62,8 +63,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
     picked := HasBeenPicked(database, draftId, tbaId)
 
     events := handler.MakeEventListReq(tbaId)
-    //TODO we need to load events for this draft
-    draftEvents := []string{"a"}
+    draftEvents := utils.Events()
 
     validEvent := false
     //Looping here should always be faster because of the small lists
@@ -75,9 +75,6 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
             }
         }
     }
-
-    //TODO Remove we have this so we can pick test teams
-    validEvent = true
 
     return !picked && validEvent
 }

@@ -2,7 +2,8 @@ package view
 
 import "server/view/partials"
 
-templ Index(page string, fromProtected bool, username string) {
+//TODO I dont like this data thing...what else could we do?
+templ Index(page string, fromProtected bool, username string, data any) {
     <!DOCTYPE html>
 	<html lang="en" data-theme="dark">
         <head>
@@ -28,7 +29,7 @@ templ Index(page string, fromProtected bool, username string) {
                 initFlowbite();
             </script>
             <header>
-                @partials.Navbar(fromProtected, username)
+                @partials.Navbar(fromProtected, username, page, data)
             </header>
             <main class="fixed w-full top-16 bottom-0">
                 {children...}

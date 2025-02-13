@@ -4,13 +4,14 @@ import (
     "server/view"
     "server/model"
     "fmt"
+	"server/utils"
 )
 
 templ DraftProfileIndex (draft model.Draft) {
     <form
         class="flex flex-row w-full h-full"
         hx-swap="outerHTML"
-        hx-post="/draft/updateDraft"
+        hx-post={utils.GetUpdateUrl(draft.Id)}
         action=""
         method="post"
         enctype="multipart/form-data"
@@ -107,8 +108,8 @@ templ DraftProfileIndex (draft model.Draft) {
     </form>
 }
 
-templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, "") {
+templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(page, fromProtected, "", draftId) {
         @cmp
     }
 }

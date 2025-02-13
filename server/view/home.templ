@@ -77,7 +77,7 @@ templ HomeIndex (drafts *[]model.Draft) {
 }
 
 templ Home(page string, fromProtected bool, username string, cmp templ.Component) {
-    @Index(page, fromProtected, username) {
+    @Index(page, fromProtected, username, nil) {
         @cmp
     }
 }

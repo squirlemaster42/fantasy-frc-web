@@ -17,17 +17,13 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     h.Logger.Log("Got request to server the create draft page")
 
     userTok, err := c.Cookie("sessionToken")
-    //TODO We should have already checked that the user has a token
-    //here since they should not be able to access the page otherwise
-    //There might be some sort of weird thing here where the middleware
-    //validates the session token is good and then it expires a second later
     assert.NoError(err, "Failed to get user token")
 
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userId)
 
-    draftCreateIndex := draft.DraftProfileIndex(model.Draft{})
-    draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex)
+    draftCreateIndex := draft.DraftProfileIndex(model.Draft{ Id: -1 })
+    draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
     err = Render(c, draftCreate)
     assert.NoError(err, "Handle View Draft Create Failed To Render")
     return nil

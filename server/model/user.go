@@ -168,9 +168,37 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 }
 
 func SearchUsers(database *sql.DB, searchString string) []User {
-    query := "Select Id, username from Users"
+    query := `Select
+                *
+                From Users
+                Where Users.Id Not In (
+                    SELECT
+                    u.UserId
+                    FROM (
+                        SELECT
+                        USERS.ID AS USERID,
+                        USERS.USERNAME,
+                        't' AS ACCEPTED,
+                        DRAFTPLAYERS.PLAYERORDER,
+                        DraftPlayers.Id As PlayerId
+                        FROM USERS
+                        INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.PLAYER = USERS.ID
+                        WHERE DRAFTPLAYERS.DRAFTID = 60
+                        UNION
+                        SELECT
+                        USERS.ID AS USERID,
+                        USERS.USERNAME,
+                        DRAFTINVITES.ACCEPTED AS ACCEPTED,
+                        -1 AS PLAYERORDER,
+                        -1 As PlayerId
+                        FROM USERS
+                        INNER JOIN DRAFTINVITES ON DRAFTINVITES.INVITEDPLAYER = USERS.ID
+                        WHERE DRAFTINVITES.DRAFTID = 60
+                    ) U
+                )`
+
     if searchString != "" {
-        query += " Where Username Like CONCAT('%', CAST($1 As VARCHAR), '%');"
+        query += " And Username Like CONCAT('%', CAST($1 As VARCHAR), '%');"
     } else {
         query += ";"
     }

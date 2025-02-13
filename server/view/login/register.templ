@@ -72,7 +72,7 @@ templ RegisterIndex(fromProtected bool, errorMessage string) {
 }
 
 templ Register(page string, fromProtected bool, cmp templ.Component) {
-    @view.Index(page, fromProtected, "") {
+    @view.Index(page, fromProtected, "", nil) {
         @cmp
     }
 }

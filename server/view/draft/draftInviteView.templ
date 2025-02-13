@@ -34,7 +34,7 @@ templ DraftInviteIndex (invites []model.DraftInvite) {
 }
 
 templ DraftInvite (page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username) {
+    @view.Index(page, fromProtected, username, nil) {
         @cmp
     }
 }

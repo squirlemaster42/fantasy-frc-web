@@ -8,6 +8,7 @@ import (
 	"server/logging"
 	"server/model"
 	"server/tbaHandler"
+	"server/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -192,21 +193,6 @@ func einstein() string {
     return "2024cmptx"
 }
 
-func events() []string {
-    //TODO can we do this programatically?
-    return []string{
-        "2024new",
-        "2024mil",
-        "2024joh",
-        "2024hop",
-        "2024gal",
-        "2024dal",
-        "2024cur",
-        "2024arc",
-        "2024cmptx",
-    }
-}
-
 func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Get list of teams events from tba
 	//Check which event is in the list of champ events
@@ -217,7 +203,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
 	//the number of champs field, both will be small so this is probably faster than a hashset
 	for _, event := range eventsList {
-		for _, champEvent := range events() {
+		for _, champEvent := range utils.Events() {
 			if event == champEvent {
 				return event
 			}
@@ -407,7 +393,7 @@ func (s *Scorer) RunScorer() {
             s.logger.Log("Starting scoring iteration")
             allTeams := make(map[string]bool)
             matches := make(map[string][]string)
-            for _, event := range events() {
+            for _, event := range utils.Events() {
                 matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
             }
 

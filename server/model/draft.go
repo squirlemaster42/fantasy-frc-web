@@ -543,3 +543,4 @@ func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
     }
     return DraftPlayer{} //TODO Error if we fail to find?
 }
+
