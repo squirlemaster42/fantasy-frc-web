@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"net/http"
 	"server/assert"
 	"server/model"
 	"server/view/draft"
@@ -14,7 +13,7 @@ import (
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle View Create Draft")
-    h.Logger.Log("Got request to server the create draft page")
+    h.Logger.Log("Got request to serve the create draft page")
 
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
@@ -66,7 +65,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     h.Logger.Log(fmt.Sprintf("Created Draft: %s for user %s", draftModel.String(), username))
 
     draftId := model.CreateDraft(h.Database, &draftModel)
-    err = c.Redirect(http.StatusSeeOther, fmt.Sprintf("/u/draft/%d/profile", draftId))
-    assert.NoError(err, "Failed to redirect on successful draft creation")
+    h.Logger.Log(fmt.Sprintf("Draft creates. Redirecting to /u/draft/%d/profile", draftId))
+    c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
     return nil
 }

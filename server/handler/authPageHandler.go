@@ -56,6 +56,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
         cookie.Secure = true
         c.SetCookie(cookie)
         c.Response().Header().Set("HX-Redirect", "/u/home")
+        return nil
     }
 
     h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))

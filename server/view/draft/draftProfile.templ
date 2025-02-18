@@ -80,7 +80,7 @@ templ DraftProfileIndex (draft model.Draft) {
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl">
                     Invite Players
                 </h1>
-                if draft.Id != 0 {
+                if draft.Id != 0 && draft.Id != -1 {
                     <div class="flex flex-col p-2 pt-8">
                         Search: <input class="form-control" type="search"
                         name="search" placeholder="Search Users..."
