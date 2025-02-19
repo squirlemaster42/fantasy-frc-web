@@ -80,8 +80,8 @@ type DraftInvite struct {
 }
 
 func (d *DraftInvite) String() string {
-    return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingPlayer: %d\n InvitedPlayer: %d\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n}",
-        d.Id, d.DraftId, d.InvitingPlayer, d.InvitedPlayer, d.SentTime.String(), d.AcceptedTime.String(), d.Accepted)
+    return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingPlayer: %d\n InvitedPlayer: %d\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n}",
+        d.Id, d.DraftId, d.InvitingPlayer, d.InvitedPlayer, d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
 func GetStatusString(status int) string {
@@ -342,17 +342,8 @@ func AddPlayerToDraft(database *sql.DB, draft int, player int) {
 
 func GetInvites(database *sql.DB, player int) []DraftInvite {
     query := `SELECT
-            di.Id,
-            draftId,
-            invitingPlayer,
             u.username,
-            invitedPlayer,
-            sentTime,
-            acceptedTime,
-            accepted,
-            d.Displayname
-        From DraftInvites di
-        Inner Join Drafts d On di.DraftId = d.Id
+            d.DisplayName
         Inner Join Users u On di.InvitingPlayer = u.Id
         Where invitedPlayer = $1;`
     assert := assert.CreateAssertWithContext("Get Invites")
@@ -363,15 +354,8 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
     var invites []DraftInvite
     for rows.Next() {
         invite := DraftInvite{}
-        rows.Scan(&invite.Id,
-            &invite.DraftId,
-            //TODO we will want to get the name here
-            &invite.InvitingPlayer,
+        rows.Scan(
             &invite.InvitingPlayerName,
-            &invite.InvitedPlayer,
-            &invite.SentTime,
-            &invite.AcceptedTime,
-            &invite.Accepted,
             &invite.DraftName)
         invites = append(invites, invite)
     }
