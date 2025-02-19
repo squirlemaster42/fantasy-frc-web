@@ -8,8 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/labstack/echo/v4"
-)
+	"github.com/labstack/echo/v4")
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	h.Logger.Log("Got a request to serve the draft profile page")
@@ -50,23 +49,16 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 }
 
 func (h *Handler) SearchPlayers(c echo.Context) error {
-	return h.renderSearchPlayers(c)
-}
-
-func (h *Handler) renderSearchPlayers(c echo.Context) error {
 	splitSource := strings.Split(c.Request().Header["Hx-Current-Url"][0], "/")
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
 	assert.NoErrorCF(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
 	h.Logger.Log("Got request to search users")
 
-	//TODO We need to pass the draft id here and only show user
-	//not already in the draft
-	users := model.SearchUsers(h.Database, searchInput)
+	users := model.SearchUsers(h.Database, searchInput, draftId)
 
 	searchResults := draftView.PlayerSearchResults(users, draftId)
 	err = Render(c, searchResults)
-
 	return err
 }
 
@@ -84,5 +76,16 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	model.InvitePlayer(h.Database, draftId, invitingPlayer, userId)
 
-	return h.renderSearchPlayers(c)
+	assert.NoError(err, "Failed to parse draft Id")
+	searchInput := c.FormValue("search")
+	h.Logger.Log("Got request to search users")
+
+	users := model.SearchUsers(h.Database, searchInput, draftId)
+
+    players := model.GetDraft(h.Database, draftId).Players
+
+	updatedPage := draftView.UpdateAfterInvite(users, draftId, players)
+	err = Render(c, updatedPage)
+
+	return err
 }

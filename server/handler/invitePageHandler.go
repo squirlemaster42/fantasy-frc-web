@@ -34,6 +34,9 @@ func renderInviteTable(h *Handler, c echo.Context) error {
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     inviteId, err := strconv.Atoi(c.FormValue("inviteId"))
     assert.NoErrorCF(err, "Failed to parse invite id")
+    //TODO We need to make sure that we dont accpet more than 8 players
+    // if more than 8 players are invites then we cancel the other outstanding invites
+    // Maybe we need an active bool
     model.AcceptInvite(h.Database, inviteId)
 
     return renderInviteTable(h, c)

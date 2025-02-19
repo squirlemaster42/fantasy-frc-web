@@ -3,6 +3,7 @@ package assert
 import (
 	"log"
 	"log/slog"
+	"runtime"
 )
 
 type assert struct {
@@ -33,6 +34,8 @@ func (a *assert) RunAssert(predicate bool, msg string) {
 
 func (a *assert) printContext(msg string) {
     slog.Error(a.name)
+    _, file, line, _ := runtime.Caller(1)
+    log.Printf("Failed at: %d in %s", line, file)
     for k, v := range a.context {
         slog.Error("key: ", k, "value: ", v)
     }
@@ -48,12 +51,16 @@ func (a *assert) NoError(err error, msg string) {
 
 func AssertCF(predicate bool, msg string) {
     if !predicate {
+        _, file, line, _ := runtime.Caller(1)
+        log.Printf("Failed at: %d in %s", line, file)
         log.Fatal(msg)
     }
 }
 
 func NoErrorCF(err error, msg string) {
     if err != nil {
+        _, file, line, _ := runtime.Caller(1)
+        log.Printf("Failed at: %d in %s", line, file)
         slog.Error("NoError#error encountered", "error", err)
         log.Fatal(msg)
     }

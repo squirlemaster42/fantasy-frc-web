@@ -25,6 +25,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
  						type="string"
  						name="username"
  						required
+                        hx-preserve
  						autofocus
  						disabled?={ fromProtected }
  						if fromProtected {

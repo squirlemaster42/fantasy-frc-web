@@ -167,9 +167,10 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
     return count == 1
 }
 
-func SearchUsers(database *sql.DB, searchString string) []User {
-    query := `Select
-                *
+func SearchUsers(database *sql.DB, searchString string, draftId int) []User {
+    query := `SELECT
+                    Users.Id,
+                    Users.Username
                 From Users
                 Where Users.Id Not In (
                     SELECT
@@ -183,7 +184,7 @@ func SearchUsers(database *sql.DB, searchString string) []User {
                         DraftPlayers.Id As PlayerId
                         FROM USERS
                         INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.PLAYER = USERS.ID
-                        WHERE DRAFTPLAYERS.DRAFTID = 60
+                        WHERE DRAFTPLAYERS.DRAFTID = $1
                         UNION
                         SELECT
                         USERS.ID AS USERID,
@@ -193,12 +194,12 @@ func SearchUsers(database *sql.DB, searchString string) []User {
                         -1 As PlayerId
                         FROM USERS
                         INNER JOIN DRAFTINVITES ON DRAFTINVITES.INVITEDPLAYER = USERS.ID
-                        WHERE DRAFTINVITES.DRAFTID = 60
+                        WHERE DRAFTINVITES.DRAFTID = $1
                     ) U
                 )`
 
     if searchString != "" {
-        query += " And Username Like CONCAT('%', CAST($1 As VARCHAR), '%');"
+        query += " And Username Like CONCAT('%', CAST($2 As VARCHAR), '%');"
     } else {
         query += ";"
     }
@@ -210,9 +211,9 @@ func SearchUsers(database *sql.DB, searchString string) []User {
 
     var userRows *sql.Rows
     if searchString != "" {
-        userRows, err = stmt.Query(searchString)
+        userRows, err = stmt.Query(draftId, searchString)
     } else {
-        userRows, err = stmt.Query()
+        userRows, err = stmt.Query(draftId)
     }
     assert.NoError(err, "Failed to search users")
 
