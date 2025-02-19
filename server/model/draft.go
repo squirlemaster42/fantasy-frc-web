@@ -116,7 +116,7 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
     Left Join Users diUsers On DraftInvites.InvitedPlayer = diUsers.Id
     Left Join Users owners On Drafts.owner = owners.Id
     Where DraftPlayers.Player = $2 Or DraftInvites.InvitedPlayer = $2;`
-	assert := assert.CreateAssertWithContext("Get Invites")
+	assert := assert.CreateAssertWithContext("Get Drafts For User")
 	assert.AddContext("User", user)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
@@ -344,6 +344,8 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
     query := `SELECT
             u.username,
             d.DisplayName
+        From DraftInvites di
+        Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingPlayer = u.Id
         Where invitedPlayer = $1;`
     assert := assert.CreateAssertWithContext("Get Invites")
