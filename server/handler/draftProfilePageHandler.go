@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4")
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
-    //Players are not shown when page is opened from home screen
+    //TODO Fix: Players are not shown when page is opened from home screen
 	h.Logger.Log("Got a request to serve the draft profile page")
 	assert := assert.CreateAssertWithContext("Handle update Draft Profile")
 

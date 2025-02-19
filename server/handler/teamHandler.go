@@ -12,10 +12,6 @@ import (
 func (h *Handler) HandleTeamScore(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle Team Score")
     userTok, err := c.Cookie("sessionToken")
-    //TODO We should have already checked that the user has a token
-    //here since they should not be able to access the page otherwise
-    //There might be some sort of weird thing here where the middleware
-    //validates the session token is good and then it expires a second later
     assert.NoError(err, "Failed to get user token")
 
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
