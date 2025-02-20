@@ -319,7 +319,8 @@ func InvitePlayer(database *sql.DB, draft int, invitingPlayer int, invitedPlayer
     return inviteId
 }
 
-func AcceptInvite(database *sql.DB, inviteId int) {
+// Returns draftId, playerId
+func AcceptInvite(database *sql.DB, inviteId int) (int, int) {
     query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
     assert := assert.CreateAssertWithContext("Accept Invite")
     assert.AddContext("Invite Id", inviteId)
@@ -327,7 +328,19 @@ func AcceptInvite(database *sql.DB, inviteId int) {
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(true, time.Now(), inviteId)
     assert.NoError(err, "Failed to accept invite")
+
+    query = `Select DraftId, InvitedPlayer From DraftInvites Where Id = $1;`
+    stmt, err = database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var draftId int
+    var playerId int
+    err = stmt.QueryRow(inviteId).Scan(&draftId, &playerId)
+    assert.NoError(err, "Failed to insert invite player")
+
+    return draftId, playerId
 }
+
+// TODO We should be able to uninvite someone from the draft
 
 func AddPlayerToDraft(database *sql.DB, draft int, player int) {
     query := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
@@ -342,12 +355,14 @@ func AddPlayerToDraft(database *sql.DB, draft int, player int) {
 
 func GetInvites(database *sql.DB, player int) []DraftInvite {
     query := `SELECT
+            di.Id,
             u.username,
             d.DisplayName
         From DraftInvites di
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingPlayer = u.Id
-        Where invitedPlayer = $1;`
+        Where invitedPlayer = $1
+        And di.Accepted = false;`
     assert := assert.CreateAssertWithContext("Get Invites")
     assert.AddContext("Player", player)
     stmt, err := database.Prepare(query)
@@ -357,6 +372,7 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
     for rows.Next() {
         invite := DraftInvite{}
         rows.Scan(
+            &invite.Id,
             &invite.InvitingPlayerName,
             &invite.DraftName)
         invites = append(invites, invite)
@@ -517,8 +533,24 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
     }
 
     //Take the pick and make it into a draft player
-
     return nextPlayer
+}
+
+func GetNumPlayersInInvitedDraft(database *sql.DB, inviteId int) int {
+    query := `Select
+                Count(*)
+            From DraftInvites ci
+            Inner Join Drafts d On d.Id = ci.DraftId
+            Inner Join DraftPlayers dp On dp.DraftId = d.Id
+            Where ci.Id = $1;`
+    assert := assert.CreateAssertWithContext("Get Num Players In Invited Draft")
+    assert.AddContext("InviteId", inviteId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var numPlayers int
+    err = stmt.QueryRow(inviteId).Scan(&numPlayers)
+    assert.NoError(err, "Failed to query for num players")
+    return numPlayers
 }
 
 func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
