@@ -1,0 +1,13 @@
+package admin
+
+import "server/view"
+
+templ AdminConsoleIndex() {
+    Test
+}
+
+templ AdminConsole(page string, fromProtected bool, username string, cmp templ.Component) {
+    @view.Index(page, fromProtected, username, nil) {
+        @cmp
+    }
+}

@@ -134,6 +134,18 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
     return userId
 }
 
+func UserIsAdmin(database *sql.DB, userId int) bool {
+    query := `Select IsAdmin From Users Where id = $1;`
+    assert := assert.CreateAssertWithContext("User Is Admin")
+    assert.AddContext("User Id", userId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var isAdmin bool
+    err = stmt.QueryRow(userId).Scan(&isAdmin)
+    assert.NoError(err, "Failed to get user")
+    return isAdmin
+}
+
 func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) {
     //We want to make sure we only update the session token that the user logged in with
     query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userId = $1 And sessionToken = $2;`

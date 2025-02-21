@@ -77,7 +77,6 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) stri
     }
     stringBuilder.WriteString("</tr>")
 
-    //TODO Change 8 to number of picks
     for curRow < 8 {
         stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
         for i := 0; i < numPlayers; i++ {
@@ -103,8 +102,6 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     //they are on. We then need to make that pick at the draft that they are on
     //Get the player, draft id and the pick
 
-    //TODO maybe we should change validate login to just take in the context type
-    //so we dont hape to parse out the token every time
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
@@ -114,9 +111,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert.NoError(err, "Invalid draft id")
 
     //Make sure that the pick is valid
-    //TODO Check that we actually got the session token
     isInvalid := false
-    //if we didnt the login was invalid
     if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) {
         isInvalid = true
         h.Logger.Log("Invalid Pick")

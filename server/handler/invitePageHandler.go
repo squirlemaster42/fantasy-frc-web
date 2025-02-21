@@ -57,7 +57,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     // Check that accepting this invite will not lead to more than eight players being in the draft
     numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
     if numPlayers >= 8 {
-        // TODO If more than eight players have accepted the draft then we should cancel outstanding invites
+        model.CancelOutstandingInvites(h.Database, invite.DraftId)
         return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.")
     }
 
@@ -65,7 +65,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     model.AddPlayerToDraft(h.Database, draftId, playerId)
 
     if numPlayers >= 7 {
-        // TODO If more than eight players have accepted the draft then we should cancel outstanding invites
+        model.CancelOutstandingInvites(h.Database, invite.DraftId)
     }
 
     return renderInviteTable(h, c, false, "")

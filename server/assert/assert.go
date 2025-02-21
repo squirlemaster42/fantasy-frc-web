@@ -26,7 +26,6 @@ func (a *assert) RemoveContext(key string) {
     delete(a.context, key)
 }
 
-//TODO Think about getting rid of the string here. I think assert should explain themselves.
 func (a *assert) RunAssert(predicate bool, msg string) {
     if !predicate {
         a.printContext(msg)

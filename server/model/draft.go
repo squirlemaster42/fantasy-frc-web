@@ -206,7 +206,6 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
 	return draftId
 }
 
-// TODO Do we need to get the draft owner
 func GetDraft(database *sql.DB, draftId int) Draft {
     query := `Select DisplayName, COALESCE(Description, ''), COALESCE(Status, '') As Status, StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
 	assert := assert.CreateAssertWithContext("Get Draft")
@@ -220,8 +219,6 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 	err = stmt.QueryRow(draftId).Scan(&draft.DisplayName, &draft.Description, &draft.Status, &draft.StartTime, &draft.EndTime, &draft.Interval, &ownerId)
 	assert.NoError(err, "Failed to get draft")
 
-    //TODO we need to include pick order, maybe we also want to include the picks
-    //We probably want to show the status
     playerQuery := `SELECT
 	                    USERID,
 	                    USERNAME,
