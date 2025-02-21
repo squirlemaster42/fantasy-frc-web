@@ -3,7 +3,18 @@ package admin
 import "server/view"
 
 templ AdminConsoleIndex() {
-    Test
+<div class="w-full h-full p-4">
+    <div class="terminal p-6 rounded-lg shadow-lg h-full">
+        <div id="output" class="space-y-2 mb-4">
+                <!-- Previous command outputs will be appended here -->
+        </div>
+        <div class="flex items-center">
+            <span class="text-green-400">user@webapp:~$</span>
+            <input type="text" id="commandInput" class="input-line ml-2" placeholder="Type a command..."
+                hx-post="/admin/processCommand" hx-target="#output" hx-swap="beforeend"/>
+        </div>
+    </div>
+</div>
 }
 
 templ AdminConsole(page string, fromProtected bool, username string, cmp templ.Component) {

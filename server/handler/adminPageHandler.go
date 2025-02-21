@@ -9,6 +9,7 @@ import (
 )
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
+    h.Logger.Log("Got request to render admin console")
     assert := assert.CreateAssertWithContext("Handle Admin Console Get")
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")

@@ -37,7 +37,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
 	app.GET("/register", h.HandleViewRegister)
 	app.POST("/register", h.HandlerRegisterPost)
 
-    protected := app.Group("u", auth.Authenticate)
+    protected := app.Group("/u", auth.Authenticate)
 	protected.GET("/home", h.HandleViewHome)
 	protected.GET("/createDraft", h.HandleViewCreateDraft)
     protected.POST("/createDraft", h.HandleCreateDraftPost)
@@ -53,7 +53,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
     protected.GET("/viewInvites", h.HandleViewInvites)
     protected.POST("/acceptInvite", h.HandleAcceptInvite)
 
-    admin := protected.Group("admin", auth.CheckAdmin)
+    admin := protected.Group("/admin", auth.CheckAdmin)
     admin.GET("/console", h.HandleAdminConsoleGet)
 
 	err := app.Start(":3000")

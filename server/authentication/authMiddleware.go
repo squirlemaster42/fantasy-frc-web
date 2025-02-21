@@ -81,14 +81,15 @@ func  (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
         //Check if the cookie is valid
         userId := model.GetUserBySessionToken(a.database, userTok.Value)
         isAdmin = model.UserIsAdmin(a.database, userId)
+        a.logger.Log(fmt.Sprintf("User %d is admin? %t", userId, isAdmin))
 
-        if !isAdmin {
+        if isAdmin {
             //If the cookie is valid we let the request through
             //We should probaly log a message
             a.logger.Log(fmt.Sprintf("User %d from ip %s has accessed the admin page", userId, c.RealIP()))
         } else {
             //If the cookie is not valid then we redirect to the login page
-            a.logger.Log(fmt.Sprintf("User from ip %s did not have access to the admin page", c.RealIP()))
+            a.logger.Log(fmt.Sprintf("User %d from ip %s did not have access to the admin page", userId, c.RealIP()))
             c.Redirect(http.StatusSeeOther, "/u/home")
             return echo.ErrUnauthorized
         }
