@@ -42,7 +42,13 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     inviteId, err := strconv.Atoi(c.FormValue("inviteId"))
     assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
     assert.NoError(err, "Failed to parse invite id")
-    //TODO Need to make sure that the player with the invite outstanding is the one who is accepting it
+    invite := model.GetInvite(h.Database, inviteId)
+
+    //Make sure that other players cannot accept someones draft
+    if invite.InvitedPlayer != userId {
+        return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
+    }
+
     h.Logger.Log(fmt.Sprintf("Accepting invite %d from player %d", inviteId, userId))
     //TODO We need to make sure that we dont accpet more than 8 players
     // if more than 8 players are invites then we cancel the other outstanding invites

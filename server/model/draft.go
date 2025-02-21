@@ -353,6 +353,42 @@ func AddPlayerToDraft(database *sql.DB, draft int, player int) {
     assert.NoError(err, "Failed to accept invite")
 }
 
+func CancelOutstandingInvites(database *sql.DB, draftId int) {
+    query := `Update DraftInvites Set Canceled = true Where DraftId = $1;`
+    assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(draftId)
+    assert.NoError(err, "Failed to update drafts")
+}
+
+func GetInvite(database *sql.DB, inviteId int) DraftInvite {
+    query := `SELECT
+            di.Id,
+            u.username,
+            di.InvitedPlayer,
+            d.DisplayName,
+            d.Id As DraftId
+        From DraftInvites di
+        Inner Join Drafts d On di.DraftId = d.Id
+        Inner Join Users u On di.InvitingPlayer = u.Id
+        Where di.Id = $1;`
+    assert := assert.CreateAssertWithContext("Get Invite")
+    assert.AddContext("Invite", inviteId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    invite := DraftInvite{}
+    err = stmt.QueryRow(inviteId).Scan(
+        &invite.Id,
+        &invite.InvitingPlayerName,
+        &invite.InvitingPlayer,
+        &invite.DraftName,
+        &invite.DraftId)
+    assert.NoError(err, "Failed to query invite")
+    return invite
+}
+
 func GetInvites(database *sql.DB, player int) []DraftInvite {
     query := `SELECT
             di.Id,
