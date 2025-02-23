@@ -1,1 +1,7 @@
-<div class=\"w-full h-full p-4\"><div class=\"terminal p-6 rounded-lg shadow-lg h-full\"><div id=\"output\" class=\"space-y-2 mb-4\"><!-- Previous command outputs will be appended here --></div><div class=\"flex items-center\"><span class=\"text-green-400\">user@webapp:~$</span> <input type=\"text\" id=\"commandInput\" class=\"input-line ml-2\" placeholder=\"Type a command...\" hx-post=\"/admin/processCommand\" hx-target=\"#output\" hx-swap=\"beforeend\"></div></div></div>
+<div class=\"w-full h-full p-4\"><div class=\"terminal p-6 rounded-lg shadow-lg h-full\"><div id=\"output\" class=\"space-y-2 mb-4\"><!-- Previous command outputs will be appended here --></div><div class=\"flex items-center\"><span class=\"text-green-400\">
+</span> <input type=\"text\" id=\"commandInput\" name=\"command\" class=\"input-line ml-2\" placeholder=\"Type a command...\" hx-on::after-request=\"document.getElementById(&#39;commandInput&#39;).value = &#39;&#39;\" hx-post=\"/u/admin/processCommand\" hx-target=\"#output\" hx-swap=\"beforeend\"></div></div></div>
+<p><span class=\"text-green-398\">
+</span> <span class=\"text-gray-50\">
+</span></p>
+<p><span class=\"text-gray-50\">
+</span></p>
