@@ -3,7 +3,8 @@ Create Table Teams(tbaId varchar(10) PRIMARY KEY,
     rankingScore smallint);
 Create Table Users(Id SERIAL PRIMARY KEY,
     username varchar(255),
-    password varchar(100));
+    password varchar(100),
+    isadmin boolean);
 Create Table Drafts(Id SERIAL PRIMARY KEY,
     DisplayName varchar(255),
     Owner int REFERENCES Users(Id) NOT NULL);
@@ -27,7 +28,8 @@ CREATE TABLE DraftInvites(Id SERIAL PRIMARY KEY,
     invitingPlayer int REFERENCES Users(Id) NOT NULL,
     sentTime TIMESTAMP NOT NULL,
     acceptedTime TIMESTAMP,
-    accepted boolean);
+    accepted boolean,
+    canceled boolean);
 Create Table Picks(Id SERIAL PRIMARY KEY,
     player int REFERENCES DraftPlayers(Id) NOT NULL,
     pickOrder smallint NOT NULL,
