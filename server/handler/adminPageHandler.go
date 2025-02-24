@@ -12,13 +12,13 @@ import (
 )
 
 type Command interface {
-    ProcessCommand(inputs []string) string
+    ProcessCommand(inputs string) string
     Help() string
 }
 
 type PingCommand struct { }
 
-func (p *PingCommand) ProcessCommand(inputs []string) string {
+func (p *PingCommand) ProcessCommand(inputs string) string {
     if len(inputs) > 0 {
         return "Ping does not take any inputs"
     }
@@ -29,9 +29,27 @@ func (p *PingCommand) Help() string {
     return "This command takes 0 argumets and returns pong"
 }
 
+type ListDraftsCommand struct {}
+
+func (l *ListDraftsCommand) ProcessCommand(inputs string) string {
+    if strings.HasPrefix(inputs, "-s") {
+        //Get the search string, it should be surrounded by quotes
+
+    }
+
+    return "Draft"
+}
+
+func (l *ListDraftsCommand) Help() string {
+    return "This command lists the drafts. -s \"<name>\" allows filtering drafts by name."
+}
+
 var commands = map[string]Command {
     "ping": &PingCommand{},
+    "listdraft": &ListDraftsCommand{},
 }
+
+// ---------------- Handler Funcs --------------------------
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
     h.Logger.Log("Got request to render admin console")
@@ -58,7 +76,9 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     username := model.GetUsername(h.Database, userId)
 
 	commandString := c.FormValue("command")
-    splitCommandString := strings.Split(commandString, " ")
+    splitCommandString := strings.SplitN(commandString, " ", 1)
+    //This is to handle the case where we have no params
+    splitCommandString = append(splitCommandString, "")
     h.Logger.Log(fmt.Sprintf("Running command %s", splitCommandString[0]))
 
     if len(splitCommandString) < 1 {
@@ -68,7 +88,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     }
 
     command := commands[splitCommandString[0]]
-    result := command.ProcessCommand(splitCommandString[1:])
+    result := command.ProcessCommand(splitCommandString[1])
 
     assert.AddContext("Command", commandString)
 
