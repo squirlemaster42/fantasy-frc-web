@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"server/assert"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -34,7 +35,7 @@ func (d *Draft) String() string {
     var stringBuilder strings.Builder
     for i, p := range d.Players {
         stringBuilder.WriteString("\nDraftPlayer - ")
-        stringBuilder.WriteString(string(i))
+        stringBuilder.WriteString(strconv.Itoa(i))
         stringBuilder.WriteString(" {\n")
         stringBuilder.WriteString(p.String())
         stringBuilder.WriteString(" \n}")
