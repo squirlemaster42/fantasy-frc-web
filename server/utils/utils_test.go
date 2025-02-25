@@ -7,8 +7,10 @@ import (
 )
 
 func TestParseArgString(t *testing.T) {
-    argStr := "-s=\"Test Draft\" -t=test"
+    argStr := "-s=\"Test Draft\" -t=test -w"
     argMap := ParseArgString(argStr)
     assert.Equal(t, "Test Draft", argMap["s"])
     assert.Equal(t, "test", argMap["t"])
+    _, hasVal := argMap["w"]
+    assert.True(t, hasVal)
 }
