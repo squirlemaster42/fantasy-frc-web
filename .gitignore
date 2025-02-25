@@ -16,3 +16,7 @@ Cargo.lock
 *.env
 client/node_modules/
 client/package-lock.json
+.idea/fantasy-frc-web.iml
+/.idea
+server/go.sum
+server/go.sum
