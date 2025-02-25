@@ -21,3 +21,18 @@ func GetUpdateUrl(draftId int) string {
         return "/u/draft/updateDraft"
     }
 }
+
+func ParseArgString(argStr string) map[string]string {
+    argMap := make(map[string]string)
+
+    curChar := 0
+    for curChar < len(argStr) {
+        //Find the command
+        if argStr[curChar] == '-' && len(argStr) > curChar + 1 {
+            //We need to go from the next char to right before the =
+            //and make that the command name
+        }
+    }
+
+    return argMap
+}
