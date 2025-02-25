@@ -39,7 +39,6 @@ func ParseArgString(argStr string) map[string]string {
                 curChar++
             }
 
-            curChar++
             if !(len(argStr) > curChar && argStr[curChar] == '=') {
                 //There is no value for this flag so we just signify its present by putting the key in the map
                 argMap[argName] = ""
@@ -58,6 +57,7 @@ func ParseArgString(argStr string) map[string]string {
             var searchChar byte = ' '
             if argStr[curChar] == '"' {
                 searchChar = '"'
+                curChar++
             }
 
             argVal := ""
