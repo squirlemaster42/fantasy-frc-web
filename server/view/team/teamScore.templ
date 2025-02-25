@@ -6,7 +6,7 @@ import "fmt"
 templ TeamScoreIndex() {
     <div class="flex justify-center pt-10">
         <form
-            hx-swap="beforeend transition:true"
+            hx-swap="afterbegin transition:true"
             hx-post="/u/team/score"
             hx-target="#score-container"
             action=""
@@ -34,11 +34,21 @@ templ TeamScoreReport(teamNumber string, scores map[string]int) {
         Team {teamNumber}
     </h5>
     <hr/>
-    for displayName, score := range scores {
         <p class="font-normal text-gray-700 dark:text-gray-400">
-            {displayName}: {fmt.Sprintf("%d", score)}
+            Qual Score: {fmt.Sprintf("%d", scores["Qual Score"])}
         </p>
-    }
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            Ranking Score: {fmt.Sprintf("%d", scores["Ranking Score"])}
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            Playoff Score: {fmt.Sprintf("%d", scores["Playoff Score"])}
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            Einstein Score: {fmt.Sprintf("%d", scores["Einstein Score"])}
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            Total Score: {fmt.Sprintf("%d", scores["Total Score"])}
+        </p>
 </div>
 
 }
