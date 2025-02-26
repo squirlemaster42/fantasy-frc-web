@@ -103,6 +103,35 @@ func GetStatusString(status int) string {
 }
 
 // TODO Need to include next pick in this and profile picture
+func GetDraftsByName(database *sql.DB, searchString string) *[]Draft {
+	query := `SELECT DISTINCT
+        Drafts.Id,
+        displayName
+    From Drafts
+    Where displayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
+	assert := assert.CreateAssertWithContext("Get Drafts For User")
+	assert.AddContext("Search", searchString)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	rows, err := stmt.Query(searchString)
+	var drafts []Draft
+	for rows.Next() {
+		var draftId int
+		var displayName string
+		rows.Scan(&draftId, &displayName)
+
+		draft := Draft{
+			Id:          draftId,
+			DisplayName: displayName,
+		}
+
+		drafts = append(drafts, draft)
+	}
+
+	return &drafts
+}
+
+// TODO Need to include next pick in this and profile picture
 func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 	query := `SELECT DISTINCT
         Drafts.Id,

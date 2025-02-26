@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"flag"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -10,18 +10,19 @@ import (
 	"server/assert"
 	"server/logging"
 	"server/model"
+	"server/utils"
 	"server/view/admin"
 )
 
 type Command interface {
-    ProcessCommand(logger *logging.Logger, command string) string
+    ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string
     Help() string
 }
 
 type PingCommand struct { }
 
-func (p *PingCommand) ProcessCommand(logger *logging.Logger, command string) string {
-    if len(command) > 4 {
+func (p *PingCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+    if len(argStr) > 0 {
         return "Ping does not take any inputs"
     }
     return "Pong"
@@ -33,17 +34,23 @@ func (p *PingCommand) Help() string {
 
 type ListDraftsCommand struct {}
 
-func (l *ListDraftsCommand) ProcessCommand(logger *logging.Logger, command string) string {
+func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
     //Parse command inputs
-    fs := flag.NewFlagSet("ListDraftsCommand", flag.ContinueOnError)
+    argMap, _ := utils.ParseArgString(argStr)
+    searchString := argMap["s"]
 
-    searchFlag := fs.String("s", "", "A search string to use to filter the drafts")
-    args := strings.Split(command, " ")[1:]
-    fs.Parse(args)
+    drafts := model.GetDraftsByName(database, searchString)
 
-    logger.Log(fmt.Sprintf("Search String: %s", *searchFlag))
+    var sb strings.Builder
 
-    return *searchFlag
+    sb.WriteString("Id    |  Name\n")
+    sb.WriteString("-------------\n")
+
+    for _, draft := range *drafts {
+        sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
+    }
+
+    return sb.String()
 }
 
 func (l *ListDraftsCommand) Help() string {
@@ -82,19 +89,18 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     username := model.GetUsername(h.Database, userId)
 
 	commandString := c.FormValue("command")
-    splitCommandString := strings.Split(commandString, " ")
+    cmd, args, _ := strings.Cut(commandString, " ")
     //This is to handle the case where we have no params
-    splitCommandString = append(splitCommandString, "")
-    h.Logger.Log(fmt.Sprintf("Running command %s", splitCommandString[0]))
+    h.Logger.Log(fmt.Sprintf("Running command %s with args %s", cmd, args))
 
-    if len(splitCommandString) < 1 {
+    if len(cmd) < 1 {
         noCommandResponse := admin.RenderCommand(username, commandString, "")
         Render(c, noCommandResponse)
         return nil
     }
 
-    command := commands[splitCommandString[0]]
-    result := command.ProcessCommand(h.Logger, commandString)
+    command := commands[cmd]
+    result := command.ProcessCommand(h.Database, h.Logger, args)
 
     assert.AddContext("Command", commandString)
 
