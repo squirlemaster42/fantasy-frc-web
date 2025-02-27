@@ -625,3 +625,13 @@ func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
     return DraftPlayer{} //TODO Error if we fail to find?
 }
 
+func StartDraft(database *sql.DB, draftId int) {
+    query := `Update Draft Set Status = $1 Where DraftId = $2;`
+
+    assert := assert.CreateAssertWithContext("Start Draft")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(PICKING, draftId)
+    assert.NoError(err, "Failed to update draft status")
+}

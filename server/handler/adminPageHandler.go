@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
@@ -16,7 +17,6 @@ import (
 
 type Command interface {
     ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string
-    Help() string
 }
 
 type PingCommand struct { }
@@ -26,10 +26,6 @@ func (p *PingCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, a
         return "Ping does not take any inputs"
     }
     return "Pong"
-}
-
-func (p *PingCommand) Help() string {
-    return "This command takes 0 argumets and returns pong"
 }
 
 type ListDraftsCommand struct {}
@@ -53,13 +49,42 @@ func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, logger *logging.Log
     return sb.String()
 }
 
-func (l *ListDraftsCommand) Help() string {
-    return "This command lists the drafts. -s \"<name>\" allows filtering drafts by name."
+type StartDraftCommand struct {}
+
+func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+    argMap, _ := utils.ParseArgString(argStr)
+    draftId, err := strconv.Atoi(argMap["id"])
+
+    if err != nil {
+        return "Draft Id Could Not Be Converted To An Int"
+    }
+
+    // TODO Check that the draft is in the correct state to start
+    draft := model.GetDraft(database, draftId)
+
+    //Check that eight players have accepted the draft
+    numAccepted := 0
+    for _, player := range draft.Players {
+        if !player.Pending {
+            numAccepted += 1
+        }
+    }
+
+    if numAccepted != 8 {
+        return "Not Enough Players Have Accepted The Draft"
+    }
+
+    model.StartDraft(database, draftId)
+
+    // Need to start draft watch dog
+
+    return "Draft Started"
 }
 
 var commands = map[string]Command {
     "ping": &PingCommand{},
     "listdraft": &ListDraftsCommand{},
+    "startdraft": &StartDraftCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
