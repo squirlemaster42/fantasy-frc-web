@@ -119,11 +119,15 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
+            //TODO we need the pick id here
             Player:    draftPlayer,
             Pick:      pick,
             PickTime:  time.Now(),
         }
         model.MakePick(h.Database, pickStruct)
+
+        //TODO Get Id of next pick
+        model.MakePickAvailable(h.Database, 0, time.Now())
 
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with differnt html

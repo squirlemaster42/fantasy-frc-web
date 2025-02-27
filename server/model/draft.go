@@ -478,15 +478,27 @@ func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
 	return draftPlayerId
 }
 
+func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time) int {
+    query := `Insert Into Picks (Player, AvailableTime) Values ($1, $2) Returning Id;`
+	assert := assert.CreateAssertWithContext("Make Pick Available")
+    assert.AddContext("Draft Player Id", draftPlayerId)
+    assert.AddContext("Available Time", draftPlayerId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statment")
+    var pickId int
+    err = stmt.QueryRow(draftPlayerId, availableTime).Scan(&pickId)
+    return pickId
+}
+
 func MakePick(database *sql.DB, pick Pick) {
-	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3);`
+	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3;`
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
 	assert.AddContext("Team", pick.Pick)
 	assert.AddContext("Pick Time", pick.PickTime)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	_, err = stmt.Exec(pick.Player, pick.Pick, pick.PickTime)
+	_, err = stmt.Exec(pick.Pick, pick.PickTime, pick.Id)
 	assert.NoError(err, "Failed to insert pick")
 }
 

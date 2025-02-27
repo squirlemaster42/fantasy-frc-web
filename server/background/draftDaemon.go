@@ -37,6 +37,7 @@ func (d *DraftDaemon) Start() error {
 
 func (d *DraftDaemon) Run() {
     for d.running {
+        //We need to get all of the current picks
     }
 }
 
