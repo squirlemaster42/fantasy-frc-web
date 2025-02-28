@@ -107,7 +107,8 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     draftIdStr := c.Param("id")
     pick := c.FormValue("pickInput")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-    draftId, err := strconv.Atoi(draftIdStr) assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
+    draftId, err := strconv.Atoi(draftIdStr)
+    assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
     isInvalid := false
     if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) {
         isInvalid = true

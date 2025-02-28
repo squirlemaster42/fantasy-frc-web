@@ -1,55 +1,55 @@
 package scorer
 
 import (
-	"database/sql"
-	"fmt"
-	"regexp"
-	"server/assert"
-	"server/logging"
-	"server/model"
-	"server/tbaHandler"
-	"server/utils"
-	"strconv"
-	"strings"
-	"time"
+    "database/sql"
+    "fmt"
+    "regexp"
+    "server/assert"
+    "server/logging"
+    "server/model"
+    "server/tbaHandler"
+    "server/utils"
+    "strconv"
+    "strings"
+    "time"
 )
 
 var RESCORE_INTERATION_COUNT = 72
 
 type Scorer struct {
-	tbaHandler *tbaHandler.TbaHandler
-    database *sql.DB
-    logger *logging.Logger
+    tbaHandler       *tbaHandler.TbaHandler
+    database         *sql.DB
+    logger           *logging.Logger
     scoringIteration int
 }
 
 func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
-	return &Scorer{
-		tbaHandler: tbaHandler,
-        database: database,
-        scoringIteration:  0,
-        logger: logger,
-	}
+    return &Scorer{
+        tbaHandler:       tbaHandler,
+        database:         database,
+        scoringIteration: 0,
+        logger:           logger,
+    }
 }
 
 func (s *Scorer) shouldScoreMatch(matchId string) bool {
-    return s.scoringIteration % RESCORE_INTERATION_COUNT == 0 || !model.GetMatch(s.database, matchId).Played
+    return s.scoringIteration%RESCORE_INTERATION_COUNT == 0 || !model.GetMatch(s.database, matchId).Played
 }
 
 func playoffMatchCompLevels() map[string]bool {
     return map[string]bool{
-        "f": true,
+        "f":  true,
         "sf": true,
         "qf": true,
     }
 }
 
-//Match, dqed teams
+// Match, dqed teams
 func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, bool) {
     scoredMatch := model.Match{
-        TbaId: match.Key,
-        Played: match.PostResultTime > 0,
-        RedScore: 0,
+        TbaId:     match.Key,
+        Played:    match.PostResultTime > 0,
+        RedScore:  0,
         BlueScore: 0,
     }
 
@@ -102,79 +102,79 @@ func getQualMatchScore(match tbaHandler.Match) (int, int) {
 
 func getUpperBracketMatchIds() map[int]bool {
     return map[int]bool{
-        1: true,
-        2: true,
-        3: true,
-        4: true,
-        7: true,
-        8: true,
+        1:  true,
+        2:  true,
+        3:  true,
+        4:  true,
+        7:  true,
+        8:  true,
         11: true,
     }
 }
 
 func getLowerBracketMatchIds() map[int]bool {
     return map[int]bool{
-        5: true,
-        6: true,
-        9: true,
+        5:  true,
+        6:  true,
+        9:  true,
         10: true,
         12: true,
         13: true,
     }
 }
 
-//RedScore, BlueScore
+// RedScore, BlueScore
 func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
-	if match.CompLevel == "f" {
-		if match.EventKey == einstein() {
-			if match.WinningAlliance == "red" {
-				redScore += 36
-			} else if match.WinningAlliance == "blue" {
-				blueScore += 36
-			}
-		} else {
-			if match.WinningAlliance == "red" {
-				redScore += 18
-			} else if match.WinningAlliance == "blue" {
-				blueScore += 18
-			}
-		}
-	} else if match.CompLevel == "sf" {
-		if getLowerBracketMatchIds()[match.SetNumber] {
-			//Lower Bracket
-			if match.EventKey == einstein() {
-				if match.WinningAlliance == "red" {
-					redScore += 18
-				} else if match.WinningAlliance == "blue" {
-					blueScore += 18
-				}
-			} else {
-				if match.WinningAlliance == "red" {
-					redScore += 9
-				} else if match.WinningAlliance == "blue" {
-					blueScore += 9
-				}
-			}
-		} else if getUpperBracketMatchIds()[match.SetNumber] {
-			//Upper Bracket
-			if match.EventKey == einstein() {
-				if match.WinningAlliance == "red" {
-					redScore += 30
-				} else if match.WinningAlliance == "blue" {
-					blueScore += 30
-				}
-			} else {
-				if match.WinningAlliance == "red" {
-					redScore += 15
-				} else if match.WinningAlliance == "blue" {
-					blueScore += 15
-				}
-			}
-		}
-	}
+    if match.CompLevel == "f" {
+        if match.EventKey == einstein() {
+            if match.WinningAlliance == "red" {
+                redScore += 36
+            } else if match.WinningAlliance == "blue" {
+                blueScore += 36
+            }
+        } else {
+            if match.WinningAlliance == "red" {
+                redScore += 18
+            } else if match.WinningAlliance == "blue" {
+                blueScore += 18
+            }
+        }
+    } else if match.CompLevel == "sf" {
+        if getLowerBracketMatchIds()[match.SetNumber] {
+            //Lower Bracket
+            if match.EventKey == einstein() {
+                if match.WinningAlliance == "red" {
+                    redScore += 18
+                } else if match.WinningAlliance == "blue" {
+                    blueScore += 18
+                }
+            } else {
+                if match.WinningAlliance == "red" {
+                    redScore += 9
+                } else if match.WinningAlliance == "blue" {
+                    blueScore += 9
+                }
+            }
+        } else if getUpperBracketMatchIds()[match.SetNumber] {
+            //Upper Bracket
+            if match.EventKey == einstein() {
+                if match.WinningAlliance == "red" {
+                    redScore += 30
+                } else if match.WinningAlliance == "blue" {
+                    blueScore += 30
+                }
+            } else {
+                if match.WinningAlliance == "red" {
+                    redScore += 15
+                } else if match.WinningAlliance == "blue" {
+                    blueScore += 15
+                }
+            }
+        }
+    }
 
     return redScore, blueScore
 }
@@ -185,7 +185,8 @@ func (s *Scorer) getTeamRankingScore(team string) int {
         return 0
     }
     status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
-    score := max((25 - status.Qual.Ranking.Rank) * 2, 0)
+    s.logger.Log(fmt.Sprintf("Team %s Rank: %d", team, status.Qual.Ranking.Rank))
+    score := max((25-status.Qual.Ranking.Rank)*2, 0)
     return score
 }
 
@@ -194,26 +195,26 @@ func einstein() string {
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
-	//Get list of teams events from tba
-	//Check which event is in the list of champ events
-	//We are going to ignore Einstein here since we just use this to determin the ranking score
-	//which does not apply to Einstein
+    //Get list of teams events from tba
+    //Check which event is in the list of champ events
+    //We are going to ignore Einstein here since we just use this to determine the ranking score
+    //which does not apply to Einstein
     s.logger.Log("Getting Events For Team")
-	eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
-	//Even though this is O(e*f), where e is the number of events the team played during the season and f is
-	//the number of champs field, both will be small so this is probably faster than a hashset
-	for _, event := range eventsList {
-		for _, champEvent := range utils.Events() {
-			if event == champEvent {
-				return event
-			}
-		}
-	}
+    eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
+    //Even though this is O(e*f), where e is the number of events the team played during the season and f is
+    //the number of champs field, both will be small so this is probably faster than a hashset
+    for _, event := range eventsList {
+        for _, champEvent := range utils.Events() {
+            if event == champEvent {
+                return event
+            }
+        }
+    }
     return ""
 }
 
-//Matches are almost sorted
-//We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
+// Matches are almost sorted
+// We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
 func sortMatchesByPlayOrder(matches []string) []string {
     if len(matches) <= 1 {
         return matches
@@ -260,11 +261,11 @@ func matchPrecidence() map[string]int {
         "qm": 0,
         "qf": 1,
         "sf": 2,
-        "f": 3,
+        "f":  3,
     }
 }
 
-//Return true if matchA comes before matchB
+// Return true if matchA comes before matchB
 func compareMatchOrder(matchA string, matchB string) bool {
     assert := assert.CreateAssertWithContext("Compare Match Order")
     assert.AddContext("Match A", matchA)
@@ -376,17 +377,17 @@ func isDqed(team string, dqedTeams []string) bool {
 }
 
 func (s *Scorer) RunScorer() {
-	//This function will run on its own routine
-	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
-	//We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
-	//We then score each match that this team has played and has not already been scored
-	//We choose the matches to score from the picks table
-	//Periodically we will want to rescore everything to ensure that we account for replays
-	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
+    //This function will run on its own routine
+    //We will first update our list of teams with all of the teams at all of the events in getChampEvents
+    //We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
+    //We then score each match that this team has played and has not already been scored
+    //We choose the matches to score from the picks table
+    //Periodically we will want to rescore everything to ensure that we account for replays
+    //We will will have this process run every five minutes and we will rescore all matches every 6 hours
     //In this iteration we also update the valid teams
 
-	go func(s *Scorer) {
-		for {
+    go func(s *Scorer) {
+        for {
             //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
@@ -414,11 +415,11 @@ func (s *Scorer) RunScorer() {
                 if dbMatchPtr == nil {
                     model.AddMatch(s.database, match)
                     dbMatchPtr = &model.Match{
-                        TbaId: match,
+                        TbaId:        match,
                         BlueAlliance: []string{},
-                        RedAlliance: []string{},
-                        DqedTeams: []string{},
-                        Played: false,
+                        RedAlliance:  []string{},
+                        DqedTeams:    []string{},
+                        Played:       false,
                     }
                 }
 
@@ -426,15 +427,15 @@ func (s *Scorer) RunScorer() {
                 s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
 
                 scored := false
-                if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
+                if !dbMatch.Played || s.scoringIteration%RESCORE_INTERATION_COUNT == 0 {
                     s.logger.Log("Match was not played or rescoring all matches")
                     tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
-                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration % RESCORE_INTERATION_COUNT == 0)
+                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration%RESCORE_INTERATION_COUNT == 0)
                 }
 
                 event := strings.Split(match, "_")[0]
                 currentMatch[event] = currentMatch[event] + 1
-                if len (matches[event]) > 0 {
+                if len(matches[event]) > 0 {
                     scoringQueue = append(scoringQueue, matches[event][0])
                     matches[event] = matches[event][1:]
                 }
@@ -463,9 +464,9 @@ func (s *Scorer) RunScorer() {
                 model.UpdateTeamRankingScore(s.database, team, s.getTeamRankingScore(team))
             }
 
-			s.scoringIteration++
+            s.scoringIteration++
             s.logger.Log("Finished scoring iteration")
-			time.Sleep(5 * time.Minute)
-		}
-	}(s)
+            time.Sleep(5 * time.Minute)
+        }
+    }(s)
 }

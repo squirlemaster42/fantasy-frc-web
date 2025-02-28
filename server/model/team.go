@@ -1,16 +1,16 @@
 package model
 
 import (
-	"database/sql"
-	"fmt"
-	"server/assert"
-	"server/tbaHandler"
-	"server/utils"
+    "database/sql"
+    "fmt"
+    "server/assert"
+    "server/tbaHandler"
+    "server/utils"
 )
 
 type Team struct {
-    TbaId string
-    Name string
+    TbaId        string
+    Name         string
     RankingScore int
 }
 
@@ -69,7 +69,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
     //Looping here should always be faster because of the small lists
     for _, event := range events {
         for _, draftEvent := range draftEvents {
-            if event  == draftEvent {
+            if event == draftEvent {
                 validEvent = true
                 break
             }
@@ -86,7 +86,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     query := `Select
                 t.RankingScore
             From Teams t
-            Where t.TbaId = $1`;
+            Where t.TbaId = $1`
 
     assert := assert.CreateAssertWithContext("Get Score")
     assert.AddContext("TbaId", tbaId)
@@ -96,21 +96,21 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     var rankingScore int
     err = stmt.QueryRow(tbaId).Scan(&rankingScore)
     if err != nil {
-        return  nil
+        return nil
     }
 
     query = `Select
                 Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
                      When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
-                     Else 'Playoff Match' End As DisplayName,
+                     Else 'Playoff Score' End As DisplayName,
                 Sum(Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End) As Score
              From Matches_Teams mt
              Inner Join Matches m On mt.Match_tbaId = m.tbaId
              Where mt.Team_TbaId = $1
              Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
                      When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
-                     Else 'Playoff Match' End
-             Order By mt.Team_TbaId`;
+                     Else 'Playoff Score' End
+             Order By mt.Team_TbaId`
 
     stmt, err = database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
@@ -119,7 +119,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     var matchScore int
     rows, err := stmt.Query(tbaId)
     if err != nil {
-        return  nil
+        return nil
     }
 
     scores := make(map[string]int)
