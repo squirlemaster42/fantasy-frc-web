@@ -1,4 +1,4 @@
-package cleanup
+package background
 
 import (
 	"database/sql"

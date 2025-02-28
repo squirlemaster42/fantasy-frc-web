@@ -108,22 +108,30 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     pick := c.FormValue("pickInput")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
-    assert.NoError(err, "Invalid draft id")
-
-    //Make sure that the pick is valid
+    assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
     isInvalid := false
     if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) {
         isInvalid = true
         h.Logger.Log("Invalid Pick")
     } else {
+        // -----------------------------------------------------------
+        // Hi me tomorrow, you need to put the pick its in the dom so that we can get them back here and then use the in
+        // The make pick request. You also need to get the next player who pick it will be and update the call to MakePickAvailable
+        // -----------------------------------------------------------
+
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
-            Player:    draftPlayer,
-            Pick:      pick,
-            PickTime:  time.Now(),
+            //TODO we need the pick id here
+            Id: 0,
+            Player: draftPlayer,
+            Pick: pick,
+            PickTime: time.Now(),
         }
         model.MakePick(h.Database, pickStruct)
+
+        //TODO Get Id of next pick
+        model.MakePickAvailable(h.Database, 0, time.Now())
 
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with differnt html
