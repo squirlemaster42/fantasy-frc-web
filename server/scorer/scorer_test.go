@@ -1,14 +1,14 @@
 package scorer
 
 import (
-	"os"
-	"path/filepath"
-	"server/logging"
-	"server/tbaHandler"
-	"testing"
+    "os"
+    "path/filepath"
+    "server/logging"
+    "server/tbaHandler"
+    "testing"
 
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
+    "github.com/joho/godotenv"
+    "github.com/stretchr/testify/assert"
 )
 
 func getTbaTok() string {
@@ -27,13 +27,12 @@ func TestCompareMatches(t *testing.T) {
     assert.False(t, compareMatchOrder("2024cur_sf12m1", "2024cur_qm72"))
 }
 
-
 func TestGetMatchLevel(t *testing.T) {
     assert.Equal(t, "f", getMatchLevel("2024cur_f1m2"))
     assert.Equal(t, "qm", getMatchLevel("2024cur_qm1"))
     assert.Equal(t, "qm", getMatchLevel("2024cur_qm112"))
     assert.Equal(t, "qm", getMatchLevel("2024cur_qm11"))
-    assert.Equal(t, "sf",  getMatchLevel("2024cur_sf9m1"))
+    assert.Equal(t, "sf", getMatchLevel("2024cur_sf9m1"))
     assert.Equal(t, "sf", getMatchLevel("2024cur_sf12m1"))
     assert.Equal(t, "sf", getMatchLevel("2024cur_sf12m1"))
     assert.Equal(t, "qm", getMatchLevel("2025cur_qm72"))
@@ -146,4 +145,9 @@ func TestScoreTeamRankings(t *testing.T) {
     assert.Equal(t, 36, scorer.getTeamRankingScore("frc8608"))
     assert.Equal(t, 18, scorer.getTeamRankingScore("frc7226"))
     assert.Equal(t, 2, scorer.getTeamRankingScore("frc5687"))
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc254"))
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc1678"))
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc1690"))
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc1323"))
+    assert.Equal(t, 48, scorer.getTeamRankingScore("frc1771"))
 }
