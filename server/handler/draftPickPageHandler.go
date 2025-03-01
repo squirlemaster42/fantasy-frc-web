@@ -119,12 +119,6 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         isInvalid = true
         h.Logger.Log("Invalid Pick")
     } else {
-
-        // -----------------------------------------------------------
-        // Hi me tomorrow, you need to put the pick its in the dom so that we can get them back here and then use the in
-        // The make pick request. You also need to get the next player who pick it will be and update the call to MakePickAvailable
-        // -----------------------------------------------------------
-
         var pickInfo PickRequest
         err := json.NewDecoder(c.Request().Body).Decode(&pickInfo)
         assert.NoError(err, "Failed to decode request json")
@@ -140,7 +134,8 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         model.MakePick(h.Database, pickStruct)
 
         //TODO Get Id of next pick
-        model.MakePickAvailable(h.Database, 0, time.Now())
+        nextPickPlayer := model.NextPick(h.Database, draftId)
+        model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with differnt html
