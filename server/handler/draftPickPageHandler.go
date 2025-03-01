@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"server/assert"
 	"server/model"
@@ -10,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-    "golang.org/x/net/websocket"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/net/websocket"
 )
 
 
@@ -27,7 +28,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 	return err
 }
 
-func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) string {
+func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pickId int) string {
 	var stringBuilder strings.Builder
 	picks := model.GetPicks(db, draftId)
 
@@ -53,7 +54,7 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) stri
                 }
                 stringBuilder.WriteString("<td class=\"border\">")
                 if currentPick {
-                    stringBuilder.WriteString("<input name=\"pickInput\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+                    stringBuilder.WriteString(fmt.Sprintf("<input name=\"pickInput\" hx-vals=\"{pickId: %d}\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>", pickId))
                 } else {
                     stringBuilder.WriteString("<input name=\"pickInput\" disabled class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
                 }
@@ -96,6 +97,10 @@ func reverseArray(s []model.Pick) []model.Pick {
     return s
 }
 
+type PickRequest struct {
+    PickId int `json:"pickId"`
+}
+
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle Pick Request")
     //We need to validate that the curent player is allowed to make a pick for the draft
@@ -113,16 +118,20 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         isInvalid = true
         h.Logger.Log("Invalid Pick")
     } else {
+
         // -----------------------------------------------------------
         // Hi me tomorrow, you need to put the pick its in the dom so that we can get them back here and then use the in
         // The make pick request. You also need to get the next player who pick it will be and update the call to MakePickAvailable
         // -----------------------------------------------------------
 
+        var pickInfo PickRequest
+        err := json.NewDecoder(c.Request().Body).Decode(&pickInfo)
+        assert.NoError(err, "Failed to decode request json")
+
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
-            //TODO we need the pick id here
-            Id: 0,
+            Id: pickInfo.PickId,
             Player: draftPlayer,
             Pick: pick,
             PickTime: time.Now(),
@@ -134,7 +143,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with differnt html
-        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
+        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false, 0) + "</tbody>"
         h.Notifier.NotifyWatchers(draftId, draftText)
     }
 
@@ -147,8 +156,9 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
     draftModel := model.GetDraft(database, draftId)
     url := fmt.Sprintf("/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
-    isPicking := model.NextPick(database, draftId).User.Id == userId
-    html := getPickHtml(database, draftId, len(draftModel.Players), isPicking)
+    nextPick := model.NextPick(database, draftId)
+    isPicking := nextPick.User.Id == userId
+    html := getPickHtml(database, draftId, len(draftModel.Players), isPicking, nextPick.Id)
 	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
     username := model.GetUsername(database, userId)
 	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, true, username, pickPageIndex)
