@@ -647,3 +647,7 @@ func StartDraft(database *sql.DB, draftId int) {
     _, err = stmt.Exec(PICKING, draftId)
     assert.NoError(err, "Failed to update draft status")
 }
+
+func GetExpiredPicks(database *sql.DB) []Pick {
+    return nil
+}
