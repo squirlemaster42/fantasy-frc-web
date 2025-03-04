@@ -58,10 +58,12 @@ func (d *DraftPlayer) String() string {
 
 
 type Pick struct {
-	Id        int
-	Player    int //DraftPlayer
-	Pick      string //Team
-	PickTime  time.Time
+	Id int
+	Player int //DraftPlayer
+	Pick string //Team
+	PickTime time.Time
+	AvailableTime time.Time
+    Skipped bool
 }
 
 func (p *Pick) String() string {
@@ -648,6 +650,34 @@ func StartDraft(database *sql.DB, draftId int) {
     assert.NoError(err, "Failed to update draft status")
 }
 
-func GetExpiredPicks(database *sql.DB) []Pick {
-    return nil
+func GetCurrentPick(database *sql.DB, draftId int) Pick {
+    query := `Select
+                p.Id,
+                p.Player,
+                p.Pick,
+                p.PickTime,
+                p.Skipped,
+                p.AvailableTime
+            From Picks p
+            Inner Join (
+            Select
+	            Max(p.Id) As Id
+            From Picks p
+            Inner Join DraftPlayers dp On p.Player = dp.Id
+            Where dp.DraftId = $1) m On m.Id = p.Id;`
+
+    assert := assert.CreateAssertWithContext("Get Current Pick")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var pick Pick
+    err = stmt.QueryRow(draftId).Scan(&pick.Id,
+        &pick.Player,
+        &pick.Pick,
+        &pick.PickTime,
+        &pick.Skipped,
+        &pick.AvailableTime)
+    assert.NoError(err, "Failed to query most recent pick")
+
+    return pick
 }

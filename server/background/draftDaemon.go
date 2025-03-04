@@ -4,8 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"server/logging"
+	"server/model"
 	"sync"
+	"time"
 )
+
+var PICK_TIME time.Duration = 3 * time.Hour
 
 type DraftDaemon struct {
     logger *logging.Logger
@@ -13,6 +17,7 @@ type DraftDaemon struct {
     running bool
     interval int //Time to wait between runs
     mu sync.Mutex
+    runningDrafts map[int]bool
 }
 
 func NewDraftDaemon(logger *logging.Logger, database *sql.DB) *DraftDaemon {
@@ -20,6 +25,7 @@ func NewDraftDaemon(logger *logging.Logger, database *sql.DB) *DraftDaemon {
         logger: logger,
         database: database,
         running: false,
+        runningDrafts: make(map[int]bool),
     }
 }
 
@@ -37,9 +43,38 @@ func (d *DraftDaemon) Start() error {
 
 func (d *DraftDaemon) Run() {
     for d.running {
-        //We need to get all of the current picks
+        //Get current picks for the running drafts
+        for draftId := range d.runningDrafts {
+            curPick := model.GetCurrentPick(d.database, draftId)
+
+            //TODO We need to for work/school hours
+            if curPick.AvailableTime.Sub(time.Now()) > PICK_TIME {
+                //If the pick has not been make after this time we need to mark the
+                //Pick as skipped and make the next one
+            }
+        }
+
+        time.Sleep(5 * time.Minute)
     }
 }
+
+func (d *DraftDaemon) AddDraft(draftId int) error {
+    if d.runningDrafts[draftId] {
+        return errors.New("Draft already added to Daemon")
+    }
+    d.runningDrafts[draftId] = true
+    return nil
+}
+
+
+func (d *DraftDaemon) RemoveDraft(draftId int) error {
+    if !d.runningDrafts[draftId] {
+        return errors.New("Draft not in Daemon")
+    }
+    d.runningDrafts[draftId] = false
+    return nil
+}
+
 
 func (d *DraftDaemon) IsRunning() bool {
     return d.running
