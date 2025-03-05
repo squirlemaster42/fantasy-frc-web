@@ -11,6 +11,42 @@ import (
 
 var PICK_TIME time.Duration = 3 * time.Hour
 
+var ALLOWED_TIMES = map[time.Weekday]TimeRange {
+    time.Sunday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Monday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Tuesday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Wednesday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Thursday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Friday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+    time.Saturday: {
+        startTime: time.Now(),
+        endTime: time.Now(),
+    },
+}
+
+type TimeRange struct {
+    startTime time.Time
+    endTime time.Time
+}
+
 type DraftDaemon struct {
     logger *logging.Logger
     database *sql.DB
@@ -48,7 +84,7 @@ func (d *DraftDaemon) Run() {
             curPick := model.GetCurrentPick(d.database, draftId)
 
             //TODO We need to for work/school hours
-            if curPick.AvailableTime.Sub(time.Now()) > PICK_TIME {
+            if time.Since(curPick.AvailableTime) > PICK_TIME {
                 //If the pick has not been make after this time we need to mark the
                 //Pick as skipped and make the next one
             }
