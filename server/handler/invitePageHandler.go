@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"fmt"
-	"strconv"
+    "fmt"
+    "strconv"
 
-	"github.com/labstack/echo/v4"
+    "github.com/labstack/echo/v4"
 
-	"server/assert"
-	"server/model"
-	draftView "server/view/draft"
+    "server/assert"
+    "server/model"
+    draftView "server/view/draft"
 )
 
 func (h *Handler) HandleViewInvites(c echo.Context) error {
@@ -46,6 +46,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
     //Make sure that other players cannot accept someones draft
     if invite.InvitedPlayer != userId {
+        h.Logger.Log(fmt.Sprintf("Invited Player: %d User ID: %d", invite.InvitedPlayer, userId))
         return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
     }
 
