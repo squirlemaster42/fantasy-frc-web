@@ -3,5 +3,5 @@
 <p><span class=\"text-green-398\">
 </span> <span class=\"text-gray-50\">
 </span></p>
-<p><span class=\"text-gray-50\">
+<p><span style=\"white-space: pre-line;\" class=\"text-gray-50\">
 </span></p>

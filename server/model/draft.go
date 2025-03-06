@@ -58,10 +58,12 @@ func (d *DraftPlayer) String() string {
 
 
 type Pick struct {
-	Id        int
-	Player    int //DraftPlayer
-	Pick      string //Team
-	PickTime  time.Time
+	Id int
+	Player int //DraftPlayer
+	Pick string //Team
+	PickTime time.Time
+	AvailableTime time.Time
+    Skipped bool
 }
 
 func (p *Pick) String() string {
@@ -100,6 +102,35 @@ func GetStatusString(status int) string {
 	default:
 		return "Invalid"
 	}
+}
+
+// TODO Need to include next pick in this and profile picture
+func GetDraftsByName(database *sql.DB, searchString string) *[]Draft {
+	query := `SELECT DISTINCT
+        Drafts.Id,
+        displayName
+    From Drafts
+    Where displayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
+	assert := assert.CreateAssertWithContext("Get Drafts For User")
+	assert.AddContext("Search", searchString)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	rows, err := stmt.Query(searchString)
+	var drafts []Draft
+	for rows.Next() {
+		var draftId int
+		var displayName string
+		rows.Scan(&draftId, &displayName)
+
+		draft := Draft{
+			Id:          draftId,
+			DisplayName: displayName,
+		}
+
+		drafts = append(drafts, draft)
+	}
+
+	return &drafts
 }
 
 // TODO Need to include next pick in this and profile picture
@@ -449,15 +480,27 @@ func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
 	return draftPlayerId
 }
 
+func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time) int {
+    query := `Insert Into Picks (Player, AvailableTime) Values ($1, $2) Returning Id;`
+	assert := assert.CreateAssertWithContext("Make Pick Available")
+    assert.AddContext("Draft Player Id", draftPlayerId)
+    assert.AddContext("Available Time", draftPlayerId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statment")
+    var pickId int
+    err = stmt.QueryRow(draftPlayerId, availableTime).Scan(&pickId)
+    return pickId
+}
+
 func MakePick(database *sql.DB, pick Pick) {
-	query := `INSERT INTO Picks (player, pick, pickTime) Values ($1, $2, $3);`
+	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3;`
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
 	assert.AddContext("Team", pick.Pick)
 	assert.AddContext("Pick Time", pick.PickTime)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	_, err = stmt.Exec(pick.Player, pick.Pick, pick.PickTime)
+	_, err = stmt.Exec(pick.Pick, pick.PickTime, pick.Id)
 	assert.NoError(err, "Failed to insert pick")
 }
 
@@ -596,3 +639,45 @@ func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
     return DraftPlayer{} //TODO Error if we fail to find?
 }
 
+func StartDraft(database *sql.DB, draftId int) {
+    query := `Update Draft Set Status = $1 Where DraftId = $2;`
+
+    assert := assert.CreateAssertWithContext("Start Draft")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(PICKING, draftId)
+    assert.NoError(err, "Failed to update draft status")
+}
+
+func GetCurrentPick(database *sql.DB, draftId int) Pick {
+    query := `Select
+                p.Id,
+                p.Player,
+                p.Pick,
+                p.PickTime,
+                p.Skipped,
+                p.AvailableTime
+            From Picks p
+            Inner Join (
+            Select
+	            Max(p.Id) As Id
+            From Picks p
+            Inner Join DraftPlayers dp On p.Player = dp.Id
+            Where dp.DraftId = $1) m On m.Id = p.Id;`
+
+    assert := assert.CreateAssertWithContext("Get Current Pick")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    var pick Pick
+    err = stmt.QueryRow(draftId).Scan(&pick.Id,
+        &pick.Player,
+        &pick.Pick,
+        &pick.PickTime,
+        &pick.Skipped,
+        &pick.AvailableTime)
+    assert.NoError(err, "Failed to query most recent pick")
+
+    return pick
+}

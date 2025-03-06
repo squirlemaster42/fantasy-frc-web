@@ -54,9 +54,9 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
     protected.GET("/viewInvites", h.HandleViewInvites)
     protected.POST("/acceptInvite", h.HandleAcceptInvite)
 
-    admin := protected.Group("/admin", auth.CheckAdmin)
-    admin.GET("/console", h.HandleAdminConsoleGet)
-    admin.POST("/processCommand", h.HandleRunCommand)
+	admin := protected.Group("/admin", auth.CheckAdmin)
+	admin.GET("/console", h.HandleAdminConsoleGet)
+	admin.POST("/processCommand", h.HandleRunCommand)
 
     err := app.Start(":3000")
     assert.NoError(err, "Failed to start server")

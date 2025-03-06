@@ -1,52 +1,90 @@
 package handler
 
 import (
+	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v4"
 
 	"server/assert"
+	"server/logging"
 	"server/model"
+	"server/utils"
 	"server/view/admin"
 )
 
 type Command interface {
-    ProcessCommand(inputs string) string
-    Help() string
+    ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string
 }
 
 type PingCommand struct { }
 
-func (p *PingCommand) ProcessCommand(inputs string) string {
-    if len(inputs) > 0 {
+func (p *PingCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+    if len(argStr) > 0 {
         return "Ping does not take any inputs"
     }
     return "Pong"
 }
 
-func (p *PingCommand) Help() string {
-    return "This command takes 0 argumets and returns pong"
-}
-
 type ListDraftsCommand struct {}
 
-func (l *ListDraftsCommand) ProcessCommand(inputs string) string {
-    if strings.HasPrefix(inputs, "-s") {
-        //Get the search string, it should be surrounded by quotes
+func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+    //Parse command inputs
+    argMap, _ := utils.ParseArgString(argStr)
+    searchString := argMap["s"]
 
+    drafts := model.GetDraftsByName(database, searchString)
+
+    var sb strings.Builder
+
+    sb.WriteString("Id    |  Name\n")
+    sb.WriteString("-------------\n")
+
+    for _, draft := range *drafts {
+        sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
     }
 
-    return "Draft"
+    return sb.String()
 }
 
-func (l *ListDraftsCommand) Help() string {
-    return "This command lists the drafts. -s \"<name>\" allows filtering drafts by name."
+type StartDraftCommand struct {}
+
+func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+    argMap, _ := utils.ParseArgString(argStr)
+    draftId, err := strconv.Atoi(argMap["id"])
+
+    if err != nil {
+        return "Draft Id Could Not Be Converted To An Int"
+    }
+
+    // TODO Check that the draft is in the correct state to start
+    draft := model.GetDraft(database, draftId)
+
+    //Check that eight players have accepted the draft
+    numAccepted := 0
+    for _, player := range draft.Players {
+        if !player.Pending {
+            numAccepted += 1
+        }
+    }
+
+    if numAccepted != 8 {
+        return "Not Enough Players Have Accepted The Draft"
+    }
+
+    model.StartDraft(database, draftId)
+
+    // Need to start draft watch dog
+
+    return "Draft Started"
 }
 
 var commands = map[string]Command {
     "ping": &PingCommand{},
     "listdraft": &ListDraftsCommand{},
+    "startdraft": &StartDraftCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
@@ -76,19 +114,18 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     username := model.GetUsername(h.Database, userId)
 
 	commandString := c.FormValue("command")
-    splitCommandString := strings.SplitN(commandString, " ", 1)
+    cmd, args, _ := strings.Cut(commandString, " ")
     //This is to handle the case where we have no params
-    splitCommandString = append(splitCommandString, "")
-    h.Logger.Log(fmt.Sprintf("Running command %s", splitCommandString[0]))
+    h.Logger.Log(fmt.Sprintf("Running command %s with args %s", cmd, args))
 
-    if len(splitCommandString) < 1 {
+    if len(cmd) < 1 {
         noCommandResponse := admin.RenderCommand(username, commandString, "")
         Render(c, noCommandResponse)
         return nil
     }
 
-    command := commands[splitCommandString[0]]
-    result := command.ProcessCommand(splitCommandString[1])
+    command := commands[cmd]
+    result := command.ProcessCommand(h.Database, h.Logger, args)
 
     assert.AddContext("Command", commandString)
 
