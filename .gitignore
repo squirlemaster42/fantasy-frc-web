@@ -21,5 +21,7 @@ client/package-lock.json
 /.idea
 server/go.sum
 server/go.sum
+server/view/*/*.go
+server/view/*/*.txt
 server/view/*.go
 server/view/*.txt
