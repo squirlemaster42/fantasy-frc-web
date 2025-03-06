@@ -1,20 +1,19 @@
 package handler
 
 import (
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"server/assert"
-	"server/model"
-	"server/view/draft"
-	"strconv"
-	"strings"
-	"time"
+    "database/sql"
+    "encoding/json"
+    "fmt"
+    "server/assert"
+    "server/model"
+    "server/view/draft"
+    "strconv"
+    "strings"
+    "time"
 
-	"github.com/labstack/echo/v4"
-	"golang.org/x/net/websocket"
+    "github.com/labstack/echo/v4"
+    "golang.org/x/net/websocket"
 )
-
 
 func (h *Handler) ServePickPage(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Server Pick Page")
@@ -22,31 +21,31 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-	draftId, err := strconv.Atoi(c.Param("id"))
-	renderPickPage(c, h.Database, draftId, userId, false)
+    draftId, err := strconv.Atoi(c.Param("id"))
+    renderPickPage(c, h.Database, draftId, userId, false)
 
-	return err
+    return err
 }
 
 func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pickId int) string {
-	var stringBuilder strings.Builder
-	picks := model.GetPicks(db, draftId)
+    var stringBuilder strings.Builder
+    picks := model.GetPicks(db, draftId)
 
     start := 0
     end := numPlayers - 1
     curRow := 0
-	totalRows := len(picks) / numPlayers
-	for {
+    totalRows := len(picks) / numPlayers
+    for {
         var row []model.Pick
         if len(picks) != 0 {
             row = picks[start:end]
-            if curRow % 2 == 1 {
+            if curRow%2 == 1 {
                 row = reverseArray(row)
             }
         }
 
         stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
-        if curRow == (len(picks) % numPlayers) - 1 {
+        if curRow == (len(picks)%numPlayers)-1 {
             blanks := numPlayers - (len(picks) % numPlayers)
             if blanks != 0 {
                 for i := 0; i < blanks-1; i++ {
@@ -70,7 +69,7 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pick
         stringBuilder.WriteString("</tr>")
 
         start = end
-        end = min(end + numPlayers, len(picks))
+        end = min(end+numPlayers, len(picks))
         curRow++
         if curRow > totalRows {
             break
@@ -91,7 +90,7 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pick
 }
 
 func reverseArray(s []model.Pick) []model.Pick {
-    for i, j := 0, len(s) - 1; i < j; i, j = i + 1, j - 1 {
+    for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
         s[i], s[j] = s[j], s[i]
     }
     return s
@@ -126,9 +125,9 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
-            Id: pickInfo.PickId,
-            Player: draftPlayer,
-            Pick: pick,
+            Id:       pickInfo.PickId,
+            Player:   draftPlayer,
+            Pick:     pick,
             PickTime: time.Now(),
         }
         model.MakePick(h.Database, pickStruct)
@@ -155,16 +154,16 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
     nextPick := model.NextPick(database, draftId)
     isPicking := nextPick.User.Id == userId
     html := getPickHtml(database, draftId, len(draftModel.Players), isPicking, nextPick.Id)
-	pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
+    pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
     username := model.GetUsername(database, userId)
-	pickPageView := draft.DraftPick(" | "+draftModel.DisplayName, true, username, pickPageIndex)
-	err := Render(c, pickPageView)
-	return err
+    pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
+    err := Render(c, pickPageView)
+    return err
 }
 
 func (h *Handler) PickNotifier(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Pick Notifier")
-    websocket.Handler(func (ws *websocket.Conn) {
+    websocket.Handler(func(ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)
         watcher := h.Notifier.RegisterWatcher(draftId)
@@ -172,7 +171,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         defer h.Notifier.UnregiserWatcher(watcher)
         assert.NoError(err, "Could not parse draft id")
         for {
-            msg := <- watcher.notifierQueue
+            msg := <-watcher.notifierQueue
             //Enable the input for the current pick
             userTok, err := c.Cookie("sessionToken")
             assert.NoError(err, "Failed to get user token")

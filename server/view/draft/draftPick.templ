@@ -38,8 +38,8 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
     </div>
 }
 
-templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(page, fromProtected, username, draftId) {
         @cmp
     }
 }
