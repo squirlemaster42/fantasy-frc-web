@@ -1,16 +1,16 @@
 package model
 
 import (
-	"crypto"
-	"database/sql"
-	"fmt"
-	"server/assert"
+    "crypto"
+    "database/sql"
+    "fmt"
+    "server/assert"
 
-	"golang.org/x/crypto/bcrypt"
+    "golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
-    Id int
+    Id       int
     Username string
     Password string
 }
@@ -69,7 +69,7 @@ func GetUsername(database *sql.DB, userId int) string {
     return username
 }
 
-//All crypto should happen before this since this just communicates with the DB
+// All crypto should happen before this since this just communicates with the DB
 func ValidateLogin(database *sql.DB, username string, password string) bool {
     query := `Select password From Users Where username = $1;`
     assert := assert.CreateAssertWithContext("Validate Login")
@@ -84,9 +84,9 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
     return err == nil
 }
 
-//The old password logic should happen before this
-//Should we move more logic here? No, we want to be able to
-//send back error messages which we should need to check the database for
+// The old password logic should happen before this
+// Should we move more logic here? No, we want to be able to
+// send back error messages which we should need to check the database for
 func UpdatePassword(database *sql.DB, username string, newPassword string) {
     query := `Update Users Set password = $1 Where username = $2;`
     assert := assert.CreateAssertWithContext("Update Password")
@@ -101,8 +101,8 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
     assert.NoError(err, "Failed to Update Password")
 }
 
-//This can probably clean up session that expired more than a month ago or something
-//Actually it can probably be sooner than that because expire tokens should never be reissued
+// This can probably clean up session that expired more than a month ago or something
+// Actually it can probably be sooner than that because expire tokens should never be reissued
 func RegisterSession(database *sql.DB, userId int, sessionToken string) {
     query := `Insert Into UserSessions (userId, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
     assert := assert.CreateAssertWithContext("Register Session")
@@ -114,10 +114,23 @@ func RegisterSession(database *sql.DB, userId int, sessionToken string) {
     hasher := crypto.SHA256.New()
     hasher.Write([]byte(sessionToken))
     _, err = stmt.Exec(userId, hasher.Sum(nil))
-    assert.NoError(err, "Fauled to register session")
+    assert.NoError(err, "Failed to register session")
 }
 
-//TODO refactor this to return an error if the user does not exists
+func UnRegisterSession(database *sql.DB, sessionToken string) {
+    query := `Delete From UserSessions Where sessionToken = $1;`
+    assert := assert.CreateAssertWithContext("Unregister Session")
+    assert.AddContext("Session Token", sessionToken)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    hasher := crypto.SHA256.New()
+    hasher.Write([]byte(sessionToken))
+    assert.AddContext("Hashed Session Token", hasher.Sum(nil))
+    _, err = stmt.Exec(hasher.Sum(nil))
+    assert.NoError(err, "Failed to delete user session")
+}
+
+// TODO refactor this to return an error if the user does not exists
 func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
     query := `Select UserId From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Get User By Session Token")
@@ -159,7 +172,7 @@ func UpdateSessionExpiration(database *sql.DB, userId int, sessionToken string) 
     assert.NoError(err, "Failed to update session expiraton")
 }
 
-//Check if the session token is in the database and that it is not expired
+// Check if the session token is in the database and that it is not expired
 func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
     //I think <= is fine, it probably doesn't matter though
     query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
@@ -237,8 +250,8 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) []User {
 
         userRows.Scan(&userId, &username)
 
-        user := User {
-            Id: userId,
+        user := User{
+            Id:       userId,
             Username: username,
         }
 
