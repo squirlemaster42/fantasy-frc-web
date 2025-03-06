@@ -11,40 +11,70 @@ import (
 
 var PICK_TIME time.Duration = 3 * time.Hour
 
-var ALLOWED_TIMES = map[time.Weekday]TimeRange {
+var ALLOWED_TIMES = map[time.Weekday][]TimeRange {
     time.Sunday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 8,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Monday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Tuesday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Wednesday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Thursday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Friday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
     time.Saturday: {
-        startTime: time.Now(),
-        endTime: time.Now(),
+        {
+            startHour: 8,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
     },
 }
 
 type TimeRange struct {
-    startTime time.Time
-    endTime time.Time
+    startHour int
+    startMinute int
+    endHour int
+    endMinute int
 }
 
 type DraftDaemon struct {
@@ -87,6 +117,7 @@ func (d *DraftDaemon) Run() {
             if time.Since(curPick.AvailableTime) > PICK_TIME {
                 //If the pick has not been make after this time we need to mark the
                 //Pick as skipped and make the next one
+                model.SkipPick(d.database, curPick.Id)
             }
         }
 

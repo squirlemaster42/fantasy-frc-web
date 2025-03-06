@@ -693,3 +693,14 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
 
 	return pick
 }
+
+func SkipPick(database *sql.DB, pickId int) {
+    query := `Update Picks Set Skipped = true Where Id = $1`
+
+    assert := assert.CreateAssertWithContext("Skip Pick")
+    assert.AddContext("Pick Id", pickId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    _, err = stmt.Exec(pickId)
+    assert.NoError(err, "Failed to skip pick")
+}
