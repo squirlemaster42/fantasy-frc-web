@@ -648,7 +648,7 @@ func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
 			return p
 		}
 	}
-	return DraftPlayer{} //TODO Error if we fail to find?
+	return DraftPlayer{}
 }
 
 func StartDraft(database *sql.DB, draftId int) {

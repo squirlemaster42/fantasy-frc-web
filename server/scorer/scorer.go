@@ -215,7 +215,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
 
 // Matches are almost sorted
 // We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
-func sortMatchesByPlayOrder(matches []string) []string {
+func (s *Scorer) sortMatchesByPlayOrder(matches []string) []string {
     if len(matches) <= 1 {
         return matches
     }
@@ -224,19 +224,19 @@ func sortMatchesByPlayOrder(matches []string) []string {
     left := matches[:mid]
     right := matches[mid:]
 
-    sortedLeft := sortMatchesByPlayOrder(left)
-    sortedRight := sortMatchesByPlayOrder(right)
+    sortedLeft := s.sortMatchesByPlayOrder(left)
+    sortedRight := s.sortMatchesByPlayOrder(right)
 
-    return merge(sortedLeft, sortedRight)
+    return s.merge(sortedLeft, sortedRight)
 }
 
-func merge(left []string, right []string) []string {
+func (s *Scorer) merge(left []string, right []string) []string {
     var result []string
     i := 0
     j := 0
 
     for i < len(left) && j < len(right) {
-        if compareMatchOrder(left[i], right[j]) {
+        if s.compareMatchOrder(left[i], right[j]) {
             result = append(result, left[i])
             i++
         } else {
@@ -266,7 +266,7 @@ func matchPrecidence() map[string]int {
 }
 
 // Return true if matchA comes before matchB
-func compareMatchOrder(matchA string, matchB string) bool {
+func (s *Scorer) compareMatchOrder(matchA string, matchB string) bool {
     assert := assert.CreateAssertWithContext("Compare Match Order")
     assert.AddContext("Match A", matchA)
     assert.AddContext("Match B", matchB)
@@ -353,8 +353,8 @@ func compareMatchOrder(matchA string, matchB string) bool {
         return matchANum < matchBNum
     }
 
-    //TODO We should not panic here
-    panic("Unhandled match type")
+    assert.RunAssert(1 == 0, "Unknown match type found")
+    return false // This is unreachable
 }
 
 func getMatchLevel(matchKey string) string {
@@ -395,7 +395,7 @@ func (s *Scorer) RunScorer() {
             allTeams := make(map[string]bool)
             matches := make(map[string][]string)
             for _, event := range utils.Events() {
-                matches[event] = sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
+                matches[event] = s.sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
             }
 
             //Score matches until we hit one that has not been played

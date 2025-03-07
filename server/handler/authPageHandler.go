@@ -116,9 +116,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	h.Logger.Log(fmt.Sprintf("Valid registration for user: %s", username))
-	model.RegisterUser(h.Database, username, password)
-	//TODO We should make register user return the user id so we dont need two queries
-	userId := model.GetUserIdByUsername(h.Database, username)
+    userId := model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userId, sessionTok)
 	cookie := new(http.Cookie)

@@ -132,7 +132,6 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         }
         model.MakePick(h.Database, pickStruct)
 
-        //TODO Get Id of next pick
         nextPickPlayer := model.NextPick(h.Database, draftId)
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 

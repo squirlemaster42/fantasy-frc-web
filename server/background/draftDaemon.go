@@ -117,6 +117,7 @@ func (d *DraftDaemon) Run() {
             if time.Since(curPick.AvailableTime) > PICK_TIME {
                 //If the pick has not been make after this time we need to mark the
                 //Pick as skipped and make the next one
+                //TODO We need to make the next pick
                 model.SkipPick(d.database, curPick.Id)
             }
         }

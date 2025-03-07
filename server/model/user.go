@@ -19,8 +19,8 @@ func (u *User) String() string {
     return fmt.Sprintf("User: {\n Id: %d\n Username: %s\n}", u.Id, u.Username)
 }
 
-func RegisterUser(database *sql.DB, username string, password string) {
-    query := `INSERT INTO Users (username, password) Values ($1, $2);`
+func RegisterUser(database *sql.DB, username string, password string) int {
+    query := `INSERT INTO Users (username, password) Values ($1, $2) Returning Id;`
     assert := assert.CreateAssertWithContext("Register User")
     assert.AddContext("Username", username)
     assert.AddContext("Password", password)
@@ -28,9 +28,10 @@ func RegisterUser(database *sql.DB, username string, password string) {
     assert.NoError(err, "Failed to prepare statement")
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
     assert.NoError(err, "Failed to generate password hash")
-    //TODO Do we want to change this to a byte array in the database
-    _, err = stmt.Exec(username, string(hashedPassword))
+    var userId int
+    err = stmt.QueryRow(username, string(hashedPassword)).Scan(&userId)
     assert.NoError(err, "Failed to register user")
+    return userId
 }
 
 func UsernameTaken(database *sql.DB, username string) bool {
@@ -96,7 +97,6 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
     assert.NoError(err, "Failed to prepare statement")
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
     assert.NoError(err, "Failed to generate password hash")
-    //TODO Do we want to change this to a byte array in the database
     _, err = stmt.Exec(string(hashedPassword), username)
     assert.NoError(err, "Failed to Update Password")
 }
@@ -130,7 +130,6 @@ func UnRegisterSession(database *sql.DB, sessionToken string) {
     assert.NoError(err, "Failed to delete user session")
 }
 
-// TODO refactor this to return an error if the user does not exists
 func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
     query := `Select UserId From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Get User By Session Token")

@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-//TODO Should we factor this out into a timer?
 type CleanupService struct {
     database *sql.DB
     interval int //Number of minutes to wait between runs

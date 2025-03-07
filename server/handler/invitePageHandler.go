@@ -51,7 +51,6 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     }
 
     h.Logger.Log(fmt.Sprintf("Accepting invite %d from player %d", inviteId, userId))
-    //TODO We need to make sure that we dont accpet more than 8 players
     // if more than 8 players are invites then we cancel the other outstanding invites
     // Maybe we need an active bool
 
