@@ -21,7 +21,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userId)
 
-    draftCreateIndex := draft.DraftProfileIndex(model.Draft{ Id: -1 })
+    draftCreateIndex := draft.DraftProfileIndex(model.Draft{ Id: -1 }, true)
     draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
     err = Render(c, draftCreate)
     assert.NoError(err, "Handle View Draft Create Failed To Render")
@@ -65,7 +65,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     h.Logger.Log(fmt.Sprintf("Created Draft: %s for user %s", draftModel.String(), username))
 
     draftId := model.CreateDraft(h.Database, &draftModel)
-    h.Logger.Log(fmt.Sprintf("Draft creates. Redirecting to /u/draft/%d/profile", draftId))
+    h.Logger.Log(fmt.Sprintf("Draft created. Redirecting to /u/draft/%d/profile", draftId))
     c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
     return nil
 }

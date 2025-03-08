@@ -1,5 +1,7 @@
 package utils
 
+import "fmt"
+
 func Events() []string {
     return []string{
         "2024new",
@@ -18,7 +20,7 @@ func GetUpdateUrl(draftId int) string {
     if draftId == -1 {
         return "/u/createDraft"
     } else {
-        return "/u/draft/updateDraft"
+        return fmt.Sprintf("/u/draft/%d/updateDraft", draftId)
     }
 }
 

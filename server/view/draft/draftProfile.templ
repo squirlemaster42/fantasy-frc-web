@@ -7,7 +7,7 @@ import (
 	"server/utils"
 )
 
-templ DraftProfileIndex (draft model.Draft) {
+templ DraftProfileIndex (draft model.Draft, isOwner bool) {
     <form
         class="flex flex-row w-full h-full"
         hx-swap="outerHTML"
@@ -19,7 +19,7 @@ templ DraftProfileIndex (draft model.Draft) {
         <div class="w-64 flex flex-col">
             <div class="card bg-base-200 m-2 p-2 h-56">
                 <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" class="w-full h-full"></img>
-                <input type="file" name="profilePic" accept=".png"/>
+                <input disabled?={!isOwner} type="file" name="profilePic" accept=".png"/>
             </div>
             <div class="card bg-base-200 m-2 p-2 grow">
                 <h1 class="border-b border-b-slate-600 pl-4 pr-4 text-2xl">
@@ -28,12 +28,12 @@ templ DraftProfileIndex (draft model.Draft) {
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl">
                     Description
                 </h1>
-                <textarea name="description" class="h-full bg-transparent resize-none">{draft.Description}</textarea>
+                <textarea disabled?={!isOwner} name="description" class="h-full bg-transparent resize-none">{draft.Description}</textarea>
             </div>
         </div>
         <div class="grow flex flex-col">
             <div class="card bg-base-200 m-2 p-2 h-24">
-                <input name="draftName" placeholder="Draft Name" value={draft.DisplayName} class="h-full bg-transparent text-6xl p-4"/>
+                <input disabled?={!isOwner} name="draftName" placeholder="Draft Name" value={draft.DisplayName} class="h-full bg-transparent text-6xl p-4"/>
             </div>
             <div class="m-2 p-2 grow" id="playerList">
                 <div class="grid grid-cols-4 gap-x-4 gap-y-4">
@@ -70,18 +70,23 @@ templ DraftProfileIndex (draft model.Draft) {
                 </h1>
                 <div class="flex flex-col p-2 pt-8">
                     <h2 class="pt-2">Time Between Picks</h2>
-                    <input name="interval" value={fmt.Sprintf("%d", draft.Interval)} type="range"/>
+                    <input disabled?={!isOwner} name="interval" value={fmt.Sprintf("%d", draft.Interval)} type="range"/>
                     <h2 class="pt-2">Start Time</h2>
-                    <input name="startTime" value={draft.StartTime.Format("2006-01-02T15:04:05")} type="datetime-local"/>
+                    <input disabled?={!isOwner} name="startTime" value={draft.StartTime.Format("2006-01-02T15:04:05")} type="datetime-local"/>
                     <h2 class="pt-2">End Time</h2>
-                    <input name="endTime" value={draft.EndTime.Format("2006-01-02T15:04:05")} type="datetime-local"/>
+                    <input disabled?={!isOwner} name="endTime" value={draft.EndTime.Format("2006-01-02T15:04:05")} type="datetime-local"/>
                 </div>
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl">
                     Invite Players
                 </h1>
-                if draft.Id != 0 && draft.Id != -1 {
+                if !isOwner {
+                    <div class="flex h-full w-full flex-col justify-center text-rose-600">
+                        You must be the owner of the draft in order to invite players.
+                    </div>
+                } else if draft.Id != 0 && draft.Id != -1 {
                     <div class="flex flex-col p-2 pt-8">
                         Search: <input class="form-control" type="search"
+                        disabled?={!isOwner}
                         name="search" placeholder="Search Users..."
                         hx-post="/u/searchPlayers"
                         hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
@@ -100,7 +105,7 @@ templ DraftProfileIndex (draft model.Draft) {
                 }
             </div>
             <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
-                <button class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
+                <button disabled?={!isOwner} class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
             </div>
         </div>
     </form>
@@ -142,7 +147,7 @@ templ PlayerList(players []model.DraftPlayer) {
     </div>
 }
 
-templ PlayerSearchResults(users []model.User, draftId int) {
+templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
     <table class="w-full" id="inviteTable">
         <thead>
             <th></th>
@@ -152,7 +157,7 @@ templ PlayerSearchResults(users []model.User, draftId int) {
             for _, user := range users {
                 <tr>
                     <td>
-                        <button hx-target="#inviteTable" hx-swap="outerHTML" name="userId" value={ fmt.Sprintf("%d", user.Id) } hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
+                        <button disabled?={!isOwner} hx-target="#inviteTable" hx-swap="outerHTML" name="userId" value={ fmt.Sprintf("%d", user.Id) } hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
                     </td>
                     <td>
                         { user.Username }
@@ -163,7 +168,7 @@ templ PlayerSearchResults(users []model.User, draftId int) {
     </table>
 }
 
-templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer) {
+templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool) {
     @PlayerList(players)
-    @PlayerSearchResults(users, draftId)
+    @PlayerSearchResults(users, draftId, isOwner)
 }

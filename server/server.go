@@ -43,7 +43,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
     protected.GET("/createDraft", h.HandleViewCreateDraft)
     protected.POST("/createDraft", h.HandleCreateDraftPost)
     protected.GET("/draft/:id/profile", h.HandleViewDraftProfile)
-    protected.POST("/draft/updateDraft", h.HandleUpdateDraftProfile)
+    protected.POST("/draft/:id/updateDraft", h.HandleUpdateDraftProfile)
     protected.GET("/draft/:id/pick", h.ServePickPage)
     protected.POST("/draft/:id/makePick", h.HandlerPickRequest)
     protected.GET("/draft/:id/pickNotifier", h.PickNotifier)

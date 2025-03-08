@@ -240,7 +240,15 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
 }
 
 func GetDraft(database *sql.DB, draftId int) Draft {
-    query := `Select DisplayName, COALESCE(Description, ''), COALESCE(Status, '') As Status, StartTime, EndTime, extract('epoch' from Interval)::int As Interval, Owner From Drafts Where Id = $1;`
+    query := `Select
+        DisplayName,
+        COALESCE(Description, '') As Description,
+        COALESCE(Status, '') As Status,
+        StartTime,
+        EndTime,
+        extract('epoch' from Interval)::int As Interval,
+        Owner
+    From Drafts Where Id = $1;`
     assert := assert.CreateAssertWithContext("Get Draft")
     assert.AddContext("Draft Id", draftId)
     stmt, err := database.Prepare(query)
@@ -294,22 +302,23 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 		var playerOrder int
 		var playerId int
 
+        playerRows.Scan(&userId, &username, &accepted, &playerOrder, &playerId)
+
         if userId == ownerId {
             draft.Owner = User{
-                Id:       userId,
+                Id: userId,
                 Username: username,
             }
         }
 
-        playerRows.Scan(&userId, &username, &accepted, &playerOrder, &playerId)
         draftPlayer := DraftPlayer{
             Id: playerId,
             User: User{
-                Id:       userId,
+                Id: userId,
                 Username: username,
             },
             PlayerOrder: playerOrder,
-            Pending:     !accepted,
+            Pending: !accepted,
         }
 
 		draft.Players = append(draft.Players, draftPlayer)
@@ -319,19 +328,16 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 }
 
 func UpdateDraft(database *sql.DB, draft *Draft) {
-	//TODO This should update the draft instead
-	query := `INSERT INTO Drafts (DisplayName, Owner, Description, StartTime, EndTime, Interval) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
-	assert := assert.CreateAssertWithContext("Create Draft")
-	assert.AddContext("Owner", draft.Owner)
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5 Where Id = $6;`
+	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
 	assert.AddContext("Start Time", draft.StartTime)
 	assert.AddContext("End Time", draft.EndTime)
-	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	_, err = stmt.Exec(draft.DisplayName, draft.Owner, draft.Description, draft.StartTime, draft.EndTime, draft.Interval)
+	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
 	assert.NoError(err, "Failed to insert draft")
 }
 

@@ -7,8 +7,10 @@ import (
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/labstack/echo/v4")
+	"github.com/labstack/echo/v4"
+)
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	h.Logger.Log("Got a request to serve the draft profile page")
@@ -24,28 +26,67 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	assert.NoError(err, "Failed to convert draft id to int")
 	draftModel := model.GetDraft(h.Database, draftId)
 
-	draftIndex := draftView.DraftProfileIndex(draftModel)
+    isOwner := userId == draftModel.Owner.Id
+
+	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
 	err = Render(c, draftView)
 	return nil
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
-	//TODO We need to update the draft settings
-	file, err := c.FormFile("profiePic")
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	src, err := file.Open()
-	fmt.Println(src)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	defer src.Close()
+    h.Logger.Log("Got request to update a draft")
+    assert := assert.CreateAssertWithContext("Handle Update Draft Profile")
 
-	return nil
+    draftId, err := strconv.Atoi(c.Param("id"))
+
+    assert.NoError(err, "Could not parse draftId from params")
+    assert.AddContext("Draft Id", draftId)
+
+    draftName := c.FormValue("draftName")
+    description := c.FormValue("description")
+    interval := c.FormValue("interval")
+    startTime := c.FormValue("startTime")
+    endTime := c.FormValue("endTime")
+    sessionToken, err := c.Cookie("sessionToken")
+    assert.NoError(err, "Failed to get session cookie")
+
+    intInterval, err := strconv.Atoi(interval)
+    assert.NoError(err, "Failed to parse interval")
+
+    layout := "2006-01-02T15:04"
+    parsedStartTime, err := time.Parse(layout, startTime)
+    assert.NoError(err, "Failed to parse start time")
+    parsedEndTime, err := time.Parse(layout, endTime)
+    assert.NoError(err, "Failed to parse end time")
+
+    userId := model.GetUserBySessionToken(h.Database, sessionToken.Value)
+
+    draftModel := model.GetDraft(h.Database, draftId)
+
+    if draftModel.Owner.Id != userId {
+        //The user would need to hand craft this payload
+        //so for now we just won't tell them what is wrong
+        //because it is probably malicious
+        h.Logger.Log(fmt.Sprintf("User with id %d tried to update draft with id %d but was not the owner. The owner is %d.", userId, draftId, draftModel.Owner.Id))
+        return nil
+    }
+
+    draftModel = model.Draft{
+        Id: draftId,
+        Owner: model.User{Id: userId},
+        DisplayName: draftName,
+        Description: description,
+        Interval: intInterval,
+        StartTime: parsedStartTime,
+        EndTime: parsedEndTime,
+    }
+
+    model.UpdateDraft(h.Database, &draftModel)
+
+    h.Logger.Log(fmt.Sprintf("Draft updated, reloading page", draftId))
+    c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
+    return nil
 }
 
 func (h *Handler) SearchPlayers(c echo.Context) error {
@@ -57,7 +98,15 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
 	users := model.SearchUsers(h.Database, searchInput, draftId)
 
-	searchResults := draftView.PlayerSearchResults(users, draftId)
+    draftModel :=  model.GetDraft(h.Database, draftId)
+
+    userTok, err := c.Cookie("sessionToken")
+	assert.NoErrorCF(err, "Failed to get user token")
+	userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+
+    isOwner := userId == draftModel.Owner.Id
+
+	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner)
 	err = Render(c, searchResults)
 	return err
 }
@@ -84,7 +133,11 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
     players := model.GetDraft(h.Database, draftId).Players
 
-	updatedPage := draftView.UpdateAfterInvite(users, draftId, players)
+    draftModel := model.GetDraft(h.Database, draftId)
+
+    isOwner := invitingPlayer == draftModel.Owner.Id
+
+	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
 	err = Render(c, updatedPage)
 
 	return err
