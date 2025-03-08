@@ -147,7 +147,7 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) int {
 }
 
 func UserIsAdmin(database *sql.DB, userId int) bool {
-    query := `Select IsAdmin From Users Where id = $1;`
+    query := `Select COALESCE(IsAdmin, false) From Users Where id = $1;`
     assert := assert.CreateAssertWithContext("User Is Admin")
     assert.AddContext("User Id", userId)
     stmt, err := database.Prepare(query)

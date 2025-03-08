@@ -59,7 +59,6 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
         return "Draft Id Could Not Be Converted To An Int"
     }
 
-    // TODO Check that the draft is in the correct state to start
     draft := model.GetDraft(database, draftId)
 
     //Check that eight players have accepted the draft
@@ -74,10 +73,12 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
         return "Not Enough Players Have Accepted The Draft"
     }
 
+    //Randomize pick order
+    model.RandomizePickOrder(database, draftId)
+
     model.StartDraft(database, draftId)
 
     // Need to start draft watch dog
-
     return "Draft Started"
 }
 

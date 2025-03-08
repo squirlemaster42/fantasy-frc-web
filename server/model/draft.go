@@ -180,14 +180,33 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
             NextPick: nextPick,
         }
 
-        playerQuery := `Select Distinct
-            Users.Id As UserId,
-            Users.Username,
-            COALESCE(DraftInvites.accepted, 't') As Accepted
-        From Users
-        Left Join DraftPlayers On DraftPlayers.Player = Users.Id
-        Left Join DraftInvites On DraftInvites.InvitedPlayer = Users.Id
-        Where (DraftInvites.DraftId = $1 Or DraftPlayers.DraftId = $1)`
+        playerQuery := `SELECT
+	                    USERID,
+	                    USERNAME,
+	                    BOOL_OR(ACCEPTED) AS ACCEPTED
+                    FROM (
+		                    SELECT
+			                    USERS.ID AS USERID,
+			                    USERS.USERNAME,
+			                    't' AS ACCEPTED,
+			                    DRAFTPLAYERS.PLAYERORDER,
+			                    DraftPlayers.Id As PlayerId
+		                    FROM USERS
+		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.PLAYER = USERS.ID
+		                    WHERE DRAFTPLAYERS.DRAFTID = $1
+		                    UNION
+		                    SELECT
+			                    USERS.ID AS USERID,
+			                    USERS.USERNAME,
+			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
+			                    -1 AS PLAYERORDER,
+			                    -1 As PlayerId
+		                    FROM USERS
+		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.INVITEDPLAYER = USERS.ID
+		                    WHERE DRAFTINVITES.DRAFTID = $1
+	                    ) U
+                    GROUP BY USERID, USERNAME
+                    ORDER BY MAX(PLAYERORDER);`
 
         playerStmt, err := database.Prepare(playerQuery)
         assert.NoError(err, "Failed to prepare player query")
@@ -571,26 +590,20 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 func RandomizePickOrder(database *sql.DB, draftId int) {
 	draftModel := GetDraft(database, draftId)
 	awaitingAssignment := draftModel.Players
-	order := 0
 	assert := assert.CreateAssertWithContext("Randomize Pick Order")
 
-	for len(awaitingAssignment) > 0 {
-		selectedPlayer := rand.Intn(len(awaitingAssignment))
-		player := awaitingAssignment[selectedPlayer]
-		removePlayer(awaitingAssignment, selectedPlayer)
-		draftPlayerId := GetDraftPlayerId(database, draftId, player.User.Id)
+    for i := range awaitingAssignment {
+        j := rand.Intn(i + 1)
+        awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
+	}
 
+    for i, player := range awaitingAssignment {
+		draftPlayerId := GetDraftPlayerId(database, draftId, player.User.Id)
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
-		stmt.Exec(order, draftPlayerId)
-		order++
-	}
-}
-
-func removePlayer(arr []DraftPlayer, i int) []DraftPlayer {
-	arr[i] = arr[len(arr)-1]
-	return arr[:len(arr)-1]
+		stmt.Exec(i, draftPlayerId)
+    }
 }
 
 func NextPick(database *sql.DB, draftId int) DraftPlayer {
@@ -658,7 +671,7 @@ func GetDraftPlayerFromDraft(draft Draft, draftPlayerId int) DraftPlayer {
 }
 
 func StartDraft(database *sql.DB, draftId int) {
-	query := `Update Draft Set Status = $1 Where DraftId = $2;`
+	query := `Update Drafts Set Status = $1 Where Id = $2;`
 
 	assert := assert.CreateAssertWithContext("Start Draft")
 	assert.AddContext("Draft Id", draftId)
