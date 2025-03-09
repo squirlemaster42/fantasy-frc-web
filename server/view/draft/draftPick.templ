@@ -2,8 +2,9 @@ package draft
 
 import "server/model"
 import "server/view"
+import "fmt"
 
-templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string ) {
+templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string, pickId int) {
     <div id="draftPicks" class="flex items-center justify-center">
         <div hx-ext="ws" ws-connect={notifierUrl}>
             <form
@@ -12,6 +13,7 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                 hx-target="#draftPicks"
                 action=""
                 method="post"
+                hx-vals={fmt.Sprintf("{\"pickId\": %d}", pickId)}
             >
                 <div id="draft-table">
                     if invalidPick {

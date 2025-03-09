@@ -19,14 +19,9 @@ templ Index(page string, fromProtected bool, username string, data any) {
 			<script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
             <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
 			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
-            <!--<link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css" rel="stylesheet" />-->
         </head>
         <body class="simple-transition" hx-boost="true">
             <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
-            <script type="application/javascript">
-                import { initFlowbite } from 'flowbite'
-                initFlowbite();
-            </script>
             <header>
                 @partials.Navbar(fromProtected, username, page, data)
             </header>

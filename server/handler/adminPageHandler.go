@@ -77,6 +77,10 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
     model.RandomizePickOrder(database, draftId)
 
     model.StartDraft(database, draftId)
+    //TODO Tomorrow I need to make it so this makes this first pick "ready"
+    //Right now the picks don't go through because of this
+    //I should probably assert that there is a pick
+    //To update prior to actually updateing it
 
     // Need to start draft watch dog
     return "Draft Started"

@@ -1,11 +1,12 @@
 package model
 
 import (
-    "database/sql"
-    "fmt"
-    "server/assert"
-    "server/tbaHandler"
-    "server/utils"
+	"database/sql"
+	"fmt"
+	"server/assert"
+	"server/tbaHandler"
+	"server/utils"
+	"slices"
 )
 
 type Team struct {
@@ -68,11 +69,9 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
     validEvent := false
     //Looping here should always be faster because of the small lists
     for _, event := range events {
-        for _, draftEvent := range draftEvents {
-            if event == draftEvent {
-                validEvent = true
-                break
-            }
+        if slices.Contains(draftEvents, event) {
+            validEvent = true
+            break
         }
     }
 

@@ -2,7 +2,6 @@ package handler
 
 import (
     "database/sql"
-    "encoding/json"
     "fmt"
     "server/assert"
     "server/model"
@@ -22,12 +21,12 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(c.Param("id"))
-    renderPickPage(c, h.Database, draftId, userId, false)
+    h.renderPickPage(c, draftId, userId, false)
 
     return err
 }
 
-func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pickId int) string {
+func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) string {
     var stringBuilder strings.Builder
     picks := model.GetPicks(db, draftId)
 
@@ -39,25 +38,31 @@ func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool, pick
         var row []model.Pick
         if len(picks) != 0 {
             row = picks[start:end]
-            if curRow%2 == 1 {
+            if curRow & 1 == 1 {
                 row = reverseArray(row)
             }
         }
 
         stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
-        if curRow == (len(picks)%numPlayers)-1 {
+        if curRow == (len(picks) % numPlayers) {
             blanks := numPlayers - (len(picks) % numPlayers)
-            if blanks != 0 {
-                for i := 0; i < blanks-1; i++ {
+            if curRow & 1 == 1 {
+                for i := 0; i < blanks - 1; i++ {
                     stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
                 }
-                stringBuilder.WriteString("<td class=\"border\">")
-                if currentPick {
-                    stringBuilder.WriteString(fmt.Sprintf("<input name=\"pickInput\" hx-vals=\"{pickId: %d}\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>", pickId))
-                } else {
-                    stringBuilder.WriteString("<input name=\"pickInput\" disabled class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+            }
+            stringBuilder.WriteString("<td class=\"border\">")
+            //TODO Clean this up using disabled?=%t currentPick
+            if currentPick {
+                stringBuilder.WriteString("<input name=\"pickInput\" placeholder=\"Enter pick...\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+            } else {
+                stringBuilder.WriteString("<input name=\"pickInput\" disabled class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
+            }
+            stringBuilder.WriteString("</td>")
+            if curRow & 1 == 0 {
+                for i := 0; i < blanks - 1; i++ {
+                    stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
                 }
-                stringBuilder.WriteString("</td>")
             }
         }
 
@@ -96,10 +101,6 @@ func reverseArray(s []model.Pick) []model.Pick {
     return s
 }
 
-type PickRequest struct {
-    PickId int `json:"pickId"`
-}
-
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle Pick Request")
     //We need to validate that the curent player is allowed to make a pick for the draft
@@ -109,23 +110,23 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
-    pick := c.FormValue("pickInput")
+    pick := "frc" + c.FormValue("pickInput")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
+    h.Logger.Log(fmt.Sprintf("Got request for player %d to make pick %s in draft %d", userId, pick, draftId))
     assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
     isInvalid := false
     if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) {
         isInvalid = true
         h.Logger.Log("Invalid Pick")
     } else {
-        var pickInfo PickRequest
-        err := json.NewDecoder(c.Request().Body).Decode(&pickInfo)
-        assert.NoError(err, "Failed to decode request json")
+        pickId, err := strconv.Atoi(c.FormValue("pickId"))
+        assert.NoError(err, "Failed to convert pickId to int")
 
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
-            Id:       pickInfo.PickId,
+            Id:       pickId,
             Player:   draftPlayer,
             Pick:     pick,
             PickTime: time.Now(),
@@ -136,25 +137,25 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 
         draftModel := model.GetDraft(h.Database, draftId)
-        //We need to rethink this because we need to notify the watcher who has the next pick with differnt html
-        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false, 0) + "</tbody>"
+        //We need to rethink this because we need to notify the watcher who has the next pick with different html
+        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
         h.Notifier.NotifyWatchers(draftId, draftText)
     }
 
-    renderPickPage(c, h.Database, draftId, userId, isInvalid)
+    h.renderPickPage(c, draftId, userId, isInvalid)
 
     return nil
 }
 
-func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, invalidPick bool) error {
-    draftModel := model.GetDraft(database, draftId)
-    url := fmt.Sprintf("/draft/%d/makePick", draftId)
-    notifierUrl := fmt.Sprintf("/draft/%d/pickNotifier", draftId)
-    nextPick := model.NextPick(database, draftId)
+func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invalidPick bool) error {
+    draftModel := model.GetDraft(h.Database, draftId)
+    url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
+    notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
+    nextPick := model.NextPick(h.Database, draftId)
     isPicking := nextPick.User.Id == userId
-    html := getPickHtml(database, draftId, len(draftModel.Players), isPicking, nextPick.Id)
-    pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl)
-    username := model.GetUsername(database, userId)
+    html := getPickHtml(h.Database, draftId, len(draftModel.Players), isPicking)
+    pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl, nextPick.Id)
+    username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err := Render(c, pickPageView)
     return err
@@ -162,7 +163,6 @@ func renderPickPage(c echo.Context, database *sql.DB, draftId int, userId int, i
 
 func (h *Handler) PickNotifier(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Pick Notifier")
-    //TODO Do we need more auth here?
     websocket.Handler(func(ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)

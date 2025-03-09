@@ -528,7 +528,7 @@ func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.T
 }
 
 func MakePick(database *sql.DB, pick Pick) {
-    query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3;`
+    query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
 
     assert := assert.CreateAssertWithContext("Make Pick")
     assert.AddContext("Player", pick.Player)
@@ -536,7 +536,9 @@ func MakePick(database *sql.DB, pick Pick) {
     assert.AddContext("Pick Time", pick.PickTime)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(pick.Pick, pick.PickTime, pick.Id)
+    var updatedId int
+    err = stmt.QueryRow(pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
+    assert.RunAssert(pick.Id == updatedId, "Updated id does not match or no pick was updated")
     assert.NoError(err, "Failed to insert pick")
 }
 
