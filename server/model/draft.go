@@ -608,6 +608,31 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
     }
 }
 
+func GetAvailablePickId (database *sql.DB, draftId int) Pick {
+    query := `SELECT
+        p.Id,
+        p.Player
+    From Picks p
+    Inner Join (SELECT
+        Max(Picks.Id) As Id
+    From Picks
+    Inner Join DraftPlayers On Picks.Player = DraftPlayers.Id
+    Where Skipped = false
+    And Pick Is Null
+    And DraftPlayers.DraftId = $1) fp On p.Id = fp.Id;`
+
+    assert := assert.CreateAssertWithContext("Get Available Picks Id")
+    assert.AddContext("Draft Id", draftId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    var pick Pick
+    err = stmt.QueryRow(draftId).Scan(&pick.Id, &pick.Player)
+    assert.NoError(err, "Failed to get pick id")
+
+    return pick
+}
+
 func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
 	picks := GetPicks(database, draftId)

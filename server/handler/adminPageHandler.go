@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -77,10 +78,12 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
     model.RandomizePickOrder(database, draftId)
 
     model.StartDraft(database, draftId)
-    //TODO Tomorrow I need to make it so this makes this first pick "ready"
-    //Right now the picks don't go through because of this
-    //I should probably assert that there is a pick
-    //To update prior to actually updateing it
+
+    //Get the next pick and ready up that pick
+    nextPickPlayer := model.NextPick(database, draftId)
+
+    //TODO This is not doing what I want it to
+    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now())
 
     // Need to start draft watch dog
     return "Draft Started"

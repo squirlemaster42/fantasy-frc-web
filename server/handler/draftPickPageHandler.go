@@ -143,7 +143,6 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     }
 
     h.renderPickPage(c, draftId, userId, isInvalid)
-
     return nil
 }
 
@@ -151,8 +150,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invali
     draftModel := model.GetDraft(h.Database, draftId)
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
-    nextPick := model.NextPick(h.Database, draftId)
-    isPicking := nextPick.User.Id == userId
+    nextPick := model.GetAvailablePickId(h.Database, draftId)
+    isPicking := nextPick.Player == userId
     html := getPickHtml(h.Database, draftId, len(draftModel.Players), isPicking)
     pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl, nextPick.Id)
     username := model.GetUsername(h.Database, userId)
