@@ -1,14 +1,15 @@
 package main
 
 import (
-    "database/sql"
-    "server/assert"
-    "server/authentication"
-    "server/handler"
-    "server/logging"
-    "server/tbaHandler"
+	"database/sql"
+	"server/assert"
+	"server/authentication"
+	"server/handler"
+	"server/logging"
+	"server/tbaHandler"
 
-    "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v4"
 )
 
 func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging.Logger) {
@@ -29,6 +30,10 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
             Watchers: make(map[int][]handler.Watcher),
         },
     }
+
+    app.Use(middleware.Gzip())
+
+
     //TODO Make the base route. Something about
     //having this here breaks everything?
     //app.GET("/", h.HandleViewHome)

@@ -84,7 +84,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
     model.UpdateDraft(h.Database, &draftModel)
 
-    h.Logger.Log(fmt.Sprintf("Draft updated, reloading page", draftId))
+    h.Logger.Log(fmt.Sprintf("Draft %d updated, reloading page", draftId))
     c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
     return nil
 }

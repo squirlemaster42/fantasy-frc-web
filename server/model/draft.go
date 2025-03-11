@@ -524,6 +524,8 @@ func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.T
     var pickId int
     err = stmt.QueryRow(draftPlayerId, availableTime).Scan(&pickId)
 
+    assert.NoError(err, "Failed to make pick available")
+
     return pickId
 }
 

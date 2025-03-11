@@ -17,14 +17,15 @@ func getTbaTok() string {
 }
 
 func TestCompareMatches(t *testing.T) {
-    assert.True(t, compareMatchOrder("2024cur_f1m1", "2024cur_f1m2"))
-    assert.False(t, compareMatchOrder("2024cur_f1m1", "2024cur_qm1"))
-    assert.True(t, compareMatchOrder("2024cur_qm10", "2024cur_qm112"))
-    assert.False(t, compareMatchOrder("2024cur_qm116", "2024cur_qm11"))
-    assert.True(t, compareMatchOrder("2024cur_sf2m1", "2024cur_sf9m1"))
-    assert.False(t, compareMatchOrder("2024cur_f1m2", "2024cur_sf12m1"))
-    assert.True(t, compareMatchOrder("2024cur_qm90", "2024cur_sf12m1"))
-    assert.False(t, compareMatchOrder("2024cur_sf12m1", "2024cur_qm72"))
+    s := NewScorer(nil, nil, nil)
+    assert.True(t, s.compareMatchOrder("2024cur_f1m1", "2024cur_f1m2"))
+    assert.False(t, s.compareMatchOrder("2024cur_f1m1", "2024cur_qm1"))
+    assert.True(t, s.compareMatchOrder("2024cur_qm10", "2024cur_qm112"))
+    assert.False(t, s.compareMatchOrder("2024cur_qm116", "2024cur_qm11"))
+    assert.True(t, s.compareMatchOrder("2024cur_sf2m1", "2024cur_sf9m1"))
+    assert.False(t, s.compareMatchOrder("2024cur_f1m2", "2024cur_sf12m1"))
+    assert.True(t, s.compareMatchOrder("2024cur_qm90", "2024cur_sf12m1"))
+    assert.False(t, s.compareMatchOrder("2024cur_sf12m1", "2024cur_qm72"))
 }
 
 func TestGetMatchLevel(t *testing.T) {
@@ -50,7 +51,8 @@ func TestSortMatchOrder(t *testing.T) {
         "2024cur_qm52",
     }
 
-    sorted := sortMatchesByPlayOrder(unsorted)
+    s := NewScorer(nil, nil, nil)
+    sorted := s.sortMatchesByPlayOrder(unsorted)
 
     standard := []string{
         "2024cur_qm1",
