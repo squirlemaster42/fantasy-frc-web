@@ -46,10 +46,11 @@ func (d *Draft) String() string {
 }
 
 type DraftPlayer struct {
-    Id          int
-    User        User
+    Id int
+    User User
     PlayerOrder int
-    Pending     bool
+    Pending bool
+    Picks []Pick
 }
 
 func (d *DraftPlayer) String() string {
@@ -57,12 +58,12 @@ func (d *DraftPlayer) String() string {
 }
 
 type Pick struct {
-    Id            int
-    Player        int    //DraftPlayer
-    Pick          string //Team
-    PickTime      time.Time
+    Id int
+    Player int    //DraftPlayer
+    Pick string //Team
+    PickTime time.Time
     AvailableTime time.Time
-    Skipped       bool
+    Skipped bool
 }
 
 func (p *Pick) String() string {
@@ -153,20 +154,26 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     rows, err := stmt.Query(FILLING, user)
+    assert.NoError(err, "Failed to get drafts for user")
+    fmt.Println("Here 1")
 
     var drafts []Draft
     for rows.Next() {
+        fmt.Println("Here 2")
         var draftId int
         var displayName string
         var ownerId int
         var ownerUsername string
         var status int
-        rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+        err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+        assert.NoError(err, "Failed to load draft data")
+        fmt.Println("There 1")
 
 		nextPick := DraftPlayer{}
 		if GetStatusString(status) == GetStatusString(PICKING) {
 			nextPick = NextPick(database, draftId)
 		}
+        fmt.Println("Here 3")
 
         draft := Draft{
             Id:          draftId,
@@ -211,13 +218,17 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
         playerStmt, err := database.Prepare(playerQuery)
         assert.NoError(err, "Failed to prepare player query")
         playerRows, err := playerStmt.Query(draftId)
+        assert.NoError(err, "Failed to get users for draft")
+        fmt.Println("Here 4")
 
         for playerRows.Next() {
+            fmt.Println("Here 5")
             var userId int
             var username string
             var accepted bool
 
-            playerRows.Scan(&userId, &username, &accepted)
+            err = playerRows.Scan(&userId, &username, &accepted)
+            assert.NoError(err, "Failed to load player data")
             draftPlayer := DraftPlayer{
                 User: User{
                     Id:       userId,
@@ -228,6 +239,7 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
 
             draft.Players = append(draft.Players, draftPlayer)
         }
+        fmt.Println("Here 6")
 
         drafts = append(drafts, draft)
     }
@@ -340,10 +352,45 @@ func GetDraft(database *sql.DB, draftId int) Draft {
             Pending: !accepted,
         }
 
+        //Get picks for the player
+        picks := GetDraftPlayerPicks(database, draftPlayer.Id)
+        draftPlayer.Picks = picks
+
 		draft.Players = append(draft.Players, draftPlayer)
 	}
 
+    draft.NextPick = NextPick(database, draftId)
+
 	return draft
+}
+
+func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
+    query := `SELECT
+                Picks.id,
+                Picks.player,
+                Picks.pick,
+                Picks.pickTime
+              From Picks
+              Where Picks.player = $1
+              Order By Picks.PickTime Asc;`
+
+	assert := assert.CreateAssertWithContext("Get Picks")
+	assert.AddContext("Draft Player Id", draftPlayerId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+
+	rows, err := stmt.Query(draftPlayerId)
+	assert.NoError(err, "Failed to query for picks")
+
+	var picks []Pick
+	for rows.Next() {
+		pick := Pick{}
+		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime)
+		picks = append(picks, pick)
+	}
+
+	return picks
+
 }
 
 func UpdateDraft(database *sql.DB, draft *Draft) {

@@ -151,9 +151,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invali
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     nextPick := model.GetAvailablePickId(h.Database, draftId)
-    isPicking := nextPick.Player == userId
-    html := getPickHtml(h.Database, draftId, len(draftModel.Players), isPicking)
-    pickPageIndex := draft.DraftPickIndex(draftModel, html, url, invalidPick, notifierUrl, nextPick.Id)
+    vals := fmt.Sprintf("{\"pickId\": %d}", nextPick.Id)
+    pickPageIndex := draft.DraftPickIndex(draftModel, "", url, invalidPick, notifierUrl, vals)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err := Render(c, pickPageView)

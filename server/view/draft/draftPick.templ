@@ -2,9 +2,8 @@ package draft
 
 import "server/model"
 import "server/view"
-import "fmt"
 
-templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string, pickId int) {
+templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string, vals string) {
     <div id="draftPicks" class="flex items-center justify-center">
         <div hx-ext="ws" ws-connect={notifierUrl}>
             <form
@@ -13,24 +12,13 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                 hx-target="#draftPicks"
                 action=""
                 method="post"
-                hx-vals={fmt.Sprintf("{\"pickId\": %d}", pickId)}
+                hx-vals={vals}
             >
                 <div id="draft-table">
                     if invalidPick {
                         <span class="text-red-800">You have entered an invalid pick. Please pick again.</span>
                     }
-                    <table class="w-4/5 text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 mt-8">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                            <tr>
-                                for _, p := range draft.Players {
-                                    <th scope="col" class="border px-6 py-3">{p.User.Username}</th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody id="pickTableBody">
-                            @templ.Raw(pickHtml)
-                        </tbody>
-                    </table>
+                    @RenderPicks(draft)
                 </div>
                 <button>
                     Make Pick
@@ -44,4 +32,30 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
     @view.Index(page, fromProtected, username, draftId) {
         @cmp
     }
+}
+
+templ RenderPicks(draft model.Draft) {
+    <div class="flex flex-row">
+        for _, player := range draft.Players {
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col" class="border px-6 py-3">{player.User.Username}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    for _, pick := range player.Picks {
+                        <tr>
+                            <td>{pick.Pick}</td>
+                        </tr>
+                    }
+                    if draft.NextPick.Id == player.Id {
+                        <tr>
+                            <td><input/></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
 }

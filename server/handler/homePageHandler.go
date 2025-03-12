@@ -41,12 +41,13 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     username := model.GetUsername(h.Database, userId)
 
     h.Logger.Log(fmt.Sprintf("Loading drafts for user: %s", username))
-
 	drafts := model.GetDraftsForUser(h.Database, userId)
+    h.Logger.Log(fmt.Sprintf("Loaded drafts for user: %s", username))
 
 	homeIndex := view.HomeIndex(drafts)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
 	err = Render(c, home)
 	assert.NoError(err, "Handle View Home Failed To Render")
+    h.Logger.Log(fmt.Sprintf("Rendered home page for user: %s", username))
 	return nil
 }
