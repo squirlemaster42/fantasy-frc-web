@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"server/assert"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/net/websocket"
 )
@@ -54,9 +56,10 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     isCurrentPick := draftModel.NextPick.User.Id == userId
 
     isInvalid := false
-    if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) || !isCurrentPick{
+    validPick := model.ValidPick(h.Database, &h.TbaHandler, pick, draftId)
+    if !validPick || !isCurrentPick{
         isInvalid = true
-        h.Logger.Log("Invalid Pick")
+        h.Logger.Log(fmt.Sprintf("Invalid Pick - ValidPick: %t - IsCurrentPick: %t", validPick, isCurrentPick))
     } else {
         pickId, err := strconv.Atoi(c.FormValue("pickId"))
         assert.NoError(err, "Failed to convert pickId to int")
@@ -80,12 +83,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         nextPickPlayer := model.NextPick(h.Database, draftId)
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 
-        /* TODO Fix this to use the render picks template instead
+        buf := templ.GetBuffer()
+        defer templ.ReleaseBuffer(buf)
+
         draftModel := model.GetDraft(h.Database, draftId)
-        //We need to rethink this because we need to notify the watcher who has the next pick with different html
-        draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
-        h.Notifier.NotifyWatchers(draftId, draftText)
-        */
+
+        //TODO Need to see what we can do about current picks
+        var html strings.Builder
+        pickPage := draft.RenderPicks(draftModel, false)
+        err = pickPage.Render(context.Background(), &html)
+        assert.NoError(err, "Failed to render picks for notifier")
+        h.Notifier.NotifyWatchers(draftId, html.String())
     }
 
     h.renderPickPage(c, draftId, userId, isInvalid)
