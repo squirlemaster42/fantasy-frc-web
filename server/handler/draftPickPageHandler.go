@@ -43,6 +43,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
     pick := "frc" + c.FormValue("pickInput")
+    h.Logger.Log(fmt.Sprintf("Attempting to pick team %s", pick))
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
     h.Logger.Log(fmt.Sprintf("Got request for player %d to make pick %s in draft %d", userId, pick, draftId))
