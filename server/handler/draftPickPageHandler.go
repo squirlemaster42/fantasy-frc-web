@@ -1,17 +1,17 @@
 package handler
 
 import (
-    "database/sql"
-    "fmt"
-    "server/assert"
-    "server/model"
-    "server/view/draft"
-    "strconv"
-    "strings"
-    "time"
+	"database/sql"
+	"fmt"
+	"server/assert"
+	"server/model"
+	"server/view/draft"
+	"strconv"
+	"strings"
+	"time"
 
-    "github.com/labstack/echo/v4"
-    "golang.org/x/net/websocket"
+	"github.com/labstack/echo/v4"
+	"golang.org/x/net/websocket"
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
@@ -24,74 +24,6 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     h.renderPickPage(c, draftId, userId, false)
 
     return err
-}
-
-func getPickHtml(db *sql.DB, draftId int, numPlayers int, currentPick bool) string {
-    var stringBuilder strings.Builder
-    picks := model.GetPicks(db, draftId)
-
-    start := 0
-    end := numPlayers - 1
-    curRow := 0
-    totalRows := len(picks) / numPlayers
-    for {
-        var row []model.Pick
-        if len(picks) != 0 {
-            row = picks[start:end]
-            if curRow & 1 == 1 {
-                row = reverseArray(row)
-            }
-        }
-
-        stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
-        if curRow == (len(picks) % numPlayers) {
-            blanks := numPlayers - (len(picks) % numPlayers)
-            if curRow & 1 == 1 {
-                for i := 0; i < blanks - 1; i++ {
-                    stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
-                }
-            }
-            stringBuilder.WriteString("<td class=\"border\">")
-            //TODO Clean this up using disabled?=%t currentPick
-            if currentPick {
-                stringBuilder.WriteString("<input name=\"pickInput\" placeholder=\"Enter pick...\" class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
-            } else {
-                stringBuilder.WriteString("<input name=\"pickInput\" disabled class=\"w-full h-full bg-transparent pl-4 border-none\"/>")
-            }
-            stringBuilder.WriteString("</td>")
-            if curRow & 1 == 0 {
-                for i := 0; i < blanks - 1; i++ {
-                    stringBuilder.WriteString("<td class=\"border px-6 py-3\"></td>")
-                }
-            }
-        }
-
-        for _, pick := range row {
-            stringBuilder.WriteString("<td class=\"border px-6 py-3\">")
-            stringBuilder.WriteString(pick.Pick)
-            stringBuilder.WriteString("</td>")
-        }
-        stringBuilder.WriteString("</tr>")
-
-        start = end
-        end = min(end+numPlayers, len(picks))
-        curRow++
-        if curRow > totalRows {
-            break
-        }
-    }
-    stringBuilder.WriteString("</tr>")
-
-    for curRow < 8 {
-        stringBuilder.WriteString("<tr class=\"bg-white border-b dark:bg-gray-800 dark:border:gray-700\">")
-        for i := 0; i < numPlayers; i++ {
-            stringBuilder.WriteString("<td class=\"border px-6 py-5\"></td>")
-        }
-        stringBuilder.WriteString("</tr>")
-        curRow++
-    }
-
-    return stringBuilder.String()
 }
 
 func reverseArray(s []model.Pick) []model.Pick {
@@ -126,20 +58,28 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
         pickStruct := model.Pick{
-            Id:       pickId,
-            Player:   draftPlayer,
-            Pick:     pick,
-            PickTime: time.Now(),
+            Id: pickId,
+            Player: draftPlayer,
+            Pick: sql.NullString{
+                Valid: true,
+                String: pick,
+            },
+            PickTime: sql.NullTime{
+                Valid: true,
+                Time: time.Now(),
+            },
         }
         model.MakePick(h.Database, pickStruct)
 
         nextPickPlayer := model.NextPick(h.Database, draftId)
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 
+        /*
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with different html
         draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
         h.Notifier.NotifyWatchers(draftId, draftText)
+        */
     }
 
     h.renderPickPage(c, draftId, userId, isInvalid)

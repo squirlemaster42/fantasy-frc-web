@@ -4,8 +4,8 @@ import "server/model"
 import "server/view"
 
 templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string, vals string) {
-    <div id="draftPicks" class="flex items-center justify-center">
-        <div hx-ext="ws" ws-connect={notifierUrl}>
+    <div id="draftPicks" class="flex items-center justify-center w-full">
+        <div hx-ext="ws" ws-connect={notifierUrl} class="w-full">
             <form
                 hx-swap="outerHTML transition:true"
                 hx-post={pickUrl}
@@ -14,15 +14,17 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                 method="post"
                 hx-vals={vals}
             >
-                <div id="draft-table">
+                <div id="draft-table" class="flex flex-col justify-center">
                     if invalidPick {
                         <span class="text-red-800">You have entered an invalid pick. Please pick again.</span>
                     }
                     @RenderPicks(draft)
+                    <div class="w-full flex flex-row justify-center pt-8">
+                        <button class="bg-blue-500 text-white font-bold py-2 px-4 rounded" type="submit">
+                            Make Pick
+                        </button>
+                    </div>
                 </div>
-                <button>
-                    Make Pick
-                </button>
             </form>
         </div>
     </div>
@@ -35,7 +37,7 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ RenderPicks(draft model.Draft) {
-    <div class="flex flex-row">
+    <div class="flex flex-row justify-around">
         for _, player := range draft.Players {
             <table>
                 <thead>
@@ -44,12 +46,27 @@ templ RenderPicks(draft model.Draft) {
                     </tr>
                 </thead>
                 <tbody>
+                    {{lines := 0}}
                     for _, pick := range player.Picks {
                         <tr>
-                            <td>{pick.Pick}</td>
+                            if pick.Pick.Valid {
+                                <td class="border px-y py-3">{pick.Pick.String}</td>
+                            } else {
+                                <td class="border px-y py-3"></td>
+                            }
+                            {{lines++}}
                         </tr>
                     }
-                    if draft.NextPick.Id == player.Id {
+                    if draft.NextPick.User.Id == player.Id {
+                        {{lines++}}
+                    }
+                    for lines < 8 {
+                        <tr>
+                            <td class="border px-y py-3"></td>
+                        </tr>
+                        {{lines++}}
+                    }
+                    if draft.NextPick.User.Id == player.Id {
                         <tr>
                             <td><input/></td>
                         </tr>
