@@ -48,8 +48,13 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     draftId, err := strconv.Atoi(draftIdStr)
     h.Logger.Log(fmt.Sprintf("Got request for player %d to make pick %s in draft %d", userId, pick, draftId))
     assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
+
+    //TODO We need to make sure that the player who is making the pick is the one who has the next pick
+    draftModel := model.GetDraft(h.Database, draftId)
+    isCurrentPick := draftModel.NextPick.User.Id == userId
+
     isInvalid := false
-    if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) {
+    if !model.ValidPick(h.Database, &h.TbaHandler, pick, draftId) || !isCurrentPick{
         isInvalid = true
         h.Logger.Log("Invalid Pick")
     } else {
@@ -75,7 +80,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         nextPickPlayer := model.NextPick(h.Database, draftId)
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
 
-        /*
+        /* TODO Fix this to use the render picks template instead
         draftModel := model.GetDraft(h.Database, draftId)
         //We need to rethink this because we need to notify the watcher who has the next pick with different html
         draftText := "<tbody id=\"pickTableBody\">" + getPickHtml(h.Database, draftId, len(draftModel.Players), false) + "</tbody>"
@@ -93,7 +98,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invali
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     nextPick := model.GetAvailablePickId(h.Database, draftId)
     vals := fmt.Sprintf("{\"pickId\": %d}", nextPick.Id)
-    pickPageIndex := draft.DraftPickIndex(draftModel, "", url, invalidPick, notifierUrl, vals)
+    isCurrentPick := draftModel.NextPick.User.Id == userId
+    pickPageIndex := draft.DraftPickIndex(draftModel, url, invalidPick, notifierUrl, vals, isCurrentPick)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err := Render(c, pickPageView)

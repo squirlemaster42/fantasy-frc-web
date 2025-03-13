@@ -4,7 +4,7 @@ import "server/model"
 import "server/view"
 import "strings"
 
-templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invalidPick bool, notifierUrl string, vals string) {
+templ DraftPickIndex (draft model.Draft, pickUrl string, invalidPick bool, notifierUrl string, vals string, isCurrentPick bool) {
     <div id="draftPicks" class="flex items-center justify-center w-full pt-4">
         <div hx-ext="ws" ws-connect={notifierUrl} class="w-full">
             <form
@@ -21,7 +21,7 @@ templ DraftPickIndex (draft model.Draft, pickHtml string, pickUrl string, invali
                             <span class="text-red-800">You have entered an invalid pick. Please pick again.</span>
                         }
                     </div>
-                    @RenderPicks(draft)
+                    @RenderPicks(draft, isCurrentPick)
                     <div class="w-full flex flex-row justify-center pt-8">
                         <button class="bg-blue-500 text-white font-bold py-2 px-4 rounded" type="submit">
                             Make Pick
@@ -39,7 +39,7 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
     }
 }
 
-templ RenderPicks(draft model.Draft) {
+templ RenderPicks(draft model.Draft, isCurrentPick bool) {
     <div class="flex flex-row justify-around">
         for _, player := range draft.Players {
             <table>
@@ -58,9 +58,9 @@ templ RenderPicks(draft model.Draft) {
                             }
                         </tr>
                     }
-                    if draft.NextPick.User.Id == player.Id {
+                    if draft.NextPick.Id == player.Id {
                         <tr>
-                            <td class="border"><input name="pickInput" class="bg-transparent"/></td>
+                            <td class="border"><input disabled?={!isCurrentPick} name="pickInput" class="bg-transparent"/></td>
                         </tr>
                         {{lines++}}
                     }

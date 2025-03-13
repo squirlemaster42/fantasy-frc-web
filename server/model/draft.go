@@ -319,6 +319,10 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 	playerRows, err := playerStmt.Query(draftId)
 	assert.NoError(err, "Failed to run player query")
 
+    draft.NextPick = DraftPlayer {
+        Id: GetCurrentPick(database, draftId).Player,
+    }
+
 	for playerRows.Next() {
 		var userId int
 		var username string
@@ -333,6 +337,10 @@ func GetDraft(database *sql.DB, draftId int) Draft {
                 Id: userId,
                 Username: username,
             }
+        }
+
+        if playerId == draft.NextPick.Id {
+            draft.NextPick.User.Id = userId
         }
 
         draftPlayer := DraftPlayer{
@@ -351,12 +359,6 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 
 		draft.Players = append(draft.Players, draftPlayer)
 	}
-
-    draft.NextPick = DraftPlayer {
-        User: User {
-            Id: GetCurrentPick(database, draftId).Player,
-        },
-    }
 
 	return draft
 }
