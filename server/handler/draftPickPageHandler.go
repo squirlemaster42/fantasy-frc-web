@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/net/websocket"
 )
@@ -61,8 +60,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         isInvalid = true
         h.Logger.Log(fmt.Sprintf("Invalid Pick - ValidPick: %t - IsCurrentPick: %t", validPick, isCurrentPick))
     } else {
-        pickId, err := strconv.Atoi(c.FormValue("pickId"))
-        assert.NoError(err, "Failed to convert pickId to int")
+        pickId := model.GetCurrentPick(h.Database, draftId).Id
 
         //Make the pick
         draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
@@ -82,18 +80,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
         nextPickPlayer := model.NextPick(h.Database, draftId)
         model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
-
-        buf := templ.GetBuffer()
-        defer templ.ReleaseBuffer(buf)
-
-        draftModel := model.GetDraft(h.Database, draftId)
-
-        //TODO Need to see what we can do about current picks
-        var html strings.Builder
-        pickPage := draft.RenderPicks(draftModel, false)
-        err = pickPage.Render(context.Background(), &html)
-        assert.NoError(err, "Failed to render picks for notifier")
-        h.Notifier.NotifyWatchers(draftId, html.String())
+        h.Notifier.NotifyWatchers(draftId)
     }
 
     h.renderPickPage(c, draftId, userId, isInvalid)
@@ -104,10 +91,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invali
     draftModel := model.GetDraft(h.Database, draftId)
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
-    nextPick := model.GetAvailablePickId(h.Database, draftId)
-    vals := fmt.Sprintf("{\"pickId\": %d}", nextPick.Id)
     isCurrentPick := draftModel.NextPick.User.Id == userId
-    pickPageIndex := draft.DraftPickIndex(draftModel, url, invalidPick, notifierUrl, vals, isCurrentPick)
+    pickPageIndex := draft.DraftPickIndex(draftModel, url, invalidPick, notifierUrl, isCurrentPick)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err := Render(c, pickPageView)
@@ -120,21 +105,27 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)
         watcher := h.Notifier.RegisterWatcher(draftId)
+        userTok, err := c.Cookie("sessionToken")
+        assert.NoError(err, "Failed to get user token")
+        userId := model.GetUserBySessionToken(h.Database, userTok.Value)
         defer ws.Close()
         defer h.Notifier.UnregiserWatcher(watcher)
         assert.NoError(err, "Could not parse draft id")
         for {
             msg := <-watcher.notifierQueue
-            //Enable the input for the current pick
-            userTok, err := c.Cookie("sessionToken")
-            assert.NoError(err, "Failed to get user token")
-            userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-            //Disabled should appear no where else in this string so we can just find and replace
-            if model.NextPick(h.Database, draftId).User.Id == userId {
-                msg = strings.Replace(msg, "disabled", "", -1)
+            if msg {
+                draftModel := model.GetDraft(h.Database, draftId)
+
+                var html strings.Builder
+                pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.Id == userId)
+                err = pickPage.Render(context.Background(), &html)
+                assert.NoError(err, "Failed to render picks for notifier")
+
+                err = websocket.Message.Send(ws, html.String())
+                if err != nil {
+                    break
+                }
             }
-            err = websocket.Message.Send(ws, msg)
-            assert.NoError(err, "Websocket receive failed")
         }
     }).ServeHTTP(c.Response(), c.Request())
     return nil

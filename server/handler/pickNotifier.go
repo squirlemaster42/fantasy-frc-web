@@ -23,13 +23,13 @@ type PickNotifier struct {
 
 type Watcher struct {
     watcherId uuid.UUID
-    notifierQueue chan string
+    notifierQueue chan bool
 }
 
 func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
     watcher := Watcher {
         watcherId: uuid.New(),
-        notifierQueue: make(chan string, 10), //This can probably be smaller?
+        notifierQueue: make(chan bool, 10), //This can probably be smaller?
     }
 
     pn.Watchers[draftId] = append(pn.Watchers[draftId], watcher)
@@ -53,8 +53,8 @@ func removeWatcher(w []Watcher, i int) []Watcher {
     return w[:len(w) - 1]
 }
 
-func (pn *PickNotifier) NotifyWatchers(draftId int, replacementText string) {
+func (pn *PickNotifier) NotifyWatchers(draftId int) {
     for _, watcher := range pn.Watchers[draftId] {
-        watcher.notifierQueue <- replacementText
+        watcher.notifierQueue <- true
     }
 }
