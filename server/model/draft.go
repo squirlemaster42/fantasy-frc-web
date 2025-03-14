@@ -683,6 +683,7 @@ func GetAvailablePickId (database *sql.DB, draftId int) Pick {
 
 func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
+    assert := assert.CreateAssertWithContext("Next Pick")
 	picks := GetPicks(database, draftId)
 	draft := GetDraft(database, draftId)
 	var nextPlayer DraftPlayer
@@ -711,7 +712,15 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         if len(picks) % 8 == 0 { //TODO Change to number of picks in draft
             direction = 0
         }
+        assert.AddContext("Last Player Id", lastPlayer.Id)
+        assert.AddContext("Second Last Player Id", secondLastPick.Id)
+        assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
+        assert.AddContext("Direction", direction)
+
         //We know draft.players is order by player order
+        assert.RunAssert(len(draft.Players) > lastPlayer.PlayerOrder + direction && lastPlayer.PlayerOrder + direction >= 0, "Next pick is out of bounds")
+        fmt.Println(lastPlayer.PlayerOrder)
+        fmt.Println(direction)
         nextPlayer = draft.Players[lastPlayer.PlayerOrder+direction]
     }
 
