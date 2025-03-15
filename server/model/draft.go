@@ -715,6 +715,7 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         assert.AddContext("Last Player Id", lastPlayer.Id)
         assert.AddContext("Second Last Player Id", secondLastPick.Id)
         assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
+        assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
         assert.AddContext("Direction", direction)
 
         //We know draft.players is order by player order
