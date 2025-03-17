@@ -241,72 +241,126 @@ func TestGetPicksInDraft(t *testing.T) {
     assert.Equal(t, draftPlayerOne, NextPick(db, draftId).Id, fmt.Sprintf("Expected player One, got %s.", NextPick(db, draftId).User.Username))
     pick := Pick{
         Player: draftPlayerOne,
-        Pick: teamOne.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamOne.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerTwo, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Two, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerTwo,
-        Pick: teamTwo.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamTwo.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerThree, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Three, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerThree,
-        Pick: teamThree.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamThree.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerFour, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Four, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFour,
-        Pick: teamFour.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamFour.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerFive, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Five, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerFive,
-        Pick: teamFive.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamFive.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerSix, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Six, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSix,
-        Pick: teamSix.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamSix.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Seven, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerSeven,
-        Pick: teamSeven.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamSeven.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Eight, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
-        Pick: teamEight.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamEight.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerEight, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Eight, got %s.", NextPick(db, draftId).User.Username))
     time.Sleep(1 * time.Second)
     pick = Pick{
         Player: draftPlayerEight,
-        Pick: teamNine.TbaId,
-        PickTime: time.Now(),
+        Pick: sql.NullString{
+            Valid: true,
+            String: teamNine.TbaId,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Seven, got %s.", NextPick(db, draftId).User.Username))

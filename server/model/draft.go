@@ -166,11 +166,6 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
         err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
         assert.NoError(err, "Failed to load draft data")
 
-		nextPick := DraftPlayer{}
-		if GetStatusString(status) == GetStatusString(PICKING) {
-			nextPick = NextPick(database, draftId)
-		}
-
         draft := Draft{
             Id:          draftId,
             DisplayName: displayName,
@@ -180,7 +175,17 @@ func GetDraftsForUser(database *sql.DB, user int) *[]Draft {
             },
             Status:   GetStatusString(status),
             Players:  make([]DraftPlayer, 0),
-            NextPick: nextPick,
+        }
+
+		pick := Pick{}
+        assert.AddContext("Status", status)
+		if GetStatusString(status) == GetStatusString(PICKING) {
+            pick = GetCurrentPick(database, draftId)
+
+            draft.NextPick = DraftPlayer {
+                Id: pick.Player,
+                User: GetDraftPlayerUser(database, pick.Player),
+            }
         }
 
         playerQuery := `SELECT
@@ -519,11 +524,11 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
 	query := `SELECT
-                Picks.id, Picks.player, Picks.pick, Picks.pickTime
-              From Picks
-              Inner Join DraftPlayers On DraftPlayers.id = Picks.player
-              Where DraftPlayers.draftId = $1
-              Order By PickTime Asc;`
+        Picks.id, Picks.player, Picks.pick, Picks.pickTime
+    From Picks
+    Inner Join DraftPlayers On DraftPlayers.id = Picks.player
+    Where DraftPlayers.draftId = $1
+    Order By PickTime Asc;`
 
 	assert := assert.CreateAssertWithContext("Get Picks")
 	assert.AddContext("Draft", draft)
@@ -556,6 +561,26 @@ func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
     assert.NoError(err, "Failed to get draft player")
 
     return draftPlayerId
+}
+
+func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) User {
+    query := `Select
+        u.Id,
+        u.Username
+    From DraftPlayers dp
+    Inner Join Users u On dp.Player = u.Id
+    Where dp.Id = $1;`
+
+    assert := assert.CreateAssertWithContext("Get Draft Player User")
+    assert.AddContext("Draft Player Id", draftPlayerId)
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    var user User
+    err = stmt.QueryRow(draftPlayerId).Scan(&user.Id, &user.Username)
+    assert.NoError(err, "Failed to get User")
+
+    return user
 }
 
 func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time) int {
@@ -698,7 +723,7 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
     } else {
         //We can then figure out what direction
         //we are going and if we hit the
-        //End then we decide what the next pick is
+        //end then we decide what the next pick is
         lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks)-1].Player)
         secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks)-2].Player)
         direction := lastPlayer.PlayerOrder - secondLastPick.PlayerOrder
@@ -720,8 +745,6 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
 
         //We know draft.players is order by player order
         assert.RunAssert(len(draft.Players) > lastPlayer.PlayerOrder + direction && lastPlayer.PlayerOrder + direction >= 0, "Next pick is out of bounds")
-        fmt.Println(lastPlayer.PlayerOrder)
-        fmt.Println(direction)
         nextPlayer = draft.Players[lastPlayer.PlayerOrder+direction]
     }
 
@@ -796,7 +819,11 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
 		&pick.Skipped,
 		&pick.AvailableTime,
     )
-	assert.NoError(err, "Failed to query most recent pick")
+
+    if err != nil {
+        //There is no current pick
+        return Pick{}
+    }
 
 	return pick
 }
