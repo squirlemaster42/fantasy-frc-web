@@ -59,7 +59,7 @@ templ RenderPicks(draft model.Draft, isCurrentPick bool) {
                     }
                     if draft.NextPick.Id == player.Id {
                         <tr>
-                            <td class="border"><input disabled?={!isCurrentPick} name="pickInput" class="bg-transparent"/></td>
+                            <td class="border"><input disabled?={!isCurrentPick} name="pickInput" class="bg-yellow-300"/></td>
                         </tr>
                         {{lines++}}
                     }
