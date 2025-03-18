@@ -79,7 +79,14 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         model.MakePick(h.Database, pickStruct)
 
         nextPickPlayer := model.NextPick(h.Database, draftId)
-        model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
+
+        //Make the next pick available if we havn't aleady made all picks
+        picks := model.GetPicks(h.Database, draftId)
+
+        if len(picks) < 64 {
+            model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
+        }
+
         h.Notifier.NotifyWatchers(draftId)
     }
 
