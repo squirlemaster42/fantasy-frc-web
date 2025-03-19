@@ -1,6 +1,9 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func Events() []string {
     return []string{
@@ -73,4 +76,97 @@ func ParseArgString(argStr string) (map[string]string, error) {
     }
 
     return argMap, nil
+}
+
+var PICK_TIME time.Duration = 3 * time.Hour
+
+type TimeRange struct {
+    startHour int
+    startMinute int
+    endHour int
+    endMinute int
+}
+
+
+var ALLOWED_TIMES = map[time.Weekday][]TimeRange {
+    time.Sunday: {
+        {
+            startHour: 8,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Monday: {
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Tuesday: {
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Wednesday: {
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Thursday: {
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Friday: {
+        {
+            startHour: 17,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+    time.Saturday: {
+        {
+            startHour: 8,
+            startMinute: 0,
+            endHour: 22,
+            endMinute: 0,
+        },
+    },
+}
+
+func GetPickExpirationTime(t time.Time) time.Time {
+    expirationTime := t.Add(PICK_TIME)
+
+    validTimes := ALLOWED_TIMES[expirationTime.Weekday()]
+
+    inRange := false
+    for _, exclusion := range validTimes {
+        if expirationTime.Hour() < exclusion.startHour &&
+            expirationTime.Hour() > exclusion.endHour &&
+            expirationTime.Minute() < exclusion.startMinute &&
+            expirationTime.Minute() > exclusion.endMinute {
+                inRange = true
+                break
+        }
+    }
+
+    if !inRange {
+        // We need to find the next valid time and then add the difference to that
+    }
+
+
+    return expirationTime
 }

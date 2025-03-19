@@ -4,78 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"server/logging"
-	"server/model"
 	"sync"
 	"time"
 )
-
-var PICK_TIME time.Duration = 3 * time.Hour
-
-var ALLOWED_TIMES = map[time.Weekday][]TimeRange {
-    time.Sunday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Monday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Tuesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Wednesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Thursday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Friday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Saturday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-}
-
-type TimeRange struct {
-    startHour int
-    startMinute int
-    endHour int
-    endMinute int
-}
 
 type DraftDaemon struct {
     logger *logging.Logger
@@ -110,6 +41,7 @@ func (d *DraftDaemon) Start() error {
 func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
+        /*
         for draftId := range d.runningDrafts {
             curPick := model.GetCurrentPick(d.database, draftId)
 
@@ -121,6 +53,7 @@ func (d *DraftDaemon) Run() {
                 model.SkipPick(d.database, curPick.Id)
             }
         }
+        */
 
         time.Sleep(5 * time.Minute)
     }

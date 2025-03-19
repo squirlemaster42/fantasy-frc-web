@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"server/assert"
 	"server/model"
+	"server/utils"
 	"server/view/draft"
 	"strconv"
 	"strings"
@@ -84,7 +85,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         picks := model.GetPicks(h.Database, draftId)
 
         if len(picks) < 64 {
-            model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
+            model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
         }
 
         h.Notifier.NotifyWatchers(draftId)

@@ -583,17 +583,18 @@ func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) User {
     return user
 }
 
-func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time) int {
-    query := `Insert Into Picks (Player, AvailableTime) Values ($1, $2) Returning Id;`
+func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
+    query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
 
     assert := assert.CreateAssertWithContext("Make Pick Available")
     assert.AddContext("Draft Player Id", draftPlayerId)
-    assert.AddContext("Available Time", draftPlayerId)
+    assert.AddContext("Available Time", availableTime)
+    assert.AddContext("Expiration Time", expirationTime)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statment")
 
     var pickId int
-    err = stmt.QueryRow(draftPlayerId, availableTime).Scan(&pickId)
+    err = stmt.QueryRow(draftPlayerId, availableTime, expirationTime).Scan(&pickId)
 
     assert.NoError(err, "Failed to make pick available")
 
