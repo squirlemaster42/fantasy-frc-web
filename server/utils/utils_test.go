@@ -18,6 +18,7 @@ func TestParseArgString(t *testing.T) {
 
 func TestFindNextExpirationTime(t *testing.T) {
     assert.Equal(t, time.Date(2025, time.April, 5, 10, 0, 0, 0, nil), time.Date(2025, time.April, 5, 13, 0, 0, 0, nil))
+    assert.Equal(t, time.Date(2025, time.April, 5, 12, 0, 0, 0, nil), time.Date(2025, time.April, 5, 15, 0, 0, 0, nil))
     assert.Equal(t, time.Date(2025, time.April, 5, 11, 0, 0, 0, nil), time.Date(2025, time.April, 5, 14, 0, 0, 0, nil))
     assert.Equal(t, time.Date(2025, time.April, 6, 10, 0, 0, 0, nil), time.Date(2025, time.April, 6, 13, 0, 0, 0, nil))
     assert.Equal(t, time.Date(2025, time.April, 6, 11, 0, 0, 0, nil), time.Date(2025, time.April, 6, 14, 0, 0, 0, nil))
