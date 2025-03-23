@@ -82,91 +82,52 @@ var PICK_TIME time.Duration = 3 * time.Hour
 
 type TimeRange struct {
     startHour int
-    startMinute int
     endHour int
-    endMinute int
 }
 
 
-var ALLOWED_TIMES = map[time.Weekday][]TimeRange {
+var ALLOWED_TIMES = map[time.Weekday]TimeRange {
     time.Sunday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 8,
+        endHour: 22,
     },
     time.Monday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 17,
+        endHour: 22,
     },
     time.Tuesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 17,
+        endHour: 22,
     },
     time.Wednesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 17,
+        endHour: 22,
     },
     time.Thursday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 17,
+        endHour: 22,
     },
     time.Friday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 17,
+        endHour: 22,
     },
     time.Saturday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
+        startHour: 8,
+        endHour: 22,
     },
 }
 
 func GetPickExpirationTime(t time.Time) time.Time {
     expirationTime := t.Add(PICK_TIME)
+    validTime := ALLOWED_TIMES[expirationTime.Weekday()]
 
-    validTimes := ALLOWED_TIMES[expirationTime.Weekday()]
-
-    inRange := false
-    for _, exclusion := range validTimes {
-        if expirationTime.Hour() < exclusion.startHour &&
-            expirationTime.Hour() > exclusion.endHour &&
-            expirationTime.Minute() < exclusion.startMinute &&
-            expirationTime.Minute() > exclusion.endMinute {
-                inRange = true
-                break
-        }
+    if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour {
+        return expirationTime
     }
 
-    if !inRange {
-        // We need to find the next valid time and then add the difference to that
-    }
-
-
-    return expirationTime
+    nextDay := t.Add(24 * time.Hour)
+    nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
+    diff := int(PICK_TIME.Hours()) - (validTime.endHour - t.Hour())
+    expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
+    return expirationTime.Add(time.Duration(diff) * time.Hour)
 }
