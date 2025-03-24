@@ -63,6 +63,7 @@ type Pick struct {
     Pick sql.NullString //Team
     PickTime sql.NullTime
     AvailableTime time.Time
+    ExpirationTime time.Time
     Skipped bool
 }
 
@@ -373,7 +374,8 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
                 Picks.id,
                 Picks.player,
                 Picks.pick,
-                Picks.pickTime
+                Picks.pickTime,
+                Picks.ExpirationTime
               From Picks
               Where Picks.player = $1
               Order By Picks.PickTime Asc;`
@@ -389,7 +391,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime)
+		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
 		picks = append(picks, pick)
 	}
 
@@ -524,7 +526,7 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 
 func GetPicks(database *sql.DB, draft int) []Pick {
 	query := `SELECT
-        Picks.id, Picks.player, Picks.pick, Picks.pickTime
+        Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
@@ -540,7 +542,7 @@ func GetPicks(database *sql.DB, draft int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime)
+		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
 		picks = append(picks, pick)
 	}
 
@@ -797,7 +799,8 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
                 COALESCE(p.Pick, '') As Pick,
                 p.PickTime,
                 p.Skipped,
-                p.AvailableTime
+                p.AvailableTime,
+                p.ExpirationTime
             From Picks p
             Inner Join (
                 Select
@@ -819,6 +822,7 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
 		&pick.PickTime,
 		&pick.Skipped,
 		&pick.AvailableTime,
+        &pick.ExpirationTime,
     )
 
     if err != nil {
