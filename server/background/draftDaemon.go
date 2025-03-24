@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"server/logging"
+	"server/model"
+	"server/utils"
 	"sync"
 	"time"
 )
@@ -41,21 +43,16 @@ func (d *DraftDaemon) Start() error {
 func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
-        /*
         for draftId := range d.runningDrafts {
             curPick := model.GetCurrentPick(d.database, draftId)
-
-            //TODO We need to for work/school hours
-            if time.Since(curPick.AvailableTime) > PICK_TIME {
-                //If the pick has not been make after this time we need to mark the
-                //Pick as skipped and make the next one
-                //TODO We need to make the next pick
-                model.SkipPick(d.database, curPick.Id)
+            if curPick.ExpirationTime.After(time.Now()) {
+                //We want to skip the current pick and go to the next one
+                nextPickPlayer := model.NextPick(d.database, draftId)
+                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
             }
         }
-        */
 
-        time.Sleep(5 * time.Minute)
+        time.Sleep(1 * time.Minute)
     }
 }
 

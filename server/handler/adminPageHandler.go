@@ -82,7 +82,6 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
     //Get the next pick and ready up that pick
     nextPickPlayer := model.NextPick(database, draftId)
 
-    //TODO This is not doing what I want it to
     model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
     // Need to start draft watch dog

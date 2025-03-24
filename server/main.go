@@ -7,9 +7,11 @@ import (
 	"log"
 	"os"
 
+	"server/background"
 	"server/database"
 	draftInit "server/draftInit"
 	"server/logging"
+	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
 
@@ -51,6 +53,14 @@ func main() {
             }
         }
         logger.Log("Finished loading draft")
+    }
+
+    //Start the draft daemon and add all running drafts to it
+    draftDaemon := background.NewDraftDaemon(logger, database)
+    draftDaemon.Start()
+    drafts := model.GetDraftsInStatus(database, model.PICKING)
+    for _, draftId := range drafts {
+        draftDaemon.AddDraft(draftId)
     }
 
     scorer := scorer.NewScorer(tbaHandler, database, logger)

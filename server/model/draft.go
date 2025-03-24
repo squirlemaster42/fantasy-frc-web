@@ -843,3 +843,28 @@ func SkipPick(database *sql.DB, pickId int) {
     _, err = stmt.Exec(pickId)
     assert.NoError(err, "Failed to skip pick")
 }
+
+func GetDraftsInStatus(database *sql.DB, status int) []int {
+    assert := assert.CreateAssertWithContext("Get Drafts In Status")
+    assert.AddContext("Status", status)
+
+    query := `Select
+        Id
+    From Drafts
+    Where Status = $1;`
+
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    rows, err := stmt.Query(status)
+    assert.NoError(err, "Failed to Query Drafts")
+
+    var drafts []int
+    for rows.Next() {
+        var draftId int
+        rows.Scan(&draftId)
+        drafts = append(drafts, draftId)
+    }
+
+    return drafts
+}
