@@ -44,7 +44,7 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 
 }
 
-func UpdateTeamRankingScore(database *sql.DB, tbaId string, rankingScore int) {
+func UpdateTeamRankingScore(database *sql.DB, tbaId string, rankingScore int32) {
     query := `Update Teams Set rankingScore = $1 where tbaId = $2;`
     assert := assert.CreateAssertWithContext("Update Team Ranking Score")
     assert.AddContext("Tba Id", tbaId)

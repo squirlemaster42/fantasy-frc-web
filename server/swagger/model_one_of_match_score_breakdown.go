@@ -9,6 +9,7 @@
 package swagger
 
 type OneOfMatchScoreBreakdown struct {
+    /*
     MatchScoreBreakdown2015
     MatchScoreBreakdown2016
     MatchScoreBreakdown2017
@@ -18,5 +19,6 @@ type OneOfMatchScoreBreakdown struct {
     MatchScoreBreakdown2022
     MatchScoreBreakdown2023
     MatchScoreBreakdown2024
+    */
     MatchScoreBreakdown2025
 }

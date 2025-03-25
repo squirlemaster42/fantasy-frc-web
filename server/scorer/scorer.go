@@ -1,17 +1,18 @@
 package scorer
 
 import (
-    "database/sql"
-    "fmt"
-    "regexp"
-    "server/assert"
-    "server/logging"
-    "server/model"
-    "server/tbaHandler"
-    "server/utils"
-    "strconv"
-    "strings"
-    "time"
+	"database/sql"
+	"fmt"
+	"regexp"
+	"server/assert"
+	"server/logging"
+	"server/model"
+	"server/swagger"
+	"server/tbaHandler"
+	"server/utils"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var RESCORE_INTERATION_COUNT = 72
@@ -45,7 +46,7 @@ func playoffMatchCompLevels() map[string]bool {
 }
 
 // Match, dqed teams
-func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, bool) {
+func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, bool) {
     scoredMatch := model.Match{
         TbaId:     match.Key,
         Played:    match.PostResultTime > 0,
@@ -71,37 +72,45 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, 
     return scoredMatch, true
 }
 
-func getQualMatchScore(match tbaHandler.Match) (int, int) {
+func getQualMatchScore(match swagger.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
     if match.WinningAlliance == "red" {
-        redScore += 4
+        redScore += 6
     } else if match.WinningAlliance == "blue" {
-        blueScore += 4
+        blueScore += 6
     }
 
-    if match.ScoreBreakdown.Red.MelodyBonusAchieved {
+    if match.ScoreBreakdown.Red.AutoBonusAchieved{
         redScore += 2
     }
 
-    if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
+    if match.ScoreBreakdown.Red.BargeBonusAchieved{
         redScore += 2
     }
 
-    if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
-        blueScore += 2
+    if match.ScoreBreakdown.Red.CoralBonusAchieved{
+        redScore += 2
     }
 
-    if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
-        blueScore += 2
+    if match.ScoreBreakdown.Blue.AutoBonusAchieved{
+        redScore += 2
+    }
+
+    if match.ScoreBreakdown.Blue.BargeBonusAchieved{
+        redScore += 2
+    }
+
+    if match.ScoreBreakdown.Blue.CoralBonusAchieved{
+        redScore += 2
     }
 
     return redScore, blueScore
 }
 
-func getUpperBracketMatchIds() map[int]bool {
-    return map[int]bool{
+func getUpperBracketMatchIds() map[int32]bool {
+    return map[int32]bool{
         1:  true,
         2:  true,
         3:  true,
@@ -112,8 +121,8 @@ func getUpperBracketMatchIds() map[int]bool {
     }
 }
 
-func getLowerBracketMatchIds() map[int]bool {
-    return map[int]bool{
+func getLowerBracketMatchIds() map[int32]bool {
+    return map[int32]bool{
         5:  true,
         6:  true,
         9:  true,
@@ -124,7 +133,7 @@ func getLowerBracketMatchIds() map[int]bool {
 }
 
 // RedScore, BlueScore
-func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
+func getPlayoffMatchScore(match swagger.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -179,7 +188,7 @@ func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
     return redScore, blueScore
 }
 
-func (s *Scorer) getTeamRankingScore(team string) int {
+func (s *Scorer) getTeamRankingScore(team string) int32 {
     event := s.getChampEventForTeam(team)
     if event == "" {
         return 0
@@ -191,7 +200,7 @@ func (s *Scorer) getTeamRankingScore(team string) int {
 }
 
 func einstein() string {
-    return "2024cmptx"
+    return "2025cmptx"
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
