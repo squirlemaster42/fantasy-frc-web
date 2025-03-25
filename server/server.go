@@ -1,15 +1,15 @@
 package main
 
 import (
-	"database/sql"
-	"server/assert"
-	"server/authentication"
-	"server/handler"
-	"server/logging"
-	"server/tbaHandler"
+    "database/sql"
+    "server/assert"
+    "server/authentication"
+    "server/handler"
+    "server/logging"
+    "server/tbaHandler"
 
-	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/echo/v4"
+    "github.com/labstack/echo/v4"
+    "github.com/labstack/echo/v4/middleware"
 )
 
 func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging.Logger) {
@@ -33,7 +33,6 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
 
     app.Use(middleware.Gzip())
 
-
     //TODO Make the base route. Something about
     //having this here breaks everything?
     //app.GET("/", h.HandleViewHome)
@@ -55,13 +54,14 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
     protected.POST("/draft/:id/invitePlayer", h.InviteDraftPlayer)
     protected.GET("/team/score", h.HandleTeamScore)
     protected.POST("/team/score", h.HandleGetTeamScore)
+    protected.GET("/draft/:id/draftScore", h.HandleDraftScore)
     protected.POST("/searchPlayers", h.SearchPlayers)
     protected.GET("/viewInvites", h.HandleViewInvites)
     protected.POST("/acceptInvite", h.HandleAcceptInvite)
 
-	admin := protected.Group("/admin", auth.CheckAdmin)
-	admin.GET("/console", h.HandleAdminConsoleGet)
-	admin.POST("/processCommand", h.HandleRunCommand)
+    admin := protected.Group("/admin", auth.CheckAdmin)
+    admin.GET("/console", h.HandleAdminConsoleGet)
+    admin.POST("/processCommand", h.HandleRunCommand)
 
     err := app.Start(":3000")
     assert.NoError(err, "Failed to start server")

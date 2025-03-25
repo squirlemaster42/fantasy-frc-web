@@ -14,7 +14,7 @@ templ Navbar(fromProtected bool, username string, page string, data any) {
                 if (page == " | Draft Profile" || page == " | Draft Picks" || page == " | Draft Score") && data != nil && data != -1 {
                     <a href={templ.URL(fmt.Sprintf("/u/draft/%d/profile", data))} class="btn btn-ghost text-x1">Draft Profile</a>
                     <a href={templ.URL(fmt.Sprintf("/u/draft/%d/pick", data))} class="btn btn-ghost text-x1">Draft Picks</a>
-                    <a href="/u/team/score" class="btn btn-ghost text-x1">Draft Scores</a>
+                    <a href={templ.URL(fmt.Sprintf("/u/draft/%d/draftScore", data))} class="btn btn-ghost text-x1">Draft Scores</a>
                 } else {
                     <a href="/u/viewInvites" class="btn btn-ghost text-x1">Invites</a>
                     <a href="/u/team/score" class="btn btn-ghost text-x1">Team Scores</a>
