@@ -48,6 +48,7 @@ func (d *DraftDaemon) Run() {
             if curPick.ExpirationTime.After(time.Now()) {
                 //We want to skip the current pick and go to the next one
                 nextPickPlayer := model.NextPick(d.database, draftId)
+                model.SkipPick(d.database, curPick.Id)
                 model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
             }
         }
