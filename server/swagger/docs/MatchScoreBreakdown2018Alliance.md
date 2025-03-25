@@ -1,0 +1,45 @@
+# MatchScoreBreakdown2018Alliance
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**AdjustPoints** | **int32** |  | [optional] [default to null]
+**AutoOwnershipPoints** | **int32** |  | [optional] [default to null]
+**AutoPoints** | **int32** |  | [optional] [default to null]
+**AutoQuestRankingPoint** | **bool** |  | [optional] [default to null]
+**AutoRobot1** | **string** |  | [optional] [default to null]
+**AutoRobot2** | **string** |  | [optional] [default to null]
+**AutoRobot3** | **string** |  | [optional] [default to null]
+**AutoRunPoints** | **int32** |  | [optional] [default to null]
+**AutoScaleOwnershipSec** | **int32** |  | [optional] [default to null]
+**AutoSwitchAtZero** | **bool** |  | [optional] [default to null]
+**AutoSwitchOwnershipSec** | **int32** |  | [optional] [default to null]
+**EndgamePoints** | **int32** |  | [optional] [default to null]
+**EndgameRobot1** | **string** |  | [optional] [default to null]
+**EndgameRobot2** | **string** |  | [optional] [default to null]
+**EndgameRobot3** | **string** |  | [optional] [default to null]
+**FaceTheBossRankingPoint** | **bool** |  | [optional] [default to null]
+**FoulCount** | **int32** |  | [optional] [default to null]
+**FoulPoints** | **int32** |  | [optional] [default to null]
+**Rp** | **int32** |  | [optional] [default to null]
+**TechFoulCount** | **int32** |  | [optional] [default to null]
+**TeleopOwnershipPoints** | **int32** |  | [optional] [default to null]
+**TeleopPoints** | **int32** |  | [optional] [default to null]
+**TeleopScaleBoostSec** | **int32** |  | [optional] [default to null]
+**TeleopScaleForceSec** | **int32** |  | [optional] [default to null]
+**TeleopScaleOwnershipSec** | **int32** |  | [optional] [default to null]
+**TeleopSwitchBoostSec** | **int32** |  | [optional] [default to null]
+**TeleopSwitchForceSec** | **int32** |  | [optional] [default to null]
+**TeleopSwitchOwnershipSec** | **int32** |  | [optional] [default to null]
+**TotalPoints** | **int32** |  | [optional] [default to null]
+**VaultBoostPlayed** | **int32** |  | [optional] [default to null]
+**VaultBoostTotal** | **int32** |  | [optional] [default to null]
+**VaultForcePlayed** | **int32** |  | [optional] [default to null]
+**VaultForceTotal** | **int32** |  | [optional] [default to null]
+**VaultLevitatePlayed** | **int32** |  | [optional] [default to null]
+**VaultLevitateTotal** | **int32** |  | [optional] [default to null]
+**VaultPoints** | **int32** |  | [optional] [default to null]
+**TbaGameData** | **string** | Unofficial TBA-computed value of the FMS provided GameData given to the alliance teams at the start of the match. 3 Character String containing &#x60;L&#x60; and &#x60;R&#x60; only. The first character represents the near switch, the 2nd the scale, and the 3rd the far, opposing, switch from the alliance&#x27;s perspective. An &#x60;L&#x60; in a position indicates the platform on the left will be lit for the alliance while an &#x60;R&#x60; will indicate the right platform will be lit for the alliance. See also [WPI Screen Steps](https://wpilib.screenstepslive.com/s/currentCS/m/getting_started/l/826278-2018-game-data-details). | [optional] [default to null]
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
