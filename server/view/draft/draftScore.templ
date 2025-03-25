@@ -1,0 +1,57 @@
+package draft
+
+import "server/view"
+
+templ DraftScoreIndex() {
+    <div class="flex row wrap justify-center pt-10">
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+        @DraftScoreReport()
+    </div>
+    <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
+}
+
+templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(page, fromProtected, username, draftId) {
+        @cmp
+    }
+}
+
+templ DraftScoreReport() {
+<div class="ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
+    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+    </h5>
+        username: (Total Score)
+    <hr/>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (First Pick) Score: 220
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Second Pick) Score: 560
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Third Pick) Score: 12
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Fourth Pick) Score: 1
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Fifth Pick) Score: 35
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Sixth Pick) Score: 120
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Seventh Pick) Score: 53
+        </p>
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            (Eighth Pick) Score: 78
+        </p>
+</div>
+
+}
