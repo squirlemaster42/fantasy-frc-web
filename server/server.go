@@ -30,6 +30,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler) {
     }
 
     app.Use(middleware.Gzip())
+    app.Use(middleware.Recover())
 
     //Setup Routes
     //TODO Make the base route. Something about
