@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"fmt"
+	"log/slog"
 	"net/http"
 	"server/assert"
 	"server/model"
@@ -18,7 +18,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     //Grab the cookie from the session
     userTok, err := c.Cookie("sessionToken")
     if err != nil {
-        h.Logger.Log(fmt.Sprintf("Failed login from ip %s", c.RealIP()))
+        slog.Warn("Failed login", "Ip", c.RealIP())
         c.Redirect(http.StatusSeeOther, "/login")
         return echo.ErrUnauthorized
     }
@@ -29,10 +29,10 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
         //If the cookie is valid we let the request through
         //We should probaly log a message
         userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-        h.Logger.Log(fmt.Sprintf("User %d has successfully logged in from ip %s", userId, c.RealIP()))
+        slog.Info("User has successfully logged in", "User", userId, "Ip", c.RealIP())
     } else {
         //If the cookie is not valid then we redirect to the login page
-        h.Logger.Log(fmt.Sprintf("Failed login from ip %s", c.RealIP()))
+        slog.Warn("Failed login", "Ip",  c.RealIP())
         c.Redirect(http.StatusSeeOther, "/login")
         return echo.ErrUnauthorized
     }
@@ -40,14 +40,14 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userId)
 
-    h.Logger.Log(fmt.Sprintf("Loading drafts for user: %s", username))
+    slog.Info("Loading drafts for user", "Username", username)
 	drafts := model.GetDraftsForUser(h.Database, userId)
-    h.Logger.Log(fmt.Sprintf("Loaded drafts for user: %s", username))
+    slog.Info("Loaded drafts for user", "Username", username)
 
 	homeIndex := view.HomeIndex(drafts)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
 	err = Render(c, home)
 	assert.NoError(err, "Handle View Home Failed To Render")
-    h.Logger.Log(fmt.Sprintf("Rendered home page for user: %s", username))
+    slog.Info("Rendered home page for user", "Username", username)
 	return nil
 }

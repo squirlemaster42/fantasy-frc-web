@@ -44,6 +44,7 @@ func NewLogger(logWriter LogWriter) *Logger {
     }
 }
 
+//This is depricated and we are now using slog instead
 func (l *Logger) Log(message string) {
     l.messages <- message
 }

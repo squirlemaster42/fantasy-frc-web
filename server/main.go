@@ -1,16 +1,14 @@
 package main
 
 import (
-	//"os"
 	"flag"
-	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"server/background"
 	"server/database"
 	draftInit "server/draftInit"
-	"server/logging"
 	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
@@ -19,9 +17,7 @@ import (
 )
 
 func main() {
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    logger.Start()
-    logger.Log("-------- Starting Fantasy FRC --------")
+    slog.Info("-------- Starting Fantasy FRC --------")
     initDir := flag.String("initDir", "", "The directory containing drafts to initialize the scorer. This should only be done one each time the drafts change. Drafts with the same names as the files will be overriden")
     skipScoring := flag.String("skipScoring", "", "When true is entered, the scorer will not be started")
     flag.Parse()
@@ -32,15 +28,15 @@ func main() {
     dbUsername := os.Getenv("DB_USERNAME")
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
-    logger.Log("Extracted Env Vars")
+    slog.Info("Extracted Env Vars")
     //sessionSecret := os.Getenv("SESSION_SECRET")
-    tbaHandler := tbaHandler.NewHandler(tbaTok, logger)
+    tbaHandler := tbaHandler.NewHandler(tbaTok)
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
-    logger.Log("Registered Database Connection")
+    slog.Info("Registered Database Connection")
 
     //If we have an init dir, then parse all of the drafts in that folder
     if len(*initDir) > 0 {
-        logger.Log(fmt.Sprintf("Loading draft from %s", *initDir))
+        slog.Info("Loading draft from file", "Directory", *initDir)
         files, err := os.ReadDir(*initDir)
         if err != nil {
             log.Fatal(err)
@@ -48,25 +44,25 @@ func main() {
 
         for _, e := range files {
             if !e.Type().IsDir() {
-                logger.Log(fmt.Sprintf("Loading Draft: %s Into The Database\n", e.Name()))
+                slog.Info("Loading Draft Into The Database\n", "Draft", e.Name())
                 draftInit.LoadCSVIntoDb(database, *initDir + e.Name())
             }
         }
-        logger.Log("Finished loading draft")
+        slog.Info("Finished loading draft")
     }
 
     //Start the draft daemon and add all running drafts to it
-    draftDaemon := background.NewDraftDaemon(logger, database)
+    draftDaemon := background.NewDraftDaemon(database)
     draftDaemon.Start()
     drafts := model.GetDraftsInStatus(database, model.PICKING)
     for _, draftId := range drafts {
         draftDaemon.AddDraft(draftId)
     }
 
-    scorer := scorer.NewScorer(tbaHandler, database, logger)
+    scorer := scorer.NewScorer(tbaHandler, database)
     if !(*skipScoring == "true") {
-        logger.Log("Started Scorer")
+        slog.Info("Started Scorer")
         scorer.RunScorer()
     }
-    CreateServer(database, tbaHandler, logger)
+    CreateServer(database, tbaHandler)
 }

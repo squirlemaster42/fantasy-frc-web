@@ -1,17 +1,16 @@
 package scorer
 
 import (
-    "database/sql"
-    "fmt"
-    "regexp"
-    "server/assert"
-    "server/logging"
-    "server/model"
-    "server/tbaHandler"
-    "server/utils"
-    "strconv"
-    "strings"
-    "time"
+	"database/sql"
+	"log/slog"
+	"regexp"
+	"server/assert"
+	"server/model"
+	"server/tbaHandler"
+	"server/utils"
+	"strconv"
+	"strings"
+	"time"
 )
 
 var RESCORE_INTERATION_COUNT = 72
@@ -19,16 +18,14 @@ var RESCORE_INTERATION_COUNT = 72
 type Scorer struct {
     tbaHandler       *tbaHandler.TbaHandler
     database         *sql.DB
-    logger           *logging.Logger
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
     return &Scorer{
         tbaHandler:       tbaHandler,
         database:         database,
         scoringIteration: 0,
-        logger:           logger,
     }
 }
 
@@ -66,7 +63,7 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, 
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
 
-    s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
+    slog.Info("Scored Match", "Match", scoredMatch.String())
 
     return scoredMatch, true
 }
@@ -185,7 +182,7 @@ func (s *Scorer) getTeamRankingScore(team string) int {
         return 0
     }
     status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
-    s.logger.Log(fmt.Sprintf("Team %s Rank: %d", team, status.Qual.Ranking.Rank))
+    slog.Info("Getting ranking score", "Team", team, "Rank", status.Qual.Ranking.Rank)
     score := max((25-status.Qual.Ranking.Rank)*2, 0)
     return score
 }
@@ -199,7 +196,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
     //Check which event is in the list of champ events
     //We are going to ignore Einstein here since we just use this to determine the ranking score
     //which does not apply to Einstein
-    s.logger.Log("Getting Events For Team")
+    slog.Info("Getting Events For Team", "Team", teamId)
     eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
     //Even though this is O(e*f), where e is the number of events the team played during the season and f is
     //the number of champs field, both will be small so this is probably faster than a hashset
@@ -391,7 +388,7 @@ func (s *Scorer) RunScorer() {
             //TODO Skip scoring if we are not on an event day
             //Get a list of matches to score and
             //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
-            s.logger.Log("Starting scoring iteration")
+            slog.Info("Starting scoring iteration")
             allTeams := make(map[string]bool)
             matches := make(map[string][]string)
             for _, event := range utils.Events() {
@@ -424,11 +421,11 @@ func (s *Scorer) RunScorer() {
                 }
 
                 dbMatch := *dbMatchPtr
-                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
+                slog.Info("Scoring match", "Match", dbMatchPtr.String())
 
                 scored := false
                 if !dbMatch.Played || s.scoringIteration%RESCORE_INTERATION_COUNT == 0 {
-                    s.logger.Log("Match was not played or rescoring all matches")
+                    slog.Info("Match was not played or rescoring all matches")
                     tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
                     dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration%RESCORE_INTERATION_COUNT == 0)
                 }
@@ -441,7 +438,7 @@ func (s *Scorer) RunScorer() {
                 }
 
                 if scored {
-                    s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
+                    slog.Info("Updating Match Scores", "Match", dbMatch.String())
                     model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
                     for _, team := range dbMatch.BlueAlliance {
                         allTeams[team] = true
@@ -460,12 +457,12 @@ func (s *Scorer) RunScorer() {
 
             //Update ranking scores
             for team := range allTeams {
-                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", team))
+                slog.Info("Updating ranking score for team", "Team", team)
                 model.UpdateTeamRankingScore(s.database, team, s.getTeamRankingScore(team))
             }
 
             s.scoringIteration++
-            s.logger.Log("Finished scoring iteration")
+            slog.Info("Finished scoring iteration")
             time.Sleep(5 * time.Minute)
         }
     }(s)

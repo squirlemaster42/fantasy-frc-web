@@ -74,10 +74,8 @@ func TestSortMatchOrder(t *testing.T) {
 
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    logger.Start()
-    tbaHandler := tbaHandler.NewHandler(getTbaTok(), logger)
-    scorer := NewScorer(tbaHandler, nil, logger)
+    tbaHandler := tbaHandler.NewHandler(getTbaTok())
+    scorer := NewScorer(tbaHandler, nil)
 
     match := tbaHandler.MakeMatchReq("2024cur_qm2")
     scoredMatch, _ := scorer.scoreMatch(match, true)
@@ -135,10 +133,8 @@ func TestScoreMatches(t *testing.T) {
 }
 
 func TestScoreTeamRankings(t *testing.T) {
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    logger.Start()
-    tbaHandler := tbaHandler.NewHandler(getTbaTok(), logger)
-    scorer := NewScorer(tbaHandler, nil, logger)
+    tbaHandler := tbaHandler.NewHandler(getTbaTok())
+    scorer := NewScorer(tbaHandler, nil)
     assert.Equal(t, 48, scorer.getTeamRankingScore("frc2200"))
     assert.Equal(t, 42, scorer.getTeamRankingScore("frc3847"))
     assert.Equal(t, 16, scorer.getTeamRankingScore("frc624"))
