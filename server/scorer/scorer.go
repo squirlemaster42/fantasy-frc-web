@@ -501,11 +501,17 @@ func (s *Scorer) RunScorer() {
                 }
             }
 
-            //Update ranking scores
-            for team := range allTeams {
-                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", team))
-                //TODO update alliance score
-                model.UpdateTeamAllianceScore(s.database, team, 0)
+            //Update alliance selection scores
+            //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
+            for _, event := range utils.Events() {
+                alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
+                for _, alliance := range alliances {
+                    scores := s.GetAllianceSelectionScore(alliance)
+                    for team, score := range scores {
+                        slog.Info("Update alliance score for team", "Team", team, "Score", score)
+                        model.UpdateTeamAllianceScore(s.database, team, score)
+                    }
+                }
             }
 
             s.scoringIteration++
