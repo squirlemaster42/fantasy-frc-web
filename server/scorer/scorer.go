@@ -3,6 +3,7 @@ package scorer
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"server/assert"
 	"server/logging"
@@ -76,6 +77,7 @@ func getQualMatchScore(match swagger.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
+    slog.Info("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
     if match.WinningAlliance == "red" {
         redScore += 6
     } else if match.WinningAlliance == "blue" {
@@ -84,26 +86,32 @@ func getQualMatchScore(match swagger.Match) (int, int) {
 
     if match.ScoreBreakdown.Red.AutoBonusAchieved{
         redScore += 2
+        slog.Info("Red Auto Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Red.BargeBonusAchieved{
         redScore += 2
+        slog.Info("Red Barge Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Red.CoralBonusAchieved{
         redScore += 2
+        slog.Info("Red Coral Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Blue.AutoBonusAchieved{
-        redScore += 2
+        blueScore += 2
+        slog.Info("Blue Auto Bonus Achieved", "Score", blueScore)
     }
 
     if match.ScoreBreakdown.Blue.BargeBonusAchieved{
-        redScore += 2
+        blueScore += 2
+        slog.Info("Blue Barge Bonus Achieved", "Score", blueScore)
     }
 
     if match.ScoreBreakdown.Blue.CoralBonusAchieved{
-        redScore += 2
+        blueScore += 2
+        slog.Info("Blue Coral Bonus Achieved", "Score", blueScore)
     }
 
     return redScore, blueScore
@@ -186,17 +194,6 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
     }
 
     return redScore, blueScore
-}
-
-func (s *Scorer) getTeamRankingScore(team string) int32 {
-    event := s.getChampEventForTeam(team)
-    if event == "" {
-        return 0
-    }
-    status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
-    s.logger.Log(fmt.Sprintf("Team %s Rank: %d", team, status.Qual.Ranking.Rank))
-    score := max((25-status.Qual.Ranking.Rank)*2, 0)
-    return score
 }
 
 func einstein() string {
@@ -385,6 +382,43 @@ func isDqed(team string, dqedTeams []string) bool {
     return false
 }
 
+var ALLIANCE_SCORES = map[int][]int16 {
+    1: {32, 31, 9, 8},
+    2: {30, 29, 10, 7},
+    3: {28, 27, 11, 6},
+    4: {26, 25, 12, 5},
+    5: {24, 23, 13, 4},
+    6: {22, 21, 14, 3},
+    7: {20, 19, 15, 2},
+    8: {18, 17, 16, 1},
+}
+
+func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance) map[string]int16 {
+    assert.CreateAssertWithContext("Get Alliance Selection Score")
+    scores := make(map[string]int16)
+
+    splitAllianceName := strings.Split(alliance.Name, " ")
+    if len(splitAllianceName) != 2 {
+        slog.Error("Alliance name was not in an expected format", "Name", alliance.Name)
+    }
+
+    allianceNum, err := strconv.Atoi(splitAllianceName[1])
+    if err != nil {
+        slog.Error("Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
+    }
+
+    if allianceNum > 8 || allianceNum < 1 {
+        slog.Error("Unsupported alliance number", "Alliance", alliance.Name)
+    }
+
+    scoreArr := ALLIANCE_SCORES[allianceNum]
+    for i, team := range alliance.Picks {
+        scores[team] = scoreArr[i]
+    }
+
+    return scores
+}
+
 func (s *Scorer) RunScorer() {
     //This function will run on its own routine
     //We will first update our list of teams with all of the teams at all of the events in getChampEvents
@@ -470,7 +504,8 @@ func (s *Scorer) RunScorer() {
             //Update ranking scores
             for team := range allTeams {
                 s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", team))
-                model.UpdateTeamRankingScore(s.database, team, s.getTeamRankingScore(team))
+                //TODO update alliance score
+                model.UpdateTeamAllianceScore(s.database, team, 0)
             }
 
             s.scoringIteration++

@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"server/logging"
-    "server/swagger"
+	"server/swagger"
 )
 
 const (
@@ -112,4 +113,13 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &teams)
     return teams
+}
+
+func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.EliminationAlliance {
+    url := BASE_URL + "event/" + eventId + "/alliances"
+    var alliances []swagger.EliminationAlliance
+    jsonData := t.makeRequest(url)
+    slog.Info(string(jsonData))
+    json.Unmarshal(jsonData, &alliances)
+    return alliances
 }
