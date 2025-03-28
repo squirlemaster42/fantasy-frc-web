@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"server/swagger"
 	"sync"
 
@@ -49,7 +50,7 @@ func (w *WebhookClient) HandleWebhook(c echo.Context) error {
     w.messages <- string(body)
 
     //TODO Need to respond with the data that TBA expects
-    return nil
+    return c.String(http.StatusOK, "")
 }
 
 func (w *WebhookClient) RequestMessage() string {
