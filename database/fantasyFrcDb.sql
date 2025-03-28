@@ -1,3 +1,5 @@
+CREATE DATABASE fantasyfrc;
+COMMENT ON DATABASE fantasyfrc IS 'Version: 1';
 Create Table Teams(tbaId varchar(10) PRIMARY KEY,
     name varchar(255),
     rankingScore smallint);

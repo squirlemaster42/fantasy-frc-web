@@ -49,7 +49,8 @@ func (w *WebhookClient) HandleWebhook(c echo.Context) error {
 
     w.messages <- string(body)
 
-    //TODO Need to respond with the data that TBA expects
+    //TODO we need to verify the web request
+    //TODO is there any content we need here?
     return c.String(http.StatusOK, "")
 }
 
