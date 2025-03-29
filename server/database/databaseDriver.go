@@ -19,6 +19,10 @@ func RegisterDatabaseConnection(username string, password string, ip string, dbN
     return db
 }
 
+func checkDbVersion(database *sql.DB) bool {
+    return false;
+}
+
 func createConnectionString(username string, password string, ip string, dbName string) string {
     return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable"
 }
