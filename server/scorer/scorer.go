@@ -2,18 +2,15 @@ package scorer
 
 import (
 	"database/sql"
-	"fmt"
+	"server/swagger"
 	"log/slog"
 	"regexp"
 	"server/assert"
-	"server/logging"
 	"server/model"
-	"server/swagger"
 	"server/tbaHandler"
 	"server/utils"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var RESCORE_INTERATION_COUNT = 72
@@ -21,16 +18,14 @@ var RESCORE_INTERATION_COUNT = 72
 type Scorer struct {
     tbaHandler       *tbaHandler.TbaHandler
     database         *sql.DB
-    logger           *logging.Logger
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
     return &Scorer{
         tbaHandler:       tbaHandler,
         database:         database,
         scoringIteration: 0,
-        logger:           logger,
     }
 }
 
@@ -68,7 +63,7 @@ func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, boo
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
 
-    s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
+    slog.Info("Scored Match", "Match", scoredMatch.String())
 
     return scoredMatch, true
 }
@@ -196,6 +191,17 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
     return redScore, blueScore
 }
 
+func (s *Scorer) getTeamRankingScore(team string) int {
+    event := s.getChampEventForTeam(team)
+    if event == "" {
+        return 0
+    }
+    status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
+    slog.Info("Getting ranking score", "Team", team, "Rank", status.Qual.Ranking.Rank)
+    score := max((25-status.Qual.Ranking.Rank)*2, 0)
+    return int(score)
+}
+
 func einstein() string {
     return "2025cmptx"
 }
@@ -205,7 +211,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
     //Check which event is in the list of champ events
     //We are going to ignore Einstein here since we just use this to determine the ranking score
     //which does not apply to Einstein
-    s.logger.Log("Getting Events For Team")
+    slog.Info("Getting Events For Team", "Team", teamId)
     eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
     //Even though this is O(e*f), where e is the number of events the team played during the season and f is
     //the number of champs field, both will be small so this is probably faster than a hashset
@@ -429,94 +435,92 @@ func (s *Scorer) RunScorer() {
     //We will will have this process run every five minutes and we will rescore all matches every 6 hours
     //In this iteration we also update the valid teams
 
-    go func(s *Scorer) {
-        for {
-            //TODO Skip scoring if we are not on an event day
-            //Get a list of matches to score and
-            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
-            s.logger.Log("Starting scoring iteration")
-            allTeams := make(map[string]bool)
-            matches := make(map[string][]string)
-            for _, event := range utils.Events() {
-                matches[event] = s.sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
-            }
+    go s.scoringRunner()
+}
 
-            //Score matches until we hit one that has not been played
-            var scoringQueue []string
-            currentMatch := make(map[string]int)
-            for event := range matches {
-                currentMatch[event] = 1
-                scoringQueue = append(scoringQueue, matches[event][0])
-            }
-
-            for {
-                match := scoringQueue[0]
-                scoringQueue = scoringQueue[1:]
-
-                dbMatchPtr := model.GetMatch(s.database, match)
-
-                if dbMatchPtr == nil {
-                    model.AddMatch(s.database, match)
-                    dbMatchPtr = &model.Match{
-                        TbaId:        match,
-                        BlueAlliance: []string{},
-                        RedAlliance:  []string{},
-                        DqedTeams:    []string{},
-                        Played:       false,
-                    }
-                }
-
-                dbMatch := *dbMatchPtr
-                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
-
-                scored := false
-                if !dbMatch.Played || s.scoringIteration%RESCORE_INTERATION_COUNT == 0 {
-                    s.logger.Log("Match was not played or rescoring all matches")
-                    tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
-                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration%RESCORE_INTERATION_COUNT == 0)
-                }
-
-                event := strings.Split(match, "_")[0]
-                currentMatch[event] = currentMatch[event] + 1
-                if len(matches[event]) > 0 {
-                    scoringQueue = append(scoringQueue, matches[event][0])
-                    matches[event] = matches[event][1:]
-                }
-
-                if scored {
-                    s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
-                    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-                    for _, team := range dbMatch.BlueAlliance {
-                        allTeams[team] = true
-                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
-                    }
-                    for _, team := range dbMatch.RedAlliance {
-                        allTeams[team] = true
-                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
-                    }
-                }
-
-                if len(scoringQueue) == 0 {
-                    break
-                }
-            }
-
-            //Update alliance selection scores
-            //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
-            for _, event := range utils.Events() {
-                alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
-                for _, alliance := range alliances {
-                    scores := s.GetAllianceSelectionScore(alliance)
-                    for team, score := range scores {
-                        slog.Info("Update alliance score for team", "Team", team, "Score", score)
-                        model.UpdateTeamAllianceScore(s.database, team, score)
-                    }
-                }
-            }
-
-            s.scoringIteration++
-            s.logger.Log("Finished scoring iteration")
-            time.Sleep(5 * time.Minute)
+func (s *Scorer) scoringRunner() {
+    for {
+        //TODO Skip scoring if we are not on an event day
+        //Get a list of matches to score and
+        //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
+        slog.Info("Starting scoring iteration")
+        allTeams := make(map[string]bool)
+        matches := make(map[string][]string)
+        for _, event := range utils.Events() {
+            matches[event] = s.sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
         }
-    }(s)
+
+        //Score matches until we hit one that has not been played
+        var scoringQueue []string
+        currentMatch := make(map[string]int)
+        for event := range matches {
+            currentMatch[event] = 1
+            scoringQueue = append(scoringQueue, matches[event][0])
+        }
+
+        for {
+            match := scoringQueue[0]
+            scoringQueue = scoringQueue[1:]
+
+            dbMatchPtr := model.GetMatch(s.database, match)
+
+            if dbMatchPtr == nil {
+                model.AddMatch(s.database, match)
+                dbMatchPtr = &model.Match{
+                    TbaId:        match,
+                    BlueAlliance: []string{},
+                    RedAlliance:  []string{},
+                    DqedTeams:    []string{},
+                    Played:       false,
+                }
+            }
+
+            dbMatch := *dbMatchPtr
+            slog.Info("Scoring match", "Match", dbMatchPtr.String())
+
+            scored := false
+            if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
+                slog.Info("Match was not played or rescoring all matches")
+                tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
+                dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration % RESCORE_INTERATION_COUNT == 0)
+            }
+
+            event := strings.Split(match, "_")[0]
+            currentMatch[event] = currentMatch[event] + 1
+            if len(matches[event]) > 0 {
+                scoringQueue = append(scoringQueue, matches[event][0])
+                matches[event] = matches[event][1:]
+            }
+
+            if scored {
+                slog.Info("Updating Match Scores", "Match", dbMatch.String())
+                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+                for _, team := range dbMatch.BlueAlliance {
+                    allTeams[team] = true
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+                }
+                for _, team := range dbMatch.RedAlliance {
+                    allTeams[team] = true
+                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+                }
+            }
+
+            if len(scoringQueue) == 0 {
+                break
+            }
+        }
+
+        //Update alliance selection scores
+        //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
+        for _, event := range utils.Events() {
+            alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
+            for _, alliance := range alliances {
+                scores := s.GetAllianceSelectionScore(alliance)
+                for team, score := range scores {
+                    slog.Info("Update alliance score for team", "Team", team, "Score", score)
+                    model.UpdateTeamAllianceScore(s.database, team, score)
+                }
+            }
+        }
+    }
 }

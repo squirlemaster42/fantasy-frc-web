@@ -2,28 +2,26 @@ package main
 
 import (
 	"database/sql"
+	"log/slog"
 	"server/assert"
 	"server/authentication"
 	"server/handler"
-	"server/logging"
 	"server/tbaHandler"
 
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging.Logger) {
-    logger.Log("Starting Server")
+func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler) {
+    slog.Info("Starting Server")
     assert := assert.CreateAssertWithContext("Create Server")
-    auth := authentication.NewAuth(db, logger)
+    auth := authentication.NewAuth(db)
     app := echo.New()
     app.IPExtractor = echo.ExtractIPDirect()
     app.Static("/", "./assets")
 
-    //Setup Routes
     h := handler.Handler{
         Database:   db,
-        Logger:     logger,
         TbaHandler: *tbaHandler,
         Notifier: &handler.PickNotifier{
             Database: db,
@@ -32,8 +30,9 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, logger *logging
     }
 
     app.Use(middleware.Gzip())
+    app.Use(middleware.Recover())
 
-
+    //Setup Routes
     //TODO Make the base route. Something about
     //having this here breaks everything?
     //app.GET("/", h.HandleViewHome)

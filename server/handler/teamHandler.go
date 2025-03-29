@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"fmt"
+	"log/slog"
 	"server/assert"
 	"server/model"
 	"server/view/team"
@@ -25,7 +25,7 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
 
 func (h *Handler) HandleGetTeamScore(c echo.Context) error {
     teamNumber := c.FormValue("teamNumber")
-    h.Logger.Log(fmt.Sprintf("Getting score for %s\n", teamNumber))
+    slog.Info("Getting score for team", "Team Number", teamNumber)
 
     //Get team score
     scores := model.GetScore(h.Database, "frc" + teamNumber)

@@ -1,3 +1,4 @@
+COMMENT ON DATABASE fantasyfrc IS 'Version: 3';
 ALTER TABLE Drafts Add Status varchar;
 
 CREATE TABLE DraftReaders(

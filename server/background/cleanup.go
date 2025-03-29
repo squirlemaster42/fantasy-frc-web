@@ -22,8 +22,9 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 }
 
 func (c *CleanupService) Start() error {
+    //TODO we need a mutex on this start
     if c.running {
-        return errors.New("Logger already started")
+        return errors.New("Clean up service already running")
     }
     c.running = true
     go func() {
@@ -37,7 +38,7 @@ func (c *CleanupService) Start() error {
 
 func (c *CleanupService) Stop() error {
     if !c.running {
-        return errors.New("Logger already stopped")
+        return errors.New("Clean up service already stopped")
     }
     c.running = false
     return nil

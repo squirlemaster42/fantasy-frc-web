@@ -3,7 +3,6 @@ package background
 import (
 	"database/sql"
 	"errors"
-	"server/logging"
 	"server/model"
 	"server/utils"
 	"sync"
@@ -11,7 +10,6 @@ import (
 )
 
 type DraftDaemon struct {
-    logger *logging.Logger
     database *sql.DB
     running bool
     interval int //Time to wait between runs
@@ -19,9 +17,8 @@ type DraftDaemon struct {
     runningDrafts map[int]bool
 }
 
-func NewDraftDaemon(logger *logging.Logger, database *sql.DB) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB) *DraftDaemon {
     return &DraftDaemon{
-        logger: logger,
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),

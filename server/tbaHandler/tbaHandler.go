@@ -2,11 +2,9 @@ package tbaHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"server/logging"
 	"server/swagger"
 )
 
@@ -16,17 +14,17 @@ const (
 
 type TbaHandler struct {
     tbaToken string
-    logger *logging.Logger
 }
 
-func NewHandler(tbaToken string, logger *logging.Logger) *TbaHandler {
-    handler := &TbaHandler{ tbaToken: tbaToken, logger: logger,
+func NewHandler(tbaToken string) *TbaHandler {
+    handler := &TbaHandler{
+        tbaToken: tbaToken,
     }
     return handler
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
-    t.logger.Log(fmt.Sprintf("Making TBA request to %s", url))
+    slog.Info("Making TBA request", "Url", url)
     client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)

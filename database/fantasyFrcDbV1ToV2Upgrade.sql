@@ -1,3 +1,4 @@
+COMMENT ON DATABASE fantasyfrc IS 'Version: 2';
 Create Table UserSessions (
     Id Serial PRIMARY KEY,
     userId int REFERENCES Users(Id) NOT NULL,

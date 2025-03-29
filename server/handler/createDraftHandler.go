@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"server/assert"
 	"server/model"
 	"server/view/draft"
@@ -13,7 +14,7 @@ import (
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle View Create Draft")
-    h.Logger.Log("Got request to serve the create draft page")
+    slog.Info("Got request to serve the create draft page")
 
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
@@ -29,7 +30,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 }
 
 func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
-    h.Logger.Log("Got request to create a draft")
+    slog.Info("Got request to create a draft")
     assert := assert.CreateAssertWithContext("Handle Create Draft Post")
     draftName := c.FormValue("draftName")
     description := c.FormValue("description")
@@ -62,10 +63,10 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
         Status: model.GetStatusString(model.FILLING),
     }
 
-    h.Logger.Log(fmt.Sprintf("Created Draft: %s for user %s", draftModel.String(), username))
+    slog.Info("Created Draft for user", "Draft", draftModel.String(), "User", username)
 
     draftId := model.CreateDraft(h.Database, &draftModel)
-    h.Logger.Log(fmt.Sprintf("Draft created. Redirecting to /u/draft/%d/profile", draftId))
+    slog.Info("Draft created. Redirecting to /u/draft/:draftId:/profile", "Draft Id", draftId)
     c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
     return nil
 }
