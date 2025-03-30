@@ -7,15 +7,15 @@ import (
 
 func Events() []string {
     return []string{
-        "2024new",
-        "2024mil",
-        "2024joh",
-        "2024hop",
-        "2024gal",
-        "2024dal",
-        "2024cur",
-        "2024arc",
-        "2024cmptx",
+        "2025new",
+        "2025mil",
+        "2025joh",
+        "2025hop",
+        "2025gal",
+        "2025dal",
+        "2025cur",
+        "2025arc",
+        "2025cmptx",
     }
 }
 

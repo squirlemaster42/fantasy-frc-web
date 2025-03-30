@@ -14,7 +14,7 @@ import (
 type WebhookClient struct {
     mu sync.Mutex
     running bool
-    messages chan string
+    messages chan swagger.Match
     server echo.Echo
 }
 
@@ -42,19 +42,19 @@ func (w *WebhookClient) Start() error {
 }
 
 func (w *WebhookClient) HandleWebhook(c echo.Context) error {
-    body, err := io.ReadAll(c.Request().Body)
+    _, err := io.ReadAll(c.Request().Body)
     if err != nil {
         slog.Error("Unable to read websocket body", "Error", err)
     }
 
-    w.messages <- string(body)
+    w.messages <- swagger.Match{}
 
     //TODO we need to verify the web request
     //TODO is there any content we need here?
     return c.String(http.StatusOK, "")
 }
 
-func (w *WebhookClient) RequestMessage() string {
+func (w *WebhookClient) RequestMessage() swagger.Match {
     return <- w.messages
 }
 

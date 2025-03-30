@@ -44,14 +44,14 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 
 }
 
-func UpdateTeamRankingScore(database *sql.DB, tbaId string, rankingScore int) {
-    query := `Update Teams Set rankingScore = $1 where tbaId = $2;`
+func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16) {
+    query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
     assert := assert.CreateAssertWithContext("Update Team Ranking Score")
     assert.AddContext("Tba Id", tbaId)
-    assert.AddContext("Ranking Score", rankingScore)
+    assert.AddContext("Ranking Score", allianceScore)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(rankingScore, tbaId)
+    _, err = stmt.Exec(allianceScore, tbaId)
     assert.NoError(err, "Failed to associate team")
 }
 
