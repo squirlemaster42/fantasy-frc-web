@@ -74,38 +74,38 @@ func getQualMatchScore(match swagger.Match) (int, int) {
 
     slog.Info("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
     if match.WinningAlliance == "red" {
-        redScore += 6
+        redScore += 3
     } else if match.WinningAlliance == "blue" {
-        blueScore += 6
+        blueScore += 3
     }
 
     if match.ScoreBreakdown.Red.AutoBonusAchieved{
-        redScore += 2
+        redScore += 1
         slog.Info("Red Auto Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Red.BargeBonusAchieved{
-        redScore += 2
+        redScore += 1
         slog.Info("Red Barge Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Red.CoralBonusAchieved{
-        redScore += 2
+        redScore += 1
         slog.Info("Red Coral Bonus Achieved", "Score", redScore)
     }
 
     if match.ScoreBreakdown.Blue.AutoBonusAchieved{
-        blueScore += 2
+        blueScore += 1
         slog.Info("Blue Auto Bonus Achieved", "Score", blueScore)
     }
 
     if match.ScoreBreakdown.Blue.BargeBonusAchieved{
-        blueScore += 2
+        blueScore += 1
         slog.Info("Blue Barge Bonus Achieved", "Score", blueScore)
     }
 
     if match.ScoreBreakdown.Blue.CoralBonusAchieved{
-        blueScore += 2
+        blueScore += 1
         slog.Info("Blue Coral Bonus Achieved", "Score", blueScore)
     }
 
@@ -419,7 +419,7 @@ func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance)
 
     scoreArr := ALLIANCE_SCORES[allianceNum]
     for i, team := range alliance.Picks {
-        scores[team] = scoreArr[i]
+        scores[team] = scoreArr[i] * 2
     }
 
     return scores
@@ -448,9 +448,8 @@ func (s *Scorer) scoringRunner() {
         //We need to score matches that have been played when the scorer starts up and then
         //score matches that come in over the websocket
 
-        //TODO Skip scoring if we are not on an event day
         //Get a list of matches to score and
-        //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
+        //Sort matches by id
         slog.Info("Starting scoring iteration")
         allTeams := make(map[string]bool)
         matches := make(map[string][]string)
@@ -470,6 +469,7 @@ func (s *Scorer) scoringRunner() {
             match := scoringQueue[0]
             scoringQueue = scoringQueue[1:]
 
+            slog.Info("Starting scoring run", "Match", match)
             dbMatchPtr := model.GetMatch(s.database, match)
 
             if dbMatchPtr == nil {
