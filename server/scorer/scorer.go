@@ -438,8 +438,16 @@ func (s *Scorer) RunScorer() {
     go s.scoringRunner()
 }
 
+func (s *Scorer) AddMatchToScore() {
+
+}
+
 func (s *Scorer) scoringRunner() {
     for {
+        //We need to rewrite this to support websockets
+        //We need to score matches that have been played when the scorer starts up and then
+        //score matches that come in over the websocket
+
         //TODO Skip scoring if we are not on an event day
         //Get a list of matches to score and
         //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
