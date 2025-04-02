@@ -442,6 +442,19 @@ func (s *Scorer) AddMatchToScore() {
 
 }
 
+func (s *Scorer) updateMatchInDB(dbMatch model.Match, allTeams map[string]bool) {
+    slog.Info("Updating Match Scores", "Match", dbMatch.String())
+    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+    for _, team := range dbMatch.BlueAlliance {
+        allTeams[team] = true
+        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+    }
+    for _, team := range dbMatch.RedAlliance {
+        allTeams[team] = true
+        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+    }
+}
+
 func (s *Scorer) scoringRunner() {
     for {
         //We need to rewrite this to support websockets
@@ -501,16 +514,7 @@ func (s *Scorer) scoringRunner() {
             }
 
             if scored {
-                slog.Info("Updating Match Scores", "Match", dbMatch.String())
-                model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-                for _, team := range dbMatch.BlueAlliance {
-                    allTeams[team] = true
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
-                }
-                for _, team := range dbMatch.RedAlliance {
-                    allTeams[team] = true
-                    model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
-                }
+                s.updateMatchInDB(dbMatch, allTeams)
             }
 
             if len(scoringQueue) == 0 {
