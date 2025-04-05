@@ -10,7 +10,7 @@ import (
 
 type MatchQueue []*swagger.Match
 
-//TODO Something js broken here
+//TODO Something is broken here
 func InitQueue(queue *MatchQueue) {
     heap.Init(queue)
 }
