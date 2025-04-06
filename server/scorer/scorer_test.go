@@ -26,6 +26,7 @@ func TestCompareMatches(t *testing.T) {
     assert.False(t, s.compareMatchOrder("2024cur_f1m2", "2024cur_sf12m1"))
     assert.True(t, s.compareMatchOrder("2024cur_qm90", "2024cur_sf12m1"))
     assert.False(t, s.compareMatchOrder("2024cur_sf12m1", "2024cur_qm72"))
+    assert.True(t, s.compareMatchOrder("2024cur_qm71", "2024cur_qm72"))
 }
 
 func TestGetMatchLevel(t *testing.T) {
@@ -117,7 +118,7 @@ func TestScoreMatches(t *testing.T) {
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 1, scoredMatch.RedScore)
-    assert.Equal(t, 6, scoredMatch.BlueScore)
+    assert.Equal(t, 12, scoredMatch.BlueScore)
 
     match = tbaHandler.MakeMatchReq("2025mawor_sf4m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)

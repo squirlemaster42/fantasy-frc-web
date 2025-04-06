@@ -3,7 +3,6 @@ package tbaHandler
 import (
 	"os"
 	"path/filepath"
-	"server/logging"
 	"testing"
 
 	"github.com/joho/godotenv"
