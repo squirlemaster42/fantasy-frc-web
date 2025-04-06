@@ -23,7 +23,6 @@ func (q MatchQueue) Less(i int, j int) bool {
     return compareMatchOrder(q[i].Key, q[j].Key)
 }
 
-
 func (q MatchQueue) Swap(i int, j int) {
     q[i], q[j] = q[j], q[i]
 }
