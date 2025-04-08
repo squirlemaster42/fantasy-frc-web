@@ -883,9 +883,11 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 
     query := `Select
         dp.Id,
+        u.Username,
         p.Pick
     From Picks p
     Inner Join DraftPlayers dp On p.Player = dp.Id
+    Inner Join Users u On u.Id = dp.Player
     Where dp.DraftId = $1;`
 
     stmt, err := database.Prepare(query)
@@ -895,10 +897,13 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
     assert.NoError(err, "Failed to get picks for draft")
 
     picks := make(map[int][]string)
+    usernames := make(map[int]string)
     for rows.Next() {
         var playerId int
+        var username string
         var pick string
-        rows.Scan(&playerId, &pick)
+        rows.Scan(&playerId, &username, &pick)
+        usernames[playerId] = username
         picks[playerId] = append(picks[playerId], pick)
     }
 
@@ -906,6 +911,9 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
     for player, playerPicks := range picks {
         draftPlayer := DraftPlayer {
             Id: player,
+            User: User{
+                Username: usernames[player],
+            },
             Score: 0,
         }
 
