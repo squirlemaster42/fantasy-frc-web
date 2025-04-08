@@ -20,7 +20,9 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	draftId, err := strconv.Atoi(c.Param("id"))
 	assert.NoError(err, "Failed to convert draft id to int")
 
-	draftIndex := draft.DraftScoreIndex()
+	userDraftScore := model.GetDraftScore(h.Database, draftId)
+
+	draftIndex := draft.DraftScoreIndex(userDraftScore)
 	draft := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId)
 	Render(c, draft)
 	return nil
