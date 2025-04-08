@@ -1,17 +1,16 @@
 package draft
 
-import "server/view"
+import (
+    "server/view"
+    "server/model"
+    "fmt"
+)
 
-templ DraftScoreIndex() {
+templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
     <div class="flex row wrap justify-center pt-10">
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
-        @DraftScoreReport()
+        for _, player := range userDraftScore {
+            @DraftScoreReport(player)
+            }
     </div>
     <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
 }
@@ -22,36 +21,17 @@ templ DraftScore(page string, fromProtected bool, username string, cmp templ.Com
     }
 }
 
-templ DraftScoreReport() {
+templ DraftScoreReport(player model.DraftPlayer) {
 <div class="ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
     <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
     </h5>
-        username: (Total Score)
+    {player.User.Username}: {fmt.Sprintf("%d", player.Score)}
     <hr/>
+        for _, pick := range player.Picks{
         <p class="font-normal text-gray-700 dark:text-gray-400">
-            (First Pick) Score: 220
+            {pick.Pick.String} Score: {fmt.Sprintf("%d", pick.Score)}
         </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Second Pick) Score: 560
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Third Pick) Score: 12
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Fourth Pick) Score: 1
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Fifth Pick) Score: 35
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Sixth Pick) Score: 120
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Seventh Pick) Score: 53
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            (Eighth Pick) Score: 78
-        </p>
+        }
 </div>
 
 }
