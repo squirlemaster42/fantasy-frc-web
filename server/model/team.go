@@ -1,31 +1,31 @@
 package model
 
 import (
-	"database/sql"
-	"fmt"
-	"server/assert"
-	"server/tbaHandler"
-	"server/utils"
+    "database/sql"
+    "fmt"
+    "server/assert"
+    "server/tbaHandler"
+    "server/utils"
 )
 
 type Team struct {
-    TbaId        string
-    Name         string
-    RankingScore int
+    TbaId         string
+    Name          string
+    AllianceScore int
 }
 
 func (t *Team) String() string {
-    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n RankingScore: %d\n}", t.TbaId, t.Name, t.RankingScore)
+    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n AllianceScore: %d\n}", t.TbaId, t.Name, t.AllianceScore)
 }
 
 func GetTeam(database *sql.DB, tbaId string) *Team {
-    query := `Select tbaId, name, COALESCE(rankingScore, 0) As rankingScore From Teams Where tbaId = $1;`
+    query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
     assert := assert.CreateAssertWithContext("Get Team")
     assert.AddContext("TbaId", tbaId)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     team := Team{}
-    err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.RankingScore)
+    err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
     if err != nil || team.TbaId == "" {
         return nil
     }
@@ -67,6 +67,8 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
     validEvent := false
     //Looping here should always be faster because of the small lists
+    fmt.Println(events)
+    fmt.Println(draftEvents)
     for _, event := range events {
         for _, draftEvent := range draftEvents {
             if event == draftEvent {
@@ -80,6 +82,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
         }
     }
 
+    fmt.Printf("Picked: %t - Valid Event: %t\n", picked, validEvent)
     return !picked && validEvent
 }
 
@@ -88,7 +91,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 // Display names: Qual Score, Playoff Score, Ranking Score, Einstein Score, Total Score
 func GetScore(database *sql.DB, tbaId string) map[string]int {
     query := `Select
-                t.RankingScore
+                t.AllianceScore
             From Teams t
             Where t.TbaId = $1`
 
@@ -97,8 +100,8 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
 
-    var rankingScore int
-    err = stmt.QueryRow(tbaId).Scan(&rankingScore)
+    var allianceScore int
+    err = stmt.QueryRow(tbaId).Scan(&allianceScore)
     if err != nil {
         return nil
     }
@@ -134,8 +137,8 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
         scores[displayName] = matchScore
     }
 
-    scores["Ranking Score"] = rankingScore
-    scores["Total Score"] = total + rankingScore
+    scores["Alliance Score"] = allianceScore
+    scores["Total Score"] = total + allianceScore
 
     return scores
 }

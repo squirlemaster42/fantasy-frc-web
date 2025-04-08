@@ -1,0 +1,37 @@
+package draft
+
+import (
+    "server/view"
+    "server/model"
+    "fmt"
+)
+
+templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
+    <div class="flex row wrap justify-center pt-10">
+        for _, player := range userDraftScore {
+            @DraftScoreReport(player)
+            }
+    </div>
+    <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
+}
+
+templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(page, fromProtected, username, draftId) {
+        @cmp
+    }
+}
+
+templ DraftScoreReport(player model.DraftPlayer) {
+<div class="ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
+    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+    </h5>
+    {player.User.Username}: {fmt.Sprintf("%d", player.Score)}
+    <hr/>
+        for _, pick := range player.Picks{
+        <p class="font-normal text-gray-700 dark:text-gray-400">
+            {pick.Pick.String} Score: {fmt.Sprintf("%d", pick.Score)}
+        </p>
+        }
+</div>
+
+}

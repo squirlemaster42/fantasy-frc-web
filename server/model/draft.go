@@ -51,6 +51,7 @@ type DraftPlayer struct {
     User User
     PlayerOrder int
     Pending bool
+    Score int
     Picks []Pick
 }
 
@@ -66,6 +67,7 @@ type Pick struct {
     AvailableTime time.Time
     ExpirationTime time.Time
     Skipped bool
+    Score int
 }
 
 func (p *Pick) String() string {
@@ -871,4 +873,65 @@ func GetDraftsInStatus(database *sql.DB, status int) []int {
     }
 
     return drafts
+}
+
+
+func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
+    assert := assert.CreateAssertWithContext("Get Draft Score")
+    assert.AddContext("Draft Id", draftId)
+    assert.RunAssert(draftId != 0, "Draft Id Should Not Be 0")
+
+    query := `Select
+        dp.Id,
+        u.Username,
+        p.Pick
+    From Picks p
+    Inner Join DraftPlayers dp On p.Player = dp.Id
+    Inner Join Users u On u.Id = dp.Player
+    Where dp.DraftId = $1;`
+
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    rows, err := stmt.Query(draftId)
+    assert.NoError(err, "Failed to get picks for draft")
+
+    picks := make(map[int][]string)
+    usernames := make(map[int]string)
+    for rows.Next() {
+        var playerId int
+        var username string
+        var pick string
+        rows.Scan(&playerId, &username, &pick)
+        usernames[playerId] = username
+        picks[playerId] = append(picks[playerId], pick)
+    }
+
+    var playerScores []DraftPlayer
+    for player, playerPicks := range picks {
+        draftPlayer := DraftPlayer {
+            Id: player,
+            User: User{
+                Username: usernames[player],
+            },
+            Score: 0,
+        }
+
+        for _, pick := range playerPicks {
+            score := GetScore(database, pick)
+            draftPlayer.Score += score["Total Score"]
+
+            team := Pick {
+                Pick: sql.NullString{
+                    Valid: true,
+                    String: pick,
+                },
+                Score: score["Total Score"],
+            }
+            draftPlayer.Picks = append(draftPlayer.Picks, team)
+        }
+        playerScores = append(playerScores, draftPlayer)
+    }
+
+    return playerScores
 }
