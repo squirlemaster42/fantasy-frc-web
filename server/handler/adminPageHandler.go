@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -10,19 +11,18 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"server/assert"
-	"server/logging"
 	"server/model"
 	"server/utils"
 	"server/view/admin"
 )
 
 type Command interface {
-    ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string
+    ProcessCommand(database *sql.DB, argStr string) string
 }
 
 type PingCommand struct { }
 
-func (p *PingCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+func (p *PingCommand) ProcessCommand(database *sql.DB, argStr string) string {
     if len(argStr) > 0 {
         return "Ping does not take any inputs"
     }
@@ -31,7 +31,7 @@ func (p *PingCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, a
 
 type ListDraftsCommand struct {}
 
-func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, argStr string) string {
     //Parse command inputs
     argMap, _ := utils.ParseArgString(argStr)
     searchString := argMap["s"]
@@ -52,7 +52,7 @@ func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, logger *logging.Log
 
 type StartDraftCommand struct {}
 
-func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Logger, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) string {
     argMap, _ := utils.ParseArgString(argStr)
     draftId, err := strconv.Atoi(argMap["id"])
 
@@ -82,8 +82,7 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, logger *logging.Log
     //Get the next pick and ready up that pick
     nextPickPlayer := model.NextPick(database, draftId)
 
-    //TODO This is not doing what I want it to
-    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now())
+    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
     // Need to start draft watch dog
     return "Draft Started"
@@ -98,7 +97,7 @@ var commands = map[string]Command {
 // ---------------- Handler Funcs --------------------------
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
-    h.Logger.Log("Got request to render admin console")
+    slog.Info("Got request to render admin console")
     assert := assert.CreateAssertWithContext("Handle Admin Console Get")
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
@@ -124,7 +123,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 	commandString := c.FormValue("command")
     cmd, args, _ := strings.Cut(commandString, " ")
     //This is to handle the case where we have no params
-    h.Logger.Log(fmt.Sprintf("Running command %s with args %s", cmd, args))
+    slog.Info("Running command", "Command", cmd, "Argument", args)
 
     if len(cmd) < 1 {
         noCommandResponse := admin.RenderCommand(username, commandString, "")
@@ -133,7 +132,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     }
 
     command := commands[cmd]
-    result := command.ProcessCommand(h.Database, h.Logger, args)
+    result := command.ProcessCommand(h.Database, args)
 
     assert.AddContext("Command", commandString)
 

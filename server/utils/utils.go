@@ -1,18 +1,21 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func Events() []string {
     return []string{
-        "2024new",
-        "2024mil",
-        "2024joh",
-        "2024hop",
-        "2024gal",
-        "2024dal",
-        "2024cur",
-        "2024arc",
-        "2024cmptx",
+        "2025new",
+        "2025mil",
+        "2025joh",
+        "2025hop",
+        "2025gal",
+        "2025dal",
+        "2025cur",
+        "2025arc",
+        "2025cmptx",
     }
 }
 
@@ -73,4 +76,58 @@ func ParseArgString(argStr string) (map[string]string, error) {
     }
 
     return argMap, nil
+}
+
+var PICK_TIME time.Duration = 3 * time.Hour
+
+type TimeRange struct {
+    startHour int
+    endHour int
+}
+
+
+var ALLOWED_TIMES = map[time.Weekday]TimeRange {
+    time.Sunday: {
+        startHour: 8,
+        endHour: 22,
+    },
+    time.Monday: {
+        startHour: 17,
+        endHour: 22,
+    },
+    time.Tuesday: {
+        startHour: 17,
+        endHour: 22,
+    },
+    time.Wednesday: {
+        startHour: 17,
+        endHour: 22,
+    },
+    time.Thursday: {
+        startHour: 17,
+        endHour: 22,
+    },
+    time.Friday: {
+        startHour: 17,
+        endHour: 22,
+    },
+    time.Saturday: {
+        startHour: 8,
+        endHour: 22,
+    },
+}
+
+func GetPickExpirationTime(t time.Time) time.Time {
+    expirationTime := t.Add(PICK_TIME)
+    validTime := ALLOWED_TIMES[expirationTime.Weekday()]
+
+    if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour {
+        return expirationTime
+    }
+
+    nextDay := t.Add(24 * time.Hour)
+    nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
+    diff := int(PICK_TIME.Hours()) - (validTime.endHour - t.Hour())
+    expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
+    return expirationTime.Add(time.Duration(diff) * time.Hour)
 }

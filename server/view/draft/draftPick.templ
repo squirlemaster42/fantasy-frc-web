@@ -59,7 +59,9 @@ templ RenderPicks(draft model.Draft, isCurrentPick bool) {
                     }
                     if draft.NextPick.Id == player.Id {
                         <tr>
-                            <td class="border"><input disabled?={!isCurrentPick} name="pickInput" class="bg-transparent"/></td>
+                            <td class="border">
+                                <input placeholder={player.Picks[len(player.Picks) - 1].ExpirationTime.Format("01-02-2006 15:04:05")} disabled?={!isCurrentPick} name="pickInput" style="background: rgb(0 2 105);"/>
+                            </td>
                         </tr>
                         {{lines++}}
                     }

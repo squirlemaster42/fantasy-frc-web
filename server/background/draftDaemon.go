@@ -3,82 +3,13 @@ package background
 import (
 	"database/sql"
 	"errors"
-	"server/logging"
 	"server/model"
+	"server/utils"
 	"sync"
 	"time"
 )
 
-var PICK_TIME time.Duration = 3 * time.Hour
-
-var ALLOWED_TIMES = map[time.Weekday][]TimeRange {
-    time.Sunday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Monday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Tuesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Wednesday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Thursday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Friday: {
-        {
-            startHour: 17,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-    time.Saturday: {
-        {
-            startHour: 8,
-            startMinute: 0,
-            endHour: 22,
-            endMinute: 0,
-        },
-    },
-}
-
-type TimeRange struct {
-    startHour int
-    startMinute int
-    endHour int
-    endMinute int
-}
-
 type DraftDaemon struct {
-    logger *logging.Logger
     database *sql.DB
     running bool
     interval int //Time to wait between runs
@@ -86,9 +17,8 @@ type DraftDaemon struct {
     runningDrafts map[int]bool
 }
 
-func NewDraftDaemon(logger *logging.Logger, database *sql.DB) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB) *DraftDaemon {
     return &DraftDaemon{
-        logger: logger,
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),
@@ -112,17 +42,15 @@ func (d *DraftDaemon) Run() {
         //Get current picks for the running drafts
         for draftId := range d.runningDrafts {
             curPick := model.GetCurrentPick(d.database, draftId)
-
-            //TODO We need to for work/school hours
-            if time.Since(curPick.AvailableTime) > PICK_TIME {
-                //If the pick has not been make after this time we need to mark the
-                //Pick as skipped and make the next one
-                //TODO We need to make the next pick
+            if curPick.ExpirationTime.After(time.Now()) {
+                //We want to skip the current pick and go to the next one
+                nextPickPlayer := model.NextPick(d.database, draftId)
                 model.SkipPick(d.database, curPick.Id)
+                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
             }
         }
 
-        time.Sleep(5 * time.Minute)
+        time.Sleep(1 * time.Minute)
     }
 }
 

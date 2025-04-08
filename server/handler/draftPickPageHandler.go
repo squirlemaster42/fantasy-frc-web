@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"server/assert"
 	"server/model"
+	"server/utils"
 	"server/view/draft"
 	"strconv"
 	"strings"
@@ -17,7 +19,7 @@ import (
 
 func (h *Handler) ServePickPage(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Server Pick Page")
-    h.Logger.Log(fmt.Sprintf("Serving pick page to %s", c.RealIP()))
+    slog.Info("Serving pick page", "Ip", c.RealIP())
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
@@ -44,13 +46,12 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
     draftIdStr := c.Param("id")
     pick := "frc" + c.FormValue("pickInput")
-    h.Logger.Log(fmt.Sprintf("Attempting to pick team %s", pick))
+    slog.Info("Attempting to pick team", "Team", pick)
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(draftIdStr)
-    h.Logger.Log(fmt.Sprintf("Got request for player %d to make pick %s in draft %d", userId, pick, draftId))
+    slog.Info("Got request for player to make pick in draft", "User Id", userId, "Pick", pick, "Draft Id", draftId)
     assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
 
-    //TODO We need to make sure that the player who is making the pick is the one who has the next pick
     draftModel := model.GetDraft(h.Database, draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
 
@@ -58,7 +59,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     validPick := model.ValidPick(h.Database, &h.TbaHandler, pick, draftId)
     if !validPick || !isCurrentPick{
         isInvalid = true
-        h.Logger.Log(fmt.Sprintf("Invalid Pick - ValidPick: %t - IsCurrentPick: %t", validPick, isCurrentPick))
+        slog.Warn("Count Not Make Pick", "Valid Pick", validPick, "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId)
     } else {
         pickId := model.GetCurrentPick(h.Database, draftId).Id
 
@@ -79,7 +80,14 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         model.MakePick(h.Database, pickStruct)
 
         nextPickPlayer := model.NextPick(h.Database, draftId)
-        model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now())
+
+        //Make the next pick available if we havn't aleady made all picks
+        picks := model.GetPicks(h.Database, draftId)
+
+        if len(picks) < 64 {
+            model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+        }
+
         h.Notifier.NotifyWatchers(draftId)
     }
 

@@ -1,14 +1,14 @@
 package handler
 
 import (
-    "fmt"
-    "strconv"
+	"log/slog"
+	"strconv"
 
-    "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4"
 
-    "server/assert"
-    "server/model"
-    draftView "server/view/draft"
+	"server/assert"
+	"server/model"
+	draftView "server/view/draft"
 )
 
 func (h *Handler) HandleViewInvites(c echo.Context) error {
@@ -46,14 +46,14 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
     //Make sure that other players cannot accept someones draft
     if invite.InvitedPlayer != userId {
-        h.Logger.Log(fmt.Sprintf("Invited Player: %d User ID: %d", invite.InvitedPlayer, userId))
+        slog.Info("Invited player to draft", "Invited Player", invite.InvitedPlayer, "Inviting Player", userId)
         return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
     }
 
-    h.Logger.Log(fmt.Sprintf("Accepting invite %d from player %d", inviteId, userId))
+    slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userId)
+
     // if more than 8 players are invites then we cancel the other outstanding invites
     // Maybe we need an active bool
-
     // Check that accepting this invite will not lead to more than eight players being in the draft
     numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
     if numPlayers >= 8 {

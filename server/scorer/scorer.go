@@ -1,34 +1,32 @@
 package scorer
 
 import (
-    "database/sql"
-    "fmt"
-    "regexp"
-    "server/assert"
-    "server/logging"
-    "server/model"
-    "server/tbaHandler"
-    "server/utils"
-    "strconv"
-    "strings"
-    "time"
+	"database/sql"
+	"server/swagger"
+	"log/slog"
+	"regexp"
+	"server/assert"
+	"server/model"
+	"server/tbaHandler"
+	"server/utils"
+	"strconv"
+	"strings"
 )
 
+//TODO Once we change things to use web hooks we shouldnt need this anymore
 var RESCORE_INTERATION_COUNT = 72
 
 type Scorer struct {
     tbaHandler       *tbaHandler.TbaHandler
     database         *sql.DB
-    logger           *logging.Logger
     scoringIteration int
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, logger *logging.Logger) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
     return &Scorer{
         tbaHandler:       tbaHandler,
         database:         database,
         scoringIteration: 0,
-        logger:           logger,
     }
 }
 
@@ -45,7 +43,7 @@ func playoffMatchCompLevels() map[string]bool {
 }
 
 // Match, dqed teams
-func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, bool) {
+func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, bool) {
     scoredMatch := model.Match{
         TbaId:     match.Key,
         Played:    match.PostResultTime > 0,
@@ -66,42 +64,57 @@ func (s *Scorer) scoreMatch(match tbaHandler.Match, rescore bool) (model.Match, 
     scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
     scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
 
-    s.logger.Log(fmt.Sprintf("Scored Match: %s", scoredMatch.String()))
+    slog.Info("Scored Match", "Match", scoredMatch.String())
 
     return scoredMatch, true
 }
 
-func getQualMatchScore(match tbaHandler.Match) (int, int) {
+func getQualMatchScore(match swagger.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
+    slog.Info("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
     if match.WinningAlliance == "red" {
-        redScore += 4
+        redScore += 3
     } else if match.WinningAlliance == "blue" {
-        blueScore += 4
+        blueScore += 3
     }
 
-    if match.ScoreBreakdown.Red.MelodyBonusAchieved {
-        redScore += 2
+    if match.ScoreBreakdown.Red.AutoBonusAchieved{
+        redScore += 1
+        slog.Info("Red Auto Bonus Achieved", "Score", redScore)
     }
 
-    if match.ScoreBreakdown.Red.EnsembleBonusAchieved {
-        redScore += 2
+    if match.ScoreBreakdown.Red.BargeBonusAchieved{
+        redScore += 1
+        slog.Info("Red Barge Bonus Achieved", "Score", redScore)
     }
 
-    if match.ScoreBreakdown.Blue.MelodyBonusAchieved {
-        blueScore += 2
+    if match.ScoreBreakdown.Red.CoralBonusAchieved{
+        redScore += 1
+        slog.Info("Red Coral Bonus Achieved", "Score", redScore)
     }
 
-    if match.ScoreBreakdown.Blue.EnsembleBonusAchieved {
-        blueScore += 2
+    if match.ScoreBreakdown.Blue.AutoBonusAchieved{
+        blueScore += 1
+        slog.Info("Blue Auto Bonus Achieved", "Score", blueScore)
+    }
+
+    if match.ScoreBreakdown.Blue.BargeBonusAchieved{
+        blueScore += 1
+        slog.Info("Blue Barge Bonus Achieved", "Score", blueScore)
+    }
+
+    if match.ScoreBreakdown.Blue.CoralBonusAchieved{
+        blueScore += 1
+        slog.Info("Blue Coral Bonus Achieved", "Score", blueScore)
     }
 
     return redScore, blueScore
 }
 
-func getUpperBracketMatchIds() map[int]bool {
-    return map[int]bool{
+func getUpperBracketMatchIds() map[int32]bool {
+    return map[int32]bool{
         1:  true,
         2:  true,
         3:  true,
@@ -112,8 +125,8 @@ func getUpperBracketMatchIds() map[int]bool {
     }
 }
 
-func getLowerBracketMatchIds() map[int]bool {
-    return map[int]bool{
+func getLowerBracketMatchIds() map[int32]bool {
+    return map[int32]bool{
         5:  true,
         6:  true,
         9:  true,
@@ -124,7 +137,7 @@ func getLowerBracketMatchIds() map[int]bool {
 }
 
 // RedScore, BlueScore
-func getPlayoffMatchScore(match tbaHandler.Match) (int, int) {
+func getPlayoffMatchScore(match swagger.Match) (int, int) {
     redScore := 0
     blueScore := 0
 
@@ -185,13 +198,13 @@ func (s *Scorer) getTeamRankingScore(team string) int {
         return 0
     }
     status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
-    s.logger.Log(fmt.Sprintf("Team %s Rank: %d", team, status.Qual.Ranking.Rank))
+    slog.Info("Getting ranking score", "Team", team, "Rank", status.Qual.Ranking.Rank)
     score := max((25-status.Qual.Ranking.Rank)*2, 0)
-    return score
+    return int(score)
 }
 
 func einstein() string {
-    return "2024cmptx"
+    return "2025cmptx"
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
@@ -199,7 +212,7 @@ func (s *Scorer) getChampEventForTeam(teamId string) string {
     //Check which event is in the list of champ events
     //We are going to ignore Einstein here since we just use this to determine the ranking score
     //which does not apply to Einstein
-    s.logger.Log("Getting Events For Team")
+    slog.Info("Getting Events For Team", "Team", teamId)
     eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
     //Even though this is O(e*f), where e is the number of events the team played during the season and f is
     //the number of champs field, both will be small so this is probably faster than a hashset
@@ -376,6 +389,43 @@ func isDqed(team string, dqedTeams []string) bool {
     return false
 }
 
+var ALLIANCE_SCORES = map[int][]int16 {
+    1: {32, 31, 9, 8},
+    2: {30, 29, 10, 7},
+    3: {28, 27, 11, 6},
+    4: {26, 25, 12, 5},
+    5: {24, 23, 13, 4},
+    6: {22, 21, 14, 3},
+    7: {20, 19, 15, 2},
+    8: {18, 17, 16, 1},
+}
+
+func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance) map[string]int16 {
+    assert.CreateAssertWithContext("Get Alliance Selection Score")
+    scores := make(map[string]int16)
+
+    splitAllianceName := strings.Split(alliance.Name, " ")
+    if len(splitAllianceName) != 2 {
+        slog.Error("Alliance name was not in an expected format", "Name", alliance.Name)
+    }
+
+    allianceNum, err := strconv.Atoi(splitAllianceName[1])
+    if err != nil {
+        slog.Error("Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
+    }
+
+    if allianceNum > 8 || allianceNum < 1 {
+        slog.Error("Unsupported alliance number", "Alliance", alliance.Name)
+    }
+
+    scoreArr := ALLIANCE_SCORES[allianceNum]
+    for i, team := range alliance.Picks {
+        scores[team] = scoreArr[i] * 2
+    }
+
+    return scores
+}
+
 func (s *Scorer) RunScorer() {
     //This function will run on its own routine
     //We will first update our list of teams with all of the teams at all of the events in getChampEvents
@@ -386,87 +436,104 @@ func (s *Scorer) RunScorer() {
     //We will will have this process run every five minutes and we will rescore all matches every 6 hours
     //In this iteration we also update the valid teams
 
-    go func(s *Scorer) {
-        for {
-            //TODO Skip scoring if we are not on an event day
-            //Get a list of matches to score and
-            //Sort matches by id (they are almost sorted, but we need to move finals matches to the end (no they are not, I dont see any corrilation))
-            s.logger.Log("Starting scoring iteration")
-            allTeams := make(map[string]bool)
-            matches := make(map[string][]string)
-            for _, event := range utils.Events() {
-                matches[event] = s.sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
-            }
+    go s.scoringRunner()
+}
 
-            //Score matches until we hit one that has not been played
-            var scoringQueue []string
-            currentMatch := make(map[string]int)
-            for event := range matches {
-                currentMatch[event] = 1
-                scoringQueue = append(scoringQueue, matches[event][0])
-            }
+func (s *Scorer) AddMatchToScore() {
 
-            for {
-                match := scoringQueue[0]
-                scoringQueue = scoringQueue[1:]
+}
 
-                dbMatchPtr := model.GetMatch(s.database, match)
+func (s *Scorer) updateMatchInDB(dbMatch model.Match, allTeams map[string]bool) {
+    slog.Info("Updating Match Scores", "Match", dbMatch.String())
+    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+    for _, team := range dbMatch.BlueAlliance {
+        allTeams[team] = true
+        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+    }
+    for _, team := range dbMatch.RedAlliance {
+        allTeams[team] = true
+        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+    }
+}
 
-                if dbMatchPtr == nil {
-                    model.AddMatch(s.database, match)
-                    dbMatchPtr = &model.Match{
-                        TbaId:        match,
-                        BlueAlliance: []string{},
-                        RedAlliance:  []string{},
-                        DqedTeams:    []string{},
-                        Played:       false,
-                    }
-                }
+func (s *Scorer) scoringRunner() {
+    for {
+        //We need to rewrite this to support websockets
+        //We need to score matches that have been played when the scorer starts up and then
+        //score matches that come in over the websocket
 
-                dbMatch := *dbMatchPtr
-                s.logger.Log(fmt.Sprintf("Scoring match %s", dbMatchPtr.String()))
-
-                scored := false
-                if !dbMatch.Played || s.scoringIteration%RESCORE_INTERATION_COUNT == 0 {
-                    s.logger.Log("Match was not played or rescoring all matches")
-                    tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
-                    dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration%RESCORE_INTERATION_COUNT == 0)
-                }
-
-                event := strings.Split(match, "_")[0]
-                currentMatch[event] = currentMatch[event] + 1
-                if len(matches[event]) > 0 {
-                    scoringQueue = append(scoringQueue, matches[event][0])
-                    matches[event] = matches[event][1:]
-                }
-
-                if scored {
-                    s.logger.Log(fmt.Sprintf("Updating Match Scores %s", dbMatch.String()))
-                    model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
-                    for _, team := range dbMatch.BlueAlliance {
-                        allTeams[team] = true
-                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
-                    }
-                    for _, team := range dbMatch.RedAlliance {
-                        allTeams[team] = true
-                        model.AssocateTeam(s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
-                    }
-                }
-
-                if len(scoringQueue) == 0 {
-                    break
-                }
-            }
-
-            //Update ranking scores
-            for team := range allTeams {
-                s.logger.Log(fmt.Sprintf("Updating ranking score for team %s", team))
-                model.UpdateTeamRankingScore(s.database, team, s.getTeamRankingScore(team))
-            }
-
-            s.scoringIteration++
-            s.logger.Log("Finished scoring iteration")
-            time.Sleep(5 * time.Minute)
+        //Get a list of matches to score and
+        //Sort matches by id
+        slog.Info("Starting scoring iteration")
+        allTeams := make(map[string]bool)
+        matches := make(map[string][]string)
+        for _, event := range utils.Events() {
+            matches[event] = s.sortMatchesByPlayOrder(s.tbaHandler.MakeEventMatchKeysRequest(event))
         }
-    }(s)
+
+        //Score matches until we hit one that has not been played
+        var scoringQueue []string
+        currentMatch := make(map[string]int)
+        for event := range matches {
+            currentMatch[event] = 1
+            scoringQueue = append(scoringQueue, matches[event][0])
+        }
+
+        for {
+            match := scoringQueue[0]
+            scoringQueue = scoringQueue[1:]
+
+            slog.Info("Starting scoring run", "Match", match)
+            dbMatchPtr := model.GetMatch(s.database, match)
+
+            if dbMatchPtr == nil {
+                model.AddMatch(s.database, match)
+                dbMatchPtr = &model.Match{
+                    TbaId:        match,
+                    BlueAlliance: []string{},
+                    RedAlliance:  []string{},
+                    DqedTeams:    []string{},
+                    Played:       false,
+                }
+            }
+
+            dbMatch := *dbMatchPtr
+            slog.Info("Scoring match", "Match", dbMatchPtr.String())
+
+            scored := false
+            if !dbMatch.Played || s.scoringIteration % RESCORE_INTERATION_COUNT == 0 {
+                slog.Info("Match was not played or rescoring all matches")
+                tbaMatch := s.tbaHandler.MakeMatchReq(dbMatch.TbaId)
+                dbMatch, scored = s.scoreMatch(tbaMatch, s.scoringIteration % RESCORE_INTERATION_COUNT == 0)
+            }
+
+            event := strings.Split(match, "_")[0]
+            currentMatch[event] = currentMatch[event] + 1
+            if len(matches[event]) > 0 {
+                scoringQueue = append(scoringQueue, matches[event][0])
+                matches[event] = matches[event][1:]
+            }
+
+            if scored {
+                s.updateMatchInDB(dbMatch, allTeams)
+            }
+
+            if len(scoringQueue) == 0 {
+                break
+            }
+        }
+
+        //Update alliance selection scores
+        //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
+        for _, event := range utils.Events() {
+            alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
+            for _, alliance := range alliances {
+                scores := s.GetAllianceSelectionScore(alliance)
+                for team, score := range scores {
+                    slog.Info("Update alliance score for team", "Team", team, "Score", score)
+                    model.UpdateTeamAllianceScore(s.database, team, score)
+                }
+            }
+        }
+    }
 }

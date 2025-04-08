@@ -2,211 +2,29 @@ package tbaHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"server/logging"
+	"server/swagger"
 )
 
 const (
     BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
 
-//Make structs for different tba objects
-type Match struct {
-	ActualTime int `json:"actual_time"`
-	Alliances  struct {
-		Blue struct {
-			DqTeamKeys        []string `json:"dq_team_keys"`
-			Score             int      `json:"score"`
-			SurrogateTeamKeys []string `json:"surrogate_team_keys"`
-			TeamKeys          []string `json:"team_keys"`
-		} `json:"blue"`
-		Red struct {
-			DqTeamKeys        []string `json:"dq_team_keys"`
-			Score             int      `json:"score"`
-			SurrogateTeamKeys []string `json:"surrogate_team_keys"`
-			TeamKeys          []string `json:"team_keys"`
-		} `json:"red"`
-	} `json:"alliances"`
-	CompLevel      string `json:"comp_level"`
-	EventKey       string `json:"event_key"`
-	Key            string `json:"key"`
-	MatchNumber    int    `json:"match_number"`
-	PostResultTime int    `json:"post_result_time"`
-	PredictedTime  int    `json:"predicted_time"`
-	ScoreBreakdown struct {
-		Blue struct {
-			AdjustPoints                        int    `json:"adjustPoints"`
-			AutoAmpNoteCount                    int    `json:"autoAmpNoteCount"`
-			AutoAmpNotePoints                   int    `json:"autoAmpNotePoints"`
-			AutoLeavePoints                     int    `json:"autoLeavePoints"`
-			AutoLineRobot1                      string `json:"autoLineRobot1"`
-			AutoLineRobot2                      string `json:"autoLineRobot2"`
-			AutoLineRobot3                      string `json:"autoLineRobot3"`
-			AutoPoints                          int    `json:"autoPoints"`
-			AutoSpeakerNoteCount                int    `json:"autoSpeakerNoteCount"`
-			AutoSpeakerNotePoints               int    `json:"autoSpeakerNotePoints"`
-			AutoTotalNotePoints                 int    `json:"autoTotalNotePoints"`
-			CoopNotePlayed                      bool   `json:"coopNotePlayed"`
-			CoopertitionBonusAchieved           bool   `json:"coopertitionBonusAchieved"`
-			CoopertitionCriteriaMet             bool   `json:"coopertitionCriteriaMet"`
-			EndGameHarmonyPoints                int    `json:"endGameHarmonyPoints"`
-			EndGameNoteInTrapPoints             int    `json:"endGameNoteInTrapPoints"`
-			EndGameOnStagePoints                int    `json:"endGameOnStagePoints"`
-			EndGameParkPoints                   int    `json:"endGameParkPoints"`
-			EndGameRobot1                       string `json:"endGameRobot1"`
-			EndGameRobot2                       string `json:"endGameRobot2"`
-			EndGameRobot3                       string `json:"endGameRobot3"`
-			EndGameSpotLightBonusPoints         int    `json:"endGameSpotLightBonusPoints"`
-			EndGameTotalStagePoints             int    `json:"endGameTotalStagePoints"`
-			EnsembleBonusAchieved               bool   `json:"ensembleBonusAchieved"`
-			EnsembleBonusOnStageRobotsThreshold int    `json:"ensembleBonusOnStageRobotsThreshold"`
-			EnsembleBonusStagePointsThreshold   int    `json:"ensembleBonusStagePointsThreshold"`
-			FoulCount                           int    `json:"foulCount"`
-			FoulPoints                          int    `json:"foulPoints"`
-			G206Penalty                         bool   `json:"g206Penalty"`
-			G408Penalty                         bool   `json:"g408Penalty"`
-			G424Penalty                         bool   `json:"g424Penalty"`
-			MelodyBonusAchieved                 bool   `json:"melodyBonusAchieved"`
-			MelodyBonusThreshold                int    `json:"melodyBonusThreshold"`
-			MelodyBonusThresholdCoop            int    `json:"melodyBonusThresholdCoop"`
-			MelodyBonusThresholdNonCoop         int    `json:"melodyBonusThresholdNonCoop"`
-			MicCenterStage                      bool   `json:"micCenterStage"`
-			MicStageLeft                        bool   `json:"micStageLeft"`
-			MicStageRight                       bool   `json:"micStageRight"`
-			Rp                                  int    `json:"rp"`
-			TechFoulCount                       int    `json:"techFoulCount"`
-			TeleopAmpNoteCount                  int    `json:"teleopAmpNoteCount"`
-			TeleopAmpNotePoints                 int    `json:"teleopAmpNotePoints"`
-			TeleopPoints                        int    `json:"teleopPoints"`
-			TeleopSpeakerNoteAmplifiedCount     int    `json:"teleopSpeakerNoteAmplifiedCount"`
-			TeleopSpeakerNoteAmplifiedPoints    int    `json:"teleopSpeakerNoteAmplifiedPoints"`
-			TeleopSpeakerNoteCount              int    `json:"teleopSpeakerNoteCount"`
-			TeleopSpeakerNotePoints             int    `json:"teleopSpeakerNotePoints"`
-			TeleopTotalNotePoints               int    `json:"teleopTotalNotePoints"`
-			TotalPoints                         int    `json:"totalPoints"`
-			TrapCenterStage                     bool   `json:"trapCenterStage"`
-			TrapStageLeft                       bool   `json:"trapStageLeft"`
-			TrapStageRight                      bool   `json:"trapStageRight"`
-		} `json:"blue"`
-		Red struct {
-			AdjustPoints                        int    `json:"adjustPoints"`
-			AutoAmpNoteCount                    int    `json:"autoAmpNoteCount"`
-			AutoAmpNotePoints                   int    `json:"autoAmpNotePoints"`
-			AutoLeavePoints                     int    `json:"autoLeavePoints"`
-			AutoLineRobot1                      string `json:"autoLineRobot1"`
-			AutoLineRobot2                      string `json:"autoLineRobot2"`
-			AutoLineRobot3                      string `json:"autoLineRobot3"`
-			AutoPoints                          int    `json:"autoPoints"`
-			AutoSpeakerNoteCount                int    `json:"autoSpeakerNoteCount"`
-			AutoSpeakerNotePoints               int    `json:"autoSpeakerNotePoints"`
-			AutoTotalNotePoints                 int    `json:"autoTotalNotePoints"`
-			CoopNotePlayed                      bool   `json:"coopNotePlayed"`
-			CoopertitionBonusAchieved           bool   `json:"coopertitionBonusAchieved"`
-			CoopertitionCriteriaMet             bool   `json:"coopertitionCriteriaMet"`
-			EndGameHarmonyPoints                int    `json:"endGameHarmonyPoints"`
-			EndGameNoteInTrapPoints             int    `json:"endGameNoteInTrapPoints"`
-			EndGameOnStagePoints                int    `json:"endGameOnStagePoints"`
-			EndGameParkPoints                   int    `json:"endGameParkPoints"`
-			EndGameRobot1                       string `json:"endGameRobot1"`
-			EndGameRobot2                       string `json:"endGameRobot2"`
-			EndGameRobot3                       string `json:"endGameRobot3"`
-			EndGameSpotLightBonusPoints         int    `json:"endGameSpotLightBonusPoints"`
-			EndGameTotalStagePoints             int    `json:"endGameTotalStagePoints"`
-			EnsembleBonusAchieved               bool   `json:"ensembleBonusAchieved"`
-			EnsembleBonusOnStageRobotsThreshold int    `json:"ensembleBonusOnStageRobotsThreshold"`
-			EnsembleBonusStagePointsThreshold   int    `json:"ensembleBonusStagePointsThreshold"`
-			FoulCount                           int    `json:"foulCount"`
-			FoulPoints                          int    `json:"foulPoints"`
-			G206Penalty                         bool   `json:"g206Penalty"`
-			G408Penalty                         bool   `json:"g408Penalty"`
-			G424Penalty                         bool   `json:"g424Penalty"`
-			MelodyBonusAchieved                 bool   `json:"melodyBonusAchieved"`
-			MelodyBonusThreshold                int    `json:"melodyBonusThreshold"`
-			MelodyBonusThresholdCoop            int    `json:"melodyBonusThresholdCoop"`
-			MelodyBonusThresholdNonCoop         int    `json:"melodyBonusThresholdNonCoop"`
-			MicCenterStage                      bool   `json:"micCenterStage"`
-			MicStageLeft                        bool   `json:"micStageLeft"`
-			MicStageRight                       bool   `json:"micStageRight"`
-			Rp                                  int    `json:"rp"`
-			TechFoulCount                       int    `json:"techFoulCount"`
-			TeleopAmpNoteCount                  int    `json:"teleopAmpNoteCount"`
-			TeleopAmpNotePoints                 int    `json:"teleopAmpNotePoints"`
-			TeleopPoints                        int    `json:"teleopPoints"`
-			TeleopSpeakerNoteAmplifiedCount     int    `json:"teleopSpeakerNoteAmplifiedCount"`
-			TeleopSpeakerNoteAmplifiedPoints    int    `json:"teleopSpeakerNoteAmplifiedPoints"`
-			TeleopSpeakerNoteCount              int    `json:"teleopSpeakerNoteCount"`
-			TeleopSpeakerNotePoints             int    `json:"teleopSpeakerNotePoints"`
-			TeleopTotalNotePoints               int    `json:"teleopTotalNotePoints"`
-			TotalPoints                         int    `json:"totalPoints"`
-			TrapCenterStage                     bool   `json:"trapCenterStage"`
-			TrapStageLeft                       bool   `json:"trapStageLeft"`
-			TrapStageRight                      bool   `json:"trapStageRight"`
-		} `json:"red"`
-	} `json:"score_breakdown"`
-	SetNumber       int    `json:"set_number"`
-	Time            int    `json:"time"`
-	Videos          []any  `json:"videos"`
-	WinningAlliance string `json:"winning_alliance"`
-}
-
-type Event struct {
-	Alliance          any    `json:"alliance"`
-	AllianceStatusStr string `json:"alliance_status_str"`
-	LastMatchKey      string `json:"last_match_key"`
-	NextMatchKey      string `json:"next_match_key"`
-	OverallStatusStr  string `json:"overall_status_str"`
-	Playoff           any    `json:"playoff"`
-	PlayoffStatusStr  string `json:"playoff_status_str"`
-	Qual              struct {
-		NumTeams int `json:"num_teams"`
-		Ranking  struct {
-			Dq            int `json:"dq"`
-			MatchesPlayed int `json:"matches_played"`
-			QualAverage   any `json:"qual_average"`
-			Rank          int `json:"rank"`
-			Record        struct {
-				Losses int `json:"losses"`
-				Ties   int `json:"ties"`
-				Wins   int `json:"wins"`
-			} `json:"record"`
-			SortOrders []float64 `json:"sort_orders"`
-			TeamKey    string    `json:"team_key"`
-		} `json:"ranking"`
-		SortOrderInfo []struct {
-			Name      string `json:"name"`
-			Precision int    `json:"precision"`
-		} `json:"sort_order_info"`
-		Status string `json:"status"`
-	} `json:"qual"`
-}
-
-type Team struct {
-	Key        string `json:"key"`
-	TeamNumber int    `json:"team_number"`
-	Nickname   string `json:"nickname"`
-	Name       string `json:"name"`
-	City       string `json:"city"`
-	StateProv  string `json:"state_prov"`
-	Country    string `json:"country"`
-}
-
 type TbaHandler struct {
     tbaToken string
-    logger *logging.Logger
 }
 
-func NewHandler(tbaToken string, logger *logging.Logger) *TbaHandler {
+func NewHandler(tbaToken string) *TbaHandler {
     handler := &TbaHandler{
         tbaToken: tbaToken,
-        logger: logger,
     }
     return handler
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
-    t.logger.Log(fmt.Sprintf("Making TBA request to %s", url))
+    slog.Info("Making TBA request", "Url", url)
     client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)
@@ -231,10 +49,10 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 }
 
 //Make functions to make tba requests
-func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []Match {
+func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.Match {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
     jsonData := t.makeRequest(url)
-    var matches []Match
+    var matches []swagger.Match
     json.Unmarshal(jsonData, &matches)
     return matches
 }
@@ -247,9 +65,9 @@ func (t *TbaHandler) MakeEventListReq(teamId string) []string {
     return events
 }
 
-func (t *TbaHandler) MakeMatchReq(matchId string) Match {
+func (t *TbaHandler) MakeMatchReq(matchId string) swagger.Match {
     url := BASE_URL + "match/" + matchId
-    var match Match
+    var match swagger.Match
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &match)
     return match
@@ -279,18 +97,27 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
     return matches
 }
 
-func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) Event {
+func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) swagger.TeamEventStatus {
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
-    var event Event
+    var event swagger.TeamEventStatus
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &event)
     return event
 }
 
-func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []Team {
+func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
     url := BASE_URL + "event/" + eventId + "/teams/simple"
-    var teams []Team
+    var teams []swagger.Team
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &teams)
     return teams
+}
+
+func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.EliminationAlliance {
+    url := BASE_URL + "event/" + eventId + "/alliances"
+    var alliances []swagger.EliminationAlliance
+    jsonData := t.makeRequest(url)
+    slog.Info(string(jsonData))
+    json.Unmarshal(jsonData, &alliances)
+    return alliances
 }

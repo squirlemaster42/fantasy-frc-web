@@ -3,7 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/base32"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"server/assert"
 	"server/model"
@@ -43,7 +43,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	//We wont validate the password if the user does not exist
 	valid := model.UsernameTaken(h.Database, username) && model.ValidateLogin(h.Database, username, password)
 	if valid {
-		h.Logger.Log(fmt.Sprintf("Valid login attempt for user: %s", username))
+		slog.Info("Valid login attempt for user", "Username", username)
 		userId := model.GetUserIdByUsername(h.Database, username)
 		sessionTok := generateSessionToken()
 		model.RegisterSession(h.Database, userId, sessionTok)
@@ -58,7 +58,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		return nil
 	}
 
-	h.Logger.Log(fmt.Sprintf("---- Invalid login attempt for user: %s ----", username))
+	slog.Warn("Invalid login attempt for user", "Username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
 	err := Render(c, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
@@ -95,7 +95,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	confirmPassword := c.FormValue("confirmPassword")
 
 	if model.UsernameTaken(h.Database, username) {
-		h.Logger.Log(fmt.Sprintf("---- Account creation attempt for existing user but username was taken: %s ----", username))
+		slog.Info("Account creation attempt for existing user but username was taken", "Username", username)
 
 		register := login.RegisterIndex(false, "Username Taken")
 		err := Render(c, register)
@@ -106,7 +106,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	if password != confirmPassword {
-		h.Logger.Log(fmt.Sprintf("---- Password and Confirm Password do not match for user attempting to register: %s ----", username))
+		slog.Info("Password and Confirm Password do not match for user attempting to register", "Username", username)
 
 		register := login.RegisterIndex(false, "Passwords Do Not Match")
 		err := Render(c, register)
@@ -115,7 +115,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return nil
 	}
 
-	h.Logger.Log(fmt.Sprintf("Valid registration for user: %s", username))
+	slog.Info("Valid registration for user", "Username", username)
     userId := model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userId, sessionTok)

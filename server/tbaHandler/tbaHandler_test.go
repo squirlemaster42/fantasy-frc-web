@@ -3,7 +3,6 @@ package tbaHandler
 import (
 	"os"
 	"path/filepath"
-	"server/logging"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -19,8 +18,7 @@ func getTbaTok() string {
 func TestMatchListReq(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     matches := handler.MakeMatchListReq("frc1690", "2024isde1")
     assert.True(t, len(matches) > 0, "No matches were found")
     firstMatch := matches[0]
@@ -36,8 +34,7 @@ func TestMatchListReq(t *testing.T) {
 func TestEventListReq(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     events := handler.MakeEventListReq("frc1690")
     if (len(events) == 0) {
         t.Fatalf("No events were found")
@@ -47,8 +44,7 @@ func TestEventListReq(t *testing.T) {
 func TestMatchReq(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     match := handler.MakeMatchReq("2024isde1_qm36")
     if (match.ScoreBreakdown.Blue.TeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
@@ -58,8 +54,7 @@ func TestMatchReq(t *testing.T) {
 func TestMatchKeysRequest(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     keys := handler.MakeMatchKeysRequest("frc1690", "2024isde1")
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
@@ -69,8 +64,7 @@ func TestMatchKeysRequest(t *testing.T) {
 func TestMatchKeysYearRequest(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     keys := handler.MakeMatchKeysYearRequest("frc1690")
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
@@ -80,8 +74,7 @@ func TestMatchKeysYearRequest(t *testing.T) {
 func TestTeamEventStatusRequest(t *testing.T) {
     tbaTok := getTbaTok()
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    handler := NewHandler(tbaTok, logger)
+    handler := NewHandler(tbaTok)
     event := handler.MakeTeamEventStatusRequest("frc1690", "2024isde1")
     if (event.LastMatchKey == "") {
         t.Fatalf("There should be a last match")

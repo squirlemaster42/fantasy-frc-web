@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"server/assert"
 	"server/model"
 	draftView "server/view/draft"
@@ -13,7 +14,7 @@ import (
 )
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
-	h.Logger.Log("Got a request to serve the draft profile page")
+	slog.Info("Got a request to serve the draft profile page")
 	assert := assert.CreateAssertWithContext("Handle update Draft Profile")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -35,7 +36,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
-    h.Logger.Log("Got request to update a draft")
+    slog.Info("Got request to update a draft")
     assert := assert.CreateAssertWithContext("Handle Update Draft Profile")
 
     draftId, err := strconv.Atoi(c.Param("id"))
@@ -68,7 +69,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
         //The user would need to hand craft this payload
         //so for now we just won't tell them what is wrong
         //because it is probably malicious
-        h.Logger.Log(fmt.Sprintf("User with id %d tried to update draft with id %d but was not the owner. The owner is %d.", userId, draftId, draftModel.Owner.Id))
+        slog.Info("User tried to update draft but was not the owner.", "UserId", userId, "DraftId", draftId, "Owner Id", draftModel.Owner.Id)
         return nil
     }
 
@@ -84,7 +85,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
     model.UpdateDraft(h.Database, &draftModel)
 
-    h.Logger.Log(fmt.Sprintf("Draft %d updated, reloading page", draftId))
+    slog.Info("Draft updated, reloading page", "Draft Id", draftId)
     c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
     return nil
 }
@@ -94,7 +95,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
 	assert.NoErrorCF(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	h.Logger.Log("Got request to search users")
+	slog.Info("Got request to search users")
 
 	users := model.SearchUsers(h.Database, searchInput, draftId)
 
@@ -127,7 +128,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	h.Logger.Log("Got request to search users")
+	slog.Info("Got request to search users")
 
 	users := model.SearchUsers(h.Database, searchInput, draftId)
 
