@@ -526,6 +526,9 @@ func (s *Scorer) scoringRunner() {
         //Update alliance selection scores
         //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
         for _, event := range utils.Events() {
+            if event == einstein() {
+                continue
+            }
             alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
             for _, alliance := range alliances {
                 scores := s.GetAllianceSelectionScore(alliance)
