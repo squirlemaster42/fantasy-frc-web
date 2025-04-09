@@ -11,6 +11,7 @@ import (
 	"server/utils"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TODO Once we change things to use web hooks we shouldnt need this anymore
@@ -541,5 +542,7 @@ func (s *Scorer) scoringRunner() {
                 }
             }
         }
+
+        time.Sleep(5 * time.Minute)
     }
 }
