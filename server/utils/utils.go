@@ -1,21 +1,17 @@
 package utils
 
 import (
-	"fmt"
-	"time"
+    "fmt"
+    "time"
 )
 
 func Events() []string {
     return []string{
-        "2025new",
-        "2025mil",
-        "2025joh",
-        "2025hop",
-        "2025gal",
-        "2025dal",
-        "2025cur",
-        "2025arc",
-        "2025cmptx",
+        "2025micmp1",
+        "2025micmp2",
+        "2025micmp3",
+        "2025micmp4",
+        "2025micmp",
     }
 }
 
@@ -33,7 +29,7 @@ func ParseArgString(argStr string) (map[string]string, error) {
     curChar := 0
     for curChar < len(argStr) {
         //Find the command
-        if argStr[curChar] == '-' && len(argStr) > curChar + 1 {
+        if argStr[curChar] == '-' && len(argStr) > curChar+1 {
             //We need to go from the next char to right before the =
             //and make that the command name
             argName := ""
@@ -82,38 +78,37 @@ var PICK_TIME time.Duration = 3 * time.Hour
 
 type TimeRange struct {
     startHour int
-    endHour int
+    endHour   int
 }
 
-
-var ALLOWED_TIMES = map[time.Weekday]TimeRange {
+var ALLOWED_TIMES = map[time.Weekday]TimeRange{
     time.Sunday: {
         startHour: 8,
-        endHour: 22,
+        endHour:   22,
     },
     time.Monday: {
         startHour: 17,
-        endHour: 22,
+        endHour:   22,
     },
     time.Tuesday: {
         startHour: 17,
-        endHour: 22,
+        endHour:   22,
     },
     time.Wednesday: {
         startHour: 17,
-        endHour: 22,
+        endHour:   22,
     },
     time.Thursday: {
         startHour: 17,
-        endHour: 22,
+        endHour:   22,
     },
     time.Friday: {
         startHour: 17,
-        endHour: 22,
+        endHour:   22,
     },
     time.Saturday: {
         startHour: 8,
-        endHour: 22,
+        endHour:   22,
     },
 }
 
