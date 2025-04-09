@@ -1,11 +1,12 @@
 package model
 
 import (
-    "database/sql"
-    "fmt"
-    "server/assert"
-    "server/tbaHandler"
-    "server/utils"
+	"database/sql"
+	"fmt"
+	"log/slog"
+	"server/assert"
+	"server/tbaHandler"
+	"server/utils"
 )
 
 type Team struct {
@@ -91,7 +92,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 // Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
 func GetScore(database *sql.DB, tbaId string) map[string]int {
     query := `Select
-                t.AllianceScore
+                COALESCE(t.AllianceScore, 0) As AllianceScore
             From Teams t
             Where t.TbaId = $1`
 
@@ -103,29 +104,31 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     var allianceScore int
     err = stmt.QueryRow(tbaId).Scan(&allianceScore)
     if err != nil {
+        slog.Error("Failed to get alliance score for team", "Team", tbaId, "Error", err)
         return nil
     }
 
     query = `Select
-                Case When mt.match_tbaId Like '%%_qm%%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%%%s%%' Then 'Einstein Score'
+                Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
                      Else 'Playoff Score' End As DisplayName,
                 Sum(Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End) As Score
              From Matches_Teams mt
              Inner Join Matches m On mt.Match_tbaId = m.tbaId
              Where mt.Team_TbaId = $1
-             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%%_qm%%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%%%s%%' Then 'Einstein Score'
+             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
                      Else 'Playoff Score' End
              Order By mt.Team_TbaId`
 
-    stmt, err = database.Prepare(fmt.Sprintf(query, utils.Einstein(), utils.Einstein()))
+    stmt, err = database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
 
     var displayName string
     var matchScore int
     rows, err := stmt.Query(tbaId)
     if err != nil {
+        slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
         return nil
     }
 
@@ -139,6 +142,8 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 
     scores["Alliance Score"] = allianceScore
     scores["Total Score"] = total + allianceScore
+
+    slog.Info("Got scores for team", "Team", tbaId, "Scores", scores)
 
     return scores
 }
