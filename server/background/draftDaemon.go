@@ -3,6 +3,7 @@ package background
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"server/model"
 	"server/utils"
 	"sync"
@@ -26,6 +27,7 @@ func NewDraftDaemon(database *sql.DB) *DraftDaemon {
 }
 
 func (d *DraftDaemon) Start() error {
+    slog.Info("Started draft daemon")
     d.mu.Lock()
     defer d.mu.Unlock()
     if !d.running {
@@ -42,7 +44,9 @@ func (d *DraftDaemon) Run() {
         //Get current picks for the running drafts
         for draftId := range d.runningDrafts {
             curPick := model.GetCurrentPick(d.database, draftId)
+            slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
             if curPick.ExpirationTime.After(time.Now()) {
+                slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime)
                 //We want to skip the current pick and go to the next one
                 nextPickPlayer := model.NextPick(d.database, draftId)
                 model.SkipPick(d.database, curPick.Id)
@@ -59,6 +63,7 @@ func (d *DraftDaemon) AddDraft(draftId int) error {
         return errors.New("Draft already added to Daemon")
     }
     d.runningDrafts[draftId] = true
+    slog.Info("Added draft to daemon", "Draft Id", draftId)
     return nil
 }
 
@@ -77,6 +82,7 @@ func (d *DraftDaemon) IsRunning() bool {
 }
 
 func (d *DraftDaemon) Stop() error {
+    slog.Info("Stopped draft daemon")
     d.running = false
     return nil
 }
