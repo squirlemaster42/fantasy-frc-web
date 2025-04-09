@@ -526,7 +526,6 @@ func (s *Scorer) scoringRunner() {
 			}
 		}
 
-<<<<<<< Updated upstream
         //Update alliance selection scores
         //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
         for _, event := range utils.Events() {
@@ -543,19 +542,4 @@ func (s *Scorer) scoringRunner() {
             }
         }
     }
-=======
-		//Update alliance selection scores
-		//TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
-		for _, event := range utils.Events() {
-			alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
-			for _, alliance := range alliances {
-				scores := s.GetAllianceSelectionScore(alliance)
-				for team, score := range scores {
-					slog.Info("Update alliance score for team", "Team", team, "Score", score)
-					model.UpdateTeamAllianceScore(s.database, team, score)
-				}
-			}
-		}
-	}
->>>>>>> Stashed changes
 }
