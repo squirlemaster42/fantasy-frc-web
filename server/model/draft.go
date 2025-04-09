@@ -753,7 +753,7 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
 
         //We know draft.players is order by player order
         assert.RunAssert(len(draft.Players) > lastPlayer.PlayerOrder + direction && lastPlayer.PlayerOrder + direction >= 0, "Next pick is out of bounds")
-        nextPlayer = draft.Players[lastPlayer.PlayerOrder+direction]
+        nextPlayer = draft.Players[lastPlayer.PlayerOrder + direction]
     }
 
 	//Take the pick and make it into a draft player
