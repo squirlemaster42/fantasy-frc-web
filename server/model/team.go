@@ -46,9 +46,9 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 
 func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16) {
     query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
-    assert := assert.CreateAssertWithContext("Update Team Ranking Score")
+    assert := assert.CreateAssertWithContext("Update Team Alliance Score")
     assert.AddContext("Tba Id", tbaId)
-    assert.AddContext("Ranking Score", allianceScore)
+    assert.AddContext("Alliance Score", allianceScore)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(allianceScore, tbaId)
@@ -88,7 +88,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
 // Keys are the string that represents display name and the value is the score
 // for that display name
-// Display names: Qual Score, Playoff Score, Ranking Score, Einstein Score, Total Score
+// Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
 func GetScore(database *sql.DB, tbaId string) map[string]int {
     query := `Select
                 t.AllianceScore
