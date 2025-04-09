@@ -28,6 +28,7 @@ func main() {
     dbUsername := os.Getenv("DB_USERNAME")
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
+    serverPort := os.Getenv("SERVER_PORT")
     slog.Info("Extracted Env Vars")
     //sessionSecret := os.Getenv("SESSION_SECRET")
     tbaHandler := tbaHandler.NewHandler(tbaTok)
@@ -64,5 +65,5 @@ func main() {
         slog.Info("Started Scorer")
         scorer.RunScorer()
     }
-    CreateServer(database, tbaHandler)
+    CreateServer(database, tbaHandler, serverPort)
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler) {
+func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string) {
     slog.Info("Starting Server")
     assert := assert.CreateAssertWithContext("Create Server")
     auth := authentication.NewAuth(db)
@@ -63,6 +63,6 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler) {
     admin.GET("/console", h.HandleAdminConsoleGet)
     admin.POST("/processCommand", h.HandleRunCommand)
 
-    err := app.Start(":3000")
+    err := app.Start(":" + serverPort)
     assert.NoError(err, "Failed to start server")
 }
