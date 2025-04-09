@@ -58,7 +58,7 @@ func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.M
 }
 
 func (t *TbaHandler) MakeEventListReq(teamId string) []string {
-    url := BASE_URL + "team/" + teamId + "/events/2024/keys"
+    url := BASE_URL + "team/" + teamId + "/events/2025/keys"
     var events []string
     jsonData := t.makeRequest(url)
     json.Unmarshal(jsonData, &events)
