@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"server/handler"
 	"server/model"
 	"server/utils"
 	"sync"
@@ -16,13 +17,15 @@ type DraftDaemon struct {
     interval int //Time to wait between runs
     mu sync.Mutex
     runningDrafts map[int]bool
+    notifier *handler.PickNotifier
 }
 
-func NewDraftDaemon(database *sql.DB) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB, notifier *handler.PickNotifier) *DraftDaemon {
     return &DraftDaemon{
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),
+        notifier: &handler.PickNotifier{},
     }
 }
 
@@ -52,6 +55,7 @@ func (d *DraftDaemon) Run() {
                 nextPickPlayer := model.NextPick(d.database, draftId)
                 model.SkipPick(d.database, curPick.Id)
                 model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+                d.notifier.NotifyWatchers(draftId)
             }
         }
 

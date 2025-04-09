@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string) {
+func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string, pickNotifier *handler.PickNotifier) {
     slog.Info("Starting Server")
     assert := assert.CreateAssertWithContext("Create Server")
     auth := authentication.NewAuth(db)
@@ -23,10 +23,7 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort stri
     h := handler.Handler{
         Database:   db,
         TbaHandler: *tbaHandler,
-        Notifier: &handler.PickNotifier{
-            Database: db,
-            Watchers: make(map[int][]handler.Watcher),
-        },
+        Notifier: pickNotifier,
     }
 
     app.Use(middleware.Gzip())
