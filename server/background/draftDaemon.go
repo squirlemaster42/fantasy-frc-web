@@ -46,7 +46,7 @@ func (d *DraftDaemon) Run() {
             curPick := model.GetCurrentPick(d.database, draftId)
             slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
             now := time.Now()
-            if curPick.ExpirationTime.After(now) {
+            if curPick.ExpirationTime.Before(now) {
                 slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
                 //We want to skip the current pick and go to the next one
                 nextPickPlayer := model.NextPick(d.database, draftId)
