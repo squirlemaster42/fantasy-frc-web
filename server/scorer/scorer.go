@@ -143,7 +143,7 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
 	blueScore := 0
 
 	if match.CompLevel == "f" {
-		if match.EventKey == einstein() {
+		if match.EventKey == utils.Einstein() {
 			if match.WinningAlliance == "red" {
 				redScore += 36
 			} else if match.WinningAlliance == "blue" {
@@ -159,7 +159,7 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
 	} else if match.CompLevel == "sf" {
 		if getLowerBracketMatchIds()[match.SetNumber] {
 			//Lower Bracket
-			if match.EventKey == einstein() {
+			if match.EventKey == utils.Einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 18
 				} else if match.WinningAlliance == "blue" {
@@ -174,7 +174,7 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
 			}
 		} else if getUpperBracketMatchIds()[match.SetNumber] {
 			//Upper Bracket
-			if match.EventKey == einstein() {
+			if match.EventKey == utils.Einstein() {
 				if match.WinningAlliance == "red" {
 					redScore += 30
 				} else if match.WinningAlliance == "blue" {
@@ -202,10 +202,6 @@ func (s *Scorer) getTeamRankingScore(team string) int {
 	slog.Info("Getting ranking score", "Team", team, "Rank", status.Qual.Ranking.Rank)
 	score := max((25-status.Qual.Ranking.Rank)*2, 0)
 	return int(score)
-}
-
-func einstein() string {
-	return "2025micmp"
 }
 
 func (s *Scorer) getChampEventForTeam(teamId string) string {
@@ -530,7 +526,7 @@ func (s *Scorer) scoringRunner() {
         //Update alliance selection scores
         //TODO this should only run after all quals are complete, there is probably some webhook stuff we can do
         for _, event := range utils.Events() {
-            if event == einstein() {
+            if event == utils.Einstein() {
                 continue
             }
             alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)

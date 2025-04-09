@@ -126,3 +126,8 @@ func GetPickExpirationTime(t time.Time) time.Time {
     expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
     return expirationTime.Add(time.Duration(diff) * time.Hour)
 }
+
+func Einstein() string {
+	return "2025micmp"
+}
+

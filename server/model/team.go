@@ -107,19 +107,19 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     }
 
     query = `Select
-                Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
+                Case When mt.match_tbaId Like '%%_qm%%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%%%s%%' Then 'Einstein Score'
                      Else 'Playoff Score' End As DisplayName,
                 Sum(Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End) As Score
              From Matches_Teams mt
              Inner Join Matches m On mt.Match_tbaId = m.tbaId
              Where mt.Team_TbaId = $1
-             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
+             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%%_qm%%' Then 'Qual Score'
+                     When mt.match_tbaId Like '%%%s%%' Then 'Einstein Score'
                      Else 'Playoff Score' End
              Order By mt.Team_TbaId`
 
-    stmt, err = database.Prepare(query)
+    stmt, err = database.Prepare(fmt.Sprintf(query, utils.Einstein(), utils.Einstein()))
     assert.NoError(err, "Failed to prepare statement")
 
     var displayName string
