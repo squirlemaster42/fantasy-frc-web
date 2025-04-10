@@ -68,8 +68,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
     validEvent := false
     //Looping here should always be faster because of the small lists
-    fmt.Println(events)
-    fmt.Println(draftEvents)
+    slog.Info("Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
     for _, event := range events {
         for _, draftEvent := range draftEvents {
             if event == draftEvent {
@@ -83,7 +82,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
         }
     }
 
-    fmt.Printf("Picked: %t - Valid Event: %t\n", picked, validEvent)
+    slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
     return !picked && validEvent
 }
 
