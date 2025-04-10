@@ -274,6 +274,21 @@ func CreateDraft(database *sql.DB, draft *Draft) int {
     return draftId
 }
 
+func UpdateDraftStatus(database *sql.DB, draftId int, status int) {
+    query := `Update Drafts Set Status = $1 Where Id = $2;`
+    assert := assert.CreateAssertWithContext("Update Draft Status")
+    assert.AddContext("Draft Id", draftId)
+    assert.AddContext("Status", status)
+
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    _, err = stmt.Exec(status, draftId)
+    if err != nil {
+        slog.Error("Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
+    }
+}
+
 func GetDraft(database *sql.DB, draftId int) Draft {
     query := `Select
         DisplayName,
@@ -330,8 +345,12 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 	playerRows, err := playerStmt.Query(draftId)
 	assert.NoError(err, "Failed to run player query")
 
-    draft.NextPick = DraftPlayer {
-        Id: GetCurrentPick(database, draftId).Player,
+    slog.Info("Checking if we need to get the status for the draft", "Status", draft.Status, "Picking", PICKING)
+    if draft.Status == strconv.Itoa(PICKING) {
+        slog.Info("Getting the current pick for the draft")
+        draft.NextPick = DraftPlayer {
+            Id: GetCurrentPick(database, draftId).Player,
+        }
     }
 
 	for playerRows.Next() {

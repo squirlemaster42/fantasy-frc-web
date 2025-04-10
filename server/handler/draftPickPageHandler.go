@@ -57,7 +57,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
     isInvalid := false
     validPick := model.ValidPick(h.Database, &h.TbaHandler, pick, draftId)
-    if !validPick || !isCurrentPick{
+    if pick == "frc" || !validPick || !isCurrentPick {
         isInvalid = true
         slog.Warn("Count Not Make Pick", "Valid Pick", validPick, "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId)
     } else {
@@ -84,8 +84,16 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         //Make the next pick available if we havn't aleady made all picks
         picks := model.GetPicks(h.Database, draftId)
 
-        if len(picks) < 64 {
+        slog.Info("Checking if we should make another pick available", "Num picks", len(picks))
+        if len(picks) < 63 {
+            slog.Info("Making next pick available", "Draft Id", draftId)
             model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+        } else {
+            //Set draft to the teams playing state
+            //This isnt entirely correct becuase it doesnt account for skips
+            //But I dont care about that for this year
+            slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
+            model.UpdateDraftStatus(h.Database, draftId, model.TEAMS_PLAYING)
         }
 
         h.Notifier.NotifyWatchers(draftId)
