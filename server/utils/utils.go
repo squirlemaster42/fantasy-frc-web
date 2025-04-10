@@ -7,11 +7,15 @@ import (
 
 func Events() []string {
     return []string{
-        "2025micmp1",
-        "2025micmp2",
-        "2025micmp3",
-        "2025micmp4",
-        "2025micmp",
+        "2025arc",
+        "2025cur",
+        "2025dal",
+        "2025gal",
+        "2025hop",
+        "2025joh",
+        "2025mil",
+        "2025new",
+        "2025cmptx",
     }
 }
 
@@ -128,6 +132,6 @@ func GetPickExpirationTime(t time.Time) time.Time {
 }
 
 func Einstein() string {
-	return "2025micmp"
+	return "2025cmptx"
 }
 

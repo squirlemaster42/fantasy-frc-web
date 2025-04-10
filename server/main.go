@@ -13,6 +13,7 @@ import (
 	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
+	"server/utils"
 
 	"github.com/joho/godotenv"
 )
@@ -20,7 +21,8 @@ import (
 func main() {
     slog.Info("-------- Starting Fantasy FRC --------")
     initDir := flag.String("initDir", "", "The directory containing drafts to initialize the scorer. This should only be done one each time the drafts change. Drafts with the same names as the files will be overriden")
-    skipScoring := flag.String("skipScoring", "", "When true is entered, the scorer will not be started")
+    skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
+    populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")
     flag.Parse()
 
     godotenv.Load()
@@ -35,6 +37,20 @@ func main() {
     tbaHandler := tbaHandler.NewHandler(tbaTok)
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
     slog.Info("Registered Database Connection")
+
+    if *populateTeams {
+        slog.Info("Populating Teams")
+        for _, event := range utils.Events() {
+            slog.Info("Creating teams for event", "Event", event)
+            for _, team := range tbaHandler.MakeTeamsAtEventRequest(event) {
+                slog.Info("Checking if team is needed", "Team", team.Key, "Event", event)
+                if model.GetTeam(database, team.Key) == nil {
+                    slog.Info("Creating team", "Team", team.Key, "Event", event)
+                    model.CreateTeam(database, team.Key, "")
+                }
+            }
+        }
+    }
 
     //If we have an init dir, then parse all of the drafts in that folder
     if len(*initDir) > 0 {
@@ -67,7 +83,7 @@ func main() {
     }
 
     scorer := scorer.NewScorer(tbaHandler, database)
-    if !(*skipScoring == "true") {
+    if !*skipScoring {
         slog.Info("Started Scorer")
         scorer.RunScorer()
     }
