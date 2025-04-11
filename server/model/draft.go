@@ -345,7 +345,7 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 	playerRows, err := playerStmt.Query(draftId)
 	assert.NoError(err, "Failed to run player query")
 
-    slog.Info("Checking if we need to get the status for the draft", "Status", draft.Status, "Picking", PICKING)
+    slog.Info("Checking if we need to get the current pick for the draft", "Status", draft.Status, "Picking", PICKING)
     if draft.Status == strconv.Itoa(PICKING) {
         slog.Info("Getting the current pick for the draft")
         draft.NextPick = DraftPlayer {

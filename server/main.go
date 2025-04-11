@@ -77,6 +77,7 @@ func main() {
     //Start the draft daemon and add all running drafts to it
     draftDaemon := background.NewDraftDaemon(database, pickNotifier)
     draftDaemon.Start()
+    slog.Info("Checking for drafts that need to be added to daemon")
     drafts := model.GetDraftsInStatus(database, model.PICKING)
     for _, draftId := range drafts {
         draftDaemon.AddDraft(draftId)

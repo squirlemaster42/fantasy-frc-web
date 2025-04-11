@@ -30,11 +30,12 @@ func NewDraftDaemon(database *sql.DB, notifier *handler.PickNotifier) *DraftDaem
 }
 
 func (d *DraftDaemon) Start() error {
-    slog.Info("Started draft daemon")
+    slog.Info("Attempting to start draft daemon")
     d.mu.Lock()
     defer d.mu.Unlock()
     if !d.running {
         d.running = true
+        slog.Info("Started draft daemon")
         go d.Run()
         return nil
     } else {
@@ -45,6 +46,7 @@ func (d *DraftDaemon) Start() error {
 func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
+        slog.Info("Starting iteration of the Draft Daemon")
         for draftId := range d.runningDrafts {
             curPick := model.GetCurrentPick(d.database, draftId)
             slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
@@ -56,6 +58,8 @@ func (d *DraftDaemon) Run() {
                 model.SkipPick(d.database, curPick.Id)
                 model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
                 d.notifier.NotifyWatchers(draftId)
+            } else {
+                slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
             }
         }
 
