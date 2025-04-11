@@ -824,7 +824,7 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
                 p.PickTime,
                 p.Skipped,
                 p.AvailableTime,
-                p.ExpirationTime
+                p.ExpirationTime At Time Zone 'America/New_York'
             From Picks p
             Inner Join (
                 Select
