@@ -34,7 +34,6 @@ CREATE TABLE DraftInvites(Id SERIAL PRIMARY KEY,
     canceled boolean);
 Create Table Picks(Id SERIAL PRIMARY KEY,
     player int REFERENCES DraftPlayers(Id) NOT NULL,
-    pickOrder smallint NOT NULL,
     pick varchar(10) REFERENCES Teams(tbaId) NOT NULL,
     pickTime TIMESTAMP NOT NULL);
 Create Table UserSessions (
