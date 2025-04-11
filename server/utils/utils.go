@@ -1,8 +1,9 @@
 package utils
 
 import (
-    "fmt"
-    "time"
+	"fmt"
+	"log/slog"
+	"time"
 )
 
 func Events() []string {
@@ -117,18 +118,41 @@ var ALLOWED_TIMES = map[time.Weekday]TimeRange{
 }
 
 func GetPickExpirationTime(t time.Time) time.Time {
+    slog.Info("Getting Expiration Time", "Current Time", t)
     expirationTime := t.Add(PICK_TIME)
     validTime := ALLOWED_TIMES[expirationTime.Weekday()]
+    nextDay := t.Add(24 * time.Hour)
 
-    if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour {
+    //If the expiration time is in the pick window and we are currently in the pick window
+    if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour &&
+        t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
+        slog.Info("Expiration Time and Current Time in Window")
         return expirationTime
     }
 
-    nextDay := t.Add(24 * time.Hour)
-    nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
-    diff := int(PICK_TIME.Hours()) - (validTime.endHour - t.Hour())
-    expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
-    return expirationTime.Add(time.Duration(diff) * time.Hour)
+    //If the expiration time is not in the pick window but the current time is
+    if !(expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour) &&
+        t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
+        slog.Info("Expiration Time not in window and Current Time in Window")
+        nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
+        diff := int(PICK_TIME.Hours()) - (validTime.endHour - t.Hour())
+        expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
+        return expirationTime.Add(time.Duration(diff) * time.Hour)
+    }
+
+    //If the current time is not in the pick window
+    //We need to find the next pick windows and set the expiraton time to
+    //PICK_TIME after the start of that window
+    //To find the next window we get the window for the current day
+    //If we are before that window we take that one, if not we take the next one
+    slog.Info("Current Time not in Window")
+    if t.Hour() > validTime.endHour {
+        //If we are after the window move the valid time to the next day
+        validTime = ALLOWED_TIMES[nextDay.Weekday()]
+        return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location()).Add(PICK_TIME)
+    } else {
+        return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location()).Add(PICK_TIME)
+    }
 }
 
 func Einstein() string {

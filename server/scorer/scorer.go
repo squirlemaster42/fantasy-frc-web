@@ -539,6 +539,6 @@ func (s *Scorer) scoringRunner() {
             }
         }
 
-        time.Sleep(5 * time.Minute)
+        time.Sleep(10 * time.Minute)
     }
 }
