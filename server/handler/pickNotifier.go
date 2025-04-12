@@ -46,6 +46,7 @@ func (pn *PickNotifier) UnregiserWatcher(watcher *Watcher) {
             }
         }
         if index >= 0 {
+            slog.Info("Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.watcherId)
             pn.Watchers[key] = removeWatcher(watchers, index)
         } else {
             slog.Warn("Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.watcherId)
