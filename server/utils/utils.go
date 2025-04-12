@@ -149,9 +149,9 @@ func GetPickExpirationTime(t time.Time) time.Time {
     if t.Hour() > validTime.endHour {
         //If we are after the window move the valid time to the next day
         validTime = ALLOWED_TIMES[nextDay.Weekday()]
-        return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location()).Add(PICK_TIME)
+        return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(PICK_TIME)
     } else {
-        return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location()).Add(PICK_TIME)
+        return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(PICK_TIME)
     }
 }
 
