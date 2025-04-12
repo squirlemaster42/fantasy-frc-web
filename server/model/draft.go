@@ -554,7 +554,7 @@ func GetPicks(database *sql.DB, draft int) []Pick {
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
-    Order By PickTime Asc;`
+    Order By Picks.Id Asc;`
 
 	assert := assert.CreateAssertWithContext("Get Picks")
 	assert.AddContext("Draft", draft)
