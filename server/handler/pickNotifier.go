@@ -2,8 +2,9 @@ package handler
 
 import (
 	"database/sql"
+	"log/slog"
 
-    "github.com/google/uuid"
+	"github.com/google/uuid"
 )
 
 //We need to store a set of connected clients
@@ -44,7 +45,11 @@ func (pn *PickNotifier) UnregiserWatcher(watcher *Watcher) {
                 index = i
             }
         }
-        pn.Watchers[key] = removeWatcher(watchers, index)
+        if index >= 0 {
+            pn.Watchers[key] = removeWatcher(watchers, index)
+        } else {
+            slog.Warn("Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.watcherId)
+        }
     }
 }
 
