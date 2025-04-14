@@ -7,10 +7,10 @@ import (
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
-    <div class="flex row wrap justify-center pt-10">
+    <div class="w-full overflow-x-auto flex row wrap justify-center pt-10">
         for _, player := range userDraftScore {
             @DraftScoreReport(player)
-            }
+        }
     </div>
     <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
 }
