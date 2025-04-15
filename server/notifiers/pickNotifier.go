@@ -1,4 +1,4 @@
-package handler
+package notifiers
 
 import (
 	"database/sql"
@@ -23,14 +23,14 @@ type PickNotifier struct {
 }
 
 type Watcher struct {
-    watcherId uuid.UUID
-    notifierQueue chan bool
+    WatcherId uuid.UUID
+    NotifierQueue chan bool
 }
 
 func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
     watcher := Watcher {
-        watcherId: uuid.New(),
-        notifierQueue: make(chan bool, 10), //This can probably be smaller?
+        WatcherId: uuid.New(),
+        NotifierQueue: make(chan bool, 10), //This can probably be smaller?
     }
 
     pn.Watchers[draftId] = append(pn.Watchers[draftId], watcher)
@@ -41,15 +41,15 @@ func (pn *PickNotifier) UnregiserWatcher(watcher *Watcher) {
     for key, watchers := range pn.Watchers {
         index := -1
         for i, w := range watchers {
-            if w.watcherId == watcher.watcherId {
+            if w.WatcherId == watcher.WatcherId {
                 index = i
             }
         }
         if index >= 0 {
-            slog.Info("Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.watcherId)
+            slog.Info("Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
             pn.Watchers[key] = removeWatcher(watchers, index)
         } else {
-            slog.Warn("Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.watcherId)
+            slog.Warn("Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
         }
     }
 }
@@ -61,6 +61,6 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 
 func (pn *PickNotifier) NotifyWatchers(draftId int) {
     for _, watcher := range pn.Watchers[draftId] {
-        watcher.notifierQueue <- true
+        watcher.NotifierQueue <- true
     }
 }

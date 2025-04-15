@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/rand"
@@ -289,7 +290,7 @@ func UpdateDraftStatus(database *sql.DB, draftId int, status int) {
     }
 }
 
-func GetDraft(database *sql.DB, draftId int) Draft {
+func GetDraft(database *sql.DB, draftId int) (Draft, error) {
     query := `Select
         DisplayName,
         COALESCE(Description, '') As Description,
@@ -308,7 +309,10 @@ func GetDraft(database *sql.DB, draftId int) Draft {
     }
     var ownerId int
     err = stmt.QueryRow(draftId).Scan(&draft.DisplayName, &draft.Description, &draft.Status, &draft.StartTime, &draft.EndTime, &draft.Interval, &ownerId)
-    assert.NoError(err, "Failed to get draft")
+    if err != nil {
+        slog.Warn("Failed to load draft", "Draft Id", draftId)
+        return Draft{}, errors.New("Failed to load draft")
+    }
 
 	playerQuery := `SELECT
 	                    USERID,
@@ -343,7 +347,10 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 	playerStmt, err := database.Prepare(playerQuery)
 	assert.NoError(err, "Failed to prepare player query")
 	playerRows, err := playerStmt.Query(draftId)
-	assert.NoError(err, "Failed to run player query")
+    if err != nil {
+        slog.Warn("Failed to load players for draft", "Draft Id", draftId)
+        return Draft{}, errors.New("Failed to load draft")
+    }
 
     slog.Info("Checking if we need to get the current pick for the draft", "Status", draft.Status, "Picking", PICKING)
     if draft.Status == strconv.Itoa(PICKING) {
@@ -390,7 +397,7 @@ func GetDraft(database *sql.DB, draftId int) Draft {
 		draft.Players = append(draft.Players, draftPlayer)
 	}
 
-	return draft
+	return draft, nil
 }
 
 func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
@@ -690,7 +697,11 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 }
 
 func RandomizePickOrder(database *sql.DB, draftId int) {
-	draftModel := GetDraft(database, draftId)
+	draftModel, err := GetDraft(database, draftId)
+    if err != nil {
+        slog.Warn("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
+        return
+    }
 	awaitingAssignment := draftModel.Players
 	assert := assert.CreateAssertWithContext("Randomize Pick Order")
 
@@ -737,7 +748,11 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
     assert := assert.CreateAssertWithContext("Next Pick")
 	picks := GetPicks(database, draftId)
-	draft := GetDraft(database, draftId)
+	draft, err := GetDraft(database, draftId)
+    if err != nil {
+        slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId)
+        return DraftPlayer{}
+    }
 	var nextPlayer DraftPlayer
 
     //I dont think we need to account for the case where there are only two players

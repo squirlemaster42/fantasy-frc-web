@@ -64,9 +64,13 @@ func compareMatchOrder(matchA string, matchB string) bool {
         splitMatchB := strings.Split(matchB, "_")
         assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
         assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        matchANum, err := strconv.Atoi(splitMatchA[1][2:])
+        matchANumStr := strings.TrimSpace(splitMatchA[1][2:])
+        matchBNumStr := strings.TrimSpace(splitMatchB[1][2:])
+        assert.AddContext("Match A Num", matchANumStr)
+        assert.AddContext("Match B Num", matchBNumStr)
+        matchANum, err := strconv.Atoi(matchANumStr)
         assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err := strconv.Atoi(splitMatchB[1][2:])
+        matchBNum, err := strconv.Atoi(matchBNumStr)
         assert.NoError(err, "Match B num Atoi failed")
         return matchANum < matchBNum
     }

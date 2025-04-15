@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"server/assert"
 	"server/model"
 	draftView "server/view/draft"
@@ -25,7 +26,13 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	assert.NoError(err, "Failed to convert draft id to int")
-	draftModel := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(h.Database, draftId)
+    if err != nil {
+        //We want to redirect back to the home screen
+        slog.Warn("User attempted to visit incorrect draft id", "User", userId, "Draft Id", draftId)
+        c.Redirect(http.StatusSeeOther, "/u/home")
+        return nil
+    }
 
     isOwner := userId == draftModel.Owner.Id
 
@@ -63,7 +70,11 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
     userId := model.GetUserBySessionToken(h.Database, sessionToken.Value)
 
-    draftModel := model.GetDraft(h.Database, draftId)
+    draftModel, err := model.GetDraft(h.Database, draftId)
+    if err != nil {
+        slog.Warn("User attempted to write to invalid draft id", "User", userId, "Draft Id", draftId)
+        return nil
+    }
 
     if draftModel.Owner.Id != userId {
         //The user would need to hand craft this payload
@@ -99,7 +110,11 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
 	users := model.SearchUsers(h.Database, searchInput, draftId)
 
-    draftModel :=  model.GetDraft(h.Database, draftId)
+    draftModel, err :=  model.GetDraft(h.Database, draftId)
+    if err != nil {
+        slog.Warn("User attempted to search for players in an invalid draft", "Draft Id", draftId)
+        return nil
+    }
 
     userTok, err := c.Cookie("sessionToken")
 	assert.NoErrorCF(err, "Failed to get user token")
@@ -132,9 +147,12 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	users := model.SearchUsers(h.Database, searchInput, draftId)
 
-    players := model.GetDraft(h.Database, draftId).Players
+    draftModel, err := model.GetDraft(h.Database, draftId)
+    if err != nil {
+        slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User", userId)
+    }
 
-    draftModel := model.GetDraft(h.Database, draftId)
+    players := draftModel.Players
 
     isOwner := invitingPlayer == draftModel.Owner.Id
 

@@ -52,7 +52,12 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
     slog.Info("Got request for player to make pick in draft", "User Id", userId, "Pick", pick, "Draft Id", draftId)
     assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
 
-    draftModel := model.GetDraft(h.Database, draftId)
+    draftModel, err := model.GetDraft(h.Database, draftId)
+    if err != nil {
+        slog.Warn("User attempted to make pick in invalid draft", "Draft Id", draftId, "User Id", userId)
+        return err
+    }
+
     isCurrentPick := draftModel.NextPick.User.Id == userId
 
     isInvalid := false
@@ -94,6 +99,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
             //But I dont care about that for this year
             slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
             model.UpdateDraftStatus(h.Database, draftId, model.TEAMS_PLAYING)
+            h.DraftDaemon.RemoveDraft(draftId)
         }
 
         h.Notifier.NotifyWatchers(draftId)
@@ -104,14 +110,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invalidPick bool) error {
-    draftModel := model.GetDraft(h.Database, draftId)
+    draftModel, err := model.GetDraft(h.Database, draftId)
+    if err != nil {
+        slog.Warn("User is attempting to render pick page for invalid draft", "Draft", draftId, "User", userId)
+    }
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
     pickPageIndex := draft.DraftPickIndex(draftModel, url, invalidPick, notifierUrl, isCurrentPick)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
-    err := Render(c, pickPageView)
+    err = Render(c, pickPageView)
     return err
 }
 
@@ -128,9 +137,13 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         defer h.Notifier.UnregiserWatcher(watcher)
         assert.NoError(err, "Could not parse draft id")
         for {
-            msg := <-watcher.notifierQueue
+            msg := <-watcher.NotifierQueue
             if msg {
-                draftModel := model.GetDraft(h.Database, draftId)
+                draftModel, err := model.GetDraft(h.Database, draftId)
+                if err != nil {
+                    slog.Warn("Attempting to notify draft that does not exist", "Draft Id", draftId)
+                    continue
+                }
 
                 var html strings.Builder
                 pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.Id == userId)

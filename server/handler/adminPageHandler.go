@@ -60,7 +60,10 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) stri
         return "Draft Id Could Not Be Converted To An Int"
     }
 
-    draft := model.GetDraft(database, draftId)
+    draft, err := model.GetDraft(database, draftId)
+    if err != nil {
+        return "Draft Id Does Not Match A Valid Draft"
+    }
 
     //Check that eight players have accepted the draft
     numAccepted := 0
