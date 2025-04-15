@@ -90,7 +90,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         picks := model.GetPicks(h.Database, draftId)
 
         slog.Info("Checking if we should make another pick available", "Num picks", len(picks))
-        if len(picks) < 63 {
+        if len(picks) < 64 {
             slog.Info("Making next pick available", "Draft Id", draftId)
             model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
         } else {
