@@ -33,9 +33,6 @@ func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort stri
     app.Use(middleware.Recover())
 
     //Setup Routes
-    //TODO Make the base route. Something about
-    //having this here breaks everything?
-    //app.GET("/", h.HandleViewHome)
     app.GET("/login", h.HandleViewLogin)
     app.POST("/login", h.HandleLoginPost)
     app.GET("/register", h.HandleViewRegister)
