@@ -15,9 +15,9 @@ templ DraftPickIndex (draft model.Draft, pickUrl string, invalidPick bool, notif
                 method="post"
             >
                 <div id="draft-table" class="flex flex-col justify-center">
-                    <div>
+                    <div class="w-full flex items-center justify-center">
                         if invalidPick {
-                            <span class="text-red-800">You have entered an invalid pick. Please pick again.</span>
+                            <span class="text-red-800" style="width: fit-content;">You have entered an invalid pick. Please pick again.</span>
                         }
                     </div>
                     <div class="w-full overflow-x-auto">
