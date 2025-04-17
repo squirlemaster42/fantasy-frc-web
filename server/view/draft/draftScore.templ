@@ -7,7 +7,7 @@ import (
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
-    <div class="w-full overflow-x-auto flex row wrap justify-center pt-10">
+    <div class="w-full overflow-x-auto flex row justify-evenly mt-10 gap-2">
         for _, player := range userDraftScore {
             @DraftScoreReport(player)
         }
@@ -22,7 +22,7 @@ templ DraftScore(page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ DraftScoreReport(player model.DraftPlayer) {
-<div class="ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
+<div class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
     <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
     </h5>
     {player.User.Username}: {fmt.Sprintf("%d", player.Score)}
