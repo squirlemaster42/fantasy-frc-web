@@ -81,32 +81,36 @@ func getQualMatchScore(match swagger.Match) (int, int) {
 		blueScore += 3
 	}
 
-	if match.ScoreBreakdown.Red.AutoBonusAchieved {
+	if match.ScoreBreakdown == nil {
+		return redScore, blueScore
+	}
+
+	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.AutoBonusAchieved {
 		redScore += 1
 		slog.Info("Red Auto Bonus Achieved", "Score", redScore)
 	}
 
-	if match.ScoreBreakdown.Red.BargeBonusAchieved {
+	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.BargeBonusAchieved {
 		redScore += 1
 		slog.Info("Red Barge Bonus Achieved", "Score", redScore)
 	}
 
-	if match.ScoreBreakdown.Red.CoralBonusAchieved {
+	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.CoralBonusAchieved {
 		redScore += 1
 		slog.Info("Red Coral Bonus Achieved", "Score", redScore)
 	}
 
-	if match.ScoreBreakdown.Blue.AutoBonusAchieved {
+	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.AutoBonusAchieved {
 		blueScore += 1
 		slog.Info("Blue Auto Bonus Achieved", "Score", blueScore)
 	}
 
-	if match.ScoreBreakdown.Blue.BargeBonusAchieved {
+	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.BargeBonusAchieved {
 		blueScore += 1
 		slog.Info("Blue Barge Bonus Achieved", "Score", blueScore)
 	}
 
-	if match.ScoreBreakdown.Blue.CoralBonusAchieved {
+	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.CoralBonusAchieved {
 		blueScore += 1
 		slog.Info("Blue Coral Bonus Achieved", "Score", blueScore)
 	}
