@@ -28,7 +28,7 @@ templ DraftScoreReport(player model.DraftPlayer) {
     {player.User.Username}: {fmt.Sprintf("%d", player.Score)}
     <hr/>
         for _, pick := range player.Picks{
-        <p class="font-normal text-gray-700 dark:text-gray-400">
+        <p class="font-normal text-gray-700 dark:text-gray-400 whitespace-nowrap">
             {pick.Pick.String} Score: {fmt.Sprintf("%d", pick.Score)}
         </p>
         }
