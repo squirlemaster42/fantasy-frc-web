@@ -1,10 +1,12 @@
 package tbaHandler
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
+	"server/assert"
 	"server/swagger"
 )
 
@@ -14,13 +16,49 @@ const (
 
 type TbaHandler struct {
     tbaToken string
+    database *sql.DB
 }
 
-func NewHandler(tbaToken string) *TbaHandler {
+func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
     handler := &TbaHandler{
         tbaToken: tbaToken,
+        database: database,
     }
     return handler
+}
+
+func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
+    assert := assert.CreateAssertWithContext("Check Tba Cache")
+    assert.AddContext("Url", url)
+
+    query := `Select
+        etag,
+        responseBody
+    From TbaCache
+    Where url = $1;`
+    stmt, err := t.database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    var etag string
+    var body []byte
+    err = stmt.QueryRow(url).Scan(&etag, &body)
+
+    return body, etag, err
+}
+
+func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
+    assert := assert.CreateAssertWithContext("Cache Tba Data")
+    assert.AddContext("Url", url)
+    assert.AddContext("Etag", etag)
+
+    query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3);`
+    stmt, err := t.database.Prepare(query)
+    assert.NoError(err, "Failed to prepare query")
+
+    _, err = stmt.Exec(url, etag, body)
+    if err != nil {
+        slog.Error("Failed to cache tba data", "Error", err)
+    }
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
@@ -29,21 +67,43 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
+        slog.Error("Failed to construct tba request", "Error", err)
         return nil
+    }
+
+
+    slog.Info("Checking cache for tba data", "Url", url)
+    body, etag, err := t.checkCache(url)
+
+    if err == nil {
+        slog.Info("Found cached data", "Url", url, "Etag", etag)
+        req.Header.Add("If-None-Match", etag)
+    } else {
+        slog.Warn("Did not find cached tba data", "Url", url, "Error", err)
     }
 
     req.Header.Add("X-TBA-Auth-Key", t.tbaToken)
     resp, err := client.Do(req)
     if err != nil {
+        slog.Error("Failed to run tba request", "Error", err)
         return nil
     }
 
     defer resp.Body.Close()
 
-    body, err := io.ReadAll(resp.Body)
+    slog.Info("Got response from tba", "Status", resp.Status)
+    if resp.StatusCode == http.StatusNotModified {
+        slog.Info("Got not modified from tba, using cache data", "Url", url)
+        return body
+    }
+
+    body, err = io.ReadAll(resp.Body)
     if err != nil {
+        slog.Error("Failed to read tba request body", "Error", err)
         return nil
     }
+
+    t.cacheData(url, resp.Header["Etag"][0], body)
 
     return body
 }

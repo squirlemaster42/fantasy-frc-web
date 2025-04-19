@@ -34,8 +34,8 @@ func main() {
     serverPort := os.Getenv("SERVER_PORT")
     slog.Info("Extracted Env Vars")
     //sessionSecret := os.Getenv("SESSION_SECRET")
-    tbaHandler := tbaHandler.NewHandler(tbaTok)
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
+    tbaHandler := tbaHandler.NewHandler(tbaTok, database)
     slog.Info("Registered Database Connection")
 
     if *populateTeams {
