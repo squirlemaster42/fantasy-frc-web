@@ -40,7 +40,19 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 
     defer resp.Body.Close()
 
+<<<<<<< Updated upstream
     body, err := io.ReadAll(resp.Body)
+=======
+    slog.Info("Got response from tba", "Status", resp.Status)
+    if resp.StatusCode == http.StatusNotModified {
+        slog.Info("Got not modified from tba, using cache data", "Url", url)
+        return body
+    } else if resp.StatusCode == http.StatusNotFound {
+        return nil
+    }
+
+    body, err = io.ReadAll(resp.Body)
+>>>>>>> Stashed changes
     if err != nil {
         return nil
     }
