@@ -115,6 +115,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
              From Matches_Teams mt
              Inner Join Matches m On mt.Match_tbaId = m.tbaId
              Where mt.Team_TbaId = $1
+             And mt.Isdqed = false
              Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
                      When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
                      Else 'Playoff Score' End
