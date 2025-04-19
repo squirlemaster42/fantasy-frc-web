@@ -95,6 +95,8 @@ func (t *TbaHandler) makeRequest(url string) []byte {
     if resp.StatusCode == http.StatusNotModified {
         slog.Info("Got not modified from tba, using cache data", "Url", url)
         return body
+    } else if resp.StatusCode == http.StatusNotFound {
+        return nil
     }
 
     body, err = io.ReadAll(resp.Body)
