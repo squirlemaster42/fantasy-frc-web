@@ -22,6 +22,8 @@ The name does not necesarily matter but you will need to reference it in the nex
 Once your database is created connect to it with `\c <database-name>`. Once you are connected to the database run the database setup script found
 at `database\fantasyFrcDb.sql`. This will setup all of the required tables needed to run Fantasy Frc.
 
+TBD - Database versioning
+
 ## Setting up your .env file
 
 In order for Fantasy FRC to run correctly, the envirment variables
