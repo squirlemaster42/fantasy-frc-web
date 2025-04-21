@@ -1,4 +1,4 @@
-package notifiers
+package picking
 
 import (
 	"database/sql"

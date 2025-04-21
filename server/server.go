@@ -7,14 +7,14 @@ import (
 	"server/authentication"
 	"server/background"
 	"server/handler"
-	"server/notifiers"
+	"server/picking"
 	"server/tbaHandler"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string, pickNotifier *notifiers.PickNotifier, draftDaemon *background.DraftDaemon) {
+func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string, pickNotifier *picking.PickNotifier, draftDaemon *background.DraftDaemon) {
     slog.Info("Starting Server")
     assert := assert.CreateAssertWithContext("Create Server")
     auth := authentication.NewAuth(db)

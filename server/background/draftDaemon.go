@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"server/model"
-	"server/notifiers"
+	"server/picking"
 	"server/utils"
 	"sync"
 	"time"
@@ -17,15 +17,15 @@ type DraftDaemon struct {
     interval int //Time to wait between runs
     mu sync.Mutex
     runningDrafts map[int]bool
-    notifier *notifiers.PickNotifier
+    notifier *picking.PickNotifier
 }
 
-func NewDraftDaemon(database *sql.DB, notifier *notifiers.PickNotifier) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB, notifier *picking.PickNotifier) *DraftDaemon {
     return &DraftDaemon{
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),
-        notifier: &notifiers.PickNotifier{},
+        notifier: &picking.PickNotifier{},
     }
 }
 

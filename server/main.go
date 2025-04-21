@@ -10,7 +10,7 @@ import (
 	"server/database"
 	draftInit "server/draftInit"
 	"server/model"
-	"server/notifiers"
+	"server/picking"
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
@@ -69,9 +69,9 @@ func main() {
         slog.Info("Finished loading draft")
     }
 
-    pickNotifier := &notifiers.PickNotifier{
+    pickNotifier := &picking.PickNotifier{
         Database: database,
-        Watchers: make(map[int][]notifiers.Watcher),
+        Watchers: make(map[int][]picking.Watcher),
     }
 
     //Start the draft daemon and add all running drafts to it
