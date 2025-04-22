@@ -38,7 +38,7 @@ func (p *PickManager) makePick(pick string) error {
 }
 
 func (p *PickManager) AddListener(listener PickListener) {
-
+    p.listeners = append(p.listeners, &listener)
 }
 
 //TODO What should this take in?
