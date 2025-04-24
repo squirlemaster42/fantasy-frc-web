@@ -8,6 +8,14 @@ import (
     "sync"
 )
 
+type DraftPickManager struct {
+    pickManagers map[int]*PickManager
+}
+
+func (d *DraftPickManager) GetPickManagerForDraft(draftId int) *PickManager {
+    return d.pickManagers[draftId]
+}
+
 type PickManager struct {
     draftId int
     lock sync.Mutex
@@ -17,6 +25,7 @@ type PickManager struct {
 }
 
 type PickEvent struct {
+    success bool
     pick string
 }
 
@@ -24,12 +33,11 @@ type PickListener interface {
     recievePickEvent(pickEvent PickEvent)
 }
 
-//TODO Do we want to wrap this in another layer so you
-//cannot create an more than one pick manager per draft
 func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *PickManager {
     return &PickManager{
         draftId: draftId,
         database: database,
+        tbaHandler: tbaHandler,
     }
 }
 
