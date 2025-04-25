@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"server/assert"
@@ -56,12 +57,16 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
     assert.NoError(err, "Failed to associate team")
 }
 
-func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) bool {
+func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
     if tbaId == "" {
-        return false
+        return false, errors.New("A team must be entered in order to make a pick")
     }
 
     picked := HasBeenPicked(database, draftId, tbaId)
+
+    if picked {
+        return false, errors.New("The requested team has already been picked")
+    }
 
     events := handler.MakeEventListReq(tbaId)
     draftEvents := utils.Events()
@@ -83,7 +88,11 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
     }
 
     slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
-    return !picked && validEvent
+    if !validEvent {
+        return false, errors.New("The team is not at a valid event to pick")
+    }
+
+    return true, nil
 }
 
 // Keys are the string that represents display name and the value is the score

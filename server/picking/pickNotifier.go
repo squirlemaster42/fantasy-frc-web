@@ -59,6 +59,12 @@ func removeWatcher(w []Watcher, i int) []Watcher {
     return w[:len(w) - 1]
 }
 
+func (pn *PickNotifier) RecievePickEvent(pickEvent PickEvent) {
+    for _, watcher := range pn.Watchers[pickEvent.DraftId] {
+        watcher.NotifierQueue <- true
+    }
+}
+
 func (pn *PickNotifier) NotifyWatchers(draftId int) {
     for _, watcher := range pn.Watchers[draftId] {
         watcher.NotifierQueue <- true

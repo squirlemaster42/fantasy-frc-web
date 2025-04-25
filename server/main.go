@@ -9,6 +9,7 @@ import (
 	"server/background"
 	"server/database"
 	draftInit "server/draftInit"
+	"server/handler"
 	"server/model"
 	"server/picking"
 	"server/scorer"
@@ -35,8 +36,9 @@ func main() {
     slog.Info("Extracted Env Vars")
     //sessionSecret := os.Getenv("SESSION_SECRET")
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
-    tbaHandler := tbaHandler.NewHandler(tbaTok, database)
     slog.Info("Registered Database Connection")
+
+    tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
     if *populateTeams {
         slog.Info("Populating Teams")
@@ -69,10 +71,12 @@ func main() {
         slog.Info("Finished loading draft")
     }
 
-    pickNotifier := &picking.PickNotifier{
+    pickNotifier := &picking.PickNotifier {
         Database: database,
         Watchers: make(map[int][]picking.Watcher),
     }
+
+    draftPickManager := picking.NewDraftPickManager(database, tbaHandler)
 
     //Start the draft daemon and add all running drafts to it
     draftDaemon := background.NewDraftDaemon(database, pickNotifier)
@@ -88,5 +92,14 @@ func main() {
         slog.Info("Started Scorer")
         scorer.RunScorer()
     }
-    CreateServer(database, tbaHandler, serverPort, pickNotifier, draftDaemon)
+
+    handler := handler.Handler{
+        Database: database,
+        TbaHandler: *tbaHandler,
+        Notifier: pickNotifier,
+        DraftDaemon: draftDaemon,
+        DraftPickManager: draftPickManager,
+    }
+
+    CreateServer(serverPort, handler)
 }

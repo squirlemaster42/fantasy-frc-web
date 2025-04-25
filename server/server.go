@@ -1,33 +1,22 @@
 package main
 
 import (
-	"database/sql"
 	"log/slog"
 	"server/assert"
 	"server/authentication"
-	"server/background"
 	"server/handler"
-	"server/picking"
-	"server/tbaHandler"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(db *sql.DB, tbaHandler *tbaHandler.TbaHandler, serverPort string, pickNotifier *picking.PickNotifier, draftDaemon *background.DraftDaemon) {
+func CreateServer(serverPort string, h handler.Handler) {
     slog.Info("Starting Server")
     assert := assert.CreateAssertWithContext("Create Server")
-    auth := authentication.NewAuth(db)
+    auth := authentication.NewAuth(h.Database)
     app := echo.New()
     app.IPExtractor = echo.ExtractIPDirect()
     app.Static("/", "./assets")
-
-    h := handler.Handler{
-        Database:   db,
-        TbaHandler: *tbaHandler,
-        Notifier: pickNotifier,
-        DraftDaemon: draftDaemon,
-    }
 
     app.Use(middleware.Gzip())
     app.Use(middleware.Recover())

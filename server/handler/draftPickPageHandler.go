@@ -24,7 +24,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(c.Param("id"))
-    h.renderPickPage(c, draftId, userId, false)
+    h.renderPickPage(c, draftId, userId, nil)
 
     return err
 }
@@ -60,30 +60,28 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
     isCurrentPick := draftModel.NextPick.User.Id == userId
 
-    isInvalid := false
-    validPick := model.ValidPick(h.Database, &h.TbaHandler, pick, draftId)
-    if pick == "frc" || !validPick || !isCurrentPick {
-        isInvalid = true
-        slog.Warn("Count Not Make Pick", "Valid Pick", validPick, "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId)
+    //Make the pick
+    draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
+    pickId := model.GetCurrentPick(h.Database, draftId).Id
+    pickStruct := model.Pick{
+        Id: pickId,
+        Player: draftPlayer,
+        Pick: sql.NullString{
+            Valid: true,
+            String: pick,
+        },
+        PickTime: sql.NullTime{
+            Valid: true,
+            Time: time.Now(),
+        },
+    }
+
+    pickError := h.DraftPickManager.GetPickManagerForDraft(draftId).MakePick(pickStruct)
+    if pick == "frc" || !isCurrentPick || pickError != nil {
+        slog.Warn("Count Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId, "Error", err)
     } else {
-        pickId := model.GetCurrentPick(h.Database, draftId).Id
-
-        //Make the pick
-        draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userId)
-        pickStruct := model.Pick{
-            Id: pickId,
-            Player: draftPlayer,
-            Pick: sql.NullString{
-                Valid: true,
-                String: pick,
-            },
-            PickTime: sql.NullTime{
-                Valid: true,
-                Time: time.Now(),
-            },
-        }
+        //TODO we need to move this logic into the pick manager
         model.MakePick(h.Database, pickStruct)
-
         nextPickPlayer := model.NextPick(h.Database, draftId)
 
         //Make the next pick available if we havn't aleady made all picks
@@ -101,15 +99,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
             model.UpdateDraftStatus(h.Database, draftId, model.TEAMS_PLAYING)
             h.DraftDaemon.RemoveDraft(draftId)
         }
+        //End logic to move
 
+        //We should be able to remove this and it should come from the pick manager instead
         h.Notifier.NotifyWatchers(draftId)
     }
 
-    h.renderPickPage(c, draftId, userId, isInvalid)
+    h.renderPickPage(c, draftId, userId, pickError)
     return nil
 }
 
-func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invalidPick bool) error {
+func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickError error) error {
     draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
         slog.Warn("User is attempting to render pick page for invalid draft", "Draft", draftId, "User", userId)
@@ -117,7 +117,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, invali
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
-    pickPageIndex := draft.DraftPickIndex(draftModel, url, invalidPick, notifierUrl, isCurrentPick)
+    pickPageIndex := draft.DraftPickIndex(draftModel, url, notifierUrl, isCurrentPick, pickError)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err = Render(c, pickPageView)

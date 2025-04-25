@@ -4,7 +4,7 @@ import "server/model"
 import "server/view"
 import "strings"
 
-templ DraftPickIndex (draft model.Draft, pickUrl string, invalidPick bool, notifierUrl string, isCurrentPick bool) {
+templ DraftPickIndex (draft model.Draft, pickUrl string, notifierUrl string, isCurrentPick bool, pickError error) {
     <div id="draftPicks" class="flex items-center justify-center w-full pt-4">
         <div hx-ext="ws" ws-connect={notifierUrl} class="w-full">
             <form
@@ -16,8 +16,8 @@ templ DraftPickIndex (draft model.Draft, pickUrl string, invalidPick bool, notif
             >
                 <div id="draft-table" class="flex flex-col justify-center">
                     <div class="w-full flex items-center justify-center">
-                        if invalidPick {
-                            <span class="text-red-800" style="width: fit-content;">You have entered an invalid pick. Please pick again.</span>
+                        if pickError != nil {
+                            <span class="text-red-800" style="width: fit-content;">{pickError.Error()}</span>
                         }
                     </div>
                     <div class="w-full overflow-x-auto">
