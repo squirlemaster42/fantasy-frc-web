@@ -19,7 +19,7 @@ templ HomeIndex (drafts *[]model.Draft) {
                         </div>
                         <div class="grid grid-cols-2 border-b border-slate-600">
                             <label class="border-t border-b border-slate-600 pl-2">
-                                Status: { draft.Status }
+                                Status: { string(draft.Status) }
                             </label>
                             <label class="border-t border-b border-slate-600 pl-2 pb-1">
                                 Next Pick:

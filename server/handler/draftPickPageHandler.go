@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"server/assert"
 	"server/model"
-	"server/utils"
 	"server/view/draft"
 	"strconv"
 	"strings"
@@ -78,31 +77,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
     pickError := h.DraftPickManager.GetPickManagerForDraft(draftId).MakePick(pickStruct)
     if pick == "frc" || !isCurrentPick || pickError != nil {
-        slog.Warn("Count Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId, "Error", err)
-    } else {
-        //TODO we need to move this logic into the pick manager
-        model.MakePick(h.Database, pickStruct)
-        nextPickPlayer := model.NextPick(h.Database, draftId)
-
-        //Make the next pick available if we havn't aleady made all picks
-        picks := model.GetPicks(h.Database, draftId)
-
-        slog.Info("Checking if we should make another pick available", "Num picks", len(picks))
-        if len(picks) < 64 {
-            slog.Info("Making next pick available", "Draft Id", draftId)
-            model.MakePickAvailable(h.Database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-        } else {
-            //Set draft to the teams playing state
-            //This isnt entirely correct becuase it doesnt account for skips
-            //But I dont care about that for this year
-            slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
-            model.UpdateDraftStatus(h.Database, draftId, model.TEAMS_PLAYING)
-            h.DraftDaemon.RemoveDraft(draftId)
-        }
-        //End logic to move
-
-        //We should be able to remove this and it should come from the pick manager instead
-        h.Notifier.NotifyWatchers(draftId)
+        slog.Warn("Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId, "Error", err)
     }
 
     h.renderPickPage(c, draftId, userId, pickError)

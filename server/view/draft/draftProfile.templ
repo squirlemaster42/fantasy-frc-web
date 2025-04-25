@@ -23,7 +23,7 @@ templ DraftProfileIndex (draft model.Draft, isOwner bool) {
             </div>
             <div class="card bg-base-200 m-2 p-2 grow">
                 <h1 class="border-b border-b-slate-600 pl-4 pr-4 text-2xl">
-                    Status: { draft.Status }
+                    Status: { string(draft.Status) }
                 </h1>
                 <h1 class="card-title border-b border-b-slate-600 pl-4 pr-4 text-2xl">
                     Description

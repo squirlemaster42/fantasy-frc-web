@@ -6,6 +6,7 @@ import (
 	"server/assert"
 	"server/model"
 	"server/view/draft"
+    draftHandler "server/draft"
 	"strconv"
 	"time"
 
@@ -60,7 +61,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
         Interval: intInterval,
         StartTime: parsedStartTime,
         EndTime: parsedEndTime,
-        Status: model.GetStatusString(model.FILLING),
+        Status: draftHandler.FILLING,
     }
 
     slog.Info("Created Draft for user", "Draft", draftModel.String(), "User", username)

@@ -1,11 +1,15 @@
 package picking
 
 import (
-    "database/sql"
-    "errors"
-    "server/model"
-    "server/tbaHandler"
-    "sync"
+	"database/sql"
+	"errors"
+	"log/slog"
+	"server/draft"
+	"server/model"
+	"server/tbaHandler"
+	"server/utils"
+	"sync"
+	"time"
 )
 
 func NewDraftPickManager(database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *DraftPickManager {
@@ -73,6 +77,29 @@ func (p *PickManager) MakePick(pick model.Pick) error {
 
     if err == nil {
         valid, err = model.ValidPick(p.database, p.tbaHandler, pick.Pick.String, p.draftId)
+    }
+
+    if err == nil {
+        //If we have not found any errors indicating that the pick is invalid, make the pick
+        model.MakePick(p.database, pick)
+        nextPickPlayer := model.NextPick(p.database, p.draftId)
+
+        //Make the next pick available if we havn't aleady made all picks
+        picks := model.GetPicks(p.database, p.draftId)
+
+        slog.Info("Checking if we should make another pick available", "Num picks", len(picks))
+        if len(picks) < 64 {
+            slog.Info("Making next pick available", "Draft Id", p.draftId)
+            model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+        } else {
+            //Set draft to the teams playing state
+            //This isnt entirely correct becuase it doesnt account for skips
+            //But I dont care about that for this year
+            slog.Info("Update status to TEAMS_PLAYING", "Draft Id", p.draftId)
+            model.UpdateDraftStatus(p.database, p.draftId, draft.TEAMS_PLAYING)
+            //TODO Figure out what to do about removing the draft from the daemon
+            //p.DraftDaemon.RemoveDraft(p.draftId)
+        }
     }
 
     for _, listener := range p.listeners {
