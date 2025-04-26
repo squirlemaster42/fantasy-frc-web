@@ -22,6 +22,7 @@ func ExecuteDraftStateTransition(draftId int, requestedState DraftState, databas
     case WAITING_TO_START:
         return errors.New("Invalid requested draft state")
     case PICKING:
+        //TODO Add draft to pick manager
         return errors.New("Invalid requested draft state")
     case TEAMS_PLAYING:
         return errors.New("Invalid requested draft state")
