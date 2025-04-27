@@ -4,7 +4,7 @@ import "server/model"
 import "server/view"
 import "strings"
 
-templ DraftPickIndex (draft model.Draft, pickUrl string, notifierUrl string, isCurrentPick bool, pickError error) {
+templ DraftPickIndex (draft model.DraftModel, pickUrl string, notifierUrl string, isCurrentPick bool, pickError error) {
     <div id="draftPicks" class="flex items-center justify-center w-full pt-4">
         <div hx-ext="ws" ws-connect={notifierUrl} class="w-full">
             <form
@@ -40,7 +40,7 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
     }
 }
 
-templ RenderPicks(draft model.Draft, isCurrentPick bool) {
+templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
     <div class="flex flex-row justify-around" id="pickTable" hx-swap="outerHTML">
         for _, player := range draft.Players {
             <table>

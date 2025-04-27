@@ -84,7 +84,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
         return nil
     }
 
-    draftModel = model.Draft{
+    draftModel = model.DraftModel {
         Id: draftId,
         Owner: model.User{Id: userId},
         DisplayName: draftName,

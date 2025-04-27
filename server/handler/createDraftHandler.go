@@ -6,7 +6,6 @@ import (
 	"server/assert"
 	"server/model"
 	"server/view/draft"
-    draftHandler "server/draft"
 	"strconv"
 	"time"
 
@@ -23,7 +22,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userId)
 
-    draftCreateIndex := draft.DraftProfileIndex(model.Draft{ Id: -1 }, true)
+    draftCreateIndex := draft.DraftProfileIndex(model.DraftModel{ Id: -1 }, true)
     draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
     err = Render(c, draftCreate)
     assert.NoError(err, "Handle View Draft Create Failed To Render")
@@ -54,14 +53,14 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     userId := model.GetUserBySessionToken(h.Database, sessionToken.Value)
     username := model.GetUsername(h.Database, userId)
 
-    draftModel := model.Draft{
+    draftModel := model.DraftModel {
         Owner: model.User{Id: userId},
         DisplayName: draftName,
         Description: description,
         Interval: intInterval,
         StartTime: parsedStartTime,
         EndTime: parsedEndTime,
-        Status: draftHandler.FILLING,
+        Status: model.FILLING,
     }
 
     slog.Info("Created Draft for user", "Draft", draftModel.String(), "User", username)

@@ -8,7 +8,6 @@ import (
 
 	"server/background"
 	"server/database"
-	"server/draft"
 	draftInit "server/draftInit"
 	"server/handler"
 	"server/model"
@@ -83,7 +82,7 @@ func main() {
     draftDaemon := background.NewDraftDaemon(database, pickNotifier)
     draftDaemon.Start()
     slog.Info("Checking for drafts that need to be added to daemon")
-    drafts := model.GetDraftsInStatus(database, draft.PICKING)
+    drafts := model.GetDraftsInStatus(database, model.PICKING)
     for _, draftId := range drafts {
         draftDaemon.AddDraft(draftId)
         draftPickManager.GetPickManagerForDraft(draftId).AddListener(pickNotifier)

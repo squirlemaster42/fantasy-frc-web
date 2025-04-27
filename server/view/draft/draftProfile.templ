@@ -7,7 +7,7 @@ import (
 	"server/utils"
 )
 
-templ DraftProfileIndex (draft model.Draft, isOwner bool) {
+templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
     <form
         class="flex flex-row w-full h-full"
         hx-swap="outerHTML"

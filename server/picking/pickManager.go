@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
-	"server/draft"
 	"server/model"
 	"server/tbaHandler"
 	"server/utils"
@@ -96,7 +95,7 @@ func (p *PickManager) MakePick(pick model.Pick) error {
             //This isnt entirely correct becuase it doesnt account for skips
             //But I dont care about that for this year
             slog.Info("Update status to TEAMS_PLAYING", "Draft Id", p.draftId)
-            model.UpdateDraftStatus(p.database, p.draftId, draft.TEAMS_PLAYING)
+            model.UpdateDraftStatus(p.database, p.draftId, model.TEAMS_PLAYING)
             //TODO Figure out what to do about removing the draft from the daemon
             //p.DraftDaemon.RemoveDraft(p.draftId)
         }
