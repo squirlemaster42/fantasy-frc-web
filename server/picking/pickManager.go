@@ -11,31 +11,6 @@ import (
 	"time"
 )
 
-func NewDraftPickManager(database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *DraftPickManager {
-    return &DraftPickManager{
-        database: database,
-        tbaHandler: tbaHandler,
-        pickManagers: map[int]*PickManager{},
-    }
-}
-
-type DraftPickManager struct {
-    pickManagers map[int]*PickManager
-    tbaHandler *tbaHandler.TbaHandler
-    database *sql.DB
-}
-
-func (d *DraftPickManager) GetPickManagerForDraft(draftId int) *PickManager {
-    manager, ok := d.pickManagers[draftId]
-    if ok {
-        return d.pickManagers[draftId]
-    } else {
-        manager = newPickManager(draftId, d.database, d.tbaHandler)
-        d.pickManagers[draftId] = manager
-        return manager
-    }
-}
-
 type PickManager struct {
     draftId int
     lock sync.Mutex
