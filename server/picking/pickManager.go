@@ -30,7 +30,7 @@ type PickListener interface {
     RecievePickEvent(pickEvent PickEvent)
 }
 
-func newPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *PickManager {
+func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *PickManager {
     return &PickManager{
         draftId: draftId,
         database: database,
