@@ -2,17 +2,60 @@ package draft
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
 	"sync"
 )
 
+func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
+    return &DraftManager{
+        drafts: map[int]*Draft{},
+        database: database,
+        tbaHandler: tbaHandler,
+        states: setupStates(),
+    }
+}
+
+type stateTransition interface {
+    executeTransition(previousState model.DraftState, draft Draft)
+}
+
+type state struct {
+    state model.DraftState
+    transitions map[model.DraftState]stateTransition
+}
+
+func setupStates() map[model.DraftState]*state {
+    states := make(map[model.DraftState]*state)
+    states[model.FILLING] = &state {
+        state: model.FILLING,
+    }
+    states[model.FILLING].transitions[model.WAITING_TO_START] = nil
+    states[model.WAITING_TO_START] = &state {
+        state: model.WAITING_TO_START,
+    }
+    states[model.WAITING_TO_START].transitions[model.PICKING] = nil
+    states[model.PICKING] = &state {
+        state: model.PICKING,
+    }
+    states[model.PICKING].transitions[model.TEAMS_PLAYING] = nil
+    states[model.TEAMS_PLAYING] = &state {
+        state: model.TEAMS_PLAYING,
+    }
+    states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = nil
+    states[model.COMPLETE] = &state {
+        state: model.COMPLETE,
+    }
+    return states
+}
+
 type DraftManager struct {
     drafts map[int]*Draft
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
+    states map[model.DraftState]*state
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (*Draft, error) {
@@ -44,34 +87,21 @@ type Draft struct {
     stateLock sync.Mutex
 }
 
+type invalidStateTransitionError struct {
+    currentState model.DraftState
+    requestedState model.DraftState
+}
+
+func (e *invalidStateTransitionError) Error() string {
+    return fmt.Sprintf("Invalid state tranition where current state was %s and requested state was %s", e.currentState, e.requestedState)
+}
+
 func (d *Draft) ExecuteDraftStateTransition(requestedState model.DraftState, database *sql.DB) error {
     d.stateLock.Lock()
     defer d.stateLock.Unlock()
 
-    //We dont want to rerun the state transition for the state we are already in
-    if d.model.Status == requestedState {
-        return errors.New("Draft is already in requested state")
-    }
-
-    switch requestedState {
-    case model.FILLING:
-        //Drafts should start in this status so we should not allow them to
-        //transistion into this status
-        return nil
-    case model.WAITING_TO_START:
-        //Drafts enter this status when the number of players who have accepted the draft
-        //is equal to the number of players needed for the draft
-        return nil
-    case model.PICKING:
-        //The draft enters this status when the owner indicates it is time to start picking
-        return nil
-    case model.TEAMS_PLAYING:
-        //The draft enters this status when all players have picked their teams
-        return nil
-    case model.COMPLETE:
-        //The draft enters this status after scoring has been completed
-        return nil
-    default:
-        return errors.New("Invalid requested draft state")
+    return &invalidStateTransitionError{
+        currentState: model.FILLING,
+        requestedState: model.FILLING,
     }
 }
