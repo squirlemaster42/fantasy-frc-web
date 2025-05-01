@@ -48,6 +48,7 @@ func (d *Draft) ExecuteDraftStateTransition(requestedState model.DraftState, dat
     d.stateLock.Lock()
     defer d.stateLock.Unlock()
 
+    //We dont want to rerun the state transition for the state we are already in
     if d.model.Status == requestedState {
         return errors.New("Draft is already in requested state")
     }
