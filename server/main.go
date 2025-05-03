@@ -5,9 +5,9 @@ import (
 	"log"
 	"log/slog"
 	"os"
-
 	"server/background"
 	"server/database"
+	"server/draft"
 	draftInit "server/draftInit"
 	"server/handler"
 	"server/model"
@@ -76,8 +76,7 @@ func main() {
         Watchers: make(map[int][]picking.Watcher),
     }
 
-    draftPickManager := picking.NewDraftPickManager(database, tbaHandler)
-
+    //TODO We should probably move this to the draft manager instead
     //Start the draft daemon and add all running drafts to it
     draftDaemon := background.NewDraftDaemon(database, pickNotifier)
     draftDaemon.Start()
@@ -85,8 +84,10 @@ func main() {
     drafts := model.GetDraftsInStatus(database, model.PICKING)
     for _, draftId := range drafts {
         draftDaemon.AddDraft(draftId)
-        draftPickManager.GetPickManagerForDraft(draftId).AddListener(pickNotifier)
+        //draftPickManager.GetPickManagerForDraft(draftId).AddListener(pickNotifier)
     }
+
+    draftManager := draft.NewDraftManager(tbaHandler, draftDaemon, database)
 
     scorer := scorer.NewScorer(tbaHandler, database)
     if !*skipScoring {
@@ -99,7 +100,6 @@ func main() {
         TbaHandler: *tbaHandler,
         Notifier: pickNotifier,
         DraftDaemon: draftDaemon,
-        DraftPickManager: draftPickManager,
     }
 
     CreateServer(serverPort, handler)

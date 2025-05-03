@@ -3,6 +3,7 @@ package background
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"server/assert"
 	"time"
 )
@@ -27,6 +28,7 @@ func (c *CleanupService) Start() error {
         return errors.New("Clean up service already running")
     }
     c.running = true
+    slog.Info("Started cleanup service")
     go func() {
         for c.running {
             c.CleanExpiredSessionTokens()
@@ -45,11 +47,13 @@ func (c *CleanupService) Stop() error {
 }
 
 func (c *CleanupService) CleanExpiredSessionTokens() {
+    slog.Info("Starting iteration of cleanup service")
     query := `Delete from UserSessions Where expirationTime < (now()::timestamp + '2 hours');`
     assert := assert.CreateAssertWithContext("Clean Expired Session Tokens")
     stmt, err := c.database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec()
     assert.NoError(err, "Failed To Cleanup Session Tokens")
+    slog.Info("Finished iteration of cleanup service")
 }
 

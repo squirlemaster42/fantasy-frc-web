@@ -3,7 +3,9 @@ package draft
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"server/assert"
+	"server/background"
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
@@ -11,12 +13,24 @@ import (
 )
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
-    return &DraftManager{
+    //Start the draft daemon and add all running drafts to it
+    draftDaemon := background.NewDraftDaemon(database)
+    draftDaemon.Start()
+    slog.Info("Checking for drafts that need to be added to daemon")
+    drafts := model.GetDraftsInStatus(database, model.PICKING)
+    for _, draftId := range drafts {
+        draftDaemon.AddDraft(draftId)
+    }
+
+    draftManager := &DraftManager{
         drafts: map[int]*Draft{},
         database: database,
         tbaHandler: tbaHandler,
-        states: setupStates(database),
+        draftDaemon: draftDaemon,
+        states: setupStates(database, draftDaemon),
     }
+
+    return draftManager
 }
 
 type stateTransition interface {
@@ -34,19 +48,25 @@ func (tst *ToStartTransition) executeTransition(draft *Draft) error {
 
 type ToPickingTransition struct {
     database *sql.DB
+    draftDaemon *background.DraftDaemon
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+    //Add the draft to the pick daemon
+    tpt.draftDaemon.AddDraft(draft.draftId)
     return nil
 }
 
 type ToPlayingTransition struct {
     database *sql.DB
+    draftDaemon *background.DraftDaemon
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft *Draft) error {
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
+    //Remove the draft from the pick daemon
+    tpt.draftDaemon.RemoveDraft(draft.draftId)
     return nil
 }
 
@@ -64,7 +84,7 @@ type state struct {
     transitions map[model.DraftState]stateTransition
 }
 
-func setupStates(database *sql.DB) map[model.DraftState]*state {
+func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[model.DraftState]*state {
     states := make(map[model.DraftState]*state)
     states[model.FILLING] = &state {
         state: model.FILLING,
@@ -78,6 +98,7 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
     }
     states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition {
         database: database,
+        draftDaemon: draftDaemon,
     }
 
     states[model.PICKING] = &state {
@@ -85,6 +106,7 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
     }
     states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
         database: database,
+        draftDaemon: draftDaemon,
     }
 
     states[model.TEAMS_PLAYING] = &state {
@@ -105,6 +127,7 @@ type DraftManager struct {
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
     states map[model.DraftState]*state
+    draftDaemon *background.DraftDaemon
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (*Draft, error) {

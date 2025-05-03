@@ -20,7 +20,7 @@ type DraftDaemon struct {
     notifier *picking.PickNotifier
 }
 
-func NewDraftDaemon(database *sql.DB, notifier *picking.PickNotifier) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB) *DraftDaemon {
     return &DraftDaemon{
         database: database,
         running: false,
@@ -47,7 +47,11 @@ func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
         slog.Info("Starting iteration of the Draft Daemon")
-        for draftId := range d.runningDrafts {
+        for draftId, running := range d.runningDrafts {
+            if !running {
+                continue
+            }
+
             curPick := model.GetCurrentPick(d.database, draftId)
             slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
             now := time.Now()
