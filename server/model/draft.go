@@ -260,7 +260,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int {
     return draftId
 }
 
-func UpdateDraftStatus(database *sql.DB, draftId int, status string) {
+func UpdateDraftStatus(database *sql.DB, draftId int, status DraftState) {
     query := `Update Drafts Set Status = $1 Where Id = $2;`
     assert := assert.CreateAssertWithContext("Update Draft Status")
     assert.AddContext("Draft Id", draftId)

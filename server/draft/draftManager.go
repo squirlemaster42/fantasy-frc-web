@@ -28,6 +28,7 @@ type ToStartTransition struct {
 }
 
 func (tst *ToStartTransition) executeTransition(draft *Draft) error {
+    model.UpdateDraftStatus(tst.database, draft.draftId, model.WAITING_TO_START)
     return nil
 }
 
@@ -36,6 +37,7 @@ type ToPickingTransition struct {
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
+    model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     return nil
 }
 
@@ -44,6 +46,7 @@ type ToPlayingTransition struct {
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft *Draft) error {
+    model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
     return nil
 }
 
@@ -52,6 +55,7 @@ type ToCompleteTransition struct {
 }
 
 func (tct *ToCompleteTransition) executeTransition(draft *Draft) error {
+    model.UpdateDraftStatus(tct.database, draft.draftId, model.COMPLETE)
     return nil
 }
 
