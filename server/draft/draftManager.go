@@ -168,7 +168,7 @@ func (e *invalidStateTransitionError) Error() string {
     return fmt.Sprintf("Invalid state tranition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState model.DraftState, database *sql.DB) error {
+func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState model.DraftState) error {
     assert := assert.CreateAssertWithContext("Execute Draft State Transition")
     assert.AddContext("Draft Id", draft.draftId)
     assert.AddContext("Current State", string(draft.model.Status))
@@ -188,4 +188,8 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
     }
 
     return transition.executeTransition(draft)
+}
+
+func (dm *DraftManager) MakePick(draft *Draft, pick model.Pick) error {
+    return nil
 }
