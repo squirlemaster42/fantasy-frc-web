@@ -39,9 +39,11 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
 }
 
 //Return error if pick is not able to be made
-func (p *PickManager) MakePick(pick model.Pick) error {
+func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
     p.lock.Lock()
     defer p.lock.Unlock()
+
+    pickingComplete := false
 
     var err error
     valid := false
@@ -69,10 +71,7 @@ func (p *PickManager) MakePick(pick model.Pick) error {
             //Set draft to the teams playing state
             //This isnt entirely correct becuase it doesnt account for skips
             //But I dont care about that for this year
-            slog.Info("Update status to TEAMS_PLAYING", "Draft Id", p.draftId)
-            model.UpdateDraftStatus(p.database, p.draftId, model.TEAMS_PLAYING)
-            //TODO Figure out what to do about removing the draft from the daemon
-            //p.DraftDaemon.RemoveDraft(p.draftId)
+            pickingComplete = true
         }
     }
 
@@ -84,7 +83,7 @@ func (p *PickManager) MakePick(pick model.Pick) error {
             DraftId: p.draftId,
         })
     }
-    return err
+    return pickingComplete, err
 }
 
 func (p *PickManager) AddListener(listener PickListener) {

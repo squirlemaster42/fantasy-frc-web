@@ -190,6 +190,18 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
     return transition.executeTransition(draft)
 }
 
-func (dm *DraftManager) MakePick(draft *Draft, pick model.Pick) error {
-    return nil
+func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
+    draft := dm.drafts[draftId]
+    pickingComplete, err := draft.pickManager.MakePick(pick)
+    if pickingComplete {
+        slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
+        dm.ExecuteDraftStateTransition(draft, model.TEAMS_PLAYING)
+        dm.draftDaemon.RemoveDraft(draftId)
+    }
+    return err
+}
+
+func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {
+    draft := dm.drafts[draftId]
+    draft.pickManager.AddListener(listener)
 }
