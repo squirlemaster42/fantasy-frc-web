@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"server/assert"
 	"server/model"
+	"server/picking"
 	"server/view/draft"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         },
     }
 
-    pickError := h.DraftPickManager.GetPickManagerForDraft(draftId).MakePick(pickStruct)
+    pickError := h.DraftManager.MakePick(draftId, pickStruct)
     if pick == "frc" || !isCurrentPick || pickError != nil {
         slog.Warn("Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId, "Error", err)
     }
@@ -99,36 +100,48 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     return err
 }
 
+type WebSocketListener struct {
+    messageQueue chan picking.PickEvent
+}
+
+func (w WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
+    w.messageQueue <- pickEvent
+}
+
 func (h *Handler) PickNotifier(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Pick Notifier")
     websocket.Handler(func(ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)
-        watcher := h.Notifier.RegisterWatcher(draftId)
+        wsl := WebSocketListener {
+            messageQueue: make(chan picking.PickEvent),
+        }
+        h.DraftManager.AddPickListener(draftId, wsl)
         userTok, err := c.Cookie("sessionToken")
         assert.NoError(err, "Failed to get user token")
         userId := model.GetUserBySessionToken(h.Database, userTok.Value)
         defer ws.Close()
-        defer h.Notifier.UnregiserWatcher(watcher)
+        //TODO Figure out how to unregister the listener
+        //defer h.Notifier.UnregiserWatcher(watcher)
         assert.NoError(err, "Could not parse draft id")
         for {
-            msg := <-watcher.NotifierQueue
-            if msg {
-                draftModel, err := model.GetDraft(h.Database, draftId)
-                if err != nil {
-                    slog.Warn("Attempting to notify draft that does not exist", "Draft Id", draftId)
-                    continue
-                }
+            msg := <- wsl.messageQueue
+            slog.Info("Writing pick event to client", "Event", msg)
+            draftModel, err := model.GetDraft(h.Database, draftId)
+            if err != nil {
+                slog.Warn("Attempting to notify draft that does not exist", "Draft Id", draftId)
+                continue
+            }
 
-                var html strings.Builder
-                pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.Id == userId)
-                err = pickPage.Render(context.Background(), &html)
-                assert.NoError(err, "Failed to render picks for notifier")
+            var html strings.Builder
+            pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.Id == userId)
+            err = pickPage.Render(context.Background(), &html)
+            assert.NoError(err, "Failed to render picks for notifier")
 
-                err = websocket.Message.Send(ws, html.String())
-                if err != nil {
-                    break
-                }
+            err = websocket.Message.Send(ws, html.String())
+            if err != nil {
+                slog.Warn("Failed to sent message to websocket")
+                break
             }
         }
     }).ServeHTTP(c.Response(), c.Request())

@@ -27,7 +27,7 @@ type PickEvent struct {
 }
 
 type PickListener interface {
-    RecievePickEvent(pickEvent PickEvent)
+    ReceivePickEvent(pickEvent PickEvent)
 }
 
 func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler) *PickManager {
@@ -76,7 +76,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
     }
 
     for _, listener := range p.listeners {
-        (*listener).RecievePickEvent(PickEvent{
+        (*listener).ReceivePickEvent(PickEvent{
             Pick: pick,
             Success: valid,
             Err: err,

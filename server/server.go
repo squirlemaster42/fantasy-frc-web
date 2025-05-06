@@ -19,7 +19,7 @@ func CreateServer(serverPort string, h handler.Handler) {
     app.Static("/", "./assets")
 
     app.Use(middleware.Gzip())
-    app.Use(middleware.Recover())
+    //app.Use(middleware.Recover())
 
     //Setup Routes
     app.GET("/login", h.HandleViewLogin)

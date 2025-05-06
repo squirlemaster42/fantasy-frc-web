@@ -88,13 +88,15 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
     states := make(map[model.DraftState]*state)
     states[model.FILLING] = &state {
         state: model.FILLING,
+        transitions: make(map[model.DraftState]stateTransition),
     }
-    states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition{
+    states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition {
         database: database,
     }
 
     states[model.WAITING_TO_START] = &state {
         state: model.WAITING_TO_START,
+        transitions: make(map[model.DraftState]stateTransition),
     }
     states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition {
         database: database,
@@ -103,21 +105,24 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
 
     states[model.PICKING] = &state {
         state: model.PICKING,
+        transitions: make(map[model.DraftState]stateTransition),
     }
-    states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
+    states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition {
         database: database,
         draftDaemon: draftDaemon,
     }
 
     states[model.TEAMS_PLAYING] = &state {
         state: model.TEAMS_PLAYING,
+        transitions: make(map[model.DraftState]stateTransition),
     }
-    states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = &ToCompleteTransition{
+    states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = &ToCompleteTransition {
         database: database,
     }
 
     states[model.COMPLETE] = &state {
         state: model.COMPLETE,
+        transitions: make(map[model.DraftState]stateTransition),
     }
     return states
 }
@@ -191,7 +196,11 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
-    draft := dm.drafts[draftId]
+    draft, err := dm.GetDraft(draftId, false)
+    if err != nil {
+        return err
+    }
+
     pickingComplete, err := draft.pickManager.MakePick(pick)
     if pickingComplete {
         slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
@@ -202,6 +211,10 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 }
 
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {
-    draft := dm.drafts[draftId]
+    draft, err := dm.GetDraft(draftId, false)
+    if err != nil {
+        slog.Error("Failed to load draft when adding pick listener", "Error", err)
+        return
+    }
     draft.pickManager.AddListener(listener)
 }
