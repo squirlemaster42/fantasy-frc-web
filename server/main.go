@@ -28,6 +28,7 @@ func main() {
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
     serverPort := os.Getenv("SERVER_PORT")
+    //tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
     slog.Info("Extracted Env Vars")
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
     slog.Info("Registered Database Connection")
@@ -60,6 +61,7 @@ func main() {
         Database: database,
         TbaHandler: *tbaHandler,
         DraftManager: draftManager,
+        Scorer: scorer,
     }
 
     CreateServer(serverPort, handler)

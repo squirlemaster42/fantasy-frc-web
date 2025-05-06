@@ -27,6 +27,7 @@ func CreateServer(serverPort string, h handler.Handler) {
     app.GET("/register", h.HandleViewRegister)
     app.POST("/register", h.HandlerRegisterPost)
     app.POST("/logout", h.HandleLogoutPost)
+    app.POST("/tbaWebsocket", h.ConsumeTbaWebsocket)
 
     protected := app.Group("/u", auth.Authenticate)
     protected.GET("/home", h.HandleViewHome)

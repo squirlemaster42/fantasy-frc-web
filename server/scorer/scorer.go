@@ -440,7 +440,7 @@ func (s *Scorer) RunScorer() {
 	go s.scoringRunner()
 }
 
-func (s *Scorer) AddMatchToScore() {
+func (s *Scorer) AddMatchToScore(match swagger.Match) {
 
 }
 
