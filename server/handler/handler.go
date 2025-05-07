@@ -47,6 +47,7 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
     case "starting_comp_level":
         break
     case "alliance_selection":
+        h.ScoreAllianceSelection(event.MessageData)
         break
     case "awards_posted":
         break
@@ -78,9 +79,27 @@ func (h *Handler) ScoreMatch(messageData string) {
     var scoreNotification ScoreNofification
     err := json.Unmarshal([]byte(messageData), &scoreNotification)
     if err != nil {
-        //TODO it would be nice to get the request body in here
-        slog.Error("Failed to decode webhook message", "Error", err)
+        slog.Error("Failed to decode webhook message", "Error", err, "Message", messageData)
+        return
     }
 
     h.Scorer.AddMatchToScore(scoreNotification.Match)
+}
+
+type AllianceSelectionNotification struct {
+    EventKey string `json:"event_key"`
+    TeamKey string `json:"team_key"`
+    EventName string `json:"event_name"`
+    Event swagger.Event `json:"event"`
+
+}
+
+func (h *Handler) ScoreAllianceSelection(messageData string) {
+    var notification AllianceSelectionNotification
+    err := json.Unmarshal([]byte(messageData), &notification)
+    if err != nil {
+        slog.Error("Failed to decode webhook message", "Error", err, "Message", messageData)
+    }
+
+    h.ScoreAllianceSelection(notification.EventKey)
 }

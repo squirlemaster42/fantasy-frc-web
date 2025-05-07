@@ -533,7 +533,16 @@ func (s *Scorer) scoringRunner() {
             if event == utils.Einstein() {
                 continue
             }
-            alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
+            s.ScoreAllianceSelection(event)
+
+        }
+
+        time.Sleep(15 * time.Minute)
+    }
+}
+
+func (s *Scorer) ScoreAllianceSelection(event string) {
+    alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
             for _, alliance := range alliances {
                 scores := s.GetAllianceSelectionScore(alliance)
                 for team, score := range scores {
@@ -541,8 +550,4 @@ func (s *Scorer) scoringRunner() {
                     model.UpdateTeamAllianceScore(s.database, team, score)
                 }
             }
-        }
-
-        time.Sleep(15 * time.Minute)
-    }
 }
