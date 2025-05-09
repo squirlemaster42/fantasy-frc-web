@@ -182,5 +182,5 @@ type VerificationEvent struct {
 }
 
 func (h *Handler) HandleVerificationEvent(messageData string) {
-
+    slog.Info("Received Verification Event", "Message", messageData)
 }
