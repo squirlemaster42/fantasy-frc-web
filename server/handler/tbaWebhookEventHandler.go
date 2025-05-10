@@ -41,7 +41,6 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
     var event TbaWebsocketEvent
     err = json.NewDecoder(c.Request().Body).Decode(&event)
     if err != nil {
-        //TODO it would be nice to get the request body in here
         slog.Error("Failed to decode webhook message", "Error", err, "Message", string(body))
         return nil
     }
