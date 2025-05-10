@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"server/swagger"
 
@@ -13,13 +16,34 @@ type TbaWebsocketEvent struct {
     MessageData string `json:"message_data"`
 }
 
+func validMAC(message []byte, messageMAC []byte, key []byte) bool {
+	mac := hmac.New(sha256.New, key)
+	mac.Write(message)
+	expectedMAC := mac.Sum(nil)
+	return hmac.Equal(messageMAC, expectedMAC)
+}
+
 func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
-    //TODO we need to authenticate the requset
+    body, err := io.ReadAll(c.Request().Body)
+    if err != nil {
+        slog.Error("Failed to read request body", "Error", err)
+        return nil
+    }
+
+    messageMac := c.Request().Header.Get("X-TBA-HMAC")
+    valid := validMAC(body, []byte(messageMac), []byte(h.TbaWekhookSecret))
+
+    if !valid {
+        slog.Warn("Webhook event authentication failed", "Message", string(body))
+        return nil
+    }
+
     var event TbaWebsocketEvent
-    err := json.NewDecoder(c.Request().Body).Decode(&event)
+    err = json.NewDecoder(c.Request().Body).Decode(&event)
     if err != nil {
         //TODO it would be nice to get the request body in here
-        slog.Error("Failed to decode webhook message", "Error", err)
+        slog.Error("Failed to decode webhook message", "Error", err, "Message", string(body))
+        return nil
     }
 
     switch event.MessageType {
@@ -54,9 +78,8 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
         h.HandleVerificationEvent(event.MessageData)
         break
     default:
-        slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType)
-        break
-    }
+        slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, event.MessageData)
+        break }
 
     return nil
 }
@@ -70,6 +93,7 @@ type MatchScoreNofification struct {
 }
 
 func (h *Handler) HandleMatchScoreEvent(messageData string) {
+    slog.Info("Received match score event", "Message", messageData)
     var scoreNotification MatchScoreNofification
     err := json.Unmarshal([]byte(messageData), &scoreNotification)
     if err != nil {
@@ -89,6 +113,7 @@ type AllianceSelectionNotification struct {
 }
 
 func (h *Handler) HandleAllianceSelectionEvent(messageData string) {
+    slog.Info("Received alliance selection event", "Message", messageData)
     var notification AllianceSelectionNotification
     err := json.Unmarshal([]byte(messageData), &notification)
     if err != nil {
@@ -110,7 +135,7 @@ type UpcomingMatchEvent struct {
 }
 
 func (h *Handler) HandleUpcomingMatchEvent(messageData string) {
-
+    slog.Info("Received upcoming match event", "Message", messageData)
 }
 
 
@@ -123,7 +148,7 @@ type MatchVideoNofification struct {
 }
 
 func (h *Handler) HandleMatchVideoEvent(messageData string) {
-
+    slog.Info("Received match video event", "Message", messageData)
 }
 
 type CompLevelStartingEvent struct {
@@ -134,7 +159,7 @@ type CompLevelStartingEvent struct {
 }
 
 func (h *Handler) HandleCompLevelStartingEvent(messageData string) {
-
+    slog.Info("Received comp level starting event", "Message", messageData)
 }
 
 type AwardsPostedEvent struct {
@@ -145,7 +170,7 @@ type AwardsPostedEvent struct {
 }
 
 func (h *Handler) HandleAwardsPostedEvent(messageData string) {
-
+    slog.Info("Received awards posted event", "Message", messageData)
 }
 
 type EventScheduleUpdatedEvent struct {
@@ -155,7 +180,7 @@ type EventScheduleUpdatedEvent struct {
 }
 
 func (h *Handler) HandleEventScheduleUpdatedEvent(messageData string) {
-
+    slog.Info("Received event schedule updated event", "Message", messageData)
 }
 
 type PingEvent struct {
@@ -164,7 +189,7 @@ type PingEvent struct {
 }
 
 func (h *Handler) HandlePingEvent(messageData string) {
-
+    slog.Info("Received ping event", "Message", messageData)
 }
 
 type BroadcastEvent struct {
@@ -174,7 +199,7 @@ type BroadcastEvent struct {
 }
 
 func (h *Handler) HandleBroadcastEvent(messageData string) {
-
+    slog.Info("Received broadcast event", "Message", messageData)
 }
 
 type VerificationEvent struct {

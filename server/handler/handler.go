@@ -13,4 +13,5 @@ type Handler struct {
     DraftManager *draft.DraftManager
     DraftDaemon *background.DraftDaemon
     Scorer *scorer.Scorer
+    TbaWekhookSecret string
 }
