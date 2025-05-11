@@ -101,7 +101,12 @@ func (t *TbaHandler) makeRequest(url string) []byte {
         return nil
     }
 
-    defer resp.Body.Close()
+    defer func() {
+        err = resp.Body.Close()
+        if err != nil {
+            slog.Warn("Failed to close tba request", "Url", url, "Error", err)
+        }
+    }()
 
     slog.Info("Got response from tba", "Status", resp.Status)
     switch resp.StatusCode {
@@ -130,7 +135,13 @@ func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.M
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
     jsonData := t.makeRequest(url)
     var matches []swagger.Match
-    json.Unmarshal(jsonData, &matches)
+    err := json.Unmarshal(jsonData, &matches)
+
+    if err != nil {
+        slog.Error("Failed to parse match list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+        return nil
+    }
+
     return matches
 }
 
@@ -138,7 +149,13 @@ func (t *TbaHandler) MakeEventListReq(teamId string) []string {
     url := BASE_URL + "team/" + teamId + "/events/2025/keys"
     var events []string
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &events)
+    err := json.Unmarshal(jsonData, &events)
+
+    if err != nil {
+        slog.Error("Failed to parse event list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+        return nil
+    }
+
     return events
 }
 
@@ -146,7 +163,13 @@ func (t *TbaHandler) MakeMatchReq(matchId string) swagger.Match {
     url := BASE_URL + "match/" + matchId
     var match swagger.Match
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &match)
+    err := json.Unmarshal(jsonData, &match)
+
+    if err != nil {
+        slog.Error("Failed to parse match from tba", "Message Data", jsonData, "Match", matchId, "Error", err)
+        return swagger.Match{}
+    }
+
     return match
 }
 
@@ -154,7 +177,13 @@ func (t *TbaHandler) MakeMatchKeysRequest(teamId string, eventId string) []strin
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
     var keys []string
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &keys)
+    err := json.Unmarshal(jsonData, &keys)
+
+    if err != nil {
+        slog.Error("Failed to parse match key list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+        return nil
+    }
+
     return keys
 }
 
@@ -162,7 +191,13 @@ func (t *TbaHandler) MakeEventMatchKeysRequest(eventId string) []string {
     url := BASE_URL + "event/" + eventId + "/matches/keys"
     var keys []string
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &keys)
+    err := json.Unmarshal(jsonData, &keys)
+
+    if err != nil {
+        slog.Error("Failed to parse event match key list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+        return nil
+    }
+
     return keys
 }
 
@@ -170,7 +205,13 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
     url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
     var matches []string
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &matches)
+    err := json.Unmarshal(jsonData, &matches)
+
+    if err != nil {
+        slog.Error("Failed to parse match key year list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+        return nil
+    }
+
     return matches
 }
 
@@ -178,7 +219,13 @@ func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) s
     url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
     var event swagger.TeamEventStatus
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &event)
+    err := json.Unmarshal(jsonData, &event)
+
+    if err != nil {
+        slog.Error("Failed to parse event status from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+        return swagger.TeamEventStatus{}
+    }
+
     return event
 }
 
@@ -186,7 +233,13 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
     url := BASE_URL + "event/" + eventId + "/teams/simple"
     var teams []swagger.Team
     jsonData := t.makeRequest(url)
-    json.Unmarshal(jsonData, &teams)
+    err := json.Unmarshal(jsonData, &teams)
+
+    if err != nil {
+        slog.Error("Failed to parse teams at event list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+        return nil
+    }
+
     return teams
 }
 
@@ -195,6 +248,12 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
     var alliances []swagger.EliminationAlliance
     jsonData := t.makeRequest(url)
     slog.Info(string(jsonData))
-    json.Unmarshal(jsonData, &alliances)
+    err := json.Unmarshal(jsonData, &alliances)
+
+    if err != nil {
+        slog.Error("Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+        return nil
+    }
+
     return alliances
 }

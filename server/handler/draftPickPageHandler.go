@@ -24,9 +24,12 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
     draftId, err := strconv.Atoi(c.Param("id"))
-    h.renderPickPage(c, draftId, userId, nil)
+    if err != nil {
+        slog.Warn("Failed to parse draft id string", "Draft Id String", c.Param("id"), "Error", err)
+        return err
+    }
 
-    return err
+    return h.renderPickPage(c, draftId, userId, nil)
 }
 
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
@@ -74,8 +77,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         slog.Warn("Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Id", userId, "Error", err)
     }
 
-    h.renderPickPage(c, draftId, userId, pickError)
-    return nil
+    return h.renderPickPage(c, draftId, userId, pickError)
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickError error) error {
@@ -118,7 +120,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         userTok, err := c.Cookie("sessionToken")
         assert.NoError(err, "Failed to get user token")
         userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-        defer ws.Close()
+        defer func() {
+            err = ws.Close()
+            if err != nil {
+                slog.Warn("Failed to close pick notifier web socket", "Draft Id", draftId, "User", userId, "Error", err)
+            }
+        }()
         //TODO Figure out how to unregister the listener
         //defer h.Notifier.UnregiserWatcher(watcher)
         assert.NoError(err, "Could not parse draft id")

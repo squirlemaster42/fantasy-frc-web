@@ -1,28 +1,30 @@
 package main
 
 import (
-    "flag"
-    "log/slog"
-    "os"
-    "server/database"
-    "server/draft"
-    "server/handler"
-    "server/model"
-    "server/scorer"
-    "server/tbaHandler"
-    "server/utils"
+	"flag"
+	"log/slog"
+	"os"
+	"server/assert"
+	"server/database"
+	"server/draft"
+	"server/handler"
+	"server/model"
+	"server/scorer"
+	"server/tbaHandler"
+	"server/utils"
 
-    "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-
+    assert := assert.CreateAssertWithContext("Main")
     slog.Info("-------- Starting Fantasy FRC --------")
     skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
     populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")
     flag.Parse()
 
-    godotenv.Load()
+    err := godotenv.Load()
+    assert.NoError(err, "Failed to load env vars")
     tbaTok := os.Getenv("TBA_TOKEN")
     dbPassword := os.Getenv("DB_PASSWORD")
     dbUsername := os.Getenv("DB_USERNAME")

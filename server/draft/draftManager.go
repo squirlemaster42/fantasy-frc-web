@@ -15,11 +15,19 @@ import (
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
     //Start the draft daemon and add all running drafts to it
     draftDaemon := background.NewDraftDaemon(database)
-    draftDaemon.Start()
+    err := draftDaemon.Start()
+    if err != nil {
+        slog.Warn("Failed to start draft daemon", "Error", err)
+        return nil
+    }
+
     slog.Info("Checking for drafts that need to be added to daemon")
     drafts := model.GetDraftsInStatus(database, model.PICKING)
     for _, draftId := range drafts {
-        draftDaemon.AddDraft(draftId)
+        err = draftDaemon.AddDraft(draftId)
+        if err != nil {
+            slog.Warn("Failed to add draft to manager in init", "Error", err)
+        }
     }
 
     draftManager := &DraftManager{
@@ -54,8 +62,7 @@ type ToPickingTransition struct {
 func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     //Add the draft to the pick daemon
-    tpt.draftDaemon.AddDraft(draft.draftId)
-    return nil
+    return tpt.draftDaemon.AddDraft(draft.draftId)
 }
 
 type ToPlayingTransition struct {
@@ -66,8 +73,7 @@ type ToPlayingTransition struct {
 func (tpt *ToPlayingTransition) executeTransition(draft *Draft) error {
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
     //Remove the draft from the pick daemon
-    tpt.draftDaemon.RemoveDraft(draft.draftId)
-    return nil
+    return tpt.draftDaemon.RemoveDraft(draft.draftId)
 }
 
 type ToCompleteTransition struct {
@@ -204,8 +210,16 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     pickingComplete, err := draft.pickManager.MakePick(pick)
     if pickingComplete {
         slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
-        dm.ExecuteDraftStateTransition(draft, model.TEAMS_PLAYING)
-        dm.draftDaemon.RemoveDraft(draftId)
+        err = dm.ExecuteDraftStateTransition(draft, model.TEAMS_PLAYING)
+
+        if err != nil {
+            slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+        }
+
+        err = dm.draftDaemon.RemoveDraft(draftId)
+        if err != nil {
+            slog.Warn("Failed to remove draft from daemon", "Draft Id", draftId, "Error", err)
+        }
     }
     return err
 }

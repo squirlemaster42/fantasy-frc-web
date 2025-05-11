@@ -27,7 +27,10 @@ func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
         userTok, err := c.Cookie("sessionToken")
         if err != nil {
             slog.Warn("Failed login", "Ip", c.RealIP())
-            c.Redirect(http.StatusSeeOther, "/login")
+            err := c.Redirect(http.StatusSeeOther, "/login")
+            if err != nil {
+                return err
+            }
             return echo.ErrUnauthorized
         }
         //Check if the cookie is valid
@@ -41,7 +44,10 @@ func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
         } else {
             //If the cookie is not valid then we redirect to the login page
             slog.Warn("Failed login", "Ip", c.RealIP())
-            c.Redirect(http.StatusSeeOther, "/login")
+            err := c.Redirect(http.StatusSeeOther, "/login")
+            if err != nil {
+                return err
+            }
             return echo.ErrUnauthorized
         }
 
@@ -67,7 +73,10 @@ func  (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
         userTok, err := c.Cookie("sessionToken")
         if err != nil {
             slog.Warn("Could not get session token from request trying to reach admin page", "Ip", c.RealIP())
-            c.Redirect(http.StatusSeeOther, "/u/home")
+            err := c.Redirect(http.StatusSeeOther, "/u/home")
+            if err != nil {
+                return err
+            }
             return echo.ErrUnauthorized
         }
 
@@ -83,7 +92,10 @@ func  (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
         } else {
             //If the cookie is not valid then we redirect to the login page
             slog.Info("User from ip did not have access to the admin page", "User Id", userId, "Ip", c.RealIP())
-            c.Redirect(http.StatusSeeOther, "/u/home")
+            err := c.Redirect(http.StatusSeeOther, "/u/home")
+            if err != nil {
+                return err
+            }
             return echo.ErrUnauthorized
         }
 

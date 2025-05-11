@@ -31,8 +31,13 @@ func GetOrCreateTeam(database *sql.DB, tbaId string) *Team {
     return GetTeam(database, tbaId)
 }
 
-func CreateDBConnection() *sql.DB {
-    godotenv.Load(filepath.Join("../", ".env"))
+func CreateDBConnection(t *testing.T) *sql.DB {
+    err := godotenv.Load(filepath.Join("../", ".env"))
+
+    if err != nil {
+        t.Fatal(err)
+    }
+
     password := os.Getenv("DB_PASSWORD")
     username := os.Getenv("DB_USERNAME")
     ip := os.Getenv("DB_IP")
@@ -42,7 +47,7 @@ func CreateDBConnection() *sql.DB {
 }
 
 func TestGetDraftsForUser(t *testing.T) {
-    db := CreateDBConnection()
+    db := CreateDBConnection(t)
 
     //Setup eight users
     userOne := GetOrCreateUser(db, "UserOne")
@@ -124,7 +129,7 @@ func TestGetDraftsForUser(t *testing.T) {
 }
 
 func TestGetPicksInDraft(t *testing.T) {
-    db := CreateDBConnection()
+    db := CreateDBConnection(t)
 
     //Setup eight users
     userOne := GetOrCreateUser(db, "UserOne")
@@ -363,7 +368,10 @@ func TestGetPicksInDraft(t *testing.T) {
     }
     MakePick(db, pick)
     assert.Equal(t, draftPlayerSeven, NextPick(db, draftId).Id, fmt.Sprintf("Expected player Seven, got %s.", NextPick(db, draftId).User.Username))
-    picks := GetPicks(db, draft.Id)
+    picks, err := GetPicks(db, draft.Id)
+    if err != nil {
+        t.Fatal(err)
+    }
     assert.Equal(t, 9, len(picks))
 
     assert.Equal(t, teamOne.TbaId, picks[0].Pick)

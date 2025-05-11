@@ -19,8 +19,7 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
 
     teamIndex := team.TeamScoreIndex()
     team := team.TeamPick(" | Team Score", true, username, teamIndex)
-    Render(c, team)
-    return nil
+    return Render(c, team)
 }
 
 func (h *Handler) HandleGetTeamScore(c echo.Context) error {
@@ -31,6 +30,5 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
     scores := model.GetScore(h.Database, "frc" + teamNumber)
 
     team := team.TeamScoreReport(teamNumber, scores)
-    Render(c, team)
-    return nil
+    return Render(c, team)
 }

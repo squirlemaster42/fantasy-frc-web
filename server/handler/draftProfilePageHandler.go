@@ -30,8 +30,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
     if err != nil {
         //We want to redirect back to the home screen
         slog.Warn("User attempted to visit incorrect draft id", "User", userId, "Draft Id", draftId)
-        c.Redirect(http.StatusSeeOther, "/u/home")
-        return nil
+        return c.Redirect(http.StatusSeeOther, "/u/home")
     }
 
     isOwner := userId == draftModel.Owner.Id
@@ -107,11 +106,15 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	slog.Info("Got request to search users")
 
-	users := model.SearchUsers(h.Database, searchInput, draftId)
+	users, err := model.SearchUsers(h.Database, searchInput, draftId)
+    if err != nil {
+        slog.Warn("Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+        return nil
+    }
 
     draftModel, err :=  model.GetDraft(h.Database, draftId)
     if err != nil {
-        slog.Warn("User attempted to search for players in an invalid draft", "Draft Id", draftId)
+        slog.Warn("User attempted to search for players in an invalid draft", "Draft Id", draftId, "Error", err)
         return nil
     }
 
@@ -144,11 +147,16 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	slog.Info("Got request to search users")
 
-	users := model.SearchUsers(h.Database, searchInput, draftId)
+	users, err := model.SearchUsers(h.Database, searchInput, draftId)
+
+    if err != nil {
+        slog.Warn("Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+        return nil
+    }
 
     draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
-        slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User", userId)
+        slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User", userId, "Error", err)
     }
 
     players := draftModel.Players

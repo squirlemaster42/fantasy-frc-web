@@ -144,7 +144,13 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
     scores := make(map[string]int)
     total := 0
     for rows.Next() {
-        rows.Scan(&displayName, &matchScore)
+        err = rows.Scan(&displayName, &matchScore)
+
+        if err != nil {
+            slog.Warn("Failed to get scores for team", "Team", tbaId, "Error", err)
+            return nil
+        }
+
         total += matchScore
         scores[displayName] = matchScore
     }

@@ -1,12 +1,12 @@
 package model
 
 import (
-    "crypto"
-    "database/sql"
-    "fmt"
-    "server/assert"
+	"crypto"
+	"database/sql"
+	"fmt"
+	"server/assert"
 
-    "golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -191,7 +191,7 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
     return count == 1
 }
 
-func SearchUsers(database *sql.DB, searchString string, draftId int) []User {
+func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, error) {
     query := `SELECT
                     Users.Id,
                     Users.Username
@@ -247,7 +247,11 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) []User {
         var userId int
         var username string
 
-        userRows.Scan(&userId, &username)
+        err = userRows.Scan(&userId, &username)
+
+        if err != nil {
+            return nil, err
+        }
 
         user := User{
             Id:       userId,
@@ -257,5 +261,5 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) []User {
         users = append(users, user)
     }
 
-    return users
+    return users, nil
 }

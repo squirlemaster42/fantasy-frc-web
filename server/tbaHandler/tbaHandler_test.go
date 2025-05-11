@@ -10,13 +10,14 @@ import (
 )
 
 
-func getTbaTok() string {
-    godotenv.Load(filepath.Join("../", ".env"))
+func getTbaTok(t *testing.T) string {
+    err := godotenv.Load(filepath.Join("../", ".env"))
+    t.Fatalf("Failed to load tba token %v", err)
     return os.Getenv("TBA_TOKEN")
 }
 
 func TestMatchListReq(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     matches := handler.MakeMatchListReq("frc1690", "2024isde1")
@@ -32,7 +33,7 @@ func TestMatchListReq(t *testing.T) {
 }
 
 func TestEventListReq(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     events := handler.MakeEventListReq("frc1690")
@@ -42,7 +43,7 @@ func TestEventListReq(t *testing.T) {
 }
 
 func TestMatchReq(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     match := handler.MakeMatchReq("2024isde1_qm36")
@@ -52,7 +53,7 @@ func TestMatchReq(t *testing.T) {
 }
 
 func TestMatchKeysRequest(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     keys := handler.MakeMatchKeysRequest("frc1690", "2024isde1")
@@ -62,7 +63,7 @@ func TestMatchKeysRequest(t *testing.T) {
 }
 
 func TestMatchKeysYearRequest(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     keys := handler.MakeMatchKeysYearRequest("frc1690")
@@ -72,7 +73,7 @@ func TestMatchKeysYearRequest(t *testing.T) {
 }
 
 func TestTeamEventStatusRequest(t *testing.T) {
-    tbaTok := getTbaTok()
+    tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     event := handler.MakeTeamEventStatusRequest("frc1690", "2024isde1")

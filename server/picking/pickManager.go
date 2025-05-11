@@ -61,7 +61,12 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
         nextPickPlayer := model.NextPick(p.database, p.draftId)
 
         //Make the next pick available if we havn't aleady made all picks
-        picks := model.GetPicks(p.database, p.draftId)
+        picks, err := model.GetPicks(p.database, p.draftId)
+
+        if err != nil {
+            slog.Warn("Failed to get picks", "Draft Id", p.draftId, "Error", err)
+            return false, err
+        }
 
         slog.Info("Checking if we should make another pick available", "Num picks", len(picks))
         if len(picks) < 64 {

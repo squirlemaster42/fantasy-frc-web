@@ -17,7 +17,10 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     if err != nil {
         slog.Warn("Failed login", "Ip", c.RealIP())
-        c.Redirect(http.StatusSeeOther, "/login")
+        err = c.Redirect(http.StatusSeeOther, "/login")
+        if err != nil {
+            return err
+        }
         return echo.ErrUnauthorized
     }
     //Check if the cookie is valid
@@ -31,7 +34,10 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     } else {
         //If the cookie is not valid then we redirect to the login page
         slog.Warn("Failed login", "Ip",  c.RealIP())
-        c.Redirect(http.StatusSeeOther, "/login")
+        err = c.Redirect(http.StatusSeeOther, "/login")
+        if err != nil {
+            return err
+        }
         return echo.ErrUnauthorized
     }
 

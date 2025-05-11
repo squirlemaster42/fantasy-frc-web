@@ -109,13 +109,19 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
 
     if err != nil {
         slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+        return nil
     }
 
     var drafts []DraftModel
     for rows.Next() {
         var draftId int
         var displayName string
-        rows.Scan(&draftId, &displayName)
+        err = rows.Scan(&draftId, &displayName)
+
+        if err != nil {
+            slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+            return nil
+        }
 
         draft := DraftModel {
             Id:          draftId,
@@ -365,7 +371,11 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		var playerOrder int
 		var playerId int
 
-        playerRows.Scan(&userId, &username, &accepted, &playerOrder, &playerId)
+        err = playerRows.Scan(&userId, &username, &accepted, &playerOrder, &playerId)
+
+        if err != nil {
+            return DraftModel{}, err
+        }
 
         if userId == ownerId {
             draftModel.Owner = User{
@@ -420,7 +430,13 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+        err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+
+        if err != nil {
+            slog.Warn("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
+            return nil
+        }
+
 		picks = append(picks, pick)
 	}
 
@@ -550,16 +566,19 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 	var invites []DraftInvite
 	for rows.Next() {
 		invite := DraftInvite{}
-		rows.Scan(
-			&invite.Id,
-			&invite.InvitingPlayerName,
-			&invite.DraftName)
+        err = rows.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.DraftName)
+
+        if err != nil {
+            slog.Warn("Failed to get invite", "Player", player, "Error", err)
+            continue
+        }
+
 		invites = append(invites, invite)
 	}
 	return invites
 }
 
-func GetPicks(database *sql.DB, draft int) []Pick {
+func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 	query := `SELECT
         Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
     From Picks
@@ -577,11 +596,16 @@ func GetPicks(database *sql.DB, draft int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+
+        if err != nil {
+            return nil, err
+        }
+
 		picks = append(picks, pick)
 	}
 
-	return picks
+	return picks, nil
 }
 
 func GetDraftPlayerId(database *sql.DB, draftId int, playerId int) int {
@@ -675,7 +699,13 @@ func GetAllPicks(database *sql.DB) []string {
     var picks []string
     for rows.Next() {
         var pick string
-        rows.Scan(&pick)
+        err = rows.Scan(&pick)
+
+        if err != nil {
+            slog.Error("Failed to get all picks", "Error", err)
+            return nil
+        }
+
         picks = append(picks, pick)
     }
 
@@ -719,7 +749,10 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
-		stmt.Exec(i, draftPlayerId)
+        _, err = stmt.Exec(i, draftPlayerId)
+        if err != nil {
+            slog.Warn("Failed to write pick order", "Draft Id", draftId, "Player", player.User.Id, "Order", i, "Error", err)
+        }
     }
 }
 
@@ -751,10 +784,16 @@ func GetAvailablePickId (database *sql.DB, draftId int) Pick {
 func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
     assert := assert.CreateAssertWithContext("Next Pick")
-	picks := GetPicks(database, draftId)
+	picks, err := GetPicks(database, draftId)
+
+    if err != nil {
+        slog.Warn("Failed to get picks", "Draft Id", draftId, "Error", err)
+        return DraftPlayer{}
+    }
+
 	draft, err := GetDraft(database, draftId)
     if err != nil {
-        slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId)
+        slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
         return DraftPlayer{}
     }
 	var nextPlayer DraftPlayer
@@ -906,7 +945,13 @@ func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
     var drafts []int
     for rows.Next() {
         var draftId int
-        rows.Scan(&draftId)
+        err = rows.Scan(&draftId)
+
+        if err != nil {
+            slog.Warn("Failed to load drafts in status", "Status", status, "Error", err)
+            return nil
+        }
+
         drafts = append(drafts, draftId)
     }
 
@@ -940,7 +985,13 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
         var playerId int
         var username string
         var pick string
-        rows.Scan(&playerId, &username, &pick)
+        err = rows.Scan(&playerId, &username, &pick)
+
+        if err != nil {
+            slog.Warn("Failed to get draft scores", "Draft Id", draftId, "Error", err)
+            return nil
+        }
+
         usernames[playerId] = username
         picks[playerId] = append(picks[playerId], pick)
     }

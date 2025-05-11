@@ -3,7 +3,6 @@ package scorer
 import (
 	"os"
 	"path/filepath"
-	"server/logging"
 	"server/tbaHandler"
 	"testing"
 
@@ -11,8 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func getTbaTok() string {
-    godotenv.Load(filepath.Join("../", ".env"))
+func getTbaTok(t *testing.T) string {
+    err := godotenv.Load(filepath.Join("../", ".env"))
+    if err != nil {
+        t.Fatal(err)
+    }
     return os.Getenv("TBA_TOKEN")
 }
 
@@ -75,7 +77,7 @@ func TestSortMatchOrder(t *testing.T) {
 
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
-    tbaHandler := tbaHandler.NewHandler(getTbaTok(), nil)
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
     scorer := NewScorer(tbaHandler, nil)
 
     match := tbaHandler.MakeMatchReq("2025mawor_qm71")
@@ -158,9 +160,7 @@ func TestScoreMatches(t *testing.T) {
 }
 
 func TestGetAllianceSelectionScores (t *testing.T) {
-    logger := logging.NewLogger(&logging.TimestampedLogger{})
-    logger.Start()
-    tbaHandler := tbaHandler.NewHandler(getTbaTok(), nil)
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
     alliances := tbaHandler.MakeEliminationAllianceRequest("2025mawor")
     scorer := NewScorer(tbaHandler, nil)
     allianceOneScores := scorer.GetAllianceSelectionScore(alliances[0])
