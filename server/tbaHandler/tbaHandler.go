@@ -104,11 +104,14 @@ func (t *TbaHandler) makeRequest(url string) []byte {
     defer resp.Body.Close()
 
     slog.Info("Got response from tba", "Status", resp.Status)
-    if resp.StatusCode == http.StatusNotModified {
+    switch resp.StatusCode {
+    case http.StatusNotModified:
         slog.Info("Got not modified from tba, using cache data", "Url", url)
         return body
-    } else if resp.StatusCode == http.StatusNotFound {
+    case http.StatusNotFound:
         return nil
+    default:
+        slog.Info("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
     }
 
     body, err = io.ReadAll(resp.Body)

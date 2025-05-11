@@ -38,8 +38,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
-	err = Render(c, draftView)
-	return nil
+	return Render(c, draftView)
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {

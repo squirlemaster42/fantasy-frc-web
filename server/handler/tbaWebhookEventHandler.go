@@ -48,37 +48,27 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
     switch event.MessageType {
     case "upcoming_match":
         h.HandleUpcomingMatchEvent(event.MessageData)
-        break
     case "match_score":
         h.HandleMatchScoreEvent(event.MessageData)
-        break
     case "match_video":
         h.HandleMatchVideoEvent(event.MessageData)
-        break
     case "starting_comp_level":
         h.HandleCompLevelStartingEvent(event.MessageData)
-        break
     case "alliance_selection":
         h.HandleAllianceSelectionEvent(event.MessageData)
-        break
     case "awards_posted":
         h.HandleAwardsPostedEvent(event.MessageData)
-        break
     case "schedule_updated":
         h.HandleEventScheduleUpdatedEvent(event.MessageData)
-        break
     case "ping":
         h.HandlePingEvent(event.MessageData)
-        break
     case "broadcast":
         h.HandleBroadcastEvent(event.MessageData)
-        break
     case "verification":
         h.HandleVerificationEvent(event.MessageData)
-        break
     default:
         slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
-        break }
+    }
 
     return nil
 }

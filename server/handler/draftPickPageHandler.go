@@ -29,13 +29,6 @@ func (h *Handler) ServePickPage(c echo.Context) error {
     return err
 }
 
-func reverseArray(s []model.Pick) []model.Pick {
-    for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-        s[i], s[j] = s[j], s[i]
-    }
-    return s
-}
-
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Handle Pick Request")
     //We need to validate that the curent player is allowed to make a pick for the draft
@@ -113,6 +106,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
     websocket.Handler(func(ws *websocket.Conn) {
         draftIdStr := c.Param("id")
         draftId, err := strconv.Atoi(draftIdStr)
+
+        if err != nil {
+            slog.Error("Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
+        }
+
         wsl := WebSocketListener {
             messageQueue: make(chan picking.PickEvent),
         }

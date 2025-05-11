@@ -59,13 +59,13 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
 
 func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
     if tbaId == "" {
-        return false, errors.New("A team must be entered in order to make a pick")
+        return false, errors.New("no team entered")
     }
 
     picked := HasBeenPicked(database, draftId, tbaId)
 
     if picked {
-        return false, errors.New("The requested team has already been picked")
+        return false, errors.New("team already picked")
     }
 
     events := handler.MakeEventListReq(tbaId)
@@ -89,7 +89,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
     slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
     if !validEvent {
-        return false, errors.New("The team is not at a valid event to pick")
+        return false, errors.New("team not at event")
     }
 
     return true, nil

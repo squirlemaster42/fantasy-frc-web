@@ -23,8 +23,6 @@ func NewAuth(db *sql.DB) *Authenticator {
 
 func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
     return func (c echo.Context) error {
-        isValid := true
-
         //Grab the cookie from the session
         userTok, err := c.Cookie("sessionToken")
         if err != nil {
@@ -33,7 +31,7 @@ func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
             return echo.ErrUnauthorized
         }
         //Check if the cookie is valid
-        isValid = model.ValidateSessionToken(a.database, userTok.Value)
+        isValid := model.ValidateSessionToken(a.database, userTok.Value)
 
         if isValid {
             //If the cookie is valid we let the request through

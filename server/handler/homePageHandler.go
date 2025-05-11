@@ -13,8 +13,6 @@ import (
 func (h *Handler) HandleViewHome(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Home View")
 
-    isValid := true
-
     //Grab the cookie from the session
     userTok, err := c.Cookie("sessionToken")
     if err != nil {
@@ -23,7 +21,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
         return echo.ErrUnauthorized
     }
     //Check if the cookie is valid
-    isValid = model.ValidateSessionToken(h.Database, userTok.Value)
+    isValid := model.ValidateSessionToken(h.Database, userTok.Value)
 
     if isValid {
         //If the cookie is valid we let the request through

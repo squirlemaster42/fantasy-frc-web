@@ -16,10 +16,10 @@ type DraftState string
 
 const (
     FILLING DraftState = "Filling"
-    WAITING_TO_START = "Waiting to Start"
-    PICKING = "Picking"
-    TEAMS_PLAYING = "Teams Playing"
-    COMPLETE = "Complete"
+    WAITING_TO_START DraftState = "Waiting to Start"
+    PICKING DraftState = "Picking"
+    TEAMS_PLAYING DraftState = "Teams Playing"
+    COMPLETE DraftState = "Complete"
 )
 
 type DraftModel struct {
@@ -106,6 +106,11 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     rows, err := stmt.Query(searchString)
+
+    if err != nil {
+        slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+    }
+
     var drafts []DraftModel
     for rows.Next() {
         var draftId int
@@ -304,7 +309,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
     )
     if err != nil {
         slog.Warn("Failed to load draft", "Draft Id", draftId)
-        return DraftModel{}, errors.New("Failed to load draft")
+        return DraftModel{}, errors.New("failed to load draft")
     }
 
 	playerQuery := `SELECT
@@ -342,7 +347,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 	playerRows, err := playerStmt.Query(draftId)
     if err != nil {
         slog.Warn("Failed to load players for draft", "Draft Id", draftId)
-        return DraftModel{}, errors.New("Failed to load draft")
+        return DraftModel{}, errors.New("failed to load draft")
     }
 
     slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
@@ -536,6 +541,12 @@ func GetInvites(database *sql.DB, player int) []DraftInvite {
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
 	rows, err := stmt.Query(player)
+
+    if err != nil {
+        slog.Error("Failed to get invites", "Player", player, "Error", err)
+        return nil
+    }
+
 	var invites []DraftInvite
 	for rows.Next() {
 		invite := DraftInvite{}
@@ -877,7 +888,7 @@ func SkipPick(database *sql.DB, pickId int) {
     assert.NoError(err, "Failed to skip pick")
 }
 
-func GetDraftsInStatus(database *sql.DB, status string) []int {
+func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
     assert := assert.CreateAssertWithContext("Get Drafts In Status")
     assert.AddContext("Status", status)
 

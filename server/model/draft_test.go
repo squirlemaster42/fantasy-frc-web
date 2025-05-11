@@ -115,7 +115,7 @@ func TestGetDraftsForUser(t *testing.T) {
     for _, player := range draft.Players {
         foundPlayers = append(foundPlayers, player.User.Id)
 
-        if !(acceptedPlayers[player.User.Id] || pendingPlayers[player.User.Id]) {
+        if !acceptedPlayers[player.User.Id] && !pendingPlayers[player.User.Id] {
             assert.Fail(t, "Player %s is not in the draft", player.User.Username)
         }
     }
@@ -197,7 +197,7 @@ func TestGetPicksInDraft(t *testing.T) {
     for _, player := range draft.Players {
         foundPlayers = append(foundPlayers, player.User.Id)
 
-        if !(acceptedPlayers[player.User.Id] || pendingPlayers[player.User.Id]) {
+        if !acceptedPlayers[player.User.Id] && !pendingPlayers[player.User.Id] {
             assert.Fail(t, "Player %s is not in the draft", player.User.Username)
         }
     }

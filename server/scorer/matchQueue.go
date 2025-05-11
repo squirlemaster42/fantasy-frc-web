@@ -45,7 +45,7 @@ func (q *MatchQueue) PopMatch() swagger.Match {
     return <- match
 }
 
-func (q *MatchQueue) stopMatchQueue() {
+func (q *MatchQueue) StopMatchQueue() {
     q.quitChan <- true
 }
 

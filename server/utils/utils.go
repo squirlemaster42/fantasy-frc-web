@@ -44,7 +44,7 @@ func ParseArgString(argStr string) (map[string]string, error) {
                 curChar++
             }
 
-            if !(len(argStr) > curChar && argStr[curChar] == '=') {
+            if len(argStr) <= curChar || argStr[curChar] != '=' {
                 //There is no value for this flag so we just signify its present by putting the key in the map
                 argMap[argName] = ""
                 continue
@@ -131,7 +131,7 @@ func GetPickExpirationTime(t time.Time) time.Time {
     }
 
     //If the expiration time is not in the pick window but the current time is
-    if !(expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour) &&
+    if (expirationTime.Hour() < validTime.startHour || expirationTime.Hour() > validTime.endHour) &&
         t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
         slog.Info("Expiration Time not in window and Current Time in Window")
         nextWindow := ALLOWED_TIMES[nextDay.Weekday()]

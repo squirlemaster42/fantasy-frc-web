@@ -14,7 +14,6 @@ import (
 type DraftDaemon struct {
     database *sql.DB
     running bool
-    interval int //Time to wait between runs
     mu sync.Mutex
     runningDrafts map[int]bool
     notifier *picking.PickNotifier
@@ -39,7 +38,7 @@ func (d *DraftDaemon) Start() error {
         go d.Run()
         return nil
     } else {
-        return errors.New("Cannot start a draft daemon that has already been started")
+        return errors.New("daemon already started")
     }
 }
 
@@ -73,7 +72,7 @@ func (d *DraftDaemon) Run() {
 
 func (d *DraftDaemon) AddDraft(draftId int) error {
     if d.runningDrafts[draftId] {
-        return errors.New("Draft already added to Daemon")
+        return errors.New("draft already added to daemon")
     }
     d.runningDrafts[draftId] = true
     slog.Info("Added draft to daemon", "Draft Id", draftId)
@@ -83,7 +82,7 @@ func (d *DraftDaemon) AddDraft(draftId int) error {
 
 func (d *DraftDaemon) RemoveDraft(draftId int) error {
     if !d.runningDrafts[draftId] {
-        return errors.New("Draft not in Daemon")
+        return errors.New("draft not in daemon")
     }
     d.runningDrafts[draftId] = false
     return nil

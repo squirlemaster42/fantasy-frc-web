@@ -48,7 +48,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
     var err error
     valid := false
     if !pick.Pick.Valid {
-        err = errors.New("A team must be entered in order to make a pick")
+        err = errors.New("no team entered")
     }
 
     if err == nil {

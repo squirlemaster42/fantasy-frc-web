@@ -34,10 +34,6 @@ func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
     }
 }
 
-func (s *Scorer) shouldScoreMatch(matchId string) bool {
-    return s.scoringIteration%RESCORE_INTERATION_COUNT == 0 || !model.GetMatch(s.database, matchId).Played
-}
-
 func playoffMatchCompLevels() map[string]bool {
     return map[string]bool{
         "f":  true,
@@ -74,15 +70,9 @@ func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, boo
 }
 
 func getQualMatchScore(match swagger.Match) (int, int) {
-    redScore := 0
-    blueScore := 0
-
     slog.Info("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
-    if match.WinningAlliance == "red" {
-        redScore += 3
-    } else if match.WinningAlliance == "blue" {
-        blueScore += 3
-    }
+
+    redScore, blueScore := getWinningAllianceScores(match, 3)
 
     if match.ScoreBreakdown == nil {
         return redScore, blueScore
@@ -144,90 +134,46 @@ func getLowerBracketMatchIds() map[int32]bool {
     }
 }
 
-// RedScore, BlueScore
-func getPlayoffMatchScore(match swagger.Match) (int, int) {
+//Red score, blue score
+func getWinningAllianceScores(match swagger.Match, winningPoints int) (int, int) {
     redScore := 0
     blueScore := 0
 
-    if match.CompLevel == "f" {
-        if match.EventKey == utils.Einstein() {
-            if match.WinningAlliance == "red" {
-                redScore += 36
-            } else if match.WinningAlliance == "blue" {
-                blueScore += 36
-            }
-        } else {
-            if match.WinningAlliance == "red" {
-                redScore += 18
-            } else if match.WinningAlliance == "blue" {
-                blueScore += 18
-            }
-        }
-    } else if match.CompLevel == "sf" {
-        if getLowerBracketMatchIds()[match.SetNumber] {
-            //Lower Bracket
-            if match.EventKey == utils.Einstein() {
-                if match.WinningAlliance == "red" {
-                    redScore += 18
-                } else if match.WinningAlliance == "blue" {
-                    blueScore += 18
-                }
-            } else {
-                if match.WinningAlliance == "red" {
-                    redScore += 9
-                } else if match.WinningAlliance == "blue" {
-                    blueScore += 9
-                }
-            }
-        } else if getUpperBracketMatchIds()[match.SetNumber] {
-            //Upper Bracket
-            if match.EventKey == utils.Einstein() {
-                if match.WinningAlliance == "red" {
-                    redScore += 30
-                } else if match.WinningAlliance == "blue" {
-                    blueScore += 30
-                }
-            } else {
-                if match.WinningAlliance == "red" {
-                    redScore += 15
-                } else if match.WinningAlliance == "blue" {
-                    blueScore += 15
-                }
-            }
-        }
+    switch match.WinningAlliance {
+    case "red":
+        redScore = winningPoints
+    case "blue":
+        blueScore = winningPoints
+    default:
+        slog.Info("No winning alliance found", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
     }
 
     return redScore, blueScore
 }
 
-func (s *Scorer) getTeamRankingScore(team string) int {
-    event := s.getChampEventForTeam(team)
-    if event == "" {
-        return 0
-    }
-    status := s.tbaHandler.MakeTeamEventStatusRequest(team, event)
-    slog.Info("Getting ranking score", "Team", team, "Rank", status.Qual.Ranking.Rank)
-    score := max((25-status.Qual.Ranking.Rank)*2, 0)
-    return int(score)
-}
+// RedScore, BlueScore
+func getPlayoffMatchScore(match swagger.Match) (int, int) {
+    var matchPoints int
 
-func (s *Scorer) getChampEventForTeam(teamId string) string {
-    //Get list of teams events from tba
-    //Check which event is in the list of champ events
-    //We are going to ignore Einstein here since we just use this to determine the ranking score
-    //which does not apply to Einstein
-    slog.Info("Getting Events For Team", "Team", teamId)
-    eventsList := s.tbaHandler.MakeEventListReq(strings.TrimSpace(teamId))
-    //Even though this is O(e*f), where e is the number of events the team played during the season and f is
-    //the number of champs field, both will be small so this is probably faster than a hashset
-    for _, event := range eventsList {
-        for _, champEvent := range utils.Events() {
-            if event == champEvent {
-                return event
-            }
+    switch match.CompLevel {
+    case "f":
+        matchPoints = 18
+    case "sf":
+        if getLowerBracketMatchIds()[match.SetNumber] {
+            matchPoints = 9
+        } else if getUpperBracketMatchIds()[match.SetNumber] {
+            matchPoints = 15
         }
+    default:
+        slog.Warn("Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
     }
-    return ""
+
+    if match.EventKey == utils.Einstein() {
+        matchPoints *= 2
+    }
+
+
+    return getWinningAllianceScores(match, matchPoints)
 }
 
 // Matches are almost sorted
@@ -262,13 +208,8 @@ func (s *Scorer) merge(left []string, right []string) []string {
         }
     }
 
-    for _, elem := range left[i:] {
-        result = append(result, elem)
-    }
-
-    for _, elem := range right[j:] {
-        result = append(result, elem)
-    }
+    result = append(result, left[i:]...)
+    result = append(result, right[j:]...)
 
     return result
 }
@@ -509,10 +450,9 @@ func (s *Scorer) scoringRunner() {
                 Played:       false,
             }
         }
-        dbMatch := *dbMatchPtr
         slog.Info("Scoring match", "Match", dbMatchPtr.String())
 
-        dbMatch, _ = s.scoreMatch(match, true)
+        dbMatch, _ := s.scoreMatch(match, true)
         s.updateMatchInDB(dbMatch)
     }
 }
