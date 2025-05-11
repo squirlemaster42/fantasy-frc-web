@@ -31,6 +31,12 @@ func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
     assert := assert.CreateAssertWithContext("Check Tba Cache")
     assert.AddContext("Url", url)
 
+    //Dont check the cache if we dont have a database
+    //This is probably because we are running a unit test
+    if t.database == nil {
+        return nil, "", nil
+    }
+
     query := `Select
         etag,
         responseBody
@@ -50,6 +56,12 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
     assert := assert.CreateAssertWithContext("Cache Tba Data")
     assert.AddContext("Url", url)
     assert.AddContext("Etag", etag)
+
+    //Dont cache the data if we dont have a database
+    //This is probably because we are running a unit test
+    if t.database == nil {
+        return
+    }
 
     query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3);`
     stmt, err := t.database.Prepare(query)

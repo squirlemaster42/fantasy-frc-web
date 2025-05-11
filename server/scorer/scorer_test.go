@@ -75,7 +75,7 @@ func TestSortMatchOrder(t *testing.T) {
 
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
-    tbaHandler := tbaHandler.NewHandler(getTbaTok())
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(), nil)
     scorer := NewScorer(tbaHandler, nil)
 
     match := tbaHandler.MakeMatchReq("2025mawor_qm71")
@@ -138,7 +138,6 @@ func TestScoreMatches(t *testing.T) {
     assert.Equal(t, 18, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    /*
     match = tbaHandler.MakeMatchReq("2024cmptx_sf2m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
@@ -156,13 +155,12 @@ func TestScoreMatches(t *testing.T) {
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 36, scoredMatch.BlueScore)
-    */
 }
 
 func TestGetAllianceSelectionScores (t *testing.T) {
     logger := logging.NewLogger(&logging.TimestampedLogger{})
     logger.Start()
-    tbaHandler := tbaHandler.NewHandler(getTbaTok())
+    tbaHandler := tbaHandler.NewHandler(getTbaTok(), nil)
     alliances := tbaHandler.MakeEliminationAllianceRequest("2025mawor")
     scorer := NewScorer(tbaHandler, nil)
     allianceOneScores := scorer.GetAllianceSelectionScore(alliances[0])

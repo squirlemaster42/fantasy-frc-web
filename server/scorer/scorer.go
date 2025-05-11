@@ -1,7 +1,6 @@
 package scorer
 
 import (
-	"container/heap"
 	"database/sql"
 	"log/slog"
 	"regexp"
@@ -12,7 +11,6 @@ import (
 	"server/utils"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // TODO Once we change things to use web hooks we shouldnt need this anymore
@@ -446,11 +444,11 @@ func (s *Scorer) RunScorer() {
 }
 
 func (s *Scorer) AddMatchToScore(match swagger.Match) {
-    heap.Push(s.queue, match)
+    s.queue.PushMatch(match)
 }
 
-func (s *Scorer) GetNextMatchToScore() swagger.Match {
-    return *heap.Pop(s.queue).(*swagger.Match)
+func (s *Scorer) getNextMatchToScore() swagger.Match {
+    return s.queue.PopMatch()
 }
 
 func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
@@ -492,7 +490,7 @@ func (s *Scorer) scoringRunner() {
             continue
         }
 
-        match := s.GetNextMatchToScore()
+        match := s.getNextMatchToScore()
 
         if match.Alliances.Red != nil {
             match = s.tbaHandler.MakeMatchReq(match.Key)

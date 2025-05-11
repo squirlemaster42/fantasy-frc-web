@@ -8,33 +8,91 @@ import (
 	"strings"
 )
 
-type MatchQueue []*swagger.Match
+type matchQueueChanPopMsg struct {
+    match chan swagger.Match
+}
+
+
+type matchQueueChanPushMsg struct {
+    match swagger.Match
+}
+
+type MatchQueue struct {
+    matches []swagger.Match
+    matchPushChan chan matchQueueChanPushMsg
+    matchPopChan chan matchQueueChanPopMsg
+    quitChan chan bool
+}
 
 func InitQueue(queue *MatchQueue) {
+    queue.matchPopChan = make(chan matchQueueChanPopMsg)
+    queue.matchPushChan = make(chan matchQueueChanPushMsg)
     heap.Init(queue)
+    queue.quitChan = queue.watchMatchQueue()
+}
+
+func (q *MatchQueue) PushMatch(match swagger.Match) {
+    q.matchPushChan <- matchQueueChanPushMsg {
+        match: match,
+    }
+}
+
+func (q *MatchQueue) PopMatch() swagger.Match {
+    match := make(chan swagger.Match)
+    q.matchPopChan <- matchQueueChanPopMsg{
+        match: match,
+    }
+    return <- match
+}
+
+func (q *MatchQueue) stopMatchQueue() {
+    q.quitChan <- true
+}
+
+func (q *MatchQueue) watchMatchQueue() chan bool {
+    quit := make(chan bool)
+
+    go func() {
+        for {
+            assert := assert.CreateAssertWithContext("Watch Match Queue")
+            select {
+            case <- quit:
+                return
+            case popMatch := <- q.matchPopChan:
+                match, ok := q.Pop().(swagger.Match)
+                assert.AddContext("Match", match)
+                assert.RunAssert(ok, "Something got into the queue that was not a match")
+                popMatch.match <- match
+            case pushMatch := <- q.matchPushChan:
+                q.Push(pushMatch.match)
+            }
+        }
+    }()
+
+    return quit
 }
 
 func (q MatchQueue) Len() int {
-    return len(q)
+    return len(q.matches)
 }
 
 func (q MatchQueue) Less(i int, j int) bool {
-    return compareMatchOrder(q[i].Key, q[j].Key)
+    return compareMatchOrder(q.matches[i].Key, q.matches[j].Key)
 }
 
 func (q MatchQueue) Swap(i int, j int) {
-    q[i], q[j] = q[j], q[i]
+    q.matches[i], q.matches[j] = q.matches[j], q.matches[i]
 }
 
 func (q *MatchQueue) Push(match any) {
-    *q = append(*q, match.(*swagger.Match))
+    q.matches = append(q.matches, match.(swagger.Match))
 }
 
 func (q *MatchQueue) Pop() any {
-    old := *q
+    old := q.matches
     n := len(old)
     x := old[n - 1]
-    *q = old[0 : n - 1]
+    q.matches = old[0 : n - 1]
     return x
 }
 

@@ -77,7 +77,7 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
         h.HandleVerificationEvent(event.MessageData)
         break
     default:
-        slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, event.MessageData)
+        slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
         break }
 
     return nil

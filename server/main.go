@@ -1,21 +1,22 @@
 package main
 
 import (
-	"flag"
-	"log/slog"
-	"os"
-	"server/database"
-	"server/draft"
-	"server/handler"
-	"server/model"
-	"server/scorer"
-	"server/tbaHandler"
-	"server/utils"
+    "flag"
+    "log/slog"
+    "os"
+    "server/database"
+    "server/draft"
+    "server/handler"
+    "server/model"
+    "server/scorer"
+    "server/tbaHandler"
+    "server/utils"
 
-	"github.com/joho/godotenv"
+    "github.com/joho/godotenv"
 )
 
 func main() {
+
     slog.Info("-------- Starting Fantasy FRC --------")
     skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
     populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")

@@ -55,10 +55,10 @@ func TestGetDraftsForUser(t *testing.T) {
     userEight := GetOrCreateUser(db, "UserEight")
 
     //Create a draft with user one as the owner
-    d := Draft{
+    d := DraftModel {
         DisplayName: t.Name(),
         Owner: User{ Id: userOne},
-        Status: GetStatusString(FILLING),
+        Status: FILLING,
     }
     draftId := CreateDraft(db, &d)
 
@@ -100,7 +100,7 @@ func TestGetDraftsForUser(t *testing.T) {
     drafts := *GetDraftsForUser(db, userOne)
 
     //Check Results
-    var draft Draft
+    var draft DraftModel
     for _, d := range drafts {
         if d.Id == draftId {
             draft = d
@@ -109,7 +109,7 @@ func TestGetDraftsForUser(t *testing.T) {
     }
     assert.Equal(t, t.Name(), draft.DisplayName)
     assert.Equal(t, userOne, draft.Owner.Id)
-    assert.Equal(t, GetStatusString(FILLING), draft.Status)
+    assert.Equal(t, FILLING, draft.Status)
 
     var foundPlayers []int
     for _, player := range draft.Players {
@@ -122,7 +122,6 @@ func TestGetDraftsForUser(t *testing.T) {
 
     assert.Equal(t, 8, len(foundPlayers))
 }
-
 
 func TestGetPicksInDraft(t *testing.T) {
     db := CreateDBConnection()
@@ -138,10 +137,10 @@ func TestGetPicksInDraft(t *testing.T) {
     userEight := GetOrCreateUser(db, "UserEight")
 
     //Create a draft with user one as the owner
-    d := Draft{
+    d := DraftModel {
         DisplayName: t.Name(),
         Owner: User{ Id: userOne},
-        Status: GetStatusString(FILLING),
+        Status: FILLING,
     }
     draftId := CreateDraft(db, &d)
 
@@ -183,7 +182,7 @@ func TestGetPicksInDraft(t *testing.T) {
     drafts := *GetDraftsForUser(db, userOne)
 
     //Check Results
-    var draft Draft
+    var draft DraftModel
     for _, d := range drafts {
         if d.Id == draftId {
             draft = d
@@ -192,7 +191,7 @@ func TestGetPicksInDraft(t *testing.T) {
     }
     assert.Equal(t, t.Name(), draft.DisplayName)
     assert.Equal(t, userOne, draft.Owner.Id)
-    assert.Equal(t, GetStatusString(FILLING), draft.Status)
+    assert.Equal(t, FILLING, draft.Status)
 
     var foundPlayers []int
     for _, player := range draft.Players {
