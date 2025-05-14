@@ -25,3 +25,4 @@ server/view/*/*.go
 server/view/*/*.txt
 server/view/*.go
 server/view/*.txt
+server/assets/css/tailwind.css
