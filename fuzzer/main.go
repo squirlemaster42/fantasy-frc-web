@@ -32,12 +32,6 @@ func RegisterDatabaseConnection(username string, password string, ip string, dbN
     a.NoError(err, "Could not open database connection")
     a.NoError(db.Ping(), "Failed to ping database")
 
-    fmt.Println(setupRandomMatch())
-    fmt.Println(setupRandomMatch())
-    fmt.Println(setupRandomMatch())
-    fmt.Println(setupRandomMatch())
-    fmt.Println(setupRandomMatch())
-
     return db
 }
 
@@ -56,7 +50,7 @@ func main() {
     slog.Info("Extracted Env Vars")
     database := RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
     validTeams := getValidTeams(database)
-    createFuzzyMatch(validTeams)
+    fmt.Println(createFuzzyMatch(validTeams))
 }
 
 func getValidTeams(database *sql.DB) []string {
@@ -82,14 +76,81 @@ func getValidTeams(database *sql.DB) []string {
 
 func createFuzzyMatch(validTeams []string) swagger.Match {
     match := setupRandomMatch()
+    match.Alliances = &swagger.MatchSimpleAlliances{}
+
     match.Alliances.Red = createMatchAlliance(validTeams)
     match.Alliances.Blue = createMatchAlliance(validTeams)
+
+    if match.Alliances.Red.Score > match.Alliances.Blue.Score {
+        match.WinningAlliance = "red"
+    } else if match.Alliances.Red.Score < match.Alliances.Blue.Score {
+        match.WinningAlliance = "blue"
+    } else {
+        match.WinningAlliance = ""
+    }
+
+    match.Time = rand.Int63n(100000000000)
+    match.ActualTime = rand.Int63n(10000) + match.Time
+    match.PredictedTime = rand.Int63n(10000) + match.Time
+    match.PostResultTime= rand.Int63n(10000) + match.Time
+
+    match.ScoreBreakdown = &swagger.OneOfMatchScoreBreakdown {
+        MatchScoreBreakdown2025: swagger.MatchScoreBreakdown2025 {
+            Red: createScoreBreakdown(match.Alliances.Red.Score),
+            Blue: createScoreBreakdown(match.Alliances.Blue.Score),
+        },
+    }
 
     return match
 }
 
+func createScoreBreakdown(totalScore int32) *swagger.MatchScoreBreakdown2025Alliance {
+    scoreBreakdown := swagger.MatchScoreBreakdown2025Alliance {
+        AdjustPoints: totalScore,
+    }
+
+    //For now we only care about the rps, maybe ill add more some day
+    if rand.Intn(2) == 1 {
+        scoreBreakdown.BargeBonusAchieved = true
+    } else {
+        scoreBreakdown.BargeBonusAchieved = false
+    }
+    if rand.Intn(2) == 1 {
+        scoreBreakdown.AutoBonusAchieved = true
+    } else {
+        scoreBreakdown.AutoBonusAchieved = false
+    }
+    if rand.Intn(2) == 1 {
+        scoreBreakdown.CoralBonusAchieved = true
+    } else {
+        scoreBreakdown.CoralBonusAchieved = false
+    }
+
+    return &scoreBreakdown
+}
+
 func createMatchAlliance(validTeams []string) *swagger.MatchAlliance {
-    return nil
+    alliance := swagger.MatchAlliance {
+        Score: rand.Int31n(500),
+        TeamKeys: []string{},
+        SurrogateTeamKeys: []string{},
+        DqTeamKeys: []string{},
+    }
+
+    for range 3 {
+        alliance.TeamKeys = append(alliance.TeamKeys, validTeams[rand.Intn(len(validTeams))])
+    }
+
+    for _, team := range alliance.TeamKeys {
+        if rand.Intn(50) == 0 {
+            alliance.SurrogateTeamKeys = append(alliance.SurrogateTeamKeys, team)
+        }
+        if rand.Intn(50) == 0 {
+            alliance.DqTeamKeys = append(alliance.DqTeamKeys, team)
+        }
+    }
+
+    return &alliance
 }
 
 const alphabet string = "abcdefghijklmnopqrstuvwxyz"
@@ -98,11 +159,12 @@ func setupRandomMatch() swagger.Match {
     match := swagger.Match{
         CompLevel: validCompLevels[rand.Intn(len(validCompLevels))],
         MatchNumber: rand.Int31n(999) + 1,
+        EventKey: getRandomString(rand.Intn(4) + 2, alphabet),
     }
     sb := strings.Builder{}
     year :=  rand.Intn(3000) + 1
     sb.WriteString(strconv.Itoa(year))
-    sb.WriteString(getRandomString(rand.Intn(4) + 2, alphabet))
+    sb.WriteString(match.EventKey)
     sb.WriteString("_")
     sb.WriteString(match.CompLevel)
     if match.CompLevel != "q" {
