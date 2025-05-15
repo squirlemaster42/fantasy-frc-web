@@ -24,6 +24,7 @@ func validMAC(message []byte, messageMAC []byte, key []byte) bool {
 }
 
 func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
+    slog.Info("Received webhook message")
     body, err := io.ReadAll(c.Request().Body)
     if err != nil {
         slog.Error("Failed to read request body", "Error", err)
@@ -126,7 +127,6 @@ type UpcomingMatchEvent struct {
 func (h *Handler) HandleUpcomingMatchEvent(messageData string) {
     slog.Info("Received upcoming match event", "Message", messageData)
 }
-
 
 type MatchVideoNofification struct {
     EventKey string `json:"event_key"`

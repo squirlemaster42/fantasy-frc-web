@@ -1,15 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
-	"fmt"
+	"encoding/hex"
+	"encoding/json"
 	"log/slog"
 	"math/rand"
+	"net/http"
 	"os"
 	"server/assert"
 	"server/swagger"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -49,8 +55,56 @@ func main() {
     dbName := os.Getenv("DB_NAME")
     slog.Info("Extracted Env Vars")
     database := RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
+
+    var waitGroup sync.WaitGroup
+    secret := os.Getenv("TBA_WEBHOOK_SECRET")
+    targetUrl := "http://localhost:3000/tbaWebhook"
     validTeams := getValidTeams(database)
-    fmt.Println(createFuzzyMatch(validTeams))
+    for range 1000 {
+        waitGroup.Add(1)
+        go makeAndSendFuzzyMatch(targetUrl, secret, validTeams, &waitGroup)
+    }
+    waitGroup.Wait()
+}
+
+func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string, waitGroup *sync.WaitGroup) {
+    slog.Info("Starting to send fuzzy match")
+    defer waitGroup.Done()
+    fuzzyMatch := createFuzzyMatch(validTeams)
+    scoreNotification := MatchScoreNofification {
+        EventKey: fuzzyMatch.EventKey,
+        MatchKey: fuzzyMatch.Key,
+        TeamKey: fuzzyMatch.Alliances.Red.TeamKeys[0],
+        EventName: fuzzyMatch.EventKey,
+        Match: fuzzyMatch,
+    }
+
+    serialized, err := json.Marshal(scoreNotification)
+    assert.NoErrorCF(err, "Failed to mashal score notification")
+    mac := hmac.New(sha256.New, []byte(secret))
+    _, err = mac.Write(serialized)
+    assert.NoErrorCF(err, "Failed to write data to mac")
+    macToSend := mac.Sum(nil)
+
+    req, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(serialized))
+    assert.NoErrorCF(err, "Failed to create post request")
+    slog.Info("Created request")
+    req.Header.Set("X-TBA-HMAC", hex.EncodeToString(macToSend))
+    req.Header.Set("Content-Type", "application/json")
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    slog.Info("Made request")
+    assert.NoErrorCF(err, "Failed to make post request")
+    defer resp.Body.Close()
+    slog.Info("Send fuzzy match", "Key", fuzzyMatch.Key)
+}
+
+type MatchScoreNofification struct {
+    EventKey string `json:"event_key"`
+    MatchKey string `json:"match_key"`
+    TeamKey string `json:"team_key"`
+    EventName string `json:"event_name"`
+    Match swagger.Match `json:"match"`
 }
 
 func getValidTeams(database *sql.DB) []string {
