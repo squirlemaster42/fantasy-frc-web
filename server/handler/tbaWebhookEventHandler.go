@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -20,7 +21,8 @@ func validMAC(message []byte, messageMAC []byte, key []byte) bool {
 	mac := hmac.New(sha256.New, key)
 	mac.Write(message)
 	expectedMAC := mac.Sum(nil)
-	return hmac.Equal(messageMAC, expectedMAC)
+    slog.Info("Validating HMAC", "HMAC", messageMAC, "Expected HMAC", hex.EncodeToString(expectedMAC))
+	return hmac.Equal(messageMAC, []byte(hex.EncodeToString(expectedMAC)))
 }
 
 func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {

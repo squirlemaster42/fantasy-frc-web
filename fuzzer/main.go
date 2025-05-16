@@ -60,23 +60,31 @@ func main() {
     secret := os.Getenv("TBA_WEBHOOK_SECRET")
     targetUrl := "http://localhost:3000/tbaWebhook"
     validTeams := getValidTeams(database)
-    for range 1000 {
+    //for range 1000 {
         waitGroup.Add(1)
         go makeAndSendFuzzyMatch(targetUrl, secret, validTeams, &waitGroup)
-    }
+    //}
     waitGroup.Wait()
+}
+
+type WebhookMessage struct {
+    MessageType string `json:"message_type"`
+    MessageData any `json:"message_data"`
 }
 
 func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string, waitGroup *sync.WaitGroup) {
     slog.Info("Starting to send fuzzy match")
     defer waitGroup.Done()
     fuzzyMatch := createFuzzyMatch(validTeams)
-    scoreNotification := MatchScoreNofification {
-        EventKey: fuzzyMatch.EventKey,
-        MatchKey: fuzzyMatch.Key,
-        TeamKey: fuzzyMatch.Alliances.Red.TeamKeys[0],
-        EventName: fuzzyMatch.EventKey,
-        Match: fuzzyMatch,
+    scoreNotification := WebhookMessage {
+        MessageType: "match_score",
+        MessageData: MatchScoreNofification {
+            EventKey: fuzzyMatch.EventKey,
+            MatchKey: fuzzyMatch.Key,
+            TeamKey: fuzzyMatch.Alliances.Red.TeamKeys[0],
+            EventName: fuzzyMatch.EventKey,
+            Match: fuzzyMatch,
+        },
     }
 
     serialized, err := json.Marshal(scoreNotification)
@@ -89,6 +97,7 @@ func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string,
     req, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(serialized))
     assert.NoErrorCF(err, "Failed to create post request")
     slog.Info("Created request")
+    slog.Info("Adding hmac to msg", "HMAC", hex.EncodeToString(macToSend))
     req.Header.Set("X-TBA-HMAC", hex.EncodeToString(macToSend))
     req.Header.Set("Content-Type", "application/json")
     client := &http.Client{}
