@@ -14,7 +14,7 @@ import (
 
 type TbaWebsocketEvent struct {
     MessageType string `json:"message_type"`
-    MessageData string `json:"message_data"`
+    MessageData any `json:"message_data"`
 }
 
 func validMAC(message []byte, messageMAC []byte, key []byte) bool {
@@ -42,7 +42,7 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
     }
 
     var event TbaWebsocketEvent
-    err = json.NewDecoder(c.Request().Body).Decode(&event)
+    err = json.Unmarshal(body, &event)
     if err != nil {
         slog.Error("Failed to decode webhook message", "Error", err, "Message", string(body))
         return nil
@@ -50,25 +50,25 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
 
     switch event.MessageType {
     case "upcoming_match":
-        h.HandleUpcomingMatchEvent(event.MessageData)
+        h.HandleUpcomingMatchEvent(event.MessageData.(UpcomingMatchEvent))
     case "match_score":
-        h.HandleMatchScoreEvent(event.MessageData)
+        h.HandleMatchScoreEvent(event.MessageData.(MatchScoreNofification))
     case "match_video":
-        h.HandleMatchVideoEvent(event.MessageData)
+        h.HandleMatchVideoEvent(event.MessageData.(MatchVideoNofification))
     case "starting_comp_level":
-        h.HandleCompLevelStartingEvent(event.MessageData)
+        h.HandleCompLevelStartingEvent(event.MessageData.(CompLevelStartingEvent))
     case "alliance_selection":
-        h.HandleAllianceSelectionEvent(event.MessageData)
+        h.HandleAllianceSelectionEvent(event.MessageData.(AllianceSelectionNotification))
     case "awards_posted":
-        h.HandleAwardsPostedEvent(event.MessageData)
+        h.HandleAwardsPostedEvent(event.MessageData.(AwardsPostedEvent))
     case "schedule_updated":
-        h.HandleEventScheduleUpdatedEvent(event.MessageData)
+        h.HandleEventScheduleUpdatedEvent(event.MessageData.(EventScheduleUpdatedEvent))
     case "ping":
-        h.HandlePingEvent(event.MessageData)
+        h.HandlePingEvent(event.MessageData.(PingEvent))
     case "broadcast":
-        h.HandleBroadcastEvent(event.MessageData)
+        h.HandleBroadcastEvent(event.MessageData.(BroadcastEvent))
     case "verification":
-        h.HandleVerificationEvent(event.MessageData)
+        h.HandleVerificationEvent(event.MessageData.(VerificationEvent))
     default:
         slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
     }
@@ -84,15 +84,8 @@ type MatchScoreNofification struct {
     Match swagger.Match `json:"match"`
 }
 
-func (h *Handler) HandleMatchScoreEvent(messageData string) {
-    slog.Info("Received match score event", "Message", messageData)
-    var scoreNotification MatchScoreNofification
-    err := json.Unmarshal([]byte(messageData), &scoreNotification)
-    if err != nil {
-        slog.Error("Failed to decode webhook message", "Error", err, "Message", messageData)
-        return
-    }
-
+func (h *Handler) HandleMatchScoreEvent(scoreNotification MatchScoreNofification) {
+    slog.Info("Received match score event", "Message", scoreNotification)
     h.Scorer.AddMatchToScore(scoreNotification.Match)
 }
 
@@ -104,14 +97,8 @@ type AllianceSelectionNotification struct {
 
 }
 
-func (h *Handler) HandleAllianceSelectionEvent(messageData string) {
-    slog.Info("Received alliance selection event", "Message", messageData)
-    var notification AllianceSelectionNotification
-    err := json.Unmarshal([]byte(messageData), &notification)
-    if err != nil {
-        slog.Error("Failed to decode webhook message", "Error", err, "Message", messageData)
-    }
-
+func (h *Handler) HandleAllianceSelectionEvent(notification AllianceSelectionNotification) {
+    slog.Info("Received alliance selection event", "Message", notification)
     h.Scorer.ScoreAllianceSelection(notification.EventKey)
 }
 
@@ -126,7 +113,7 @@ type UpcomingMatchEvent struct {
     Webcast swagger.Webcast `json:"webcast"`
 }
 
-func (h *Handler) HandleUpcomingMatchEvent(messageData string) {
+func (h *Handler) HandleUpcomingMatchEvent(messageData UpcomingMatchEvent) {
     slog.Info("Received upcoming match event", "Message", messageData)
 }
 
@@ -138,7 +125,7 @@ type MatchVideoNofification struct {
     Match swagger.Match `json:"match"`
 }
 
-func (h *Handler) HandleMatchVideoEvent(messageData string) {
+func (h *Handler) HandleMatchVideoEvent(messageData MatchVideoNofification) {
     slog.Info("Received match video event", "Message", messageData)
 }
 
@@ -149,7 +136,7 @@ type CompLevelStartingEvent struct {
     ScheduledTime string `json:"scheduled_time"`
 }
 
-func (h *Handler) HandleCompLevelStartingEvent(messageData string) {
+func (h *Handler) HandleCompLevelStartingEvent(messageData CompLevelStartingEvent) {
     slog.Info("Received comp level starting event", "Message", messageData)
 }
 
@@ -160,7 +147,7 @@ type AwardsPostedEvent struct {
     Awards []swagger.Award `json:"awards"`
 }
 
-func (h *Handler) HandleAwardsPostedEvent(messageData string) {
+func (h *Handler) HandleAwardsPostedEvent(messageData AwardsPostedEvent) {
     slog.Info("Received awards posted event", "Message", messageData)
 }
 
@@ -170,7 +157,7 @@ type EventScheduleUpdatedEvent struct {
     FirstMatchTime int64 `json:"first_match_time"`
 }
 
-func (h *Handler) HandleEventScheduleUpdatedEvent(messageData string) {
+func (h *Handler) HandleEventScheduleUpdatedEvent(messageData EventScheduleUpdatedEvent) {
     slog.Info("Received event schedule updated event", "Message", messageData)
 }
 
@@ -179,7 +166,7 @@ type PingEvent struct {
     Description string `json:"desc"`
 }
 
-func (h *Handler) HandlePingEvent(messageData string) {
+func (h *Handler) HandlePingEvent(messageData PingEvent) {
     slog.Info("Received ping event", "Message", messageData)
 }
 
@@ -189,7 +176,7 @@ type BroadcastEvent struct {
     Url string `json:"url"`
 }
 
-func (h *Handler) HandleBroadcastEvent(messageData string) {
+func (h *Handler) HandleBroadcastEvent(messageData BroadcastEvent) {
     slog.Info("Received broadcast event", "Message", messageData)
 }
 
@@ -197,6 +184,6 @@ type VerificationEvent struct {
     VerificationKey string `json:"verification_key"`
 }
 
-func (h *Handler) HandleVerificationEvent(messageData string) {
+func (h *Handler) HandleVerificationEvent(messageData VerificationEvent) {
     slog.Info("Received Verification Event", "Message", messageData)
 }
