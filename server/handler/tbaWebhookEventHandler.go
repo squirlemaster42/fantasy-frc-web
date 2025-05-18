@@ -48,6 +48,7 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
         return nil
     }
 
+    slog.Info("Routing event", "Message Type", event.MessageType)
     switch event.MessageType {
     case "upcoming_match":
         h.HandleUpcomingMatchEvent(event.MessageData.(UpcomingMatchEvent))
