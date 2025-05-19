@@ -85,6 +85,7 @@ func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string,
     }
 
     serializedNotification, err := json.Marshal(messageData)
+    assert.NoErrorCF(err, "Failed to marshal json")
     scoreNotification := WebhookMessage {
         MessageType: "match_score",
         MessageData: serializedNotification,
@@ -107,7 +108,10 @@ func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string,
     resp, err := client.Do(req)
     slog.Info("Made request")
     assert.NoErrorCF(err, "Failed to make post request")
-    defer resp.Body.Close()
+    defer func() {
+        err := resp.Body.Close()
+        assert.NoErrorCF(err, "Failed to close response body")
+    }()
     slog.Info("Send fuzzy match", "Key", fuzzyMatch.Key)
 }
 
@@ -133,7 +137,8 @@ func getValidTeams(database *sql.DB) []string {
     var validTeams []string
     for rows.Next() {
         var team string
-        rows.Scan(&team)
+        err := rows.Scan(&team)
+        assert.NoError(err, "Failed to get team")
         validTeams = append(validTeams, team)
     }
 
