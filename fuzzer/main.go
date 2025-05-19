@@ -69,22 +69,25 @@ func main() {
 
 type WebhookMessage struct {
     MessageType string `json:"message_type"`
-    MessageData any `json:"message_data"`
+    MessageData json.RawMessage `json:"message_data"`
 }
 
 func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string, waitGroup *sync.WaitGroup) {
     slog.Info("Starting to send fuzzy match")
     defer waitGroup.Done()
     fuzzyMatch := createFuzzyMatch(validTeams)
+    messageData := MatchScoreNofification {
+        EventKey: fuzzyMatch.EventKey,
+        MatchKey: fuzzyMatch.Key,
+        TeamKey: fuzzyMatch.Alliances.Red.TeamKeys[0],
+        EventName: fuzzyMatch.EventKey,
+        Match: fuzzyMatch,
+    }
+
+    serializedNotification, err := json.Marshal(messageData)
     scoreNotification := WebhookMessage {
         MessageType: "match_score",
-        MessageData: MatchScoreNofification {
-            EventKey: fuzzyMatch.EventKey,
-            MatchKey: fuzzyMatch.Key,
-            TeamKey: fuzzyMatch.Alliances.Red.TeamKeys[0],
-            EventName: fuzzyMatch.EventKey,
-            Match: fuzzyMatch,
-        },
+        MessageData: serializedNotification,
     }
 
     serialized, err := json.Marshal(scoreNotification)
