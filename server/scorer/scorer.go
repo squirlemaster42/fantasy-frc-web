@@ -433,7 +433,7 @@ func (s *Scorer) scoringRunner() {
 
         match := s.getNextMatchToScore()
 
-        if match.Alliances.Red != nil {
+        if match.Key != "" {
             match = s.tbaHandler.MakeMatchReq(match.Key)
         }
 
