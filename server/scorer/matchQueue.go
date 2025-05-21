@@ -26,7 +26,7 @@ type MatchQueue struct {
 
 func InitQueue(queue *MatchQueue) {
     queue.matchPopChan = make(chan matchQueueChanPopMsg)
-    queue.matchPushChan = make(chan matchQueueChanPushMsg)
+    queue.matchPushChan = make(chan matchQueueChanPushMsg, 50)
     heap.Init(queue)
     queue.quitChan = queue.watchMatchQueue()
 }
