@@ -3,7 +3,6 @@ package scorer
 import (
 	"database/sql"
 	"log/slog"
-	"regexp"
 	"server/assert"
 	"server/model"
 	"server/swagger"
@@ -199,7 +198,7 @@ func (s *Scorer) merge(left []string, right []string) []string {
     j := 0
 
     for i < len(left) && j < len(right) {
-        if s.compareMatchOrder(left[i], right[j]) {
+        if utils.CompareMatchOrder(left[i], right[j]) {
             result = append(result, left[i])
             i++
         } else {
@@ -212,117 +211,6 @@ func (s *Scorer) merge(left []string, right []string) []string {
     result = append(result, right[j:]...)
 
     return result
-}
-
-func matchPrecidence() map[string]int {
-    return map[string]int{
-        "qm": 0,
-        "qf": 1,
-        "sf": 2,
-        "f":  3,
-    }
-}
-
-// Return true if matchA comes before matchB
-func (s *Scorer) compareMatchOrder(matchA string, matchB string) bool {
-    assert := assert.CreateAssertWithContext("Compare Match Order")
-    assert.AddContext("Match A", matchA)
-    assert.AddContext("Match B", matchB)
-    matchALevel := getMatchLevel(matchA)
-    matchBLevel := getMatchLevel(matchB)
-    assert.AddContext("Match A Level", matchALevel)
-    assert.AddContext("Match B Level", matchBLevel)
-    aPrecidence, ok := matchPrecidence()[matchALevel]
-    assert.RunAssert(ok, "Match Precidence Was Not Found")
-    bPrecidence, ok := matchPrecidence()[matchBLevel]
-    assert.RunAssert(ok, "Match Precidence Was Not Found")
-
-    if aPrecidence != bPrecidence {
-        return aPrecidence < bPrecidence
-    }
-
-    assert.RunAssert(matchALevel == matchBLevel, "Match levels are not the same")
-
-    if matchALevel == "qm" {
-        splitMatchA := strings.Split(matchA, "_")
-        splitMatchB := strings.Split(matchB, "_")
-        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
-        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        matchANum, err := strconv.Atoi(splitMatchA[1][2:])
-        assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err := strconv.Atoi(splitMatchB[1][2:])
-        assert.NoError(err, "Match B num Atoi failed")
-        return matchANum < matchBNum
-    }
-
-    if matchALevel == "f" {
-        splitMatchA := strings.Split(matchA, "_")
-        splitMatchB := strings.Split(matchB, "_")
-        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
-        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        splitMatchA = strings.Split(splitMatchA[1][1:], "m")
-        splitMatchB = strings.Split(splitMatchB[1][1:], "m")
-        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
-        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        matchANum, err := strconv.Atoi(splitMatchA[0])
-        assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err := strconv.Atoi(splitMatchB[0])
-        assert.NoError(err, "Match B num Atoi failed")
-
-        if matchANum != matchBNum {
-            return matchANum < matchBNum
-        }
-
-        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
-
-        matchANum, err = strconv.Atoi(splitMatchA[1])
-        assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err = strconv.Atoi(splitMatchB[1])
-        assert.NoError(err, "Match B num Atoi failed")
-
-        return matchANum < matchBNum
-    }
-
-    if matchALevel == "sf" {
-        splitMatchA := strings.Split(matchA, "_")
-        splitMatchB := strings.Split(matchB, "_")
-        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
-        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        splitMatchA = strings.Split(splitMatchA[1][2:], "m")
-        splitMatchB = strings.Split(splitMatchB[1][2:], "m")
-        assert.RunAssert(len(splitMatchA) == 2, "Match A string was invalid")
-        assert.RunAssert(len(splitMatchB) == 2, "Match B string was invalid")
-        matchANum, err := strconv.Atoi(splitMatchA[0])
-        assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err := strconv.Atoi(splitMatchB[0])
-        assert.NoError(err, "Match B num Atoi failed")
-
-        if matchANum != matchBNum {
-            return matchANum < matchBNum
-        }
-
-        assert.RunAssert(matchANum == matchBNum, "Match nums are the same but shouldn't be")
-
-        matchANum, err = strconv.Atoi(splitMatchA[1])
-        assert.NoError(err, "Match A num Atoi failed")
-        matchBNum, err = strconv.Atoi(splitMatchB[1])
-        assert.NoError(err, "Match B num Atoi failed")
-
-        return matchANum < matchBNum
-    }
-
-    assert.RunAssert(1 == 0, "Unknown match type found")
-    return false // This is unreachable
-}
-
-func getMatchLevel(matchKey string) string {
-    assert := assert.CreateAssertWithContext("Get Match Level")
-    assert.AddContext("Match Key", matchKey)
-    pattern := regexp.MustCompile("_[a-z]+")
-    match := pattern.FindString(matchKey)[1:]
-    assert.AddContext("Match", match)
-    assert.RunAssert(len(match) == 2 || len(match) == 1, "Match did not return string of expected length")
-    return match
 }
 
 func isDqed(team string, dqedTeams []string) bool {
