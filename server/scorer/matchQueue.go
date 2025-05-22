@@ -39,7 +39,7 @@ func (q *MatchQueue) PushMatch(match swagger.Match) {
 
 func (q *MatchQueue) PopMatch() swagger.Match {
     match := make(chan swagger.Match)
-    q.matchPopChan <- matchQueueChanPopMsg{
+    q.matchPopChan <- matchQueueChanPopMsg {
         match: match,
     }
     return <- match
