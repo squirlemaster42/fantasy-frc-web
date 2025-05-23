@@ -277,6 +277,7 @@ func (s *Scorer) AddMatchToScore(match swagger.Match) {
 }
 
 func (s *Scorer) getNextMatchToScore() swagger.Match {
+    //TODO this is not blocking
     return s.queue.PopMatch()
 }
 
@@ -321,7 +322,9 @@ func (s *Scorer) scoringRunner() {
 
         match := s.getNextMatchToScore()
 
-        if match.Key != "" {
+        slog.Info("Checking if we need to get match data", "Match", match)
+        if match.MatchNumber == 0 {
+            slog.Info("Loading match data", "Match", match.Key)
             match = s.tbaHandler.MakeMatchReq(match.Key)
         }
 
