@@ -3,69 +3,75 @@ package scorer
 import (
 	"container/heap"
 	"log/slog"
-	"server/assert"
 	"server/swagger"
 	"server/utils"
 )
 
-type matchQueueChanPopMsg struct {
-    match chan swagger.Match
-}
-
-
-type matchQueueChanPushMsg struct {
-    match swagger.Match
-}
-
 type MatchQueue struct {
-    matches []swagger.Match
-    matchPushChan chan matchQueueChanPushMsg
-    matchPopChan chan matchQueueChanPopMsg
-    quitChan chan bool
+    matches []*swagger.Match
+    matchPushChan chan *swagger.Match
+    matchPopChan chan *swagger.Match
 }
 
 func InitQueue(queue *MatchQueue) {
-    queue.matchPopChan = make(chan matchQueueChanPopMsg)
-    queue.matchPushChan = make(chan matchQueueChanPushMsg, 50)
+    queue.matchPopChan = make(chan *swagger.Match)
+    queue.matchPushChan = make(chan *swagger.Match, 50)
     heap.Init(queue)
-    queue.quitChan = queue.watchMatchQueue()
+    queue.watchMatchQueue()
 }
 
 func (q *MatchQueue) PushMatch(match swagger.Match) {
-    q.matchPushChan <- matchQueueChanPushMsg {
-        match: match,
-    }
+    q.matchPushChan <- &match
 }
 
 func (q *MatchQueue) PopMatch() swagger.Match {
-    match := make(chan swagger.Match)
-    q.matchPopChan <- matchQueueChanPopMsg {
-        match: match,
-    }
-    return <- match
-}
-
-func (q *MatchQueue) StopMatchQueue() {
-    q.quitChan <- true
+    match, _ := <- q.matchPopChan
+    return *match
 }
 
 func (q *MatchQueue) watchMatchQueue() chan bool {
     slog.Info("Starting match queue watch")
     quit := make(chan bool)
 
+    var currentMatch *swagger.Match
+    var currentIn = q.matchPushChan
+    var currentOut chan<- *swagger.Match
+
+    defer close(q.matchPopChan)
+
     go func() {
         for {
-            assert := assert.CreateAssertWithContext("Watch Match Queue")
             select {
-            case <- quit:
-                return
-            case popMatch := <- q.matchPopChan:
-                match, ok := heap.Pop(q).(swagger.Match)
-                assert.AddContext("Match", match)
-                assert.RunAssert(ok, "Something got into the queue that was not a match")
-                popMatch.match <- match
-            case pushMatch := <- q.matchPushChan:
-                heap.Push(q, pushMatch.match)
+            case match, ok := <- currentIn:
+                if !ok {
+                    //Input has been closed
+                    currentIn = nil
+                    if currentMatch == nil {
+                        return
+                    }
+                    continue
+                }
+
+                if currentMatch != nil {
+                    heap.Push(q, currentMatch)
+                }
+
+                heap.Push(q, match)
+
+                currentOut = q.matchPopChan
+
+                currentMatch = heap.Pop(q).(*swagger.Match)
+            case currentOut <- currentMatch:
+                if q.Len() > 0 {
+                    currentMatch = heap.Pop(q).(*swagger.Match)
+                } else {
+                    if currentIn == nil {
+                        return
+                    }
+
+                    currentMatch = nil
+                    currentOut = nil
+                }
             }
         }
     }()
@@ -86,7 +92,7 @@ func (q MatchQueue) Swap(i int, j int) {
 }
 
 func (q *MatchQueue) Push(match any) {
-    q.matches = append(q.matches, match.(swagger.Match))
+    q.matches = append(q.matches, match.(*swagger.Match))
 }
 
 func (q *MatchQueue) Pop() any {
