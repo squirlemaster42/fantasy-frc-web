@@ -12,9 +12,6 @@ import (
 	"strings"
 )
 
-// TODO Once we change things to use web hooks we shouldnt need this anymore
-var RESCORE_INTERATION_COUNT = 72
-
 type Scorer struct {
     tbaHandler *tbaHandler.TbaHandler
     database *sql.DB
