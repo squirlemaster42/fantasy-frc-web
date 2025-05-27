@@ -60,10 +60,10 @@ func main() {
     secret := os.Getenv("TBA_WEBHOOK_SECRET")
     targetUrl := "http://localhost:3000/tbaWebhook"
     validTeams := getValidTeams(database)
-    //for range 1000 {
+    for range 1000 {
         waitGroup.Add(1)
         go makeAndSendFuzzyMatch(targetUrl, secret, validTeams, &waitGroup)
-    //}
+    }
     waitGroup.Wait()
 }
 

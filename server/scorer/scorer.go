@@ -20,13 +20,11 @@ type Scorer struct {
 }
 
 func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
-    queue := &MatchQueue{}
-    InitQueue(queue)
     return &Scorer{
         tbaHandler: tbaHandler,
         database: database,
         scoringIteration: 0,
-        queue: queue,
+        queue: NewMatchQueue(),
     }
 }
 
