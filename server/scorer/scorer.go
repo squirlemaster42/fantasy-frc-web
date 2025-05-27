@@ -311,11 +311,6 @@ func (s *Scorer) scoringRunner() {
 
     for {
         slog.Info("Starting scoring iteration")
-        //TODO we should probably update this to use channels so that this routine blocks
-        //instead of having to poll
-        if s.queue.Len() == 0 {
-            continue
-        }
 
         match := s.getNextMatchToScore()
 
