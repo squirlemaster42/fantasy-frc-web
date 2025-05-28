@@ -874,6 +874,28 @@ func StartDraft(database *sql.DB, draftId int) {
 	assert.NoError(err, "Failed to update draft status")
 }
 
+func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
+    assert := assert.CreateAssertWithContext("Shoud Skip Pick")
+    assert.AddContext("Draft Player", draftPlayer)
+
+    query := `SELECT
+        skipPicks
+    From DraftPlayers dp
+    Where dp.Id = $1;`
+
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to preparte statement")
+    var shoudSkip bool
+    err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
+
+    if err != nil {
+        slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
+        return false
+    }
+
+    return shoudSkip
+}
+
 func GetCurrentPick(database *sql.DB, draftId int) Pick {
 	query := `Select
                 p.Id,
