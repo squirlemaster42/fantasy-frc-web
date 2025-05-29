@@ -38,6 +38,8 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
         states: setupStates(database, draftDaemon),
     }
 
+    slog.Info("Draft Manager Started")
+
     return draftManager
 }
 
