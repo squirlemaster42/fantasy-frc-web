@@ -17,6 +17,15 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+type PickPage struct {
+    draft model.DraftModel
+    pickUrl string
+    notifierUrl string
+    isCurrentPick bool
+    isSkipping bool
+    pickError error
+}
+
 func (h *Handler) ServePickPage(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Server Pick Page")
     slog.Info("Serving pick page", "Ip", c.RealIP())
