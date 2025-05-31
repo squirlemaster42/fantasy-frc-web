@@ -17,15 +17,6 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-type PickPage struct {
-    draft model.DraftModel
-    pickUrl string
-    notifierUrl string
-    isCurrentPick bool
-    isSkipping bool
-    pickError error
-}
-
 func (h *Handler) ServePickPage(c echo.Context) error {
     assert := assert.CreateAssertWithContext("Server Pick Page")
     slog.Info("Serving pick page", "Ip", c.RealIP())
@@ -97,7 +88,15 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
-    pickPageIndex := draft.DraftPickIndex(draftModel, url, notifierUrl, isCurrentPick, pickError)
+    pickPageModel := draft.PickPage {
+        draft: draftModel,
+        pickUrl: url,
+        notifierUrl: notifierUrl,
+        isCurrentPick: isCurrentPick,
+        pickError: pickError,
+        isSkipping: false,
+    }
+    pickPageIndex := draft.DraftPickIndex(pickPageModel)
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err = Render(c, pickPageView)
