@@ -89,12 +89,12 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
     pickPageModel := draft.PickPage {
-        draft: draftModel,
-        pickUrl: url,
-        notifierUrl: notifierUrl,
-        isCurrentPick: isCurrentPick,
-        pickError: pickError,
-        isSkipping: false,
+        Draft: draftModel,
+        PickUrl: url,
+        NotifierUrl: notifierUrl,
+        IsCurrentPick: isCurrentPick,
+        PickError: pickError,
+        IsSkipping: false,
     }
     pickPageIndex := draft.DraftPickIndex(pickPageModel)
     username := model.GetUsername(h.Database, userId)

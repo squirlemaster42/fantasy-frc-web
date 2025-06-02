@@ -5,32 +5,32 @@ import "server/view"
 import "strings"
 
 type PickPage struct {
-    draft model.DraftModel
-    pickUrl string
-    notifierUrl string
-    isCurrentPick bool
-    isSkipping bool
-    pickError error
+    Draft model.DraftModel
+    PickUrl string
+    NotifierUrl string
+    IsCurrentPick bool
+    IsSkipping bool
+    PickError error
 }
 
 templ DraftPickIndex (pickPageModel PickPage) {
     <div id="draftPicks" class="flex items-center justify-center w-full pt-4">
-        <div hx-ext="ws" ws-connect={pickPageModel.notifierUrl} class="w-full">
+        <div hx-ext="ws" ws-connect={pickPageModel.NotifierUrl} class="w-full">
             <form
                 hx-swap="outerHTML transition:true"
-                hx-post={pickPageModel.pickUrl}
+                hx-post={pickPageModel.PickUrl}
                 hx-target="#draftPicks"
                 action=""
                 method="post"
             >
                 <div id="draft-table" class="flex flex-col justify-center">
                     <div class="w-full flex items-center justify-center">
-                        if pickPageModel.pickError != nil {
-                            <span class="text-red-800" style="width: fit-content;">{pickPageModel.pickError.Error()}</span>
+                        if pickPageModel.PickError != nil {
+                            <span class="text-red-800" style="width: fit-content;">{pickPageModel.PickError.Error()}</span>
                         }
                     </div>
                     <div class="w-full overflow-x-auto">
-                        @RenderPicks(pickPageModel.draft, pickPageModel.isCurrentPick)
+                        @RenderPicks(pickPageModel.Draft, pickPageModel.IsCurrentPick)
                     </div>
                     <div class="w-full flex flex-row justify-center pt-8">
                         <button class="bg-blue-500 text-white font-bold py-2 px-4 rounded" type="submit">
