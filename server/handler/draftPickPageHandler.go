@@ -94,7 +94,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
         NotifierUrl: notifierUrl,
         IsCurrentPick: isCurrentPick,
         PickError: pickError,
-        IsSkipping: false,
+        IsSkipping: model.ShoudSkipPick(h.Database, draftModel.NextPick.Id),
     }
     pickPageIndex := draft.DraftPickIndex(pickPageModel)
     username := model.GetUsername(h.Database, userId)
