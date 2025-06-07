@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
 	"server/assert"
 	"server/model"
@@ -158,5 +159,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
             }
         }
     }).ServeHTTP(c.Response(), c.Request())
+    return nil
+}
+
+func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
+    body, err := io.ReadAll(c.Request().Body)
+    if err != nil {
+        slog.Error("Failed to read body of request to toggle skip pick", "Error", err)
+    }
+    slog.Info("Got request to toggle skip pick", "Body", body)
     return nil
 }
