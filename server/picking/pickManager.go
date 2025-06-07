@@ -92,5 +92,6 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 }
 
 func (p *PickManager) AddListener(listener PickListener) {
+    slog.Info("Added pick listener", "Listener", listener)
     p.listeners = append(p.listeners, &listener)
 }
