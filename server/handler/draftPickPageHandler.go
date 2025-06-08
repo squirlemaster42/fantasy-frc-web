@@ -168,5 +168,12 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
         slog.Error("Failed to read body of request to toggle skip pick", "Error", err)
     }
     slog.Info("Got request to toggle skip pick", "Body", body)
+
+    // See if we have the skip in the list
+    // If we do then mark the player as skipping for the given draft
+    // If not then mark them as not skipping
+
+    // TODO We need to get the draft id in here
+
     return nil
 }
