@@ -163,6 +163,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 }
 
 func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
+    assert := assert.CreateAssertWithContext("Handle Skip Page Toggle")
+    userTok, err := c.Cookie("sessionToken")
+    assert.NoError(err, "Failed to get user token")
+    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+
     body, err := io.ReadAll(c.Request().Body)
     if err != nil {
         slog.Error("Failed to read body of request to toggle skip pick", "Error", err)
@@ -172,6 +177,10 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
     // See if we have the skip in the list
     // If we do then mark the player as skipping for the given draft
     // If not then mark them as not skipping
+    if strings.Contains(string(body), "skipping") {
+    } else {
+
+    }
 
     // TODO We need to get the draft id in here
 
