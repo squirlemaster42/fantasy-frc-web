@@ -896,6 +896,22 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
     return shoudSkip
 }
 
+func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) {
+    assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
+    assert.AddContext("Draft Player", draftPlayer)
+
+    query := `Update DraftPlayers Set skipPicks = $2 Where dp.Id = $1;`
+
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to preparte statement")
+    _, err = stmt.Exec(draftPlayer, shouldSkip)
+
+    // TODO Should we return this error
+    if err != nil {
+        slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
+    }
+}
+
 func GetCurrentPick(database *sql.DB, draftId int) Pick {
 	query := `Select
                 p.Id,

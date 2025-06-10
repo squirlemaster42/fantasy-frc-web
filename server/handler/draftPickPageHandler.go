@@ -178,6 +178,7 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
     // If we do then mark the player as skipping for the given draft
     // If not then mark them as not skipping
     if strings.Contains(string(body), "skipping") {
+
     } else {
 
     }
