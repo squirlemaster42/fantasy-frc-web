@@ -879,7 +879,7 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
     assert.AddContext("Draft Player", draftPlayer)
 
     query := `SELECT
-        skipPicks
+        COALESCE(skipPicks, false) As skipPicks
     From DraftPlayers dp
     Where dp.Id = $1;`
 
@@ -896,20 +896,17 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
     return shoudSkip
 }
 
-func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) {
+func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) error {
     assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
     assert.AddContext("Draft Player", draftPlayer)
 
-    query := `Update DraftPlayers Set skipPicks = $2 Where dp.Id = $1;`
+    query := `Update DraftPlayers Set skipPicks = $2 Where Id = $1;`
 
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to preparte statement")
     _, err = stmt.Exec(draftPlayer, shouldSkip)
 
-    // TODO Should we return this error
-    if err != nil {
-        slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
-    }
+    return err
 }
 
 func GetCurrentPick(database *sql.DB, draftId int) Pick {

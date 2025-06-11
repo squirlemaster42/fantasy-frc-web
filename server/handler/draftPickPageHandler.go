@@ -86,16 +86,21 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     if err != nil {
         slog.Warn("User is attempting to render pick page for invalid draft", "Draft", draftId, "User", userId)
     }
-    url := fmt.Sprintf("/u/draft/%d/makePick", draftId)
+    pickUrl := fmt.Sprintf("/u/draft/%d/makePick", draftId)
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
+    skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
+    isSkipping := model.ShoudSkipPick(h.Database, draftModel.NextPick.Id)
+    slog.Info("Loaded if picks should be skipped", "Is Skipping", isSkipping)
+
     pickPageModel := draft.PickPage {
         Draft: draftModel,
-        PickUrl: url,
+        PickUrl: pickUrl,
         NotifierUrl: notifierUrl,
         IsCurrentPick: isCurrentPick,
         PickError: pickError,
-        IsSkipping: model.ShoudSkipPick(h.Database, draftModel.NextPick.Id),
+        IsSkipping: isSkipping,
+        SkipUrl: skipUrl,
     }
     pickPageIndex := draft.DraftPickIndex(pickPageModel)
     username := model.GetUsername(h.Database, userId)
@@ -120,6 +125,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
         if err != nil {
             slog.Error("Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
+            return
         }
 
         wsl := WebSocketListener {
@@ -137,7 +143,6 @@ func (h *Handler) PickNotifier(c echo.Context) error {
         }()
         //TODO Figure out how to unregister the listener
         //defer h.Notifier.UnregiserWatcher(watcher)
-        assert.NoError(err, "Could not parse draft id")
         for {
             msg := <- wsl.messageQueue
             slog.Info("Writing pick event to client", "Event", msg)
@@ -167,23 +172,27 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
     userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+    draftIdStr := c.Param("id")
+    draftId, err := strconv.Atoi(draftIdStr)
+    draftPlayerId := model.GetDraftPlayerId(h.Database, draftId, userId)
+
+    if err != nil {
+        slog.Error("Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
+        return err
+    }
 
     body, err := io.ReadAll(c.Request().Body)
     if err != nil {
         slog.Error("Failed to read body of request to toggle skip pick", "Error", err)
     }
+
     slog.Info("Got request to toggle skip pick", "Body", body)
 
     // See if we have the skip in the list
     // If we do then mark the player as skipping for the given draft
     // If not then mark them as not skipping
-    if strings.Contains(string(body), "skipping") {
+    shouldSkip := strings.Contains(string(body), "skipping")
+    slog.Info("Marking should skip", "Should Skip", shouldSkip, "Draft Player Id", draftPlayerId)
 
-    } else {
-
-    }
-
-    // TODO We need to get the draft id in here
-
-    return nil
+    return model.MarkShouldSkipPick(h.Database, draftPlayerId, shouldSkip)
 }

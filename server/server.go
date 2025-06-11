@@ -45,7 +45,7 @@ func CreateServer(serverPort string, h handler.Handler) {
     protected.POST("/searchPlayers", h.SearchPlayers)
     protected.GET("/viewInvites", h.HandleViewInvites)
     protected.POST("/acceptInvite", h.HandleAcceptInvite)
-    protected.POST("/skipPickToggle", h.HandleSkipPickToggle)
+    protected.POST("/draft/:id/skipPickToggle", h.HandleSkipPickToggle)
 
     admin := protected.Group("/admin", auth.CheckAdmin)
     admin.GET("/console", h.HandleAdminConsoleGet)
