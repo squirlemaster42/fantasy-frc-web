@@ -90,8 +90,9 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
     skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
     isCurrentPick := draftModel.NextPick.User.Id == userId
-    isSkipping := model.ShoudSkipPick(h.Database, draftModel.NextPick.Id)
-    slog.Info("Loaded if picks should be skipped", "Is Skipping", isSkipping)
+    draftPlayerId := model.GetDraftPlayerId(h.Database, draftId, userId)
+    isSkipping := model.ShoudSkipPick(h.Database, draftPlayerId)
+    slog.Info("Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
     pickPageModel := draft.PickPage {
         Draft: draftModel,
@@ -106,8 +107,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userId int, pickEr
     username := model.GetUsername(h.Database, userId)
     pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
     err = Render(c, pickPageView)
-    return err
-}
+    return err }
 
 type WebSocketListener struct {
     messageQueue chan picking.PickEvent
