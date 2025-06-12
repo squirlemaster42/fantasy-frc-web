@@ -11,17 +11,17 @@ import (
 )
 
 type User struct {
-    UserGuid uuid.UUID
+    UserUuid uuid.UUID
     Username string
     Password string
 }
 
 func (u *User) String() string {
-    return fmt.Sprintf("User: {\n UserGuid: %s\n Username: %s\n}", u.UserGuid.String(), u.Username)
+    return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
 }
 
 func RegisterUser(database *sql.DB, username string, password string) uuid.UUID {
-    query := `INSERT INTO Users (username, password) Values ($1, $2) Returning UserGuid;`
+    query := `INSERT INTO Users (username, password) Values ($1, $2) Returning UserUuid;`
     assert := assert.CreateAssertWithContext("Register User")
     assert.AddContext("Username", username)
     assert.AddContext("Password", password)
@@ -29,10 +29,10 @@ func RegisterUser(database *sql.DB, username string, password string) uuid.UUID 
     assert.NoError(err, "Failed to prepare statement")
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
     assert.NoError(err, "Failed to generate password hash")
-    var userGuid uuid.UUID
-    err = stmt.QueryRow(username, string(hashedPassword)).Scan(&userGuid)
+    var userUuid uuid.UUID
+    err = stmt.QueryRow(username, string(hashedPassword)).Scan(&userUuid)
     assert.NoError(err, "Failed to register user")
-    return userGuid
+    return userUuid
 }
 
 func UsernameTaken(database *sql.DB, username string) bool {
@@ -47,26 +47,26 @@ func UsernameTaken(database *sql.DB, username string) bool {
     return count > 0
 }
 
-func GetUserGuidByUsername(database *sql.DB, username string) uuid.UUID {
-    query := `Select UserGuid From Users Where username = $1;`
-    assert := assert.CreateAssertWithContext("Get User Guid By Username")
+func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
+    query := `Select UserUuid From Users Where username = $1;`
+    assert := assert.CreateAssertWithContext("Get User Uuid By Username")
     assert.AddContext("Username", username)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
-    var userGuid uuid.UUID
-    err = stmt.QueryRow(username).Scan(&userGuid)
+    var userUuid uuid.UUID
+    err = stmt.QueryRow(username).Scan(&userUuid)
     assert.NoError(err, "Failed to get user")
-    return userGuid
+    return userUuid
 }
 
-func GetUsername(database *sql.DB, userGuid uuid.UUID) string {
+func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
     query := `Select Username From Users Where UserId = $1;`
     assert := assert.CreateAssertWithContext("Get Username")
-    assert.AddContext("User Id", userGuid)
+    assert.AddContext("User Id", userUuid)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     var username string
-    err = stmt.QueryRow(userGuid).Scan(&username)
+    err = stmt.QueryRow(userUuid).Scan(&username)
     assert.NoError(err, "Failed to get user")
     return username
 }
@@ -104,17 +104,17 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
 
 // This can probably clean up session that expired more than a month ago or something
 // Actually it can probably be sooner than that because expire tokens should never be reissued
-func RegisterSession(database *sql.DB, userGuid uuid.UUID, sessionToken string) {
-    query := `Insert Into UserSessions (userGuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
+func RegisterSession(database *sql.DB, userUuid uuid.UUID, sessionToken string) {
+    query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
     assert := assert.CreateAssertWithContext("Register Session")
-    assert.AddContext("User Guid", userGuid)
+    assert.AddContext("User Uuid", userUuid)
     //I dont think I'm worried about the session tokens being here because if this fails we have bigger issues
     assert.AddContext("SessionToken", sessionToken)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare query")
     hasher := crypto.SHA256.New()
     hasher.Write([]byte(sessionToken))
-    _, err = stmt.Exec(userGuid, hasher.Sum(nil))
+    _, err = stmt.Exec(userUuid, hasher.Sum(nil))
     assert.NoError(err, "Failed to register session")
 }
 
@@ -132,7 +132,7 @@ func UnRegisterSession(database *sql.DB, sessionToken string) {
 }
 
 func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
-    query := `Select UserGuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+    query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
     assert := assert.CreateAssertWithContext("Get User By Session Token")
     assert.AddContext("Session Token", sessionToken)
     stmt, err := database.Prepare(query)
@@ -140,35 +140,35 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
     hasher := crypto.SHA256.New()
     hasher.Write([]byte(sessionToken))
     assert.AddContext("Hashed Session Token", hasher.Sum(nil))
-    var userGuid uuid.UUID
-    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&userGuid)
+    var userUuid uuid.UUID
+    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&userUuid)
     assert.NoError(err, "Failed to get user")
-    UpdateSessionExpiration(database, userGuid, sessionToken)
-    return userGuid
+    UpdateSessionExpiration(database, userUuid, sessionToken)
+    return userUuid
 }
 
-func UserIsAdmin(database *sql.DB, userGuid uuid.UUID) bool {
-    query := `Select COALESCE(IsAdmin, false) From Users Where UserGuid = $1;`
+func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
+    query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
     assert := assert.CreateAssertWithContext("User Is Admin")
-    assert.AddContext("User Id", userGuid)
+    assert.AddContext("User Id", userUuid)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     var isAdmin bool
-    err = stmt.QueryRow(userGuid).Scan(&isAdmin)
+    err = stmt.QueryRow(userUuid).Scan(&isAdmin)
     assert.NoError(err, "Failed to get user")
     return isAdmin
 }
 
-func UpdateSessionExpiration(database *sql.DB, userGuid uuid.UUID, sessionToken string) {
+func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken string) {
     //We want to make sure we only update the session token that the user logged in with
-    query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userGuid = $1 And sessionToken = $2;`
+    query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
     assert := assert.CreateAssertWithContext("Update Session Expiration")
-    assert.AddContext("User Guid", userGuid)
+    assert.AddContext("User Uuid", userUuid)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare query")
     hasher := crypto.SHA256.New()
     hasher.Write([]byte(sessionToken))
-    _, err = stmt.Exec(userGuid, hasher.Sum(nil))
+    _, err = stmt.Exec(userUuid, hasher.Sum(nil))
     assert.NoError(err, "Failed to update session expiraton")
 }
 
@@ -194,21 +194,21 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 
 func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, error) {
     query := `SELECT
-                    Users.UserGuid,
+                    Users.UserUuid,
                     Users.Username
                 From Users
-                Where Users.UserGuid Not In (
+                Where Users.UserUuid Not In (
                     SELECT
                     u.UserId
                     FROM (
                         SELECT
-                        USERS.UserGuid AS UserGuid,
+                        USERS.UserUuid AS UserUuid,
                         USERS.USERNAME,
                         't' AS ACCEPTED,
                         DRAFTPLAYERS.PLAYERORDER,
                         DraftPlayers.Id As PlayerId
                         FROM USERS
-                        INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserGuid = USER.UserGuid
+                        INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USER.UserUuid
                         WHERE DRAFTPLAYERS.DRAFTID = $1
                         UNION
                         SELECT
@@ -218,7 +218,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
                         -1 AS PLAYERORDER,
                         -1 As PlayerId
                         FROM USERS
-                        INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserGuid = USERS.UserGuid
+                        INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
                         WHERE DRAFTINVITES.DRAFTID = $1
                     ) U
                 )`
@@ -245,17 +245,17 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
     users := make([]User, 0)
 
     for userRows.Next() {
-        var userGuid uuid.UUID
+        var userUuid uuid.UUID
         var username string
 
-        err = userRows.Scan(&userGuid, &username)
+        err = userRows.Scan(&userUuid, &username)
 
         if err != nil {
             return nil, err
         }
 
         user := User{
-            UserGuid: userGuid,
+            UserUuid: userUuid,
             Username: username,
         }
 

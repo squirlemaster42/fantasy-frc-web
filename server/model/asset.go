@@ -38,10 +38,10 @@ func (a *AssetManager) UploadDraftProfileAsset(database *sql.DB, draftId int, im
     return nil
 }
 
-func (a *AssetManager) LoadUserProfileAsset(database *sql.DB, userGuid uuid.UUID) *Asset {
+func (a *AssetManager) LoadUserProfileAsset(database *sql.DB, userUuid uuid.UUID) *Asset {
     return nil
 }
 
-func (a *AssetManager) UploadUserProfileAsset(database *sql.DB, userGuid uuid.UUID, image image.Image) error {
+func (a *AssetManager) UploadUserProfileAsset(database *sql.DB, userUuid uuid.UUID, image image.Image) error {
     return nil
 }

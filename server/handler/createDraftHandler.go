@@ -19,8 +19,8 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userGuid)
+    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userUuid)
 
     draftCreateIndex := draft.DraftProfileIndex(model.DraftModel{ Id: -1 }, true)
     draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
@@ -50,12 +50,12 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
     parsedEndTime, err := time.Parse(layout, endTime)
     assert.NoError(err, "Failed to parse end time")
 
-    userGuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
-    username := model.GetUsername(h.Database, userGuid)
+    userUuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
+    username := model.GetUsername(h.Database, userUuid)
 
     draftModel := model.DraftModel {
         Owner: model.User{
-            UserGuid: userGuid,
+            UserUuid: userUuid,
         },
         DisplayName: draftName,
         Description: description,

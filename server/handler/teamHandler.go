@@ -14,8 +14,8 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userGuid)
+    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userUuid)
 
     teamIndex := team.TeamScoreIndex()
     team := team.TeamPick(" | Team Score", true, username, teamIndex)

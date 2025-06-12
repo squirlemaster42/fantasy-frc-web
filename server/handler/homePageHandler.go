@@ -29,8 +29,8 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     if isValid {
         //If the cookie is valid we let the request through
         //We should probaly log a message
-        userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-        slog.Info("User has successfully logged in", "User Guid", userGuid, "Ip", c.RealIP())
+        userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+        slog.Info("User has successfully logged in", "User Uuid", userUuid, "Ip", c.RealIP())
     } else {
         //If the cookie is not valid then we redirect to the login page
         slog.Warn("Failed login", "Ip",  c.RealIP())
@@ -41,11 +41,11 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
         return echo.ErrUnauthorized
     }
 
-    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userGuid)
+    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userUuid)
 
     slog.Info("Loading drafts for user", "Username", username)
-	drafts := model.GetDraftsForUser(h.Database, userGuid)
+	drafts := model.GetDraftsForUser(h.Database, userUuid)
     slog.Info("Loaded drafts for user", "Username", username)
 
 	homeIndex := view.HomeIndex(drafts)
