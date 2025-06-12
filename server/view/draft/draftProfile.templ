@@ -157,7 +157,15 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
             for _, user := range users {
                 <tr>
                     <td>
-                        <button disabled?={!isOwner} hx-target="#inviteTable" hx-swap="outerHTML" name="userId" value={ fmt.Sprintf("%d", user.Id) } hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>Invite</button>
+                        <button
+                            disabled?={!isOwner}
+                            hx-target="#inviteTable"
+                            hx-swap="outerHTML"
+                            name="userGuid"
+                            value={ fmt.Sprintf("%d", user.UserGuid) }
+                            hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>
+                                Invite
+                        </button>
                     </td>
                     <td>
                         { user.Username }

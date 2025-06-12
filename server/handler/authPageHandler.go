@@ -44,9 +44,9 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	valid := model.UsernameTaken(h.Database, username) && model.ValidateLogin(h.Database, username, password)
 	if valid {
 		slog.Info("Valid login attempt for user", "Username", username)
-		userId := model.GetUserIdByUsername(h.Database, username)
+		userGuid := model.GetUserIdByUsername(h.Database, username)
 		sessionTok := generateSessionToken()
-		model.RegisterSession(h.Database, userId, sessionTok)
+		model.RegisterSession(h.Database, userGuid, sessionTok)
 
 		cookie := new(http.Cookie)
 		cookie.Name = "sessionToken"
@@ -116,9 +116,9 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	slog.Info("Valid registration for user", "Username", username)
-    userId := model.RegisterUser(h.Database, username, password)
+    userGuid := model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
-	model.RegisterSession(h.Database, userId, sessionTok)
+	model.RegisterSession(h.Database, userGuid, sessionTok)
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
 	cookie.Value = sessionTok

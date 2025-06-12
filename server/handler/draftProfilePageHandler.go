@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -21,19 +22,19 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get user token")
 
-	userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userId)
+	userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	username := model.GetUsername(h.Database, userGuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	assert.NoError(err, "Failed to convert draft id to int")
 	draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
         //We want to redirect back to the home screen
-        slog.Warn("User attempted to visit incorrect draft id", "User", userId, "Draft Id", draftId)
+        slog.Warn("User attempted to visit incorrect draft id", "User Guid", userGuid, "Draft Id", draftId)
         return c.Redirect(http.StatusSeeOther, "/u/home")
     }
 
-    isOwner := userId == draftModel.Owner.Id
+    isOwner := userGuid == draftModel.Owner.UserGuid
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
@@ -66,25 +67,27 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
     parsedEndTime, err := time.Parse(layout, endTime)
     assert.NoError(err, "Failed to parse end time")
 
-    userId := model.GetUserBySessionToken(h.Database, sessionToken.Value)
+    userGuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
 
     draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
-        slog.Warn("User attempted to write to invalid draft id", "User", userId, "Draft Id", draftId)
+        slog.Warn("User attempted to write to invalid draft id", "User Guid", userGuid, "Draft Id", draftId)
         return nil
     }
 
-    if draftModel.Owner.Id != userId {
+    if draftModel.Owner.UserGuid != userGuid {
         //The user would need to hand craft this payload
         //so for now we just won't tell them what is wrong
         //because it is probably malicious
-        slog.Info("User tried to update draft but was not the owner.", "UserId", userId, "DraftId", draftId, "Owner Id", draftModel.Owner.Id)
+        slog.Info("User tried to update draft but was not the owner.", "User Guid", userGuid, "DraftId", draftId, "Owner Id", draftModel.Owner.UserGuid)
         return nil
     }
 
     draftModel = model.DraftModel {
         Id: draftId,
-        Owner: model.User{Id: userId},
+        Owner: model.User{
+            UserGuid: userGuid,
+        },
         DisplayName: draftName,
         Description: description,
         Interval: intInterval,
@@ -120,9 +123,9 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
     userTok, err := c.Cookie("sessionToken")
 	assert.NoErrorCF(err, "Failed to get user token")
-	userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+	userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 
-    isOwner := userId == draftModel.Owner.Id
+    isOwner := userGuid == draftModel.Owner.UserGuid
 
 	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner)
 	err = Render(c, searchResults)
@@ -134,14 +137,14 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get user token")
 	draftIdStr := c.Param("id")
-	invitingPlayer := model.GetUserBySessionToken(h.Database, userTok.Value)
+	invitingUserGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	assert.NoError(err, "Invalid draft id")
-	userIdStr := c.FormValue("userId")
-	userId, err := strconv.Atoi(userIdStr)
-	assert.NoError(err, "Failed to parse user id")
+	userGuidString := c.FormValue("userGuid")
+    userGuid, err := uuid.Parse(userGuidString)
+	assert.NoError(err, "Failed to parse user guid")
 
-	model.InvitePlayer(h.Database, draftId, invitingPlayer, userId)
+	model.InvitePlayer(h.Database, draftId, invitingUserGuid, userGuid)
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
@@ -156,12 +159,12 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
     draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
-        slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User", userId, "Error", err)
+        slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User Guid", userGuid, "Error", err)
     }
 
     players := draftModel.Players
 
-    isOwner := invitingPlayer == draftModel.Owner.Id
+    isOwner := invitingUserGuid == draftModel.Owner.UserGuid
 
 	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
 	err = Render(c, updatedPage)

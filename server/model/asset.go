@@ -3,6 +3,8 @@ package model
 import (
 	"database/sql"
 	"image"
+
+	"github.com/google/uuid"
 )
 
 type Asset struct {
@@ -36,10 +38,10 @@ func (a *AssetManager) UploadDraftProfileAsset(database *sql.DB, draftId int, im
     return nil
 }
 
-func (a *AssetManager) LoadUserProfileAsset(database *sql.DB, userId int) *Asset {
+func (a *AssetManager) LoadUserProfileAsset(database *sql.DB, userGuid uuid.UUID) *Asset {
     return nil
 }
 
-func (a *AssetManager) UploadUserProfileAsset(database *sql.DB, userId int, image image.Image) error {
+func (a *AssetManager) UploadUserProfileAsset(database *sql.DB, userGuid uuid.UUID, image image.Image) error {
     return nil
 }

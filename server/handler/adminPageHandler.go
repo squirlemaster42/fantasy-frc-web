@@ -105,8 +105,8 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userId)
+    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userGuid)
 
     adminConsoleIndex := admin.AdminConsoleIndex(username)
     adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
@@ -118,8 +118,8 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userId)
+    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userGuid)
 
 	commandString := c.FormValue("command")
     cmd, args, _ := strings.Cut(commandString, " ")

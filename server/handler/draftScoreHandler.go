@@ -15,8 +15,8 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userId)
+    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userGuid)
 
     draftId, err := strconv.Atoi(c.Param("id"))
     assert.NoError(err, "Failed to convert draft id to int")

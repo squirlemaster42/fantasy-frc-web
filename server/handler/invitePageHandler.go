@@ -21,10 +21,10 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userId)
+    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+    username := model.GetUsername(h.Database, userGuid)
 
-    invites := model.GetInvites(h.Database, userId)
+    invites := model.GetInvites(h.Database, userGuid)
 
     inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
     inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
@@ -38,19 +38,19 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     userTok, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get user token")
 
-    userId := model.GetUserBySessionToken(h.Database, userTok.Value)
+    userGuid := model.GetUserBySessionToken(h.Database, userTok.Value)
     inviteId, err := strconv.Atoi(c.FormValue("inviteId"))
     assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
     assert.NoError(err, "Failed to parse invite id")
     invite := model.GetInvite(h.Database, inviteId)
 
     //Make sure that other players cannot accept someones draft
-    if invite.InvitedPlayer != userId {
-        slog.Info("Invited player to draft", "Invited Player", invite.InvitedPlayer, "Inviting Player", userId)
+    if invite.InvitedUserGuid != userGuid {
+        slog.Info("Invited player to draft", "Invited User Guid", invite.InvitedUserGuid, "Inviting User Guid", userGuid)
         return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
     }
 
-    slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userId)
+    slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userGuid)
 
     // if more than 8 players are invites then we cancel the other outstanding invites
     // Maybe we need an active bool
