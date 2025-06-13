@@ -136,7 +136,7 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
     return &drafts
 }
 
-// TODO Need to include next pick in this and profile picture
+// TODO Need to include profile picture
 func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
     query := `SELECT DISTINCT
         Drafts.Id,
