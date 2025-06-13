@@ -31,7 +31,7 @@ type DraftModel struct {
     Interval int //Number of seconds to pick
     StartTime time.Time
     EndTime time.Time
-    Owner User //User
+    Owner User
     Status DraftState
     Players []DraftPlayer
     NextPick DraftPlayer
