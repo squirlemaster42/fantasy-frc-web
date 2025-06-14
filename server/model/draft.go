@@ -66,8 +66,8 @@ func (d *DraftPlayer) String() string {
 
 type Pick struct {
     Id int
-    Player int //DraftPlayer
-    Pick sql.NullString //Team
+    Player int //DraftPlayerId
+    Pick sql.NullString //TeamTbaId
     PickTime sql.NullTime
     AvailableTime time.Time
     ExpirationTime time.Time
