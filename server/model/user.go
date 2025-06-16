@@ -60,7 +60,7 @@ func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
 }
 
 func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
-    query := `Select Username From Users Where UserId = $1;`
+    query := `Select Username From Users Where UserUuid = $1;`
     assert := assert.CreateAssertWithContext("Get Username")
     assert.AddContext("User Id", userUuid)
     stmt, err := database.Prepare(query)

@@ -147,9 +147,9 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
     From Drafts
     Left Join DraftPlayers On DraftPlayers.DraftId = Drafts.Id
     Left Join DraftInvites On DraftInvites.DraftId = Drafts.Id And Drafts.Status = $1
-    Left Join Users dpUsers On DraftPlayers.Player = dpUsers.Id
-    Left Join Users diUsers On DraftInvites.InvitedPlayer = diUsers.Id
-    Left Join Users owners On Drafts.owner = owners.Id
+    Left Join Users dpUsers On DraftPlayers.UserUuid = dpUsers.UserUuid
+    Left Join Users diUsers On DraftInvites.InvitedUserUuid = diUsers.UserUuid
+    Left Join Users owners On Drafts.OwnerUserUuid = owners.UserUuid
     Where DraftPlayers.UserUuid = $2 Or DraftInvites.InvitedUserUuid = $2;`
 
     outerAssert := assert.CreateAssertWithContext("Get Drafts For User")
@@ -218,7 +218,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
 		                    WHERE DRAFTINVITES.DRAFTID = $1
 	                    ) U
-                    GROUP BY USERID, USERNAME
+                    GROUP BY UserUuid, USERNAME
                     ORDER BY MAX(PLAYERORDER);`
 
         playerStmt, err := database.Prepare(playerQuery)
@@ -345,7 +345,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			                    -1 AS PLAYERORDER,
 			                    -1 As PlayerId
 		                    FROM USERS
-		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedPlayerUuid = USERS.UserUuid
+		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
 		                    WHERE DRAFTINVITES.DRAFTID = $1
 	                    ) U
                     GROUP BY UserUuid, USERNAME
