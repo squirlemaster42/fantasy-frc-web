@@ -199,7 +199,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
                 From Users
                 Where Users.UserUuid Not In (
                     SELECT
-                    u.UserId
+                        u.UserUuid
                     FROM (
                         SELECT
                         USERS.UserUuid AS UserUuid,
@@ -208,11 +208,11 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
                         DRAFTPLAYERS.PLAYERORDER,
                         DraftPlayers.Id As PlayerId
                         FROM USERS
-                        INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USER.UserUuid
+                        INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
                         WHERE DRAFTPLAYERS.DRAFTID = $1
                         UNION
                         SELECT
-                        USERS.USERGUID AS USERID,
+                        USERS.USERUUID AS USERID,
                         USERS.USERNAME,
                         DRAFTINVITES.ACCEPTED AS ACCEPTED,
                         -1 AS PLAYERORDER,
