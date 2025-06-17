@@ -112,7 +112,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
 }
 
 templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, "", draftId) {
+    @view.Index(page, fromProtected, username, draftId) {
         @cmp
     }
 }

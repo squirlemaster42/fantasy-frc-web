@@ -26,9 +26,6 @@ templ Navbar(fromProtected bool, username string, page string, data any) {
                 <span class="font-bold text-indigo-700 mr-8">
                     { username }
                 </span>
-                <a hx-swap="transition:true" class="btn btn-ghost text-lg" href="/drafts">
-                    Drafts
-                </a>
                 <button
                     hx-swap="transition:true"
                     hx-post="/logout"

@@ -93,7 +93,7 @@ type DraftInvite struct {
 
 func (d *DraftInvite) String() string {
 	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n}",
-		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String, d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
+		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
 // TODO Need to include next pick in this and profile picture
@@ -476,8 +476,8 @@ func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invit
 	return inviteId
 }
 
-// Returns draftId, playerId
-func AcceptInvite(database *sql.DB, inviteId int) (int, int) {
+// Returns draftId, UserUuid
+func AcceptInvite(database *sql.DB, inviteId int) (int, uuid.UUID) {
 	query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Invite Id", inviteId)
@@ -486,20 +486,20 @@ func AcceptInvite(database *sql.DB, inviteId int) (int, int) {
 	_, err = stmt.Exec(true, time.Now(), inviteId)
 	assert.NoError(err, "Failed to accept invite")
 
-	query = `Select DraftId, InvitedPlayer From DraftInvites Where Id = $1;`
+	query = `Select DraftId, InvitedUserUuid From DraftInvites Where Id = $1;`
 	stmt, err = database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
 	var draftId int
-	var playerId int
-	err = stmt.QueryRow(inviteId).Scan(&draftId, &playerId)
+	var userUuid uuid.UUID
+	err = stmt.QueryRow(inviteId).Scan(&draftId, &userUuid)
 	assert.NoError(err, "Failed to insert invite player")
 
-	return draftId, playerId
+	return draftId, userUuid
 }
 
 // TODO We should be able to uninvite someone from the draft
 
-func AddPlayerToDraft(database *sql.DB, draft int, player int) {
+func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
 	query := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Draft", draft)
@@ -553,7 +553,7 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
             d.DisplayName
         From DraftInvites di
         Inner Join Drafts d On di.DraftId = d.Id
-        Inner Join Users u On di.InvitingPlayer = u.Id
+        Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.InvitedUserUuid = $1
         And di.Accepted = false;`
 	assert := assert.CreateAssertWithContext("Get Invites")
@@ -1009,7 +1009,7 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
         p.Pick
     From Picks p
     Inner Join DraftPlayers dp On p.Player = dp.Id
-    Inner Join Users u On u.Id = dp.Player
+    Inner Join Users u On u.UserUuid = dp.UserUuid
     Where dp.DraftId = $1;`
 
     stmt, err := database.Prepare(query)

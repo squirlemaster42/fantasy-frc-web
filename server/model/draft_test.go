@@ -9,17 +9,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 //Returns the Id of the User
-func GetOrCreateUser(database *sql.DB, username string) int {
+func GetOrCreateUser(database *sql.DB, username string) uuid.UUID {
     if !UsernameTaken(database, username) {
         //Use the username as the password because we are just testing
         RegisterUser(database, username, username)
     }
-    return GetUserIdByUsername(database, username)
+    return GetUserUuidByUsername(database, username)
 }
 
 func GetOrCreateTeam(database *sql.DB, tbaId string) *Team {
@@ -62,7 +63,7 @@ func TestGetDraftsForUser(t *testing.T) {
     //Create a draft with user one as the owner
     d := DraftModel {
         DisplayName: t.Name(),
-        Owner: User{ Id: userOne},
+        Owner: User{ UserUuid: userOne},
         Status: FILLING,
     }
     draftId := CreateDraft(db, &d)
@@ -89,8 +90,8 @@ func TestGetDraftsForUser(t *testing.T) {
     AddPlayerToDraft(db, draftId, userSix)
 
     //Store players in maps to be used later in the test
-    acceptedPlayers := make(map[int]bool)
-    pendingPlayers := make(map[int]bool)
+    acceptedPlayers := make(map[uuid.UUID]bool)
+    pendingPlayers := make(map[uuid.UUID]bool)
 
     acceptedPlayers[userOne] = true
     acceptedPlayers[userTwo] = true
@@ -113,14 +114,14 @@ func TestGetDraftsForUser(t *testing.T) {
         }
     }
     assert.Equal(t, t.Name(), draft.DisplayName)
-    assert.Equal(t, userOne, draft.Owner.Id)
+    assert.Equal(t, userOne, draft.Owner.UserUuid)
     assert.Equal(t, FILLING, draft.Status)
 
-    var foundPlayers []int
+    var foundPlayers []uuid.UUID
     for _, player := range draft.Players {
-        foundPlayers = append(foundPlayers, player.User.Id)
+        foundPlayers = append(foundPlayers, player.User.UserUuid)
 
-        if !acceptedPlayers[player.User.Id] && !pendingPlayers[player.User.Id] {
+        if !acceptedPlayers[player.User.UserUuid] && !pendingPlayers[player.User.UserUuid] {
             assert.Fail(t, "Player %s is not in the draft", player.User.Username)
         }
     }
@@ -144,7 +145,7 @@ func TestGetPicksInDraft(t *testing.T) {
     //Create a draft with user one as the owner
     d := DraftModel {
         DisplayName: t.Name(),
-        Owner: User{ Id: userOne},
+        Owner: User{ UserUuid: userOne},
         Status: FILLING,
     }
     draftId := CreateDraft(db, &d)
@@ -171,8 +172,8 @@ func TestGetPicksInDraft(t *testing.T) {
     AddPlayerToDraft(db, draftId, userSix)
 
     //Store players in maps to be used later in the test
-    acceptedPlayers := make(map[int]bool)
-    pendingPlayers := make(map[int]bool)
+    acceptedPlayers := make(map[uuid.UUID]bool)
+    pendingPlayers := make(map[uuid.UUID]bool)
 
     acceptedPlayers[userOne] = true
     acceptedPlayers[userTwo] = true
@@ -195,14 +196,14 @@ func TestGetPicksInDraft(t *testing.T) {
         }
     }
     assert.Equal(t, t.Name(), draft.DisplayName)
-    assert.Equal(t, userOne, draft.Owner.Id)
+    assert.Equal(t, userOne, draft.Owner.UserUuid)
     assert.Equal(t, FILLING, draft.Status)
 
-    var foundPlayers []int
+    var foundPlayers []uuid.UUID
     for _, player := range draft.Players {
-        foundPlayers = append(foundPlayers, player.User.Id)
+        foundPlayers = append(foundPlayers, player.User.UserUuid)
 
-        if !acceptedPlayers[player.User.Id] && !pendingPlayers[player.User.Id] {
+        if !acceptedPlayers[player.User.UserUuid] && !pendingPlayers[player.User.UserUuid] {
             assert.Fail(t, "Player %s is not in the draft", player.User.Username)
         }
     }
