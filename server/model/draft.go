@@ -96,7 +96,6 @@ func (d *DraftInvite) String() string {
 		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
-// TODO Need to include next pick in this and profile picture
 func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
     query := `SELECT DISTINCT
         Drafts.Id,
@@ -136,7 +135,6 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
     return &drafts
 }
 
-// TODO Need to include profile picture
 func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
     query := `SELECT DISTINCT
         Drafts.Id,
