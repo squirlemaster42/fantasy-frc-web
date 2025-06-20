@@ -17,7 +17,8 @@ type Team struct {
 }
 
 func (t *Team) String() string {
-    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n AllianceScore: %d\n}", t.TbaId, t.Name, t.AllianceScore)
+    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n AllianceScore: %d\n}",
+		       t.TbaId, t.Name, t.AllianceScore)
 }
 
 func GetTeam(database *sql.DB, tbaId string) *Team {
