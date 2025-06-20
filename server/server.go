@@ -17,6 +17,7 @@ func CreateServer(serverPort string, h handler.Handler) {
     app := echo.New()
     app.IPExtractor = echo.ExtractIPDirect()
     app.Static("/", "./assets")
+    app.Static("/css", "./assets/css")
 
     app.Use(middleware.Gzip())
     //app.Use(middleware.Recover())

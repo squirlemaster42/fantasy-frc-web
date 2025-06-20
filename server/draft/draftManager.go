@@ -32,6 +32,7 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
 
     draftManager := &DraftManager{
         drafts: map[int]*Draft{},
+        locks: make(map[int]*sync.Mutex),
         database: database,
         tbaHandler: tbaHandler,
         draftDaemon: draftDaemon,
@@ -137,6 +138,8 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
 
 type DraftManager struct {
     drafts map[int]*Draft
+    //TODO This map needs to be threadsafe
+    locks map[int]*sync.Mutex
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
     states map[model.DraftState]*state
@@ -203,6 +206,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
     return transition.executeTransition(draft)
 }
 
+//TODO This needs to be thread safe
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     draft, err := dm.GetDraft(draftId, false)
     if err != nil {
@@ -224,6 +228,11 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
         }
     }
     return err
+}
+
+//TODO This needs to be thread safe
+func (dm *DraftManager) SkipCurrentPick(draftId int) {
+
 }
 
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {

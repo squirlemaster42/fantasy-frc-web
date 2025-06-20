@@ -96,13 +96,12 @@ func (d *DraftInvite) String() string {
 		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
-// TODO Need to include next pick in this and profile picture
 func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
-    query := `SELECT DISTINCT
+    query := `SELECT
         Drafts.Id,
-        displayName
+        DisplayName
     From Drafts
-    Where displayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
+    Where DisplayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
     assert := assert.CreateAssertWithContext("Get Drafts For User")
     assert.AddContext("Search", searchString)
     stmt, err := database.Prepare(query)

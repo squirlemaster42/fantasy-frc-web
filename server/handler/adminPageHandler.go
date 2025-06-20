@@ -91,14 +91,36 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) stri
     return "Draft Started"
 }
 
+type SkipPickCommand struct {}
+
+func (s *SkipPickCommand) ProcessCommand(database *sql.DB, argStr string) string {
+    slog.Info("Calling skip command", "Args", argStr)
+    argMap, _ := utils.ParseArgString(argStr)
+    draftId, err := strconv.Atoi(argMap["id"])
+
+    if err != nil {
+        return "Draft Id Could Not Be Converted To An Int"
+    }
+
+    curPick := model.GetCurrentPick(database, draftId)
+    nextPickPlayer := model.NextPick(database, draftId)
+    model.SkipPick(database, curPick.Id)
+    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+
+    //TODO How do we get the notifier in here?
+    //d.notifier.NotifyWatchers(draftId)
+
+    return "Player was skipped"
+}
+
 var commands = map[string]Command {
     "ping": &PingCommand{},
     "listdraft": &ListDraftsCommand{},
     "startdraft": &StartDraftCommand{},
+    "skippick": &SkipPickCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
-
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
     slog.Info("Got request to render admin console")
     assert := assert.CreateAssertWithContext("Handle Admin Console Get")

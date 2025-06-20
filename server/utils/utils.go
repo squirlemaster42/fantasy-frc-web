@@ -32,6 +32,7 @@ func GetUpdateUrl(draftId int) string {
     }
 }
 
+//TODO We should actually make some errors here
 func ParseArgString(argStr string) (map[string]string, error) {
     argMap := make(map[string]string)
 
