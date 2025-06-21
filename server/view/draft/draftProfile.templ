@@ -40,6 +40,9 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     <h2 class="pt-2">End Time</h2>
                     <input disabled?={!isOwner} name="endTime" value={draft.EndTime.Format("2006-01-02T15:04:05")} type="datetime-local"/>
                 </div>
+                <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
+                    <button disabled?={!isOwner} class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
+                </div>
             </div>
         </div>
         <div class="grow flex flex-col">
@@ -103,9 +106,6 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         </div>
                     </div>
                 }
-            </div>
-            <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
-                <button disabled?={!isOwner} class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Save</button>
             </div>
         </div>
     </form>
