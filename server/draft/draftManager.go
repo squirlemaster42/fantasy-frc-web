@@ -232,7 +232,10 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 
 //TODO This needs to be thread safe
 func (dm *DraftManager) SkipCurrentPick(draftId int) {
-
+    nextPickPlayer := model.NextPick(d.database, draftId)
+    model.SkipPick(d.database, curPick.Id)
+    model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+    dm.notifier.NotifyWatchers(draftId)
 }
 
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {
