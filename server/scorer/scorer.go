@@ -187,6 +187,7 @@ func (s *Scorer) sortMatchesByPlayOrder(matches []string) []string {
     return s.merge(sortedLeft, sortedRight)
 }
 
+//TODO can we remove this now?
 func (s *Scorer) merge(left []string, right []string) []string {
     var result []string
     i := 0
