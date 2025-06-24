@@ -11,7 +11,7 @@ Qual matches to alliance selection to playoffs and Einstein.
 # Setup
 
 ## Install Go
-Fantasy FRC is build to use the latest version of [Go](https://go.dev/doc/install)
+Fantasy FRC is build to use the latest version of [Go](https://go.dev/doc/install). Current system is built against 23/24.
 
 ## Install Templ
 A guide to install Templ can be found [here](https://templ.guide/quick-start/installation/).
