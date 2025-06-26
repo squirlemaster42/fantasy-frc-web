@@ -6,7 +6,7 @@ what we hope to be the final form of the many appications that have been develop
 in Java that reached out to The Blue Alliance and just scored Qual matches. Drafts were done using Google Sheets and all scoring outside of
 qualification matches was done by hand. Introduced in 2025, Fantasy Frc Web is an effort to atomate the entire drafting and scoring process.
 This project allows for users to create drafts, invite players, draft teams, and automatically score all aspects of the competition from
-Qual matches to alliance selection to playoffs and Einstein.
+Qual matches to alliance selection to playoffs and Einstein in real time using TBA web hooks. 
 
 # Setup
 
