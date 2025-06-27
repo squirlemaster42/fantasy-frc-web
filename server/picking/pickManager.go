@@ -38,6 +38,23 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
     }
 }
 
+func (p *PickManager) SkipCurrentPick() {
+    curPick := model.GetCurrentPick(p.database, p.draftId)
+    nextPickPlayer := model.NextPick(p.database, p.draftId)
+    model.SkipPick(p.database, curPick.Id)
+    model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+
+    for _, listener := range p.listeners {
+        //TODO How do we get the error in here?
+        (*listener).ReceivePickEvent(PickEvent{
+            Pick: pick,
+            Success: valid,
+            Err: err,
+            DraftId: p.draftId,
+        })
+    }
+}
+
 //Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
     p.lock.Lock()
@@ -88,6 +105,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
             DraftId: p.draftId,
         })
     }
+
     return pickingComplete, err
 }
 
