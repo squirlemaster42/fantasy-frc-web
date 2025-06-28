@@ -46,10 +46,10 @@ func (p *PickManager) SkipCurrentPick() {
 
     for _, listener := range p.listeners {
         //TODO How do we get the error in here?
-        (*listener).ReceivePickEvent(PickEvent{
-            Pick: pick,
-            Success: valid,
-            Err: err,
+        (*listener).ReceivePickEvent(PickEvent {
+            Pick: model.Pick{},
+            Success: true,
+            Err: nil,
             DraftId: p.draftId,
         })
     }
