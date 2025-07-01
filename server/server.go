@@ -2,6 +2,8 @@ package main
 
 import (
 	"log/slog"
+	"net/http"
+	"os"
 	"server/assert"
 	"server/authentication"
 	"server/handler"
@@ -16,8 +18,27 @@ func CreateServer(serverPort string, h handler.Handler) {
     auth := authentication.NewAuth(h.Database)
     app := echo.New()
     app.IPExtractor = echo.ExtractIPDirect()
-    app.Static("/", "./assets")
-    app.Static("/css", "./assets/css")
+
+    cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
+        return func(c echo.Context) error {
+            // Set Cache-Control header (30 days)
+            c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
+            return next(c)
+        }
+    }
+
+    app.Add(
+        http.MethodGet,
+        "/",
+        echo.StaticDirectoryHandler(os.DirFS("./assets"), false),
+        cacheControlMiddleware,
+    )
+    app.Add(
+        http.MethodGet,
+        "/css",
+        echo.StaticDirectoryHandler(os.DirFS("./assets/css"), false),
+        cacheControlMiddleware,
+    )
 
     app.Use(middleware.Gzip())
     //app.Use(middleware.Recover())

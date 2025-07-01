@@ -9,9 +9,7 @@ import (
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
-	"server/utils"
 	"sync"
-	"time"
 )
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
