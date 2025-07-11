@@ -45,7 +45,7 @@ Fantasy FRC is built using `make` so ensure you have this installed.
 The make file has several options that can be set to turn off certain features while testing
 - skipScoring: When set to true, the application will not score matches or teams. This makes
 it so you are not making tons of calls to The Blue Alliance while testing and since the scorer
-if not running there will be fewer logs in the terminal.
+if not running there will not be a flood of scoring logs. 
 - populateTeams: When set to true, on startup, the application will reach out to The Blue Alliance
 and grab all of the teams who are all the currently configured set of events. It will then add
 those teams to the database which allows them to be picked.
