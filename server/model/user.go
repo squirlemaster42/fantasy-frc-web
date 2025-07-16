@@ -36,7 +36,7 @@ func RegisterUser(database *sql.DB, username string, password string) uuid.UUID 
 }
 
 func UsernameTaken(database *sql.DB, username string) bool {
-    query := `Select count(Id) From Users Where username = $1;`
+    query := `Select count(UserUuid) From Users Where username = $1;`
     assert := assert.CreateAssertWithContext("Username Taken")
     assert.AddContext("Username", username)
     stmt, err := database.Prepare(query)

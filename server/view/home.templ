@@ -12,21 +12,23 @@ templ HomeIndex (drafts *[]model.DraftModel) {
                 <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
                     <div class="card-body p-5">
                         <div class="card-title pb-[4px] justify-around">
-                            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQk_FXy4YZZT1e7rhjFmME4WVyH4VUwGdM0iQ&s" alt="Profile Image" width="80" height="80"></img>
                             <h1>
                                 { draft.DisplayName }
                             </h1>
                         </div>
                         <div class="grid grid-cols-2 border-b border-slate-600">
                             <label class="border-t border-b border-slate-600 pl-2">
-                                Status: { string(draft.Status) }
+                                Status:
+                                <div class="badge badge-primary">{ string(draft.Status) }</div>
                             </label>
                             <label class="border-t border-b border-slate-600 pl-2 pb-1">
                                 Next Pick:
                                 if draft.NextPick.User.Username != "" {
                                     <div class="badge badge-primary">{draft.NextPick.User.Username}</div>
                                 } else {
-                                    N/A
+                                    <div class="badge badge-primary">
+                                        N/A
+                                    </div>
                                 }
                             </label>
                         </div>

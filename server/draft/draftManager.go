@@ -206,8 +206,9 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
     return transition.executeTransition(draft)
 }
 
-//TODO This needs to be thread safe
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
+    dm.locks[draftId].Lock()
+    defer dm.locks[draftId].Unlock()
     draft, err := dm.GetDraft(draftId, false)
     if err != nil {
         return err
@@ -230,8 +231,9 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     return err
 }
 
-//TODO This needs to be thread safe
 func (dm *DraftManager) SkipCurrentPick(draftId int) {
+    dm.locks[draftId].Lock()
+    defer dm.locks[draftId].Unlock()
     dm.drafts[draftId].pickManager.SkipCurrentPick()
 }
 
