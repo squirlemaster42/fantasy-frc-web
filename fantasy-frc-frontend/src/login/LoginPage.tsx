@@ -1,5 +1,10 @@
 import { useState } from "react";
 
+export interface LoginRequest {
+    username: string
+    password: string
+}
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -7,6 +12,25 @@ export default function LoginPage() {
   const handleSubmit = (e: any) => {
     e.preventDefault();
     console.log(`Username: ${username}, Password: ${password}`);
+    const loginRequest: LoginRequest = {
+        username: username,
+        password: password
+    }
+    fetch('/v1/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginRequest),
+    }).then(r => {
+        console.log('Login');
+        console.log(r);
+    }).catch(e => {
+        console.log('Error');
+        console.log(e);
+    }).finally(() => {
+        console.log('Finally');
+    });
   };
 
   return (

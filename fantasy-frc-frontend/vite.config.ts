@@ -8,4 +8,18 @@ export default defineConfig({
       react(),
       tailwindcss(),
   ],
-})
+  server: {
+      proxy: {
+          '/v1': {
+              target: 'http://localhost:3000',
+              changeOrigin: true,
+              secure: false,
+              configure: (proxy, options) => {
+                  proxy.on('proxyReq', (proxyReq, req, res) => {
+                      console.log(`[vite proxy] ${req.method} ${req.url} -> ${proxyReq.getHeader('host')}`);
+                  });
+              }
+          },
+      },
+  },
+});
