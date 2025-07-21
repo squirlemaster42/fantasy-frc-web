@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export interface LoginRequest {
     username: string
@@ -8,6 +9,7 @@ export interface LoginRequest {
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
@@ -22,14 +24,9 @@ export default function LoginPage() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(loginRequest),
-    }).then(r => {
-        console.log('Login');
-        console.log(r);
-    }).catch(e => {
-        console.log('Error');
-        console.log(e);
-    }).finally(() => {
-        console.log('Finally');
+    }).then(() => {
+        //redirect to home page
+        navigate('/home');
     });
   };
 
