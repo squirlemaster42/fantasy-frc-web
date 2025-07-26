@@ -39,7 +39,6 @@ func (h *Handler) HandleLoginRequest(c echo.Context) error {
     isValid = isValid && model.ValidateLogin(h.Database, loginRequest.Username, loginRequest.Password)
 
     if !isValid {
-        //TODO do we need to put something here to tell the front end the request was invalid
         c.Response().Status = http.StatusBadRequest
         return errors.New("invalid login attempt")
     }
