@@ -273,7 +273,6 @@ func (s *Scorer) AddMatchToScore(match swagger.Match) {
 }
 
 func (s *Scorer) getNextMatchToScore() swagger.Match {
-    //TODO this is not blocking
     return s.queue.PopMatch()
 }
 
