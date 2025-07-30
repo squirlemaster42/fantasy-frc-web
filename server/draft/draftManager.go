@@ -31,8 +31,7 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
     }
 
     draftManager := &DraftManager{
-        drafts: map[int]*Draft{},
-        locks: make(map[int]*sync.Mutex),
+        drafts: map[int]Draft{},
         database: database,
         tbaHandler: tbaHandler,
         draftDaemon: draftDaemon,
@@ -137,34 +136,40 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
 }
 
 type DraftManager struct {
-    drafts map[int]*Draft
-    //TODO This map needs to be threadsafe
-    locks map[int]*sync.Mutex
+    drafts map[int]Draft
+    locks sync.Map
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
     states map[model.DraftState]*state
     draftDaemon *background.DraftDaemon
 }
 
-func (dm *DraftManager) GetDraft(draftId int, reload bool) (*Draft, error) {
+func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
+    //We just need to be careful that only one call can reload the draft at one time
+    lock := dm.getLock(draftId)
     draft, ok := dm.drafts[draftId]
     if ok && !reload {
         return draft, nil
     } else if reload {
+        lock.Lock()
+        defer lock.Unlock()
         draftModel, err := model.GetDraft(dm.database, draftId)
         draft.model = &draftModel
         return draft, err
     } else {
         //Load draft model
+        lock.Lock()
+        defer lock.Unlock()
         draftModel, err := model.GetDraft(dm.database, draftId)
 
+        //TODO we should probably check if we need to do this in the reload path
         draft := Draft {
             draftId: draftId,
             pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler),
             model: &draftModel,
         }
-        dm.drafts[draftId] = &draft
-        return &draft, err
+        dm.drafts[draftId] = draft
+        return draft, err
     }
 }
 
@@ -172,7 +177,6 @@ type Draft struct {
     draftId int
     model *model.DraftModel
     pickManager *picking.PickManager
-    stateLock sync.Mutex
 }
 
 type invalidStateTransitionError struct {
@@ -190,8 +194,9 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
     assert.AddContext("Current State", string(draft.model.Status))
     assert.AddContext("Requested State", string(requestedState))
 
-    draft.stateLock.Lock()
-    defer draft.stateLock.Unlock()
+    lock := dm.getLock(draft.draftId)
+    lock.Lock()
+    defer lock.Unlock()
 
     state, stateFound := dm.states[draft.model.Status]
     assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
@@ -207,8 +212,9 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
-    dm.locks[draftId].Lock()
-    defer dm.locks[draftId].Unlock()
+    lock := dm.getLock(draftId)
+    lock.Lock()
+    defer lock.Unlock()
     draft, err := dm.GetDraft(draftId, false)
     if err != nil {
         return err
@@ -217,7 +223,7 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     pickingComplete, err := draft.pickManager.MakePick(pick)
     if pickingComplete {
         slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
-        err = dm.ExecuteDraftStateTransition(draft, model.TEAMS_PLAYING)
+        err = dm.ExecuteDraftStateTransition(&draft, model.TEAMS_PLAYING)
 
         if err != nil {
             slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
@@ -231,9 +237,19 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     return err
 }
 
+func (dm *DraftManager) getLock(draftId int) *sync.Mutex {
+    //Get the lock if it exists for the draft, if not register it
+    lock, ok := dm.locks.Load(draftId)
+    if !ok {
+        dm.locks.Store(draftId, &sync.Mutex{})
+    }
+    return lock.(*sync.Mutex)
+}
+
 func (dm *DraftManager) SkipCurrentPick(draftId int) {
-    dm.locks[draftId].Lock()
-    defer dm.locks[draftId].Unlock()
+    lock := dm.getLock(draftId)
+    lock.Lock()
+    defer lock.Unlock()
     dm.drafts[draftId].pickManager.SkipCurrentPick()
 }
 
@@ -244,4 +260,11 @@ func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListen
         return
     }
     draft.pickManager.AddListener(listener)
+}
+
+func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
+    lock := dm.getLock(draftModel.Id)
+    lock.Lock()
+    defer lock.Unlock()
+    return model.UpdateDraft(dm.database, &draftModel)
 }

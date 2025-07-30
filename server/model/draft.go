@@ -445,7 +445,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 
 }
 
-func UpdateDraft(database *sql.DB, draft *DraftModel) {
+func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5 Where Id = $6;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
@@ -456,7 +456,7 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) {
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
 	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
-	assert.NoError(err, "Failed to insert draft")
+    return err
 }
 
 func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) int {

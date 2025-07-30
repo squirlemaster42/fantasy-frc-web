@@ -44,10 +44,6 @@ func CreateServer(serverPort string, h handler.Handler) {
     //app.Use(middleware.Recover())
 
     //Setup Routes
-    //New Json Endpoints
-    app.POST("/v1/login", h.HandleLoginRequest)
-
-    //Legacy Routes for HTMX Web Pages
     app.GET("/login", h.HandleViewLogin)
     app.POST("/login", h.HandleLoginPost)
     app.GET("/register", h.HandleViewRegister)

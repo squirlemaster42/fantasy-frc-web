@@ -55,6 +55,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
     interval := c.FormValue("interval")
     startTime := c.FormValue("startTime")
     endTime := c.FormValue("endTime")
+
     sessionToken, err := c.Cookie("sessionToken")
     assert.NoError(err, "Failed to get session cookie")
 
@@ -95,7 +96,11 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
         EndTime: parsedEndTime,
     }
 
-    model.UpdateDraft(h.Database, &draftModel)
+    err = h.DraftManager.UpdateDraft(draftModel)
+
+    if err != nil {
+        return err
+    }
 
     slog.Info("Draft updated, reloading page", "Draft Id", draftId)
     c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
