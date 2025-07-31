@@ -31,7 +31,10 @@ func main() {
     dbIp := os.Getenv("DB_IP")
     dbName := os.Getenv("DB_NAME")
     serverPort := os.Getenv("SERVER_PORT")
-    tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET") //TODO this should probably not be stored in the config and instead be populated when we register the web hook and then propogated to other servers if needed
+    //TODO this should probably not be stored in the config and instead be
+    //populated when we register the web hook and then propogated to other
+    //servers if needed
+    tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
     slog.Info("Extracted Env Vars")
     database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
     slog.Info("Registered Database Connection")
