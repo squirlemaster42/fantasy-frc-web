@@ -57,6 +57,7 @@ func CreateServer(serverPort string, h handler.Handler) {
     protected.POST("/createDraft", h.HandleCreateDraftPost)
     protected.GET("/draft/:id/profile", h.HandleViewDraftProfile)
     protected.POST("/draft/:id/updateDraft", h.HandleUpdateDraftProfile)
+    protected.POST("/draft/:id/startDraft", h.HandleStartDraft)
     protected.GET("/draft/:id/pick", h.ServePickPage)
     protected.POST("/draft/:id/makePick", h.HandlerPickRequest)
     protected.GET("/draft/:id/pickNotifier", h.PickNotifier)

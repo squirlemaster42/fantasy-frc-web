@@ -176,3 +176,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	return err
 }
+
+func (h *Handler) HandleStartDraft(c echo.Context) error {
+    return nil
+}
