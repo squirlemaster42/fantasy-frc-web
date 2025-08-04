@@ -107,7 +107,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                 }
             </div>
             <div class="flex flex-row-reverse pb-2 pl-2 pr-2 pt-2 w-full">
-                <button disabled?={!isOwner} class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Start Draft</button>
+                <button hx-post={fmt.Sprintf("/u/draft/%d/startDraft", draft.Id)} disabled?={!isOwner} class="badge badge-primary hover:scale-[1.1] w-full h-8 text-xl">Start Draft</button>
             </div>
         </div>
     </form>
