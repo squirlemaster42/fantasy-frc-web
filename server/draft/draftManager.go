@@ -179,6 +179,10 @@ type Draft struct {
     pickManager *picking.PickManager
 }
 
+func (d *Draft) GetOwner() model.User {
+    return d.model.Owner
+}
+
 type invalidStateTransitionError struct {
     currentState model.DraftState
     requestedState model.DraftState

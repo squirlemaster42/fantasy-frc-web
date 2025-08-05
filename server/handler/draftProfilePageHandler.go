@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -178,5 +179,25 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 }
 
 func (h *Handler) HandleStartDraft(c echo.Context) error {
+    //TODO we shouldnt be using asserts on the user input here
+    assert := assert.CreateAssertWithContext("Handle Start Draft")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
+	draftIdStr := c.Param("id")
+	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
+	draftId, err := strconv.Atoi(draftIdStr)
+	assert.NoError(err, "Invalid draft id")
+
+    draft, err := h.DraftManager.GetDraft(draftId, false)
+    if err != nil {
+        //TODO think if we should show this error to the user
+        return err
+    }
+
+    if draft.GetOwner().UserUuid != requestingUser {
+        //TODO set proper http code and probably update the ui somehow
+        return errors.New("permission denied")
+    }
+
     return nil
 }
