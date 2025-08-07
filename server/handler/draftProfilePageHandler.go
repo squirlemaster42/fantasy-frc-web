@@ -199,5 +199,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
         return errors.New("permission denied")
     }
 
+    h.DraftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+
     return nil
 }

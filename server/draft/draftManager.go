@@ -31,7 +31,7 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
     }
 
     draftManager := &DraftManager{
-        drafts: map[int]Draft{},
+        drafts: map[int]*Draft{},
         database: database,
         tbaHandler: tbaHandler,
         draftDaemon: draftDaemon,
@@ -136,7 +136,8 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
 }
 
 type DraftManager struct {
-    drafts map[int]Draft
+    //TODO this map should be thread safe
+    drafts map[int]*Draft
     locks sync.Map
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
@@ -149,13 +150,13 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
     lock := dm.getLock(draftId)
     draft, ok := dm.drafts[draftId]
     if ok && !reload {
-        return draft, nil
+        return *draft, nil
     } else if reload {
         lock.Lock()
         defer lock.Unlock()
         draftModel, err := model.GetDraft(dm.database, draftId)
         draft.model = &draftModel
-        return draft, err
+        return *draft, err
     } else {
         //Load draft model
         lock.Lock()
@@ -168,7 +169,7 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
             pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler),
             model: &draftModel,
         }
-        dm.drafts[draftId] = draft
+        dm.drafts[draftId] = &draft
         return draft, err
     }
 }
@@ -192,8 +193,9 @@ func (e *invalidStateTransitionError) Error() string {
     return fmt.Sprintf("Invalid state tranition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func (dm *DraftManager) ExecuteDraftStateTransition(draft *Draft, requestedState model.DraftState) error {
+func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
     assert := assert.CreateAssertWithContext("Execute Draft State Transition")
+    draft := dm.drafts[draftId]
     assert.AddContext("Draft Id", draft.draftId)
     assert.AddContext("Current State", string(draft.model.Status))
     assert.AddContext("Requested State", string(requestedState))
@@ -227,7 +229,7 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
     pickingComplete, err := draft.pickManager.MakePick(pick)
     if pickingComplete {
         slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
-        err = dm.ExecuteDraftStateTransition(&draft, model.TEAMS_PLAYING)
+        err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
         if err != nil {
             slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
