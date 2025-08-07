@@ -195,7 +195,8 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
     }
 
     if draft.GetOwner().UserUuid != requestingUser {
-        //TODO set proper http code and probably update the ui somehow
+        //TODO probably update the ui somehow
+        c.Response().Status = http.StatusUnauthorized
         return errors.New("permission denied")
     }
 
