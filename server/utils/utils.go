@@ -91,6 +91,7 @@ type TimeRange struct {
     endHour   int
 }
 
+//todo we should make it so this in configurable per draft
 var ALLOWED_TIMES = map[time.Weekday]TimeRange{
     time.Sunday: {
         startHour: 8,
