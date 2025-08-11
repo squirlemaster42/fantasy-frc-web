@@ -22,6 +22,7 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
     }
 }
 
+//TODO Are we using any of this? If not we should start
 func (c *CleanupService) Start() error {
     //TODO we need a mutex on this start
     if c.running {
