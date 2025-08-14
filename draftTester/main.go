@@ -14,7 +14,7 @@ import (
 type User struct {
     Username string
     Password string
-    Cookies []*http.Cookie
+    Client http.Client
 }
 
 type Draft struct {
@@ -31,40 +31,96 @@ func main() {
     users := make(map[string]*User)
 
     //Build map of usernames and passwords
+    //TODO If i was smart i would write a function for this
+    jar, err := cookiejar.New(nil)
+    if err != nil {
+        panic(err)
+    }
     users["UserOne"] = &User {
         Username: "UserOne",
         Password: "UserOne",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserTwo"] = &User {
         Username: "UserTwo",
         Password: "UserTwo",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserThree"] = &User {
         Username: "UserThree",
         Password: "UserThree",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserFour"] = &User {
         Username: "UserFour",
         Password: "UserFour",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserFive"] = &User {
         Username: "UserFive",
         Password: "UserFive",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserSix"] = &User {
         Username: "UserSix",
         Password: "UserSix",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserSeven"] = &User {
         Username: "UserSeven",
         Password: "UserSeven",
+        Client: http.Client{
+            Jar: jar,
+        },
+    }
+    jar, err = cookiejar.New(nil)
+    if err != nil {
+        panic(err)
     }
     users["UserEight"] = &User {
         Username: "UserEight",
         Password: "UserEight",
+        Client: http.Client{
+            Jar: jar,
+        },
     }
-
-    populateAuthToks(users)
+populateAuthToks(users)
 
     //Choose a user and create a draft
     keys := reflect.ValueOf(users).MapKeys()
@@ -90,20 +146,7 @@ func createDraft(user *User) Draft {
     form.Add("endTime", "0001-01-01T00:00")
     form.Add("draftName", createRandomString(5, 50))
 
-    url, err := url.Parse(target)
-    if err != nil {
-        panic(err)
-    }
-
-    jar, err := cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-
-    slog.Info("Adding cookies to request", "Cookies", jar)
-    http.DefaultClient.Jar = jar
-    http.DefaultClient.Jar.SetCookies(url, user.Cookies)
-    resp, err := http.Post(target + "/u/createDraft", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+    resp, err := user.Client.Post(target + "/u/createDraft", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
     if err != nil {
         slog.Error("Failed to create draft", "Username", user.Username, "Error", err)
         panic(err)
@@ -126,7 +169,7 @@ func populateAuthToks(users map[string]*User) {
         form := url.Values{}
         form.Add("username", user.Username)
         form.Add("password", user.Password)
-        resp, err := http.Post(target + "/login", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+        resp, err := user.Client.Post(target + "/login", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
         if err != nil {
             slog.Error("Failed login", "Username", user.Username, "Error", err)
             panic(err)
@@ -141,7 +184,5 @@ func populateAuthToks(users map[string]*User) {
 
         body, err := io.ReadAll(resp.Body)
         slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body)
-
-        user.Cookies = resp.Cookies()
     }
 }

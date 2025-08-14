@@ -52,7 +52,8 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		cookie.Name = "sessionToken"
 		cookie.Value = sessionTok
 		cookie.HttpOnly = true
-		cookie.Secure = true
+        //TODO enable secure again
+		//cookie.Secure = true
 		c.SetCookie(cookie)
 		c.Response().Header().Set("HX-Redirect", "/u/home")
 		return nil

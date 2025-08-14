@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"server/model"
@@ -25,8 +26,9 @@ func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
     return func (c echo.Context) error {
         //Grab the cookie from the session
         userTok, err := c.Cookie("sessionToken")
+        fmt.Println(c.Cookies())
         if err != nil {
-            slog.Warn("Failed login", "Ip", c.RealIP())
+            slog.Warn("Failed to get session token when trying to login", "Ip", c.RealIP(), "Error", err)
             err := c.Redirect(http.StatusSeeOther, "/login")
             if err != nil {
                 return err
@@ -43,7 +45,7 @@ func  (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
             slog.Info("User has successfully logged in", "User userUuid", userUuid, "Ip", c.RealIP())
         } else {
             //If the cookie is not valid then we redirect to the login page
-            slog.Warn("Failed login", "Ip", c.RealIP())
+            slog.Warn("Invalid login request", "Ip", c.RealIP())
             err := c.Redirect(http.StatusSeeOther, "/login")
             if err != nil {
                 return err
