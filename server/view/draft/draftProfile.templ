@@ -58,7 +58,9 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                                     <div class="card-title pb-[4px] justify-around border-b border-b-slate-600">
                                         <h1>{player.User.Username}</h1>
                                     </div>
-                                    Pick Order: { fmt.Sprintf("%d", player.PlayerOrder) }
+                                    if (player.PlayerOrder.Valid) {
+                                        Pick Order: { fmt.Sprintf("%d", player.PlayerOrder.Int16) }
+                                    }
                                 </div>
                             </div>
                         } else {
@@ -68,7 +70,9 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                                     <div class="card-title pb-[4px] justify-around border-b border-b-slate-600">
                                         <h1>{player.User.Username}</h1>
                                     </div>
-                                    Pick Order: { fmt.Sprintf("%d", player.PlayerOrder) }
+                                    if (player.PlayerOrder.Valid) {
+                                        Pick Order: { fmt.Sprintf("%d", player.PlayerOrder.Int16) }
+                                    }
                                 </div>
                             </div>
                         }

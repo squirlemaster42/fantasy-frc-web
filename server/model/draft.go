@@ -54,7 +54,7 @@ func (d *DraftModel) String() string {
 type DraftPlayer struct {
     Id int
     User User
-    PlayerOrder int
+    PlayerOrder sql.NullInt16
     Pending bool
     Score int
     Picks []Pick
@@ -264,7 +264,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int {
     var draftId int
     err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval).Scan(&draftId)
     assert.NoError(err, "Failed to insert draft")
-    playerQuery := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
+    playerQuery := `INSERT INTO DraftPlayers (draftId, useruuid) Values ($1, $2);`
     stmt, err = database.Prepare(playerQuery)
     assert.NoError(err, "Failed to prepare statement")
     _, err = stmt.Exec(draftId, draft.Owner.UserUuid)
@@ -369,7 +369,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		var userUuid uuid.UUID
 		var username string
 		var accepted bool
-		var playerOrder int
+		var playerOrder sql.NullInt16
 		var playerId int
 
         err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId)
@@ -803,7 +803,8 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
     //I dont think we need to account for the case where there are only two players
     if len(picks) < 2 {
         for _, player := range draft.Players {
-            if player.PlayerOrder == len(picks) {
+            assert.RunAssert(player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+            if int(player.PlayerOrder.Int16) == len(picks) {
                 nextPlayer = player
             }
         }
@@ -813,9 +814,10 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         //end then we decide what the next pick is
         lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks)-1].Player)
         secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks)-2].Player)
-        direction := lastPlayer.PlayerOrder - secondLastPick.PlayerOrder
+        assert.RunAssert(lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+        direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
         if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
-            if lastPlayer.PlayerOrder == len(draft.Players)-1 {
+            if int(lastPlayer.PlayerOrder.Int16) == len(draft.Players) - 1 {
                 direction = -1
             } else {
                 direction = 1
@@ -829,10 +831,9 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
         assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
         assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
         assert.AddContext("Direction", direction)
-
         //We know draft.players is order by player order
-        assert.RunAssert(len(draft.Players) > lastPlayer.PlayerOrder + direction && lastPlayer.PlayerOrder + direction >= 0, "Next pick is out of bounds")
-        nextPlayer = draft.Players[lastPlayer.PlayerOrder + direction]
+        assert.RunAssert(int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16 + direction && lastPlayer.PlayerOrder.Int16 + direction >= 0, "Next pick is out of bounds")
+        nextPlayer = draft.Players[lastPlayer.PlayerOrder.Int16 + direction]
     }
 
 	//Take the pick and make it into a draft player

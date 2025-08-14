@@ -31,7 +31,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	draftModel, err := model.GetDraft(h.Database, draftId)
     if err != nil {
         //We want to redirect back to the home screen
-        slog.Warn("User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId)
+        slog.Warn("User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
         return c.Redirect(http.StatusSeeOther, "/u/home")
     }
 
