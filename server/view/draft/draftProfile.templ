@@ -168,7 +168,7 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
                             hx-target="#inviteTable"
                             hx-swap="outerHTML"
                             name="userUuid"
-                            value={ fmt.Sprintf("%d", user.UserUuid) }
+                            value={ fmt.Sprintf("%s", user.UserUuid) }
                             hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }>
                                 Invite
                         </button>

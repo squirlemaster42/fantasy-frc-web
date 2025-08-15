@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -31,100 +32,35 @@ func main() {
     users := make(map[string]*User)
 
     //Build map of usernames and passwords
-    //TODO If i was smart i would write a function for this
+    users["UserOne"] = createUser("UserOne")
+    users["UserTwo"] = createUser("UserTwo")
+    users["UserThree"] = createUser("UserThree")
+    users["UserFour"] = createUser("UserFour")
+    users["UserFive"] = createUser("UserFive")
+    users["UserSix"] = createUser("UserSix")
+    users["UserSeven"] = createUser("UserSeven")
+    users["UserEight"] = createUser("UserEight")
+    populateAuthToks(users)
+
+    //Choose a user and create a draft
+    keys := reflect.ValueOf(users).MapKeys()
+    owner := users[keys[rand.IntN(len(keys))].String()]
+    draft := createDraft(owner)
+    invitePlayersToDraft(owner, users, draft)
+}
+
+func createUser (username string) *User {
     jar, err := cookiejar.New(nil)
     if err != nil {
         panic(err)
     }
-    users["UserOne"] = &User {
-        Username: "UserOne",
-        Password: "UserOne",
+    return &User {
+        Username: username,
+        Password: username,
         Client: http.Client{
             Jar: jar,
         },
     }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserTwo"] = &User {
-        Username: "UserTwo",
-        Password: "UserTwo",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserThree"] = &User {
-        Username: "UserThree",
-        Password: "UserThree",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserFour"] = &User {
-        Username: "UserFour",
-        Password: "UserFour",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserFive"] = &User {
-        Username: "UserFive",
-        Password: "UserFive",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserSix"] = &User {
-        Username: "UserSix",
-        Password: "UserSix",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserSeven"] = &User {
-        Username: "UserSeven",
-        Password: "UserSeven",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-    jar, err = cookiejar.New(nil)
-    if err != nil {
-        panic(err)
-    }
-    users["UserEight"] = &User {
-        Username: "UserEight",
-        Password: "UserEight",
-        Client: http.Client{
-            Jar: jar,
-        },
-    }
-populateAuthToks(users)
-
-    //Choose a user and create a draft
-    keys := reflect.ValueOf(users).MapKeys()
-    createDraft(users[keys[rand.IntN(len(keys))].String()])
 }
 
 func createRandomString(minLen int, maxLen int) string {
@@ -135,6 +71,10 @@ func createRandomString(minLen int, maxLen int) string {
         sb.WriteByte(alphabet[rand.IntN(len(alphabet))])
     }
     return sb.String()
+}
+
+func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
+
 }
 
 func createDraft(user *User) Draft {
@@ -158,9 +98,22 @@ func createDraft(user *User) Draft {
     }
 
     body, err := io.ReadAll(resp.Body)
-    slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body)
+    slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body, "Headers", resp.Header)
 
-    return Draft{}
+    // Get Draft Id
+    draftIdStr := strings.Split(resp.Header.Get("Hx-Redirect"), "/")[3]
+    slog.Info("Parsed draft id string", "Draft Id String", draftIdStr)
+    draftId, err := strconv.Atoi(draftIdStr)
+    if err != nil {
+        slog.Error("Failed to parse draft id from redirect")
+        panic(err)
+    }
+
+    slog.Info("Created Draft", "Id", draftId)
+
+    return Draft{
+        Id: draftId,
+    }
 }
 
 func populateAuthToks(users map[string]*User) {

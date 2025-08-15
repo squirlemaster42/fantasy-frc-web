@@ -147,6 +147,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	draftId, err := strconv.Atoi(draftIdStr)
 	assert.NoError(err, "Invalid draft id")
 	userUuidString := c.FormValue("userUuid")
+    assert.AddContext("User UUID String", userUuidString)
     userUuid, err := uuid.Parse(userUuidString)
 	assert.NoError(err, "Failed to parse user guid")
 
