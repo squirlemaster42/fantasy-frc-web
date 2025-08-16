@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -16,6 +17,7 @@ type User struct {
     Username string
     Password string
     Client http.Client
+    Uuid string
 }
 
 type Draft struct {
@@ -74,7 +76,32 @@ func createRandomString(minLen int, maxLen int) string {
 }
 
 func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
+    for _, user := range users {
+        form := url.Values{}
+        form.Add("description", createRandomString(10, 1000))
+        form.Add("interval", "0")
+        form.Add("startTime", "0001-01-01T00:00")
+        form.Add("endTime", "0001-01-01T00:00")
+        form.Add("draftName", createRandomString(5, 50))
+        form.Add("search", "")
 
+        //TODO Need to figure out how to get uuid
+        form.Add("userUuid", user.Uuid)
+
+        resp, err := owner.Client.Post(fmt.Sprintf("%s/u/draft/%d/invitePlayer", target, draft.Id), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+        if err != nil {
+            slog.Error("Failed to invite player to draft", "Username", user.Username, "Error", err)
+            panic(err)
+        }
+
+        if resp.StatusCode != 200 {
+            slog.Error("Failed to invite player to draft", "User", user.Username)
+            panic("failed to create draft")
+        }
+
+        body, err := io.ReadAll(resp.Body)
+        slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body, "Headers", resp.Header)
+    }
 }
 
 func createDraft(user *User) Draft {
