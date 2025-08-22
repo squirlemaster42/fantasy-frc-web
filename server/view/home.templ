@@ -6,71 +6,73 @@ import (
 )
 
 templ HomeIndex (drafts *[]model.DraftModel) {
-    <section class="mr-6 ml-6 mx-auto flex flex-col gap-8">
-        <div class="grid grid-cols-4 gap-x-10 gap-y-8 overflow-y-auto w-full" style="max-height: calc(100vh - 65px);">
+    <section class="mr-6 ml-6 mx-auto flex flex-col gap-8 bg-slate-900 min-h-screen p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="max-height: calc(100vh - 100px); scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);">
             for _, draft := range *drafts {
-                <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
-                    <div class="card-body p-5">
-                        <div class="card-title pb-[4px] justify-around">
-                            <h1>
+                <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border border-slate-700 hover:border-slate-600 h-[28rem] flex flex-col">
+                    <div class="card-body p-6 text-slate-100 flex-1 flex flex-col">
+                        <div class="card-title pb-4 justify-center flex-shrink-0">
+                            <h1 class="text-lg font-bold text-blue-400 leading-tight">
                                 { draft.DisplayName }
                             </h1>
                         </div>
-                        <div class="grid grid-cols-2 border-b border-slate-600">
-                            <label class="border-t border-b border-slate-600 pl-2">
-                                Status:
-                                <div class="badge badge-primary">{ string(draft.Status) }</div>
-                            </label>
-                            <label class="border-t border-b border-slate-600 pl-2 pb-1">
-                                Next Pick:
+                        <div class="grid grid-cols-2 gap-4 border-b border-slate-600 pb-4 mb-4 flex-shrink-0">
+                            <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center text-center">
+                                <span class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Status</span>
+                                <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold">{ string(draft.Status) }</div>
+                            </div>
+                            <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center text-center">
+                                <span class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Next Pick</span>
                                 if draft.NextPick.User.Username != "" {
-                                    <div class="badge badge-primary">{draft.NextPick.User.Username}</div>
+                                    <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold">{draft.NextPick.User.Username}</div>
                                 } else {
-                                    <div class="badge badge-primary">
+                                    <div class="badge badge-ghost bg-slate-600 text-slate-400 rounded-full text-xs px-3 py-1 font-medium">
                                         N/A
                                     </div>
                                 }
-                            </label>
+                            </div>
                         </div>
-                        <h4>Players:</h4>
-                        <div class="grid grid-cols-3 gap-2 border-b border-slate-600 pb-2">
-                            for _, player := range draft.Players {
-                                if !player.Pending {
-                                    <div class="badge badge-primary">{ player.User.Username }</div>
+                        <div class="mb-4 flex-1">
+                            <h4 class="text-sm font-semibold text-slate-200 mb-2">Players:</h4>
+                            <div class="flex flex-wrap gap-2">
+                                for _, player := range draft.Players {
+                                    if !player.Pending {
+                                        <div class="badge badge-primary bg-blue-600 text-white text-xs rounded-full px-2 py-1">{ player.User.Username }</div>
+                                    }
                                 }
-                            }
+                            </div>
                         </div>
-                        <h4>Pending Players:</h4>
-                        <div class="grid grid-cols-3 gap-2 border-b border-slate-600 pb-2">
-                            for _, player := range draft.Players {
-                                if player.Pending {
-                                    <div class="badge badge-primary">{ player.User.Username }</div>
+                        <div class="mb-4 flex-1">
+                            <h4 class="text-sm font-semibold text-slate-200 mb-2">Pending Players:</h4>
+                            <div class="flex flex-wrap gap-2">
+                                for _, player := range draft.Players {
+                                    if player.Pending {
+                                        <div class="badge badge-secondary bg-slate-600 text-slate-300 text-xs rounded-full px-2 py-1">{ player.User.Username }</div>
+                                    }
                                 }
-                            }
+                            </div>
                         </div>
-                        <footer class="card-actions w-full">
-                            <a class="badge badge-primary px-6 py-4 hover:scale-[1.1] w-full" href={ templ.URL(fmt.Sprintf("/u/draft/%d/profile", draft.Id)) }>
-                                Open &nbsp;
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                                </svg>
-                            </a>
-                        </footer>
+                    </div>
+                    <div class="px-6 pb-6">
+                        <a class="btn btn-primary bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm" href={ templ.URL(fmt.Sprintf("/u/draft/%d/profile", draft.Id)) }>
+                            Open
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                            </svg>
+                        </a>
                     </div>
                 </div>
             }
-            <div class="card bg-slate-800 shadow-xl mx-auto mb-8">
-                <div class="card-body p-5">
-                    <div class="card-title pb-[4px] justify-around">
-                        Add Draft
-                    </div>
-                    <hr/>
-                    <div>
-                        <a href="createDraft">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-24">
+            <div class="card bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl border-2 border-dashed border-slate-600 hover:border-blue-500 h-[28rem] flex flex-col cursor-pointer group">
+                <div class="card-body p-8 text-slate-100 text-center flex-1 flex flex-col justify-center items-center">
+                    <div class="mb-6">
+                        <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500 group-hover:scale-110 transition-all duration-300 shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-10 text-white">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
-                        </a>
+                        </div>
+                        <h2 class="text-xl font-bold text-blue-400 leading-tight mb-2">Create New Draft</h2>
+                        <p class="text-slate-400 text-sm">Start a new fantasy draft</p>
                     </div>
                 </div>
             </div>
