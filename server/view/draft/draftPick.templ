@@ -15,7 +15,7 @@ type PickPage struct {
 }
 
 templ DraftPickIndex (pickPageModel PickPage) {
-    <div id="draftPicks" class="flex items-center justify-center w-full pt-4">
+    <div id="draftPicks" class="flex flex-col w-full h-full gap-6 p-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
         <div hx-ext="ws" ws-connect={pickPageModel.NotifierUrl} class="w-full">
             <form
                 hx-swap="outerHTML transition:true"
@@ -24,41 +24,51 @@ templ DraftPickIndex (pickPageModel PickPage) {
                 action=""
                 method="post"
             >
-                <div id="draft-table" class="flex flex-col justify-center">
+                <div id="draft-table" class="flex flex-col gap-6">
                     <div class="w-full flex items-center justify-center">
                         if pickPageModel.PickError != nil {
-                            <span class="text-red-800" style="width: fit-content;">{pickPageModel.PickError.Error()}</span>
+                            <div class="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg font-medium">
+                                {pickPageModel.PickError.Error()}
+                            </div>
                         }
                     </div>
-                    <div class="w-full overflow-x-auto">
-                        @RenderPicks(pickPageModel.Draft, pickPageModel.IsCurrentPick)
+                    <div class="w-full">
+                        <h2 class="text-2xl font-bold text-slate-100 mb-6 text-center">Draft Picks</h2>
+                        <div class="w-full overflow-x-auto">
+                            @RenderPicks(pickPageModel.Draft, pickPageModel.IsCurrentPick)
+                        </div>
                     </div>
-                    <div class="w-full flex flex-row justify-center pt-8">
-                        <button class="bg-blue-500 text-white font-bold py-2 px-4 rounded" type="submit">
-                            Make Pick
-                        </button>
-                        <div class="flex items-center m-4">
-                            if pickPageModel.IsSkipping {
-                            <input
-                                id="default-checkbox"
-                                name="skipping"
-                                type="checkbox"
-                                hx-swap="none"
-                                hx-post={pickPageModel.SkipUrl}
-                                title="When selected you will automatically skip future picks."
-                                checked
-                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                            } else {
-                            <input
-                                id="default-checkbox"
-                                name="skipping"
-                                type="checkbox"
-                                hx-swap="none"
-                                hx-post={pickPageModel.SkipUrl}
-                                title="When selected you will automatically skip future picks."
-                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
-                            }
-                            <label for="default-checkbox" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">Auto skip picks?</label>
+                    <div class="bg-slate-800 border border-slate-700 rounded-lg p-6 mx-auto w-fit">
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+                            <button class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-2" type="submit">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Make Pick
+                            </button>
+                            <div class="flex items-center gap-3">
+                                if pickPageModel.IsSkipping {
+                                <input
+                                    id="default-checkbox"
+                                    name="skipping"
+                                    type="checkbox"
+                                    hx-swap="none"
+                                    hx-post={pickPageModel.SkipUrl}
+                                    title="When selected you will automatically skip future picks."
+                                    checked
+                                    class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                } else {
+                                <input
+                                    id="default-checkbox"
+                                    name="skipping"
+                                    type="checkbox"
+                                    hx-swap="none"
+                                    hx-post={pickPageModel.SkipUrl}
+                                    title="When selected you will automatically skip future picks."
+                                    class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                }
+                                <label for="default-checkbox" class="text-sm font-medium text-slate-300 cursor-pointer">Auto skip picks?</label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -74,40 +84,41 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
-    <div class="flex flex-row justify-around" id="pickTable" hx-swap="outerHTML">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4" id="pickTable" hx-swap="outerHTML">
         for _, player := range draft.Players {
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col" class="border px-6 py-3">{player.User.Username}</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="border border-slate-600 rounded-lg">
+                <div class="bg-slate-700 px-3 py-2 rounded-t-lg border-b border-slate-600">
+                    <h3 class="text-sm font-semibold text-slate-200 text-center truncate">{player.User.Username}</h3>
+                </div>
+                <div class="p-3 space-y-2 bg-slate-800/50 rounded-b-lg">
                     {{lines := 0}}
                     for _, pick := range player.Picks {
-                        <tr>
-                            if pick.Pick.Valid {
-                                <td class="border text-center">{strings.TrimLeft(pick.Pick.String, "frc")}</td>
-                                {{lines++}}
-                            }
-                        </tr>
+                        if pick.Pick.Valid {
+                            <div class="bg-blue-600 text-white text-center py-2 px-3 rounded font-mono text-sm font-semibold">
+                                {strings.TrimLeft(pick.Pick.String, "frc")}
+                            </div>
+                            {{lines++}}
+                        }
                     }
                     if draft.NextPick.Id == player.Id {
-                        <tr>
-                            <td class="border">
-                                <input placeholder={player.Picks[len(player.Picks) - 1].ExpirationTime.Format("01-02-2006 15:04:05")} disabled?={!isCurrentPick} name="pickInput" style="background: rgb(0 2 105);"/>
-                            </td>
-                        </tr>
+                        <div class="bg-green-600 rounded p-2">
+                            <input
+                                placeholder={player.Picks[len(player.Picks) - 1].ExpirationTime.Format("01-02-2006 15:04:05")}
+                                disabled?={!isCurrentPick}
+                                name="pickInput"
+                                class="w-full bg-slate-700 border border-slate-500 rounded px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm font-mono"
+                            />
+                        </div>
                         {{lines++}}
                     }
                     for lines < 8 {
-                        <tr>
-                            <td class="border px-y py-3"></td>
-                        </tr>
+                        <div class="border border-slate-600 rounded py-2 px-3 text-center text-slate-500 text-sm">
+                            --
+                        </div>
                         {{lines++}}
                     }
-                </tbody>
-            </table>
+                </div>
+            </div>
         }
     </div>
 }
