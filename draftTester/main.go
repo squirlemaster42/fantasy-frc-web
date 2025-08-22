@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type User struct {
@@ -46,6 +48,7 @@ func main() {
 
     //Choose a user and create a draft
     keys := reflect.ValueOf(users).MapKeys()
+    //TODO I think we might always be choosing the same owner
     owner := users[keys[rand.IntN(len(keys))].String()]
     draft := createDraft(owner)
     invitePlayersToDraft(owner, users, draft)
@@ -75,8 +78,68 @@ func createRandomString(minLen int, maxLen int) string {
     return sb.String()
 }
 
+func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
+    form := url.Values{}
+    form.Add("description", "")
+    form.Add("interval", "0")
+    form.Add("startTime", "0001-01-01T00:00")
+    form.Add("endTime", "0001-01-01T00:00")
+    form.Add("draftName", "")
+    form.Add("search", username)
+
+    req, err := http.NewRequest("POST", fmt.Sprintf("%s/u/searchPlayers", target), strings.NewReader(form.Encode()))
+    if err != nil {
+        slog.Error("Failed to create new request", "Error", err)
+        panic(err)
+    }
+
+    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+    req.Header.Set("Hx-Current-Url", fmt.Sprintf("%s/u/draft/%d/profile", target, draftId))
+
+    resp, err := owner.Client.Do(req)
+    if err != nil {
+        slog.Error("Failed to search for player", "Username", username, "Error", err)
+        panic(err)
+    }
+
+    if resp.StatusCode != 200 {
+        slog.Error("Failed to search for username", "User", username)
+        panic("failed to create draft")
+    }
+
+    body, err := io.ReadAll(resp.Body)
+    slog.Info("Request made", "User", username, "Status", resp.StatusCode)
+
+    fmt.Println(string(body))
+
+    prefix := "<button hx-target=\"#inviteTable\" hx-swap=\"outerHTML\" name=\"userUuid\" value=\""
+    if strings.Count(string(body), prefix) != 1 {
+        slog.Error("Did not find only one user", "Username", username, "Draft Id", draftId)
+        panic("err: did not find only one user")
+    }
+
+    idx := strings.Index(string(body), prefix) + len(prefix)
+    sliced := string(body)[idx:]
+    uuidStr := sliced[:strings.Index(sliced, "\"")]
+
+    uuid, err := uuid.Parse(uuidStr)
+
+    if err != nil {
+        panic(err)
+    } else {
+        slog.Info("Found UUID", "Username", username, "UUID", uuid)
+    }
+
+    return uuid
+}
+
 func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
     for _, user := range users {
+
+        if user.Username == owner.Username {
+            continue
+        }
+
         form := url.Values{}
         form.Add("description", createRandomString(10, 1000))
         form.Add("interval", "0")
@@ -84,9 +147,7 @@ func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
         form.Add("endTime", "0001-01-01T00:00")
         form.Add("draftName", createRandomString(5, 50))
         form.Add("search", "")
-
-        //TODO Need to figure out how to get uuid
-        form.Add("userUuid", user.Uuid)
+        form.Add("userUuid", getPlayerUUID(owner, draft.Id, user.Username).String())
 
         resp, err := owner.Client.Post(fmt.Sprintf("%s/u/draft/%d/invitePlayer", target, draft.Id), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
         if err != nil {
@@ -99,8 +160,8 @@ func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
             panic("failed to create draft")
         }
 
-        body, err := io.ReadAll(resp.Body)
-        slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body, "Headers", resp.Header)
+        //body, err := io.ReadAll(resp.Body)
+        slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode)
     }
 }
 
@@ -124,8 +185,8 @@ func createDraft(user *User) Draft {
         panic("failed to create draft")
     }
 
-    body, err := io.ReadAll(resp.Body)
-    slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body, "Headers", resp.Header)
+    //body, err := io.ReadAll(resp.Body)
+    slog.Info("Create Draft Request Made", "User", user.Username, "Status", resp.StatusCode)
 
     // Get Draft Id
     draftIdStr := strings.Split(resp.Header.Get("Hx-Redirect"), "/")[3]
@@ -162,7 +223,7 @@ func populateAuthToks(users map[string]*User) {
             panic("failed to login")
         }
 
-        body, err := io.ReadAll(resp.Body)
-        slog.Info("Request made", "User", user.Username, "Status", resp.StatusCode, "Body", body)
+        //body, err := io.ReadAll(resp.Body)
+        slog.Info("Populate auth token request made", "User", user.Username, "Status", resp.StatusCode)
     }
 }
