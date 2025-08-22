@@ -4,22 +4,67 @@ import "server/view"
 import "fmt"
 
 templ TeamScoreIndex() {
-    <div class="flex justify-center pt-10">
-        <form
-            hx-swap="afterbegin transition:true"
-            hx-post="/u/team/score"
-            hx-target="#score-container"
-            action=""
-            method="post"
-        >
-            <p class="text-xl">Enter a team number to score:</p>
-            <input class="w-full mt-4" type="number" required autofocus name="teamNumber"/>
-            <footer class="pt-4 w-full">
-                <button class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">Get Score</button>
-            </footer>
-        </form>
+    <div class="min-h-screen bg-slate-900 p-6 flex flex-col">
+        <div class="w-full max-w-[1400px] mx-auto flex-1 flex flex-col">
+            <!-- Header Section -->
+            <div class="text-center mb-6 flex-shrink-0">
+                <h1 class="text-3xl font-bold text-slate-100 mb-2">Team Score Lookup</h1>
+                <p class="text-slate-400 text-lg">View team competition scores and rankings</p>
+            </div>
+
+            <!-- Results Container -->
+            <div class="overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59); max-height: calc(100vh - 300px); min-height: 200px;">
+                <div id="score-container" class="space-y-6 pb-6"></div>
+            </div>
+
+            <!-- Search Form - Sticky at bottom -->
+            <div class="fixed bottom-0 left-0 right-0 bg-slate-900 pt-2 pb-4 z-50">
+                <div class="max-w-md mx-auto px-4">
+                    <div class="card bg-slate-800 shadow-lg rounded-xl border border-slate-700">
+                        <div class="card-body p-4">
+                        <form
+                            hx-swap="afterbegin transition:true"
+                            hx-post="/u/team/score"
+                            hx-target="#score-container"
+                            action=""
+                            method="post"
+                            class="space-y-3"
+                        >
+                            <div>
+                                <label class="block text-base font-medium text-slate-300 mb-2">Team Number</label>
+                                <div class="relative">
+                                    <input
+                                        class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-base"
+                                        type="number"
+                                        required
+                                        autofocus
+                                        name="teamNumber"
+                                        placeholder="Enter team number"
+                                    />
+                                    <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3 text-slate-400">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-1 text-base"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                </svg>
+                                Get Scores
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
 }
 
 templ TeamPick(page string, fromProtected bool, username string, cmp templ.Component) {
@@ -29,26 +74,100 @@ templ TeamPick(page string, fromProtected bool, username string, cmp templ.Compo
 }
 
 templ TeamScoreReport(teamNumber string, scores map[string]int) {
-<div class="ml-10 mt-10 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
-    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Team {teamNumber}
-    </h5>
-    <hr/>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            Qual Score: {fmt.Sprintf("%d", scores["Qual Score"])}
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            Alliance Score: {fmt.Sprintf("%d", scores["Alliance Score"])}
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            Playoff Score: {fmt.Sprintf("%d", scores["Playoff Score"])}
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            Einstein Score: {fmt.Sprintf("%d", scores["Einstein Score"])}
-        </p>
-        <p class="font-normal text-gray-700 dark:text-gray-400">
-            Total Score: {fmt.Sprintf("%d", scores["Total Score"])}
-        </p>
-</div>
+    <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700 hover:shadow-xl transition-all duration-300">
+        <div class="card-body p-6">
+            <!-- Team Header -->
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-100">Team {teamNumber}</h2>
+                    <p class="text-slate-400 text-sm">FRC Competition Scores</p>
+                </div>
+            </div>
 
+            <!-- Scores Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Qualification Score -->
+                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Qualification</div>
+                            <div class="text-xl font-bold text-blue-400">{fmt.Sprintf("%d", scores["Qual Score"])}</div>
+                        </div>
+                        <div class="w-8 h-8 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-blue-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.5l6.75 6.75L21 10.5" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alliance Score -->
+                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Alliance</div>
+                            <div class="text-xl font-bold text-green-400">{fmt.Sprintf("%d", scores["Alliance Score"])}</div>
+                        </div>
+                        <div class="w-8 h-8 bg-green-600/20 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-green-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playoff Score -->
+                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Playoffs</div>
+                            <div class="text-xl font-bold text-purple-400">{fmt.Sprintf("%d", scores["Playoff Score"])}</div>
+                        </div>
+                        <div class="w-8 h-8 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-purple-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3v1.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 23.25V21a3 3 0 0 1 3-3m9 0V9a3 3 0 0 0-3-3m-9 9V9a3 3 0 0 1 3-3m9 0a3 3 0 0 1 3 3m-9 0a3 3 0 0 1 3 3m9 0V21" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Einstein Score -->
+                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Einstein</div>
+                            <div class="text-xl font-bold text-yellow-400">{fmt.Sprintf("%d", scores["Einstein Score"])}</div>
+                        </div>
+                        <div class="w-8 h-8 bg-yellow-600/20 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-yellow-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Score -->
+            <div class="mt-4 pt-4 border-t border-slate-600">
+                <div class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-4 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-slate-400 uppercase tracking-wide">Total Score</div>
+                            <div class="text-3xl font-bold text-slate-100">{fmt.Sprintf("%d", scores["Total Score"])}</div>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3v1.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 23.25V21a3 3 0 0 1 3-3m9 0V9a3 3 0 0 0-3-3m-9 9V9a3 3 0 0 1 3-3m9 0a3 3 0 0 1 3 3m-9 0a3 3 0 0 1 3 3m9 0V21" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 }
