@@ -3,58 +3,111 @@ package login
 import "server/view"
 
 templ LoginIndex(fromProtected bool, errorMessage string) {
-   <section class="card w-fit bg-base-200 shadow-xl mx-auto mb-8" id="login-box">
-		<div class="card-body pb-2">
-			<h1 class="card-title border-b border-b-slate-600 pb-[4px]">
-				Log In
-			</h1>
-            <h2 style="color: red; text-align: center;">{ errorMessage }</h2>
-			<form
- 				hx-swap="outerHTML transition:true"
- 				class="rounded-xl drop-shadow-xl flex flex-col gap-4 w-96 p-8"
-                style="-top: -20px;"
-                hx-post="/login"
-                hx-target="#login-box"
- 				action=""
- 				method="post"
-			>
-				<label class="flex flex-col justify-start gap-2">
-					Username:
-					<input
- 						class="input input-bordered input-primary bg-slate-800"
- 						type="string"
- 						name="username"
- 						required
-                        hx-preserve
- 						autofocus
- 						disabled?={ fromProtected }
- 						if fromProtected {
-							value="disabled "
-						}
-					/>
-				</label>
-				<label class="flex flex-col justify-start gap-2">
-					Password:
-					<input
- 						class="input input-bordered input-primary bg-slate-800"
- 						type="password"
- 						name="password"
- 						required
- 						minlength="6"
- 						disabled?={ fromProtected }
- 						if fromProtected {
-							value="disabled "
-						}
-					/>
-				</label>
-				<footer class="card-actions justify-end">
-					<button class="badge badge-primary px-6 py-4 hover:scale-[1.1]" disabled?={ fromProtected }>
-						Sign In
-					</button>
-				</footer>
-			</form>
-		</div>
-	</section>
+    <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div class="max-w-md w-full" id="login-box">
+            <!-- Login Card -->
+            <div class="card bg-slate-800 shadow-2xl rounded-2xl border border-slate-700">
+                <div class="card-body p-8">
+                    <!-- Header -->
+                    <div class="text-center mb-8">
+                        <h1 class="text-2xl font-bold text-slate-100 mb-2">Sign In</h1>
+                        <p class="text-slate-400 text-sm">Enter your credentials to continue</p>
+                    </div>
+
+                    <!-- Error Message -->
+                    if errorMessage != "" {
+                        <div class="bg-red-900/20 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-6 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                </svg>
+                                { errorMessage }
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Login Form -->
+                    <form
+                        hx-swap="outerHTML transition:true"
+                        hx-post="/login"
+                        hx-target="#login-box"
+                        action=""
+                        method="post"
+                        class="space-y-6"
+                    >
+                        <!-- Username Field -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                            <div class="relative">
+                                <input
+                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                                    type="text"
+                                    name="username"
+                                    required
+                                    hx-preserve
+                                    autofocus
+                                    disabled?={ fromProtected }
+                                    if fromProtected {
+                                        value="disabled"
+                                    }
+                                />
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Password Field -->
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                            <div class="relative">
+                                <input
+                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                                    type="password"
+                                    name="password"
+                                    required
+                                    minlength="6"
+                                    disabled?={ fromProtected }
+                                    if fromProtected {
+                                        value="disabled"
+                                    }
+                                />
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sign In Button -->
+                        <button
+                            type="submit"
+                            disabled?={ fromProtected }
+                            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            Sign In
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                            </svg>
+                        </button>
+                    </form>
+
+                    <!-- Footer -->
+                    <div class="mt-8 pt-6 border-t border-slate-600 text-center">
+                        <p class="text-slate-400 text-sm">
+                            Don't have an account?
+                            <a href="/register" class="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-200">
+                                Create one here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 }
 
 templ Login(page string, fromProtected bool, cmp templ.Component) {
