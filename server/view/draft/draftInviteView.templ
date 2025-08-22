@@ -6,34 +6,74 @@ import "fmt"
 
 templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
     if hasError {
-        { errorMessage }
+        <div class="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded-lg mx-6 mt-6">
+            { errorMessage }
+        </div>
     }
 
-    <div class="overflow-y-auto ml-16 mr-16" style="max-height: calc(100vh - 65px);" id="pendingTable">
-        <table class="w-full w-4/5 text-lg text-left rtl:text-right text-gray-500 dark:text-gray-400 table-auto">
-            <thead class="text-lg text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                <tr>
-                    <th scope="col" class="border px-6 py-3"></th>
-                    <th scope="col" class="border px-6 py-3">Draft</th>
-                    <th scope="col" class="border px-6 py-3">Invited By</th>
-                </tr>
-            </thead>
-            <tbody>
+    <div class="overflow-y-auto ml-6 mr-6 pt-6" style="max-height: calc(100vh - 100px);" id="pendingTable">
+        if len(invites) == 0 {
+            <div class="text-center py-12">
+                <div class="text-slate-400 text-lg mb-2">No pending invitations</div>
+                <div class="text-slate-500 text-sm">You'll see draft invitations here when someone invites you to join</div>
+            </div>
+        } else {
+            <div class="mb-6 text-center">
+                <h2 class="text-2xl font-bold text-slate-100 mb-2">Draft Invitations</h2>
+                <p class="text-slate-400">You have { fmt.Sprintf("%d", len(invites)) } pending invitation(s)</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 for _, invite := range invites {
-                    <tr>
-                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
-                            <button hx-target="#pendingTable" hx-swap="outerHTML" name="inviteId" value={ fmt.Sprintf("%d", invite.Id) } hx-post="/u/acceptInvite">Accept</button>
-                        </td>
-                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
-                            { invite.DraftName }
-                        </td>
-                        <td class="bg-white border dark:bg-gray-800 dark:border:gray-700 pl-2">
-                            { invite.InvitingPlayerName }
-                        </td>
-                    </tr>
+                    <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl border border-slate-700 hover:border-slate-600">
+                        <div class="card-body p-6 text-slate-100">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold text-blue-400 mb-2 leading-tight">
+                                        { invite.DraftName }
+                                    </h3>
+                                    <div class="flex items-center text-sm text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 mr-2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                        </svg>
+                                        Invited by <span class="font-medium text-slate-300 ml-1">{ invite.InvitingPlayerName }</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button
+                                    hx-target="#pendingTable"
+                                    hx-swap="outerHTML"
+                                    name="inviteId"
+                                    value={ fmt.Sprintf("%d", invite.Id) }
+                                    hx-post="/u/acceptInvite"
+                                    class="btn btn-primary bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    </svg>
+                                    Accept
+                                </button>
+                                <button
+                                    hx-target="#pendingTable"
+                                    hx-swap="outerHTML"
+                                    name="inviteId"
+                                    value={ fmt.Sprintf("%d", invite.Id) }
+                                    hx-post="/u/declineInvite"
+                                    class="btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Decline
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 }
-            </tbody>
-        </table>
+            </div>
+        }
     </div>
 }
 
