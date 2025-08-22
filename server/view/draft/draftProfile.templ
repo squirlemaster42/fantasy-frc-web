@@ -9,7 +9,7 @@ import (
 
 templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
     <form
-        class="flex flex-col lg:flex-row w-full h-full gap-6 p-6"
+        class="flex flex-col lg:flex-row w-full h-full gap-6 pl-4 pr-8 py-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
         hx-swap="outerHTML"
         hx-post={utils.GetUpdateUrl(draft.Id)}
         action=""
@@ -17,7 +17,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
         enctype="multipart/form-data"
     >
         <!-- Draft Header Section -->
-        <div class="w-full lg:w-2/3">
+        <div class="w-full lg:w-2/3 flex-shrink-0">
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700 mb-6">
                 <div class="card-body p-6">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -107,15 +107,15 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
         </div>
 
         <!-- Sidebar Section -->
-        <div class="w-full lg:w-1/3 space-y-6">
+        <div class="w-full lg:w-1/3 space-y-6 flex-shrink-0">
             <!-- Settings Card -->
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
-                <div class="card-body p-6">
-                    <h2 class="text-xl font-bold text-slate-100 mb-6">Draft Settings</h2>
+                <div class="card-body p-4">
+                    <h2 class="text-lg font-bold text-slate-100 mb-4">Draft Settings</h2>
 
-                    <div class="space-y-6">
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Time Between Picks (seconds)</label>
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Time Between Picks (seconds)</label>
                             <input
                                 disabled?={!isOwner}
                                 name="interval"
@@ -130,33 +130,47 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Start Time</label>
-                            <input
-                                disabled?={!isOwner}
-                                name="startTime"
-                                value={draft.StartTime.Format("2006-01-02T15:04:05")}
-                                type="datetime-local"
-                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
+                            <label class="block text-xs font-medium text-slate-300 mb-2">Start Time</label>
+                            <div class="relative">
+                                <input
+                                    disabled?={!isOwner}
+                                    name="startTime"
+                                    value={draft.StartTime.Format("2006-01-02T15:04:05")}
+                                    type="datetime-local"
+                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                />
+                                <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">End Time</label>
-                            <input
-                                disabled?={!isOwner}
-                                name="endTime"
-                                value={draft.EndTime.Format("2006-01-02T15:04:05")}
-                                type="datetime-local"
-                                class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
+                            <label class="block text-xs font-medium text-slate-300 mb-2">End Time</label>
+                            <div class="relative">
+                                <input
+                                    disabled?={!isOwner}
+                                    name="endTime"
+                                    value={draft.EndTime.Format("2006-01-02T15:04:05")}
+                                    type="datetime-local"
+                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                />
+                                <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="mt-6 pt-6 border-t border-slate-600">
+                    <div class="mt-4 pt-4 border-t border-slate-600">
                         <button
                             disabled?={!isOwner}
                             type="submit"
-                            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm"
                         >
                             Save Changes
                         </button>
