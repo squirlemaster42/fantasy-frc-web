@@ -247,7 +247,9 @@ func (dm *DraftManager) getLock(draftId int) *sync.Mutex {
     //Get the lock if it exists for the draft, if not register it
     lock, ok := dm.locks.Load(draftId)
     if !ok {
-        dm.locks.Store(draftId, &sync.Mutex{})
+        mtx := &sync.Mutex{}
+        dm.locks.Store(draftId, mtx)
+        return mtx
     }
     return lock.(*sync.Mutex)
 }
