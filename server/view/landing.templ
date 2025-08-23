@@ -1,0 +1,71 @@
+package view
+
+templ Landing() {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta name="description" content="An application to play Fantasy FRC"/>
+			<meta name="google" content="notranslate"/>
+			<link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.10/dist/full.min.css" rel="stylesheet" type="text/css"/>
+			<script src="https://cdn.tailwindcss.com"></script>
+			<link rel="stylesheet" href="/css/styles.css"/>
+			<link rel="stylesheet" href="/css/tailwind.css"/>
+			<title>Fantasy FRC - Build Your Ultimate Robotics Team!</title>
+			<script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
+			<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
+			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<style>
+				body {
+					background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+					color: white;
+				}
+				.hero {
+					padding: 100px 20px;
+					background: rgba(0, 0, 0, 0.5);
+					border-radius: 10px;
+					margin: 50px auto;
+					max-width: 800px;
+				}
+				.cta-button {
+					display: inline-block;
+					padding: 15px 30px;
+					background: #ffeb3b;
+					color: #333;
+					text-decoration: none;
+					font-weight: bold;
+					border-radius: 5px;
+					margin-top: 30px;
+					transition: transform 0.3s;
+				}
+				.cta-button:hover {
+					transform: scale(1.1);
+				}
+				.highlight {
+					font-weight: bold;
+					color: #ffeb3b;
+				}
+			</style>
+		</head>
+		<body class="simple-transition" hx-boost="true">
+			<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
+			<div class="hero">
+				<h1 class="text-5xl font-bold mb-4">🚀 Welcome to Fantasy FRC! 🚀</h1>
+				<p class="text-xl mb-4">Think fantasy football meets robotics! Draft your dream team of FIRST Robotics Competition (FRC) squads and watch them battle it out in epic challenges. Score big based on real match results!</p>
+			</div>
+			<div class="container mx-auto px-4 py-16">
+				<div class="max-w-4xl mx-auto">
+					<h2 class="text-3xl font-bold mb-6">What is FRC?</h2>
+					<p class="text-lg mb-6">The <span class="highlight">First Robotics Competition</span> is the ultimate high school robotics showdown! Teams from around the world design, build, and program robots to compete in thrilling games, solving real-world engineering puzzles. It's innovation, teamwork, and pure adrenaline!</p>
+					<h2 class="text-3xl font-bold mb-6">How Fantasy FRC Works</h2>
+					<p class="text-lg mb-6">Just like fantasy sports, you <span class="highlight">draft teams</span>, manage your lineup, and earn points from their real FRC performances. Outsmart opponents, climb leaderboards, and celebrate victories with your strategic picks!</p>
+					<h2 class="text-3xl font-bold mb-6">Why Play Fantasy FRC?</h2>
+					<p class="text-lg mb-6">🎉 <span class="highlight">Experience the thrill</span> of robotics without the grease! Join a passionate community, test your strategy skills, and feel the rush of every match. It's fun, competitive, and totally addictive – perfect for fans and future engineers alike!</p>
+					<a href="/home" class="cta-button">Join the Fun Now! 🎮</a>
+				</div>
+			</div>
+		</body>
+	</html>
+}
