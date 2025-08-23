@@ -6,17 +6,8 @@ This file contains build/lint/test commands and code style guidelines for agenti
 
 ### Building and Running
 ```bash
-# Build the application
-go build .
-
-# Run the application (from server directory)
-go run .
-
-# Run with templ file watching (from server directory)
-templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -skipScoring=true -populateTeams=false"
-
-# Run with specific flags
-go run . -skipScoring=true -populateTeams=false
+# Build and run the application
+make
 ```
 
 ### Testing
