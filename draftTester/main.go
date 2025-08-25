@@ -52,6 +52,13 @@ func main() {
     owner := users[keys[rand.IntN(len(keys))].String()]
     draft := createDraft(owner)
     invitePlayersToDraft(owner, users, draft)
+    for _, user := range users {
+        acceptInvite(user)
+    }
+}
+
+func acceptInvite(user *User) {
+
 }
 
 func createUser (username string) *User {
