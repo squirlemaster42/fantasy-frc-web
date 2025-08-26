@@ -58,7 +58,40 @@ func main() {
 }
 
 func acceptInvite(user *User) {
+    //Find the draft id, accept the invite, repeat until we dont find any more draft ids
+    // <button hx-target="#pendingTable" hx-swap="outerHTML" name="inviteId" value="
 
+    req, err := http.NewRequest("GET", fmt.Sprintf("%s/u/viewInvites", target), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    resp, err := user.Client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    id, found := getInviteId(string(body))
+    if found {
+        sendAcceptInvite(id)
+    } else {
+        panic("error: did not find at least one invite id")
+    }
+}
+
+func sendAcceptInvite(inviteId int) string {
+    //This should return the respose of the accept request
+    return ""
+}
+
+func getInviteId(body string) (int, bool) {
+    fmt.Println(body)
+    return -1, false
 }
 
 func createUser (username string) *User {
@@ -142,7 +175,6 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 
 func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
     for _, user := range users {
-
         if user.Username == owner.Username {
             continue
         }

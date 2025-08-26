@@ -498,7 +498,7 @@ func AcceptInvite(database *sql.DB, inviteId int) (int, uuid.UUID) {
 // TODO We should be able to uninvite someone from the draft
 
 func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
-	query := `INSERT INTO DraftPlayers (draftId, player) Values ($1, $2);`
+	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Draft", draft)
 	assert.AddContext("Player", player)
@@ -522,12 +522,12 @@ func GetInvite(database *sql.DB, inviteId int) DraftInvite {
 	query := `SELECT
             di.Id,
             u.username,
-            di.InvitedPlayer,
+            di.InvitedUserUuid,
             d.DisplayName,
             d.Id As DraftId
         From DraftInvites di
         Inner Join Drafts d On di.DraftId = d.Id
-        Inner Join Users u On di.InvitingPlayer = u.Id
+        Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1;`
     assert := assert.CreateAssertWithContext("Get Invite")
     assert.AddContext("Invite", inviteId)
