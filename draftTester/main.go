@@ -59,8 +59,6 @@ func main() {
 
 func acceptInvite(user *User) {
     //Find the draft id, accept the invite, repeat until we dont find any more draft ids
-    // <button hx-target="#pendingTable" hx-swap="outerHTML" name="inviteId" value="
-
     req, err := http.NewRequest("GET", fmt.Sprintf("%s/u/viewInvites", target), nil)
     if err != nil {
         panic(err)
@@ -91,7 +89,21 @@ func sendAcceptInvite(inviteId int) string {
 
 func getInviteId(body string) (int, bool) {
     fmt.Println(body)
-    return -1, false
+
+    prefix := "<button hx-target=\"#pendingTable\" hx-swap=\"outerHTML\" name=\"inviteId\" value=\""
+    if strings.Count(body, prefix) == 0 {
+        return -1, false
+    }
+
+    idx := strings.Index(string(body), prefix) + len(prefix)
+    sliced := string(body)[idx:]
+    id, err := strconv.Atoi(sliced)
+
+    if err != nil {
+        panic(err)
+    }
+
+    return id, true
 }
 
 func createUser (username string) *User {
