@@ -74,19 +74,49 @@ func acceptInvite(user *User) {
         panic(err)
     }
 
+    var acceptRespBody string
     id, found := getInviteId(string(body))
     if found {
-        sendAcceptInvite(id)
+        acceptRespBody = sendAcceptInvite(user, id)
     } else {
         panic("error: did not find at least one invite id")
     }
+
+    for found {
+        id, found = getInviteId(acceptRespBody)
+        if found {
+            acceptRespBody = sendAcceptInvite(user, id)
+        }
+    }
+
 }
 
-func sendAcceptInvite(inviteId int) string {
+func sendAcceptInvite(user *User, inviteId int) string {
     //This should return the respose of the accept request
-    return ""
-}
+    form := url.Values{}
+    form.Add("inviteId", strconv.Itoa(inviteId))
 
+    req, err := http.NewRequest("POST", fmt.Sprintf("%s/u/acceptInvite", target), strings.NewReader(form.Encode()))
+    if err != nil {
+        panic(err)
+    }
+
+    resp, err := user.Client.Do(req)
+    if err != nil {
+        panic(err)
+    }
+
+    if resp.StatusCode != 200 {
+        panic("failed to accept invite")
+    }
+
+    body, err := io.ReadAll(resp.Body)
+    if err != nil {
+        panic(err)
+    }
+
+    return string(body)
+}
 func getInviteId(body string) (int, bool) {
     fmt.Println(body)
 
@@ -97,7 +127,8 @@ func getInviteId(body string) (int, bool) {
 
     idx := strings.Index(string(body), prefix) + len(prefix)
     sliced := string(body)[idx:]
-    id, err := strconv.Atoi(sliced)
+    endIdx := strings.Index(sliced, "\"")
+    id, err := strconv.Atoi(sliced[:endIdx])
 
     if err != nil {
         panic(err)
