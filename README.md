@@ -1,7 +1,7 @@
 # fantasy-frc-web
 
 Fantasy Frc is a game that was created by students on Frc Team 1699 during
-district championships in 2018. In the years since, there have been several
+the New England District Championships in 2018. In the years since, there have been several
 rules changes, many different scoring applications developed, but the general
 principal stayed the same. This project is what we hope to be the final form of
 the many appications that have been developed over the past few years. In 2018,
