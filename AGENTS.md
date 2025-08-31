@@ -71,7 +71,6 @@ go mod verify
 - **Types/Structs**: PascalCase
 - **Constants**: PascalCase for exported, camelCase for unexported
 - **Methods**: PascalCase
-- **Files**: snake_case (e.g., `draft_manager.go`, `user_model.go`)
 
 ### Import Organization
 
