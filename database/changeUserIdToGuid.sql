@@ -1,6 +1,6 @@
 CREATE Extension "uuid_ossp";
 
--- Alter columns and update data
+-- Add uuid columns and associate to user record row
 Alter Table Users Add Column UserUuid;
 Update Users Set UserUuid = uuid_generate_v4();
 Alter Table UserSessions Add Column UserUuid UUID;
