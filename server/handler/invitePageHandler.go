@@ -39,7 +39,9 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
     assert.NoError(err, "Failed to get user token")
 
     userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    inviteId, err := strconv.Atoi(c.FormValue("inviteId"))
+    inviteIdStr := c.FormValue("inviteId")
+    slog.Info("Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
+    inviteId, err := strconv.Atoi(inviteIdStr)
     assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
     assert.NoError(err, "Failed to parse invite id")
     invite := model.GetInvite(h.Database, inviteId)

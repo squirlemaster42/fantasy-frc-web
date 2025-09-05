@@ -77,6 +77,7 @@ func acceptInvite(user *User) {
     var acceptRespBody string
     id, found := getInviteId(string(body))
     if found {
+        slog.Info("Sending accept invite request", "User", user.Username, "Id", id)
         acceptRespBody = sendAcceptInvite(user, id)
     } else {
         panic("error: did not find at least one invite id")
@@ -101,6 +102,8 @@ func sendAcceptInvite(user *User, inviteId int) string {
         panic(err)
     }
 
+    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
     resp, err := user.Client.Do(req)
     if err != nil {
         panic(err)
@@ -117,9 +120,8 @@ func sendAcceptInvite(user *User, inviteId int) string {
 
     return string(body)
 }
-func getInviteId(body string) (int, bool) {
-    fmt.Println(body)
 
+func getInviteId(body string) (int, bool) {
     prefix := "<button hx-target=\"#pendingTable\" hx-swap=\"outerHTML\" name=\"inviteId\" value=\""
     if strings.Count(body, prefix) == 0 {
         return -1, false
@@ -192,8 +194,6 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 
     body, err := io.ReadAll(resp.Body)
     slog.Info("Request made", "User", username, "Status", resp.StatusCode)
-
-    fmt.Println(string(body))
 
     prefix := "<button hx-target=\"#inviteTable\" hx-swap=\"outerHTML\" name=\"userUuid\" value=\""
     if strings.Count(string(body), prefix) != 1 {
