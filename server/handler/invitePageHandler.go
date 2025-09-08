@@ -54,7 +54,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
     slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
 
-    // if more than 8 players are invites then we cancel the other outstanding invites
+    // If more than 8 players are invites then we cancel the other outstanding invites
     // Maybe we need an active bool
     // Check that accepting this invite will not lead to more than eight players being in the draft
     numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
