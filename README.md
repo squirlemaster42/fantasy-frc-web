@@ -41,7 +41,7 @@ In order for Fantasy FRC to run correctly, the envirment variables listed below
 must be places in a `.env` file which should be located in the `server/`
 directory. The file should contain the following contents:
 
-TODO: add webhook token
+TODO: Add webhook token
 
 ```
 TBA_TOKEN=
