@@ -67,9 +67,9 @@ go mod verify
 ### Naming Conventions
 
 - **Variables**: camelCase for unexported, PascalCase for exported
-- **Functions**: PascalCase for exported, camelCase for unexported
+- **Functions**: camelCase for unexported, PascalCase for exported
 - **Types/Structs**: PascalCase
-- **Constants**: PascalCase for exported, camelCase for unexported
+- **Constants**: camelCase for unexported, PascalCase for exported
 - **Methods**: PascalCase
 
 ### Import Organization
