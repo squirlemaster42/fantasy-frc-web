@@ -89,7 +89,6 @@ func acceptInvite(user *User) {
             acceptRespBody = sendAcceptInvite(user, id)
         }
     }
-
 }
 
 func sendAcceptInvite(user *User, inviteId int) string {
