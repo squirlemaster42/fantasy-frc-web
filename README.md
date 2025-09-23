@@ -1,70 +1,133 @@
-# fantasy-frc-web
+# Fantasy FRC Web
 
-Fantasy FRC is a game that was created by students on FRC Team 1699 during the 2018 
-New England District Championships. In the years since, there have been several
-rules changes, many different scoring applications developed, but the general
-principal stayed the same. This project is what we hope to be the final form of
-the many appications that have been developed over the past few years. In 2018,
-we built a scorer in Java that reached out to The Blue Alliance and just scored
-Qual matches. Drafts were done using Google Sheets and all scoring outside of
-qualification matches was done by hand. Introduced in 2025, Fantasy Frc Web is
-an effort to atomate the entire drafting and scoring process. This project
-allows for users to create drafts, invite players, draft teams, and
-automatically score all aspects of the competition from Qual matches to
-alliance selection to playoffs and Einstein in real time using TBA web hooks.
+[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-# Setup
+Fantasy FRC is a web-based fantasy league game for FIRST Robotics Competition
+(FRC) teams. Created by students on FRC Team 1699 during the 2018 New England
+District Championships, this project automates the entire drafting and scoring
+process for FRC competitions.
 
-## Install Go
-Fantasy FRC is build to use the latest version of
-[Go](https://go.dev/doc/install). Current system is built against 23/24.
+## Table of Contents
 
-## Install Templ
-A guide to install Templ can be found
-[here](https://templ.guide/quick-start/installation/).
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Building and Running](#building-and-running)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Install Postgres and Setting Up your Database
-There are many guides on how to install Postgres so I will not detail that
-here. Once you have Postgres installed create a database. The name does not
-necesarily matter but you will need to reference it in the next set setting up
-the `.env` file so make sure you know the name. Once your database is created
-connect to it with `\c <database-name>`. Once you are connected to the database
-run the database setup script found at `database\fantasyFrcDb.sql`. This will
-setup all of the required tables needed to run Fantasy Frc. There will also be
-several additional migration scripts fhat should be run.
+## Features
 
-TBD - Database versioning
+- **Automated Drafting**: Create and manage fantasy drafts with real-time team selection
+- **Real-Time Scoring**: Automatically score all competition aspects from qualification matches to playoffs and Einstein using TBA webhooks
+- **User Management**: Invite players, manage profiles, and track team ownership
+- **Comprehensive Coverage**: Supports qualification matches, alliance selection, playoffs, and championship events
+- **Web-Based Interface**: Modern web application built with Go and Templ
+- **Database Integration**: PostgreSQL backend for reliable data storage
+- **API Integration**: Seamless integration with The Blue Alliance (TBA) API
 
-## Setting up your .env file
+## Installation
 
-In order for Fantasy FRC to run correctly, the envirment variables listed below
-must be places in a `.env` file which should be located in the `server/`
-directory. The file should contain the following contents:
+### Prerequisites
 
-TODO: Add webhook token
+- [Go](https://go.dev/doc/install) 1.24+
+- [Templ](https://templ.guide/quick-start/installation/)
+- [PostgreSQL](https://www.postgresql.org/download/)
+- [Make](https://www.gnu.org/software/make/)
 
+### Install Go
+
+Fantasy FRC is built using the latest version of [Go](https://go.dev/doc/install). The current system requires Go 1.24+.
+
+### Install Templ
+
+A guide to install Templ can be found [here](https://templ.guide/quick-start/installation/).
+
+### Install PostgreSQL and Set Up Database
+
+1. Install PostgreSQL using your system's package manager or from the official website.
+2. Create a new database:
+   ```sql
+   CREATE DATABASE fantasy_frc;
+   ```
+3. Connect to the database and run the setup script:
+   ```bash
+   psql -d fantasy_frc -f database/fantasyFrcDb.sql
+   ```
+4. Run any additional migration scripts as needed.
+
+**Note**: Database versioning is planned for future releases.
+
+## Configuration
+.
+Create a `.env` file in the `server/` directory with the following environment variables:
+
+```env
+TBA_TOKEN=your_tba_api_token
+DB_PASSWORD=your_db_password
+DB_USERNAME=your_db_username
+DB_IP=your_db_host
+DB_NAME=fantasy_frc
+SESSION_SECRET=your_session_secret
+SERVER_PORT=8080
 ```
-TBA_TOKEN=
-DB_PASSWORD=
-DB_USERNAME=
-DB_IP=
-DB_NAME=
-SESSION_SECRET=
-SERVER_PORT=
+
+- `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
+- `DB_*`: Database connection details
+- `SESSION_SECRET`: Random string for session encryption
+- `SERVER_PORT`: Port for the web server (default: 8080)
+
+## Building and Running
+
+Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing:
+
+- `skipScoring=true`: Disables match and team scoring to avoid excessive TBA API calls during development
+- `populateTeams=true`: Populates the database with teams from configured events on startup (deprecated, will be automated)
+
+### Build and Run
+
+```bash
+# Build and run the application
+make
+
+# Build with options
+make skipScoring=true
+make populateTeams=true
 ```
 
-## Building Fantasy FRC
+### Development
 
-Fantasy FRC is built using `make` so ensure you have this installed. The make
-file has several options that can be set to turn off certain features while
-testing
-- skipScoring: When set to true, the application will not score matches or
-  teams. This makes it so you are not making tons of calls to The Blue Alliance
-  while testing and since the scorer if not running there will not be a flood
-      of scoring logs and calls to The Blue Alliance.
-  
-- populateTeams: When set to true, on startup, the application will reach out
-  to The Blue Alliance and grab all of the teams who are all the currently
-  configured set of events. It will then add those teams to the database which
-  allows them to be picked. This will likely be deprecated in the future and
-  will instead be done automatically.
+```bash
+# Run tests
+go test ./...
+
+# Format code
+go fmt ./...
+
+# Vet code
+go vet ./...
+```
+
+## Usage
+
+1. Start the server using `make`
+2. Access the web interface at `http://localhost:8080`
+3. Create an account and start a new draft
+4. Invite players and begin drafting teams
+5. Watch scores update in real-time as matches are played
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
