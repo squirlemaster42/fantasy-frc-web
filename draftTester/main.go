@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -31,7 +32,6 @@ const (
 )
 
 func main() {
-
     // Map Username to user struct
     users := make(map[string]*User)
 
@@ -55,6 +55,8 @@ func main() {
     for _, user := range users {
         acceptInvite(user)
     }
+
+    //Start Draft
 }
 
 func acceptInvite(user *User) {
@@ -76,11 +78,18 @@ func acceptInvite(user *User) {
 
     var acceptRespBody string
     id, found := getInviteId(string(body))
-    if found {
-        slog.Info("Sending accept invite request", "User", user.Username, "Id", id)
-        acceptRespBody = sendAcceptInvite(user, id)
-    } else {
-        panic("error: did not find at least one invite id")
+    r := 0
+    for {
+        if found {
+            slog.Info("Sending accept invite request", "User", user.Username, "Id", id)
+            acceptRespBody = sendAcceptInvite(user, id)
+            break
+        } else if r > 5 {
+            panic("error: did not find at least one invite id")
+        } else {
+            r++
+            time.Sleep(500 * time.Millisecond)
+        }
     }
 
     for found {
