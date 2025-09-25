@@ -1,13 +1,13 @@
 package view
 
-templ Landing() {
-	<!DOCTYPE html>
-	<html lang="en" data-theme="dark">
+	templ Landing() {
+		<!DOCTYPE html>
+		<html lang="en" data-theme="dark">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<meta name="description" content="An application to play Fantasy FRC"/>
+			<meta name="description" content="Join Fantasy FRC: Draft elite FIRST Robotics Competition teams, strategize like a champion, and dominate the leaderboard. Experience robotics without the workshop!"/>
 			<meta name="google" content="notranslate"/>
 			<link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.10/dist/full.min.css" rel="stylesheet" type="text/css"/>
 			<script src="https://cdn.tailwindcss.com"></script>
@@ -20,33 +20,97 @@ templ Landing() {
 		</head>
 		<body class="bg-base-100 text-base-content simple-transition" hx-boost="true">
 			<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
-			<div class="min-h-screen bg-base-200 p-8">
-				<div class="max-w-4xl mx-auto text-center space-y-8">
-					<h1 class="text-5xl font-bold text-primary">🚀 Welcome to Fantasy FRC! 🚀</h1>
-					<p class="text-xl">Dive into the ultimate robotics fantasy experience! 🤖 Draft elite FIRST Robotics Competition teams, strategize like a champion, and dominate the leaderboard. It's fantasy sports meets cutting-edge innovation! 🏆</p>
+			<div class="min-h-screen bg-base-100">
+				<!-- Hero Section -->
+				<div class="hero min-h-screen bg-base-200 py-16">
+					<div class="hero-content flex-col lg:flex-row-reverse max-w-6xl">
+						<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Cheesy_Poofs%27_Barrage.jpg/400px-Cheesy_Poofs%27_Barrage.jpg" class="max-w-sm rounded-lg shadow-2xl" alt="FRC Robot" />
+						<div class="text-center lg:text-left">
+							<h1 class="text-6xl font-extrabold text-primary">🚀 Fantasy FRC: Your Gateway to Robotics Glory! 🚀</h1>
+							<p class="py-6 text-xl text-base-content">Draft elite FIRST Robotics Competition teams, strategize like a pro, and dominate the leaderboard. Experience the thrill of robotics without ever touching a wrench! 🤖🏆</p>
+							<a href="/register" class="btn btn-primary btn-lg">Start Your Fantasy Journey! 🎮</a>
+						</div>
+					</div>
+				</div>
 
+				<!-- What is Fantasy FRC -->
+				<div class="p-8 max-w-6xl mx-auto text-center space-y-8 bg-base-200 rounded-lg shadow-lg m-4">
 					<div class="divider"></div>
+					<h2 class="text-5xl font-bold text-primary">What is Fantasy FRC? 🤔</h2>
+					<p class="text-lg text-base-content">Fantasy FRC is the ultimate fusion of fantasy sports and cutting-edge robotics innovation. Just like drafting players for your fantasy football team, you select real FIRST Robotics Competition (FRC) teams to build your dream squad. Watch them battle it out in high-stakes matches, earn points based on their performance, and climb the global leaderboards. It's strategy, excitement, and STEM all rolled into one addictive game!</p>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+						<div class="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow">
+							<figure class="px-4 pt-4">
+								<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/FIRSTcomp.jpg/300px-FIRSTcomp.jpg" class="rounded-xl" alt="FRC Teams Socializing" />
+							</figure>
+							<div class="card-body">
+								<h3 class="card-title text-primary">Team Spirit</h3>
+								<p class="text-base-content">Experience the camaraderie of FRC teams!</p>
+							</div>
+						</div>
+						<div class="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow">
+							<figure class="px-4 pt-4">
+								<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/2008_FRC_Hawaii_Regionals_%28pic_1%29.jpg/300px-2008_FRC_Hawaii_Regionals_%28pic_1%29.jpg" class="rounded-xl" alt="FRC Competition" />
+							</figure>
+							<div class="card-body">
+								<h3 class="card-title text-primary">Intense Competition</h3>
+								<p class="text-base-content">Watch robots clash in epic battles!</p>
+							</div>
+						</div>
+						<div class="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow">
+							<figure class="px-4 pt-4">
+								<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/FIRST_Robotics_Competition_%28FRC%29_2024_Crescendo_Playing_Field.jpg/300px-FIRST_Robotics_Competition_%28FRC%29_2024_Crescendo_Playing_Field.jpg" class="rounded-xl" alt="FRC Playing Field" />
+							</figure>
+							<div class="card-body">
+								<h3 class="card-title text-primary">Innovative Fields</h3>
+								<p class="text-base-content">Explore cutting-edge game designs!</p>
+							</div>
+						</div>
+					</div>
+				</div>
 
-					<h2 class="text-4xl font-bold">What is Fantasy FRC? 🤔</h2>
-					<p class="text-lg">Imagine fantasy football, but with robots! Fantasy FRC lets you build your dream squad from real FIRST Robotics Competition teams. Watch them compete in thrilling matches, earn points based on performance, and climb the ranks. No grease, no gears – just pure strategy and excitement! ⚙️</p>
+				<!-- Why Play -->
+				<div class="py-16 bg-base-100">
+					<div class="max-w-6xl mx-auto text-center space-y-8 px-4">
+						<h2 class="text-5xl font-bold text-primary">Why Should You Play Fantasy FRC? 🎉</h2>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+							<div class="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+								<div class="card-body">
+									<h3 class="card-title text-2xl text-primary">🤖 Dive into Robotics Without the Mess</h3>
+									<p class="text-lg text-base-content">Cheer for incredible machines and brilliant minds from the comfort of your couch. No tools, no deadlines – just pure excitement!</p>
+								</div>
+							</div>
+							<div class="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+								<div class="card-body">
+									<h3 class="card-title text-2xl text-primary">🏆 Compete and Conquer</h3>
+									<p class="text-lg text-base-content">Join thousands of players worldwide. Climb leaderboards, form alliances, and prove your strategic genius in real-time competitions.</p>
+								</div>
+							</div>
+							<div class="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+								<div class="card-body">
+									<h3 class="card-title text-2xl text-primary">📈 Master Strategy and Analytics</h3>
+									<p class="text-lg text-base-content">Draft, trade, and manage your team like a pro. Analyze performance data and make game-changing decisions that lead to victory.</p>
+								</div>
+							</div>
+							<div class="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+								<div class="card-body">
+									<h3 class="card-title text-2xl text-primary">🌟 Support STEM Innovation</h3>
+									<p class="text-lg text-base-content">Every play supports the next generation of engineers, scientists, and innovators. You're not just playing – you're inspiring the future!</p>
+								</div>
+							</div>
+						</div>
+						<p class="text-xl text-base-content">Whether you're a robotics fanatic, a sports enthusiast, or just love a good challenge, Fantasy FRC offers endless fun and bragging rights!</p>
+					</div>
+				</div>
 
-					<h2 class="text-4xl font-bold">Why Join the Fun? 🎉</h2>
-					<ul class="text-lg space-y-4 list-disc list-inside mx-auto max-w-2xl">
-						<li>🤖 Experience robotics without the workshop – cheer for your teams from anywhere!</li>
-						<li>🏆 Compete with friends and fans in real-time leaderboards.</li>
-						<li>📈 Hone your strategy skills as you draft, trade, and manage your squad.</li>
-						<li>🌟 Support STEM education and innovation while having a blast.</li>
-						<li>🚀 Perfect for robotics enthusiasts, students, and anyone who loves a good challenge!</li>
-					</ul>
-
+				<!-- Call to Action -->
+				<div class="p-8 max-w-4xl mx-auto text-center space-y-8 bg-base-200 rounded-lg shadow-lg m-4">
 					<div class="divider"></div>
-
-					<h2 class="text-4xl font-bold">Ready to Build Your Empire? 👑</h2>
-					<p class="text-lg">Join thousands of players who are already dominating the competition. Sign up today and start drafting your path to victory! 💪</p>
-
+					<h2 class="text-5xl font-bold text-primary">Ready to Dominate the Competition? 👑</h2>
+					<p class="text-lg text-base-content">Dive into the excitement and start building your robotic empire today! Sign up now and draft your path to championship glory!</p>
 					<div class="space-y-4">
-						<a href="/register" class="btn btn-primary btn-lg">Sign Up Now! 🎮</a>
-						<p class="text-sm">Already have an account? <a href="/login" class="link link-primary">Log in here</a>.</p>
+						<a href="/register" class="btn btn-primary btn-lg">Join Fantasy FRC Now! 🚀</a>
+						<p class="text-sm text-base-content">Already playing? <a href="/login" class="link link-primary">Log in and keep the fun going</a>.</p>
 					</div>
 				</div>
 			</div>
