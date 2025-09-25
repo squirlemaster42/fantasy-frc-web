@@ -199,12 +199,14 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     assert.AddContext("Draft Id", draft.draftId)
     assert.AddContext("Current State", string(draft.model.Status))
     assert.AddContext("Requested State", string(requestedState))
+    assert.RunAssert(draft != nil, "Did not load draft")
 
     lock := dm.getLock(draft.draftId)
     lock.Lock()
     defer lock.Unlock()
 
     state, stateFound := dm.states[draft.model.Status]
+    assert.AddContext("Current Draft State", state)
     assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
     transition, transitionFound := state.transitions[requestedState]
     if !transitionFound {

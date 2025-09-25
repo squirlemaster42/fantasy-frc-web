@@ -183,15 +183,21 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
     //TODO we shouldnt be using asserts on the user input here
     assert := assert.CreateAssertWithContext("Handle Start Draft")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+    // Session token should always be here because the middleware should have
+    // checked for it
+	assert.NoError(err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
 	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
-	assert.NoError(err, "Invalid draft id")
+    if err != nil {
+        c.Response().Status = http.StatusBadRequest
+        return errors.New("Draft id is not a number")
+    }
 
     draft, err := h.DraftManager.GetDraft(draftId, false)
     if err != nil {
         //TODO think if we should show this error to the user
+        c.Response().Status = http.StatusBadRequest
         return err
     }
 

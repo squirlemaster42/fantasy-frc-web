@@ -250,7 +250,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
 
 func CreateDraft(database *sql.DB, draft *DraftModel) int {
     query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
-        EndTime, Interval) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
+        EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
     assert := assert.CreateAssertWithContext("Create Draft")
     assert.AddContext("Owner", draft.Owner)
     assert.AddContext("Display Name", draft.DisplayName)
@@ -262,7 +262,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int {
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
     var draftId int
-    err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval).Scan(&draftId)
+    err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
     assert.NoError(err, "Failed to insert draft")
     playerQuery := `INSERT INTO DraftPlayers (draftId, useruuid) Values ($1, $2);`
     stmt, err = database.Prepare(playerQuery)
