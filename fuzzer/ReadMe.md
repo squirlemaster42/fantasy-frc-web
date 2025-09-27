@@ -32,7 +32,7 @@ go build
 
 ```bash
 cd fuzzer
-go run main.go
+go run .
 ```
 
 ### Build and Run
