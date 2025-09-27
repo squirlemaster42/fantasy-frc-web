@@ -48,7 +48,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	drafts := model.GetDraftsForUser(h.Database, userUuid)
     slog.Info("Loaded drafts for user", "Username", username)
 
-	homeIndex := view.HomeIndex(drafts)
+	homeIndex := view.HomeIndex(drafts, userUuid)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
 	err = Render(c, home)
 	assert.NoError(err, "Handle View Home Failed To Render")
