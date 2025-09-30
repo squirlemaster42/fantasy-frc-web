@@ -234,8 +234,6 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     }
                 </div>
             </div>
-
-            <!-- Start Draft Card -->
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
                 <div class="card-body p-6">
                     @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner)
