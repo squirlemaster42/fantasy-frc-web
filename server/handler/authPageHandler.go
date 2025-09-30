@@ -9,6 +9,7 @@ import (
 	"server/model"
 	"server/view/login"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -41,7 +42,12 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	//We then want to pass a session token as a cookie
 	//And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
 	//We wont validate the password if the user does not exist
-	valid := model.UsernameTaken(h.Database, username) && model.ValidateLogin(h.Database, username, password)
+	taken, err := model.UsernameTaken(h.Database, username)
+	if err != nil {
+		slog.Error("Failed to check if username is taken", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to validate login")
+	}
+	valid := taken && model.ValidateLogin(h.Database, username, password)
 	if valid {
 		slog.Info("Valid login attempt for user", "Username", username)
 		userUuid := model.GetUserUuidByUsername(h.Database, username)
@@ -52,7 +58,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		cookie.Name = "sessionToken"
 		cookie.Value = sessionTok
 		cookie.HttpOnly = true
-        //TODO enable secure again
+		//TODO enable secure again
 		//cookie.Secure = true
 		c.SetCookie(cookie)
 		c.Response().Header().Set("HX-Redirect", "/u/home")
@@ -61,7 +67,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	slog.Warn("Invalid login attempt for user", "Username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
-	err := Render(c, login)
+	err = Render(c, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
 	return nil
@@ -95,11 +101,18 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	password := c.FormValue("password")
 	confirmPassword := c.FormValue("confirmPassword")
 
-	if model.UsernameTaken(h.Database, username) {
+	var err error
+
+	taken, err := model.UsernameTaken(h.Database, username)
+	if err != nil {
+		slog.Error("Failed to check if username is taken", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to check username availability")
+	}
+	if taken {
 		slog.Info("Account creation attempt for existing user but username was taken", "Username", username)
 
 		register := login.RegisterIndex(false, "Username Taken")
-		err := Render(c, register)
+		err = Render(c, register)
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
 		return nil
@@ -110,14 +123,19 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		slog.Info("Password and Confirm Password do not match for user attempting to register", "Username", username)
 
 		register := login.RegisterIndex(false, "Passwords Do Not Match")
-		err := Render(c, register)
+		err = Render(c, register)
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
 		return nil
 	}
 
 	slog.Info("Valid registration for user", "Username", username)
-    userUuid := model.RegisterUser(h.Database, username, password)
+	var userUuid uuid.UUID
+	userUuid, err = model.RegisterUser(h.Database, username, password)
+	if err != nil {
+		slog.Error("Failed to register user", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to register user")
+	}
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userUuid, sessionTok)
 	cookie := new(http.Cookie)
@@ -126,7 +144,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	cookie.HttpOnly = true
 	cookie.Secure = true
 	c.SetCookie(cookie)
-	err := c.Redirect(http.StatusSeeOther, "/u/home")
+	err = c.Redirect(http.StatusSeeOther, "/u/home")
 	assert.NoErrorCF(err, "Failed to redirect on successful registration")
 
 	return nil

@@ -153,7 +153,11 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userUuid, err := uuid.Parse(userUuidString)
 	assert.NoError(err, "Failed to parse user guid")
 
-	model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
+	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
+	if err != nil {
+		slog.Error("Failed to invite player", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to invite player")
+	}
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
