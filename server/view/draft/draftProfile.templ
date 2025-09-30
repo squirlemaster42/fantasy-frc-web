@@ -238,20 +238,23 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
             <!-- Start Draft Card -->
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
                 <div class="card-body p-6">
-                    <button
-                        hx-post={fmt.Sprintf("/u/draft/%d/startDraft", draft.Id)}
-                        disabled?={!isOwner}
-                        class="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                        </svg>
-                        Start Draft
-                    </button>
+                    @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner)
                 </div>
             </div>
         </div>
     </form>
+}
+
+templ StartDraftButton(submitUrl string, err string, isOwner bool) {
+    if err != "" {
+        <span class="text-red-400">{err}</span>
+    }
+    <button hx-post={submitUrl} disabled?={!isOwner} class="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2" >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+        </svg>
+        Start Draft
+    </button>
 }
 
 templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {

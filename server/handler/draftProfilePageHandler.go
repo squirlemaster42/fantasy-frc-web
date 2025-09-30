@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -190,23 +189,31 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
     if err != nil {
+        slog.Warn("Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
         c.Response().Status = http.StatusBadRequest
-        return errors.New("Draft id is not a number")
+        page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Draft Id is not a number", false)
+        return Render(c, page)
     }
 
     draft, err := h.DraftManager.GetDraft(draftId, false)
     if err != nil {
-        //TODO think if we should show this error to the user
+        slog.Warn("Could not load draft", "Draft Id", draftId, "Error", err)
         c.Response().Status = http.StatusBadRequest
-        return err
+        page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
+        return Render(c, page)
     }
 
     if draft.GetOwner().UserUuid != requestingUser {
-        //TODO probably update the ui somehow
+        slog.Warn("User is not draft owner", "Draft Id", draftId, "User", requestingUser)
         c.Response().Status = http.StatusUnauthorized
-        return errors.New("permission denied")
+        page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
+        return Render(c, page)
     }
 
+    //TODO Need to check that all players have accepted the draft
+
+    //TODO What should we show to the user when this happens?
+    slog.Info("Requesting draft state change to picking", "Draft Id", draftId)
     h.DraftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
 
     return nil
