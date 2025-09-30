@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Enable version updates for Cargo
+  # Enable version updates for go
   - package-ecosystem: "gomod"
     # Look for a `Dockerfile` in the `root` directory
     directory: "/"
