@@ -13,7 +13,10 @@ import (
 )
 
 func TestHandleViewDraftProfile_InvalidDraftID(t *testing.T) {
-	// Setup
+	// Setup test helper
+	th := NewTestHelper(t)
+	defer th.Close()
+
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/u/draft/invalid/profile", nil)
 	rec := httptest.NewRecorder()
@@ -22,14 +25,11 @@ func TestHandleViewDraftProfile_InvalidDraftID(t *testing.T) {
 	c.SetParamValues("invalid")
 
 	// Mock authenticated user
+	th.MockUserBySessionToken("valid-token", "550e8400-e29b-41d4-a716-446655440000", "testuser")
 	cookie := &http.Cookie{Name: "sessionToken", Value: "valid-token"}
 	req.AddCookie(cookie)
 
-	// Create handler with mock database
-	// Note: In a real implementation, we'd use sqlmock or a test database
-	handler := &Handler{
-		// Database would be mocked here
-	}
+	handler := th.CreateMockHandler()
 
 	// Execute
 	err := handler.HandleViewDraftProfile(c)
@@ -39,14 +39,22 @@ func TestHandleViewDraftProfile_InvalidDraftID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	// Verify error message is user-friendly, not exposing internal details
 	assert.Contains(t, rec.Body.String(), "Invalid draft ID")
+
+	th.AssertExpectations(t)
 }
 
 func TestHandleUpdateDraftProfile_XSSAttempt(t *testing.T) {
-	// Setup form with XSS payload
+	// Setup test helper
+	th := NewTestHelper(t)
+	defer th.Close()
+
+	// Setup form with XSS payload and required fields
 	f := make(url.Values)
 	f.Set("draftName", "<script>alert('xss')</script>")
 	f.Set("description", "valid description")
 	f.Set("interval", "30")
+	f.Set("startTime", "2024-01-01T10:00")
+	f.Set("endTime", "2024-01-02T10:00")
 
 	req := httptest.NewRequest(http.MethodPost, "/u/draft/1/update", strings.NewReader(f.Encode()))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
@@ -54,16 +62,16 @@ func TestHandleUpdateDraftProfile_XSSAttempt(t *testing.T) {
 	c := echo.New().NewContext(req, rec)
 
 	// Mock authenticated user as draft owner
+	th.MockUserBySessionToken("owner-token", "550e8400-e29b-41d4-a716-446655440001", "owner")
+	th.MockDraftRetrieval(1, true, "550e8400-e29b-41d4-a716-446655440001")
+	th.MockDraftUpdate(1, false) // Update will fail due to XSS validation
+
 	cookie := &http.Cookie{Name: "sessionToken", Value: "owner-token"}
 	req.AddCookie(cookie)
-
-	// Set path parameter
 	c.SetParamNames("id")
 	c.SetParamValues("1")
 
-	handler := &Handler{
-		// Database would be mocked here
-	}
+	handler := th.CreateMockHandler()
 
 	// Execute
 	err := handler.HandleUpdateDraftProfile(c)
@@ -73,9 +81,15 @@ func TestHandleUpdateDraftProfile_XSSAttempt(t *testing.T) {
 	// Should return validation error for XSS attempt
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "invalid characters")
+
+	th.AssertExpectations(t)
 }
 
 func TestHandleUpdateDraftProfile_UnauthorizedUser(t *testing.T) {
+	// Setup test helper
+	th := NewTestHelper(t)
+	defer th.Close()
+
 	// Setup valid form data
 	f := make(url.Values)
 	f.Set("draftName", "Test Draft")
@@ -88,6 +102,9 @@ func TestHandleUpdateDraftProfile_UnauthorizedUser(t *testing.T) {
 	c := echo.New().NewContext(req, rec)
 
 	// Mock authenticated user who is NOT the draft owner
+	th.MockUserBySessionToken("not-owner-token", "550e8400-e29b-41d4-a716-446655440002", "notowner")
+	th.MockDraftRetrieval(1, true, "550e8400-e29b-41d4-a716-446655440001") // Draft exists but user is not owner
+
 	cookie := &http.Cookie{Name: "sessionToken", Value: "not-owner-token"}
 	req.AddCookie(cookie)
 
@@ -95,9 +112,7 @@ func TestHandleUpdateDraftProfile_UnauthorizedUser(t *testing.T) {
 	c.SetParamNames("id")
 	c.SetParamValues("1")
 
-	handler := &Handler{
-		// Database would be mocked here
-	}
+	handler := th.CreateMockHandler()
 
 	// Execute
 	err := handler.HandleUpdateDraftProfile(c)
@@ -106,6 +121,8 @@ func TestHandleUpdateDraftProfile_UnauthorizedUser(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Permission denied")
+
+	th.AssertExpectations(t)
 }
 
 func TestHandleUpdateDraftProfile_InvalidInterval(t *testing.T) {
