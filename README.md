@@ -26,7 +26,7 @@ process for FRC competitions.
 - **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
 - **Web-Based Interface**: Modern web application built with Go and Templ
 - **Database Integration**: PostgreSQL backend for reliable data storage
-- **API Integration**: Seamless integration with The Blue Alliance (TBA) API
+- **API Integration**: Integration with The Blue Alliance (TBA) API (and Discord in the future)
 
 ## Installation
 
