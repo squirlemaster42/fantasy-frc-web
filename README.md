@@ -25,7 +25,7 @@ process for FRC competitions.
 - **User Management**: Invite players, manage profiles, and track team ownership
 - **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
 - **Web-Based Interface**: Modern web application built with Go and Templ
-- **Database Integration**: PostgreSQL backend for reliable data storage
+- **Database Integration**: PostgreSQL database
 - **API Integration**: Integration with The Blue Alliance (TBA) API (and Discord in the future)
 
 ## Installation
