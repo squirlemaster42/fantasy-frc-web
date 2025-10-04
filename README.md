@@ -21,7 +21,7 @@ process for FRC competitions.
 ## Features
 
 - **Automated Drafting**: Create and manage fantasy drafts with real-time team selection
-- **Real-Time Scoring**: Automatically score all competition aspects from qualification matches to playoffs and Einstein using TBA webhooks
+- **Real-Time Scoring**: Automatically score all qualification matches, alliance selection, playoffs, and Einstein using TBA webhooks
 - **User Management**: Invite players, manage profiles, and track team ownership
 - **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
 - **Web-Based Interface**: Modern web application built with Go and Templ
