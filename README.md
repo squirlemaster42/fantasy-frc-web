@@ -84,7 +84,7 @@ SERVER_PORT=8080
 Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing:
 
 - `skipScoring=true`: Disables match and team scoring to avoid excessive TBA API calls during development
-- `populateTeams=true`: Populates the database with teams from configured events on startup (deprecated, will be automated)
+- `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
 ### Build and Run
 
