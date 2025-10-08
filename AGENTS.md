@@ -64,14 +64,6 @@ go mod verify
 - **Error Handling**: Use custom `assert` package for context-aware error handling
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
 
-### Naming Conventions
-
-- **Variables**: camelCase for unexported, PascalCase for exported
-- **Functions**: camelCase for unexported, PascalCase for exported
-- **Types/Structs**: PascalCase
-- **Constants**: camelCase for unexported, PascalCase for exported
-- **Methods**: PascalCase
-
 ### Import Organization
 
 ```go

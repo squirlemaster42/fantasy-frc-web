@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Fantasy FRC is a web-based fantasy league game for FIRST Robotics Competition
-(FRC) teams. Created by students on FRC Team 1699 during the 2018 New England
+(FRC) teams. Created by then students (and now alumni) of FRC Team 1699 during the 2018 New England
 District Championships, this project automates the entire drafting and scoring
 process for FRC competitions.
 
@@ -21,12 +21,12 @@ process for FRC competitions.
 ## Features
 
 - **Automated Drafting**: Create and manage fantasy drafts with real-time team selection
-- **Real-Time Scoring**: Automatically score all competition aspects from qualification matches to playoffs and Einstein using TBA webhooks
-- **User Management**: Invite players, manage profiles, and track team ownership
+- **Real-Time Scoring**: Automatically score all qualification matches, alliance selection, playoffs, and Einstein using TBA webhooks
+- **User Management**: Invite players, manage profiles, and track picks
 - **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
 - **Web-Based Interface**: Modern web application built with Go and Templ
-- **Database Integration**: PostgreSQL backend for reliable data storage
-- **API Integration**: Seamless integration with The Blue Alliance (TBA) API
+- **Database Integration**: PostgreSQL database
+- **API Integration**: Integration with The Blue Alliance (TBA) API (and Discord in the future)
 
 ## Installation
 
@@ -84,7 +84,7 @@ SERVER_PORT=8080
 Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing:
 
 - `skipScoring=true`: Disables match and team scoring to avoid excessive TBA API calls during development
-- `populateTeams=true`: Populates the database with teams from configured events on startup (deprecated, will be automated)
+- `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
 ### Build and Run
 
