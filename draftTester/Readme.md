@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 
-A testing utility for Fantasy FRC Web that creates drafts and simulates picks. Designed for development and stress testing of the drafting system.
+A testing utility for Fantasy FRC Web that creates drafts and simulates picks. Designed for creating drafts for developmentt/tesing and eventually stress testing of the system.
 
 ## Features
 
