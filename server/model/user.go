@@ -21,16 +21,17 @@ func (u *User) String() string {
 }
 
 func RegisterUser(database *sql.DB, username string, password string) uuid.UUID {
-    query := `INSERT INTO Users (username, password) Values ($1, $2) Returning UserUuid;`
+    query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
     assert := assert.CreateAssertWithContext("Register User")
     assert.AddContext("Username", username)
     assert.AddContext("Password", password)
     stmt, err := database.Prepare(query)
     assert.NoError(err, "Failed to prepare statement")
+    userUuid := uuid.New()
+    assert.NoError(err, "Failed to create uuid")
     hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
     assert.NoError(err, "Failed to generate password hash")
-    var userUuid uuid.UUID
-    err = stmt.QueryRow(username, string(hashedPassword)).Scan(&userUuid)
+    err = stmt.QueryRow(userUuid, username, string(hashedPassword)).Scan(&userUuid)
     assert.NoError(err, "Failed to register user")
     return userUuid
 }
