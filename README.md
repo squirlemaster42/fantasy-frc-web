@@ -10,23 +10,12 @@ process for FRC competitions.
 
 ## Table of Contents
 
-- [Features](#features)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Building and Running](#building-and-running)
 - [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
-
-## Features
-
-- **Automated Drafting**: Create and manage fantasy drafts with real-time team selection
-- **Real-Time Scoring**: Automatically score all qualification matches, alliance selection, playoffs, and Einstein using TBA webhooks
-- **User Management**: Invite players, manage profiles, and track picks
-- **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
-- **Web-Based Interface**: Modern web application built with Go and Templ
-- **Database Integration**: PostgreSQL database
-- **API Integration**: Integration with The Blue Alliance (TBA) API (and Discord in the future)
 
 ## Installation
 
