@@ -21,6 +21,7 @@ type User struct {
     Password string
     Client http.Client
     Uuid string
+    IsOwner bool
 }
 
 type Draft struct {
@@ -50,6 +51,7 @@ func main() {
     keys := reflect.ValueOf(users).MapKeys()
     //TODO I think we might always be choosing the same owner
     owner := users[keys[rand.IntN(len(keys))].String()]
+    owner.IsOwner = true
     draft := createDraft(owner)
     invitePlayersToDraft(owner, users, draft)
     for _, user := range users {
@@ -57,6 +59,30 @@ func main() {
     }
 
     //Start Draft
+    startDraft(owner, draft.Id)
+
+    //Check that draft is in the correct status
+}
+
+func startDraft(user *User, draftId int) {
+    slog.Info("Start Draft", "Draft Id", draftId, "User", user.Username)
+    form := url.Values{}
+
+    resp, err := user.Client.Post(fmt.Sprintf("%s/u/draft/%d/startDraft", target, draftId), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+    if err != nil {
+        slog.Error("Failed to start draft", "Draft Id", draftId, "Username", user.Username, "Error", err)
+        panic(err)
+    }
+
+    if resp.StatusCode != 200 {
+        slog.Error("Failed to start draft", "Draft Id", draftId, "User", user.Username)
+        panic("failed to create draft")
+    }
+
+    //body, err := io.ReadAll(resp.Body)
+    slog.Info("Start Draft Request Made", "Draft Id", draftId, "User", user.Username, "Status", resp.StatusCode)
+
+    slog.Info("Started Draft", "Draft Id", draftId)
 }
 
 func acceptInvite(user *User) {
@@ -85,10 +111,15 @@ func acceptInvite(user *User) {
             acceptRespBody = sendAcceptInvite(user, id)
             break
         } else if r > 5 {
+            if user.IsOwner {
+                break
+            }
+            slog.Error("Did not find at least one invite id", "Username", user.Username)
             panic("error: did not find at least one invite id")
         } else {
             r++
             time.Sleep(500 * time.Millisecond)
+            id, found = getInviteId(string(body))
         }
     }
 

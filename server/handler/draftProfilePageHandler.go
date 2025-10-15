@@ -186,6 +186,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
     // checked for it
 	assert.NoError(err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
+    slog.Info("Got a request to start a draft", "Draft Id", draftIdStr)
 	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
     if err != nil {
