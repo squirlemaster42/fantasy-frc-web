@@ -32,7 +32,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-slate-400 font-medium">Status:</span>
-                            <div class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                            <div class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold" id="draftStatus">
                                 { string(draft.Status) }
                             </div>
                         </div>
