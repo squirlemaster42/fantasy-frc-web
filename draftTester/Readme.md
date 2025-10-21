@@ -42,10 +42,6 @@ go build
 ./draftTester
 ```
 
-### Configuration
-
-The tool uses the same database configuration as the main Fantasy FRC application. Ensure your `.env` file is set up in the `server/` directory.
-
 ## Development
 
 This tool is currently in development and will be expanded to include more comprehensive stress testing features for the Fantasy FRC drafting system.
