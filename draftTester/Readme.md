@@ -8,7 +8,6 @@ A testing utility for Fantasy FRC Web that creates drafts and simulates picks. D
 
 - Create test drafts programmatically
 - Simulate player picks
-- Stress test the drafting system
 - Generate test data for development
 
 ## Installation
