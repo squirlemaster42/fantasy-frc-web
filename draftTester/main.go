@@ -165,7 +165,7 @@ func getCurrentDraftStatus(user *User, draftId int) string {
 }
 
 func parseDraftStatus(profilePage string) string {
-	prefix := "<div id=\"draftStatus\">"
+	prefix := "id=\"draftStatus\">"
 	idx := strings.Index(profilePage, prefix)
 	if idx == -1 {
 		return ""
