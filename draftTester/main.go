@@ -49,7 +49,6 @@ func main() {
 
 	//Choose a user and create a draft
 	keys := reflect.ValueOf(users).MapKeys()
-	//TODO I think we might always be choosing the same owner
 	owner := users[keys[rand.IntN(len(keys))].String()]
 	owner.IsOwner = true
 	draft := createDraft(owner)
@@ -67,6 +66,10 @@ func main() {
         slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
         panic("draft status is not correct")
     }
+
+    // Wait for draft start time to hit and make sure draft goes into picking
+
+    // Have play make picks in a random order. Some picks being valid and some being invalid
 }
 
 func startDraft(user *User, draftId int) {

@@ -46,42 +46,52 @@ func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
         slog.Info("Starting iteration of the Draft Daemon")
-        for draftId, running := range d.runningDrafts {
-            if !running {
-                continue
-            }
-
-            curPick := model.GetCurrentPick(d.database, draftId)
-            skipped := false
-
-            //Check if the current player if skipping their pick. If so we
-            //should skip them
-            slog.Info("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-            shouldSkip := model.ShoudSkipPick(d.database, curPick.Player)
-            if shouldSkip {
-                slog.Info("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
-                nextPickPlayer := model.NextPick(d.database, draftId)
-                model.SkipPick(d.database, curPick.Id)
-                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-                d.notifier.NotifyWatchers(draftId)
-                skipped = true
-            }
-
-            slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-            now := time.Now()
-            if curPick.ExpirationTime.Before(now) && !skipped {
-                slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
-                //We want to skip the current pick and go to the next one
-                nextPickPlayer := model.NextPick(d.database, draftId)
-                model.SkipPick(d.database, curPick.Id)
-                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-                d.notifier.NotifyWatchers(draftId)
-            } else {
-                slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
-            }
-        }
+        d.checkForDraftsToStart()
+        d.checkForPicksToSkip()
 
         time.Sleep(1 * time.Minute)
+    }
+}
+
+func (d *DraftDaemon) checkForDraftsToStart() error {
+    //Get all drafts that are in the waiting to start status
+    return nil
+}
+
+func (d *DraftDaemon) checkForPicksToSkip() {
+    for draftId, running := range d.runningDrafts {
+        if !running {
+            continue
+        }
+
+        curPick := model.GetCurrentPick(d.database, draftId)
+        skipped := false
+
+        //Check if the current player if skipping their pick. If so we
+        //should skip them
+        slog.Info("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
+        shouldSkip := model.ShoudSkipPick(d.database, curPick.Player)
+        if shouldSkip {
+            slog.Info("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
+            nextPickPlayer := model.NextPick(d.database, draftId)
+            model.SkipPick(d.database, curPick.Id)
+            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+            d.notifier.NotifyWatchers(draftId)
+            skipped = true
+        }
+
+        slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
+        now := time.Now()
+        if curPick.ExpirationTime.Before(now) && !skipped {
+            slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
+            //We want to skip the current pick and go to the next one
+            nextPickPlayer := model.NextPick(d.database, draftId)
+            model.SkipPick(d.database, curPick.Id)
+            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+            d.notifier.NotifyWatchers(draftId)
+        } else {
+            slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
+        }
     }
 }
 
