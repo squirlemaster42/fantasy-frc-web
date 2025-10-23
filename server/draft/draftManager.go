@@ -194,6 +194,7 @@ func (e *invalidStateTransitionError) Error() string {
 }
 
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
+    slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
     assert := assert.CreateAssertWithContext("Execute Draft State Transition")
     draft := dm.drafts[draftId]
     assert.AddContext("Draft Id", draft.draftId)
@@ -205,17 +206,21 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     lock.Lock()
     defer lock.Unlock()
 
+    fmt.Println(dm.states)
     state, stateFound := dm.states[draft.model.Status]
     assert.AddContext("Current Draft State", state)
     assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
+    fmt.Println(state)
     transition, transitionFound := state.transitions[requestedState]
     if !transitionFound {
+        slog.Error("Did not find draft state transition", "Current State", draft.model.Status, "Requested State", requestedState)
         return &invalidStateTransitionError{
-            currentState: model.FILLING,
-            requestedState: model.FILLING,
+            currentState: draft.model.Status,
+            requestedState: requestedState,
         }
     }
 
+    slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
     return transition.executeTransition(draft)
 }
 

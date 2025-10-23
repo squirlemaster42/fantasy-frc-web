@@ -357,7 +357,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         return DraftModel{}, errors.New("failed to load draft")
     }
 
-    slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
+    slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status)
     if draftModel.Status == PICKING {
         slog.Info("Getting the current pick for the draft")
         draftModel.NextPick = DraftPlayer {

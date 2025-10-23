@@ -215,7 +215,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
     //TODO What should we show to the user when this happens?
     slog.Info("Requesting draft state change to picking", "Draft Id", draftId)
-    h.DraftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+    err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
+    if err != nil {
+        slog.Error("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+    }
 
     return nil
 }

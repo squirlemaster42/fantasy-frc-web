@@ -62,7 +62,9 @@ func main() {
 	startDraft(owner, draft.Id)
 
 	//Check that draft is in the correct status
-    if getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
+    currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
+    if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
+        slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
         panic("draft status is not correct")
     }
 }
