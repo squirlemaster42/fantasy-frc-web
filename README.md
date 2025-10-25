@@ -13,7 +13,6 @@ process for FRC competitions.
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Building and Running](#building-and-running)
-- [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -84,19 +83,6 @@ make
 # Build with options
 make skipScoring=true
 make populateTeams=true
-```
-
-### Development
-
-```bash
-# Run tests
-go test ./...
-
-# Format code
-go fmt ./...
-
-# Vet code
-go vet ./...
 ```
 
 ## Usage
