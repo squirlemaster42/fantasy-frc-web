@@ -1062,3 +1062,36 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 
     return playerScores
 }
+
+func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
+    assert := assert.CreateAssertWithContext("Get Drafts To Start")
+    assert.AddContext("Cutoff Date", cutoffDate)
+
+    query := `
+    Select
+        Id
+    From Drafts d
+    Where d.StartTime > $1
+    And d.Status = $2
+    `
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query(cutoffDate, WAITING_TO_START)
+
+    if err != nil {
+        return nil, err
+    }
+
+    var draftIds []int
+    for rows.Next() {
+        var draftId int
+        err = rows.Scan(&draftId)
+        if err != nil {
+            //Return the draft ids so that we can at least process those
+            return draftIds, err
+        }
+        draftIds = append(draftIds, draftId)
+    }
+
+    return draftIds, nil
+}
