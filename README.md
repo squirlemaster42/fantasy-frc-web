@@ -27,7 +27,7 @@ process for FRC competitions.
 
 ### Install Go
 
-Fantasy FRC is built using the latest version of [Go](https://go.dev/doc/install). The current system requires Go 1.24+.
+Fantasy FRC is built using the latest version of [Go](https://go.dev/doc/install). The current system requires Go 1.23+.
 
 ### Install Templ
 
