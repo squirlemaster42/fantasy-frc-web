@@ -69,7 +69,7 @@ SERVER_PORT=8080
 
 ## Building and Running
 
-Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing:
+Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid excessive TBA API calls during development
 - `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
