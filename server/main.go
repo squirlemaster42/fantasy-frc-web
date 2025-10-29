@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"server/assert"
+	"server/background"
 	"server/database"
 	"server/draft"
 	"server/handler"
@@ -56,6 +57,22 @@ func main() {
     }
 
     draftManager := draft.NewDraftManager(tbaHandler, database)
+    //Start the draft daemon and add all running drafts to it
+    draftDaemon := background.NewDraftDaemon(database, draftManager)
+    err = draftDaemon.Start()
+    if err != nil {
+        slog.Warn("Failed to start draft daemon", "Error", err)
+        panic("failed to start draft manager")
+    }
+
+    slog.Info("Checking for drafts that need to be added to daemon")
+    drafts := model.GetDraftsInStatus(database, model.PICKING)
+    for _, draftId := range drafts {
+        err = draftDaemon.AddDraft(draftId)
+        if err != nil {
+            slog.Warn("Failed to add draft to manager in init", "Error", err)
+        }
+    }
 
     scorer := scorer.NewScorer(tbaHandler, database)
     if !*skipScoring {

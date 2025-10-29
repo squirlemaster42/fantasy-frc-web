@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"server/draft"
 	"server/model"
 	"server/picking"
 	"server/utils"
@@ -19,7 +20,7 @@ type DraftDaemon struct {
     notifier *picking.PickNotifier
 }
 
-func NewDraftDaemon(database *sql.DB) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDaemon {
     return &DraftDaemon{
         database: database,
         running: false,
