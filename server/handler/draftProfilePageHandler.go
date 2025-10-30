@@ -36,6 +36,16 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
     isOwner := userUuid == draftModel.Owner.UserUuid
 
+    if draftModel.StartTime.IsZero() {
+        slog.Info("Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now())
+        draftModel.StartTime = time.Now().Add(1 * time.Hour)
+    }
+
+    if draftModel.EndTime.IsZero() {
+        slog.Info("Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now())
+        draftModel.EndTime = time.Now().Add(72 * time.Hour)
+    }
+
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
 	return Render(c, draftView)
