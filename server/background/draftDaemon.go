@@ -18,6 +18,7 @@ type DraftDaemon struct {
     mu sync.Mutex
     runningDrafts map[int]bool
     notifier *picking.PickNotifier
+    draftManager *draft.DraftManager
 }
 
 func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDaemon {
@@ -26,6 +27,7 @@ func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDa
         running: false,
         runningDrafts: make(map[int]bool),
         notifier: &picking.PickNotifier{},
+        draftManager: draftManager,
     }
 }
 
@@ -67,6 +69,7 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
     }
 
     for _, draftId := range draftIds {
+        d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
     }
 
     return nil
