@@ -72,7 +72,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
     intInterval, err := strconv.Atoi(interval)
     assert.NoError(err, "Failed to parse interval")
 
-    layout := "2006-01-02T15:04"
+    layout := "2006-01-02T15:04:05"
     parsedStartTime, err := time.Parse(layout, startTime)
     assert.NoError(err, "Failed to parse start time")
     parsedEndTime, err := time.Parse(layout, endTime)
