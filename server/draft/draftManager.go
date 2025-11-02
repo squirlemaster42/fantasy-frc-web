@@ -44,6 +44,7 @@ type ToPickingTransition struct {
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
+    model.RandomizePickOrder(tpt.database, draft.draftId)
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     return nil
 }
