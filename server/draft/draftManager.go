@@ -183,11 +183,9 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     lock.Lock()
     defer lock.Unlock()
 
-    fmt.Println(dm.states)
     state, stateFound := dm.states[draft.model.Status]
     assert.AddContext("Current Draft State", state)
     assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
-    fmt.Println(state)
     transition, transitionFound := state.transitions[requestedState]
     if !transitionFound {
         slog.Error("Did not find draft state transition", "Current State", draft.model.Status, "Requested State", requestedState)

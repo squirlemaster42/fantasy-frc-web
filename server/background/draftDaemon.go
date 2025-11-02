@@ -69,6 +69,11 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
     }
 
     for _, draftId := range draftIds {
+        _, err := d.draftManager.GetDraft(draftId, false)
+        if err != nil {
+            slog.Warn("Failed to load draft", "Draft Id", draftId, "Error", err)
+            continue
+        }
         d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
     }
 
