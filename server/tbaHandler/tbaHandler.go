@@ -75,6 +75,7 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 
 func (t *TbaHandler) makeRequest(url string) []byte {
     slog.Info("Making TBA request", "Url", url)
+	//todo move this to the struct so that we arent making a ton of new clients
     client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)
