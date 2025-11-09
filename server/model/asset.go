@@ -10,7 +10,7 @@ import (
 type Asset struct {
     Id int
     Path string
-    Asset image.Image //TODO Is this right
+    Asset image.Image
 }
 
 //TODO we should have something in the .env file to define the asset path
