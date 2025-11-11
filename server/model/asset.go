@@ -13,7 +13,6 @@ type Asset struct {
     Asset image.Image
 }
 
-//TODO we should have something in the .env file to define the asset path
 type AssetManager struct {
     AssetPath string
 }
@@ -24,14 +23,11 @@ func (a *AssetManager) LoadDraftProfileAsset(database *sql.DB, draftId int) *Ass
 
 //The actual html will need to base64 encode the image
 
-//TODO Think about what sort of validation we need to do for replacing images (we might not need to do any since its obvious to the user)
 func (a *AssetManager) UploadDraftProfileAsset(database *sql.DB, draftId int, image image.Image) error {
     //Generate a unique id for the image
     //assetId := uuid.New()
 
     //Save the relative path to the database
-
-    //TODO We need to figure out the image type
 
     //Point the draft asset to this
 
