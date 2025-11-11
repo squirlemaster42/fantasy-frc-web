@@ -33,14 +33,10 @@ go test -race ./...
 
 ### Linting and Formatting
 ```bash
-# Format code
-go fmt ./...
-
 # Vet code for potential issues
 go vet ./...
 
-# Run both formatting and vetting
-go fmt ./... && go vet ./...
+For formatting, follow the format of the rest of the code, do not use Go's built in formatter.
 ```
 
 ### Dependencies
