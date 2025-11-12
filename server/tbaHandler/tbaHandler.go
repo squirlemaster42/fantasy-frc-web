@@ -17,12 +17,14 @@ const (
 type TbaHandler struct {
     tbaToken string
     database *sql.DB
+    client *http.Client
 }
 
 func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
     handler := &TbaHandler{
         tbaToken: tbaToken,
         database: database,
+        client: &http.Client{},
     }
     return handler
 }
@@ -75,8 +77,6 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 
 func (t *TbaHandler) makeRequest(url string) []byte {
     slog.Info("Making TBA request", "Url", url)
-	//todo move this to the struct so that we arent making a ton of new clients
-    client := &http.Client{}
 
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
@@ -96,7 +96,7 @@ func (t *TbaHandler) makeRequest(url string) []byte {
     }
 
     req.Header.Add("X-TBA-Auth-Key", t.tbaToken)
-    resp, err := client.Do(req)
+    resp, err := t.client.Do(req)
     if err != nil {
         slog.Error("Failed to run tba request", "Error", err)
         return nil
