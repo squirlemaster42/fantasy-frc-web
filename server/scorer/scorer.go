@@ -287,9 +287,6 @@ func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
 }
 
 func (s *Scorer) scoringRunner() {
-    //We need to rewrite this to support websockets
-    //We need to score matches that have been played when the scorer starts up and then
-    //score matches that come in over the websocket
     for _, event := range utils.Events() {
         for _, match := range s.tbaHandler.MakeEventMatchKeysRequest(event) {
             s.AddMatchToScore(swagger.Match{
