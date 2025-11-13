@@ -58,10 +58,15 @@ func (d *DraftDaemon) Run() {
 
 func (d *DraftDaemon) checkForDraftsToStart() error {
     //Get all drafts that are in the waiting to start status
+    slog.Info("Checking for drafts to Start")
     now := time.Now()
     draftIds, err := model.GetDraftsToStart(d.database, now)
     if err != nil && draftIds == nil {
         return err
+    }
+
+    if len(draftIds) > 0 {
+        slog.Info("Found drafts to start")
     }
 
     if err != nil {
@@ -81,8 +86,6 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 }
 
 func (d *DraftDaemon) checkForPicksToSkip() {
-    //TODO This needs to go through the draft manager, so we need to pass the
-    //draft manager in here instead of what we are doing now
     for draftId, running := range d.runningDrafts {
         if !running {
             continue
