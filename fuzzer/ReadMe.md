@@ -7,8 +7,6 @@ A fuzzing tool for Fantasy FRC Web that generates randomized match JSON data. Us
 ## Features
 
 - Generate fuzzy match JSON payloads
-- Test webhook integration with The Blue Alliance
-- Validate match scoring logic
 - Stress test system with high-volume data
 - Create realistic test scenarios
 
