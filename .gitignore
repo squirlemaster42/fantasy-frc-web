@@ -1,6 +1,4 @@
 *.env
-client/node_modules/
-client/package-lock.json
 .idea/*
 .idea/fantasy-frc-web.iml
 /.idea
