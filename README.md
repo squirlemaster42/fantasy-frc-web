@@ -46,7 +46,7 @@ A guide to install Templ can be found [here](https://templ.guide/quick-start/ins
    ```
 4. Run any additional migration scripts as needed.
 
-**Note**: Better database versioning is planned for future releases.
+**Note**: Database versioning is planned for future releases.
 
 ## Configuration
 .
