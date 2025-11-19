@@ -191,7 +191,6 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 func (h *Handler) HandleStartDraft(c echo.Context) error {
 	//TODO we should check that the start time is after the current time. If
 	//not, should we move it to now or throw and error?
-	//TODO we shouldnt be using asserts on the user input here
 	assert := assert.CreateAssertWithContext("Handle Start Draft")
 	userTok, err := c.Cookie("sessionToken")
 	// Session token should always be here because the middleware should have
