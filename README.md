@@ -32,6 +32,7 @@ Fantasy FRC is built using the latest version of . The current system requires G
 ### Install Templ
 
 A guide to install Templ can be found [here](https://templ.guide/quick-start/installation/).
+Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/cmd/templ`
 
 ### Install PostgreSQL and Set Up Database
 
