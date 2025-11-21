@@ -27,7 +27,7 @@ process for FRC competitions.
 
 ### Install Go
 
-Fantasy FRC is built using the latest version of [Go](https://go.dev/doc/install). The current system requires Go 1.23+.
+Fantasy FRC is built using the latest version of . The current system requires Go 1.23+.
 
 ### Install Templ
 
@@ -92,16 +92,6 @@ make populateTeams=true
 3. Create an account and start a new draft
 4. Invite players and begin drafting teams
 5. Watch scores update in real-time as matches are played
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## License
 
