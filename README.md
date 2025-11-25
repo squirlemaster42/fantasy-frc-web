@@ -86,14 +86,6 @@ make skipScoring=true
 make populateTeams=true
 ```
 
-## Usage
-
-1. Start the server using `make`
-2. Access the web interface at `http://localhost:8080`
-3. Create an account and start a new draft
-4. Invite players and begin drafting teams
-5. Watch scores update in real-time as matches are played
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
