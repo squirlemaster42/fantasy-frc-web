@@ -61,10 +61,10 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	slog.Warn("Invalid login attempt for user", "Username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
-	err := Render(c, login)
+	err := RenderError(c, http.StatusUnauthorized, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
-	return nil
+	return err
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -103,7 +103,6 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
 		return nil
-
 	}
 
 	if password != confirmPassword {
