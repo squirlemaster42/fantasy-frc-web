@@ -27,7 +27,7 @@ the entire drafting and scoring process for FRC competitions.
 
 ### Install Go
 
-Fantasy FRC is built using the latest version of . The current system requires Go 1.23+.
+Fantasy FRC is built using the latest version of Go. The current system requires Go 1.23+.
 
 ### Install Templ
 
