@@ -12,8 +12,14 @@ import (
 
 func getTbaTok(t *testing.T) string {
     err := godotenv.Load(filepath.Join("../", ".env"))
-    t.Fatalf("Failed to load tba token %v", err)
-    return os.Getenv("TBA_TOKEN")
+    if err != nil {
+        t.Skipf("Skipping test: failed to load .env file %v", err)
+    }
+    token := os.Getenv("TBA_TOKEN")
+    if token == "" {
+        t.Skip("Skipping test: TBA_TOKEN not found in environment")
+    }
+    return token
 }
 
 func TestMatchListReq(t *testing.T) {

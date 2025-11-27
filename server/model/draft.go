@@ -61,7 +61,13 @@ type DraftPlayer struct {
 }
 
 func (d *DraftPlayer) String() string {
-	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %d\n Pending: %t\n}", d.Id, d.User.UserUuid.String(), d.PlayerOrder, d.Pending)
+	var playerOrderStr string
+	if d.PlayerOrder.Valid {
+		playerOrderStr = fmt.Sprintf("%d", d.PlayerOrder.Int16)
+	} else {
+		playerOrderStr = "NULL"
+	}
+	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n}", d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending)
 }
 
 type Pick struct {
