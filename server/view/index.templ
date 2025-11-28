@@ -1,8 +1,11 @@
 package view
 
-import "server/view/partials"
+import (
+	"github.com/labstack/echo/v4"
+	"server/view/partials"
+)
 
-templ Index(page string, fromProtected bool, username string, data any) {
+templ Index(c echo.Context, page string, fromProtected bool, username string, data any) {
     <!DOCTYPE html>
 	<html lang="en" data-theme="dark">
         <head>
@@ -23,7 +26,7 @@ templ Index(page string, fromProtected bool, username string, data any) {
         <body class="simple-transition" hx-boost="true">
             <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
             <header>
-                @partials.Navbar(fromProtected, username, page, data)
+                @partials.Navbar(c, fromProtected, username, page, data)
             </header>
             <main class="fixed w-full top-16 bottom-0">
                 {children...}

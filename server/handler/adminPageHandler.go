@@ -130,8 +130,8 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
     userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userUuid)
 
-    adminConsoleIndex := admin.AdminConsoleIndex(username)
-    adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
+    adminConsoleIndex := admin.AdminConsoleIndex(c, username)
+    adminConsole := admin.AdminConsole(c, " | Admin Console", true, username, adminConsoleIndex)
     return Render(c, adminConsole)
 }
 

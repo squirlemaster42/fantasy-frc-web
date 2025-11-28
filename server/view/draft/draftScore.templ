@@ -4,6 +4,7 @@ import (
     "server/view"
     "server/model"
     "fmt"
+    "github.com/labstack/echo/v4"
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
@@ -15,8 +16,8 @@ templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
     <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
 }
 
-templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftScore(c echo.Context, page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(c, page, fromProtected, username, draftId) {
         @cmp
     }
 }

@@ -86,6 +86,39 @@ make skipScoring=true
 make populateTeams=true
 ```
 
+## Security
+
+### CSRF Protection
+
+This application implements comprehensive Cross-Site Request Forgery (CSRF) protection using Echo framework middleware:
+
+- **Protected Routes**: All POST endpoints require valid CSRF tokens
+- **Token Generation**: Session-based unique tokens automatically generated  
+- **Form Integration**: All forms include hidden CSRF token inputs
+- **Webhook Exemption**: External webhook endpoint properly exempted
+
+### Security Testing
+
+#### Automated Testing
+```bash
+# Run CSRF protection tests
+make test-csrf
+
+# Run manual CSRF testing script  
+make test-csrf-manual
+```
+
+#### Manual Testing
+- Follow comprehensive testing checklist: `docs/csrf_testing_checklist.md`
+- Use browser dev tools to verify CSRF token presence
+- Test form submissions with/without CSRF tokens
+- Verify cross-origin requests are blocked
+
+#### Documentation
+- Implementation details: `docs/csrf_protection.md`
+- Testing procedures: `docs/csrf_testing_checklist.md`
+- Testing summary: `docs/csrf_testing_implementation.md`
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

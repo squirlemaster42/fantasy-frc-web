@@ -14,8 +14,8 @@ import (
 
 // We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
-	loginIndex := login.LoginIndex(false, "")
-	login := login.Login(" | Login", false, loginIndex)
+	loginIndex := login.LoginIndex(c, false, "")
+	login := login.Login(c, " | Login", false, loginIndex)
 	err := Render(c, login)
 	assert.NoErrorCF(err, "Handle View Login Failed To Render")
 	return nil
@@ -60,7 +60,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 
 	slog.Warn("Invalid login attempt for user", "Username", username)
-	login := login.LoginIndex(false, "You have entered an invalid username or password")
+	login := login.LoginIndex(c, false, "You have entered an invalid username or password")
 	err := RenderError(c, http.StatusUnauthorized, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
@@ -83,8 +83,8 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 }
 
 func (h *Handler) HandleViewRegister(c echo.Context) error {
-	registerIndex := login.RegisterIndex(false, "")
-	register := login.Register(" | Register", false, registerIndex)
+	registerIndex := login.RegisterIndex(c, false, "")
+	register := login.Register(c, " | Register", false, registerIndex)
 	err := Render(c, register)
 	assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 	return nil
@@ -98,7 +98,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	if model.UsernameTaken(h.Database, username) {
 		slog.Info("Account creation attempt for existing user but username was taken", "Username", username)
 
-		register := login.RegisterIndex(false, "Username Taken")
+		register := login.RegisterIndex(c, false, "Username Taken")
 		err := Render(c, register)
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
@@ -108,7 +108,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	if password != confirmPassword {
 		slog.Info("Password and Confirm Password do not match for user attempting to register", "Username", username)
 
-		register := login.RegisterIndex(false, "Passwords Do Not Match")
+		register := login.RegisterIndex(c, false, "Passwords Do Not Match")
 		err := Render(c, register)
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 

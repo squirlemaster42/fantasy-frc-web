@@ -1,8 +1,12 @@
 package draft
 
-import "server/model"
-import "server/view"
-import "strings"
+import (
+    "server/model"
+    "server/view"
+    "server/view/partials"
+    "strings"
+    "github.com/labstack/echo/v4"
+)
 
 type PickPage struct {
     Draft model.DraftModel
@@ -14,7 +18,7 @@ type PickPage struct {
     SkipUrl string
 }
 
-templ DraftPickIndex (pickPageModel PickPage) {
+templ DraftPickIndex (c echo.Context, pickPageModel PickPage) {
     <div id="draftPicks" class="flex flex-col w-full h-full gap-6 p-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
         <div hx-ext="ws" ws-connect={pickPageModel.NotifierUrl} class="w-full">
             <form
@@ -24,6 +28,7 @@ templ DraftPickIndex (pickPageModel PickPage) {
                 action=""
                 method="post"
             >
+                @partials.CSRFToken(c)
                 <div id="draft-table" class="flex flex-col gap-6">
                     <div class="w-full flex items-center justify-center">
                         if pickPageModel.PickError != nil {
@@ -48,24 +53,28 @@ templ DraftPickIndex (pickPageModel PickPage) {
                             </button>
                             <div class="flex items-center gap-3">
                                 if pickPageModel.IsSkipping {
-                                <input
-                                    id="default-checkbox"
-                                    name="skipping"
-                                    type="checkbox"
-                                    hx-swap="none"
-                                    hx-post={pickPageModel.SkipUrl}
-                                    title="When selected you will automatically skip future picks."
-                                    checked
-                                    class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                <form hx-swap="none" hx-post={pickPageModel.SkipUrl} class="contents">
+                                    @partials.CSRFToken(c)
+                                    <input
+                                        id="default-checkbox"
+                                        name="skipping"
+                                        type="checkbox"
+                                        title="When selected you will automatically skip future picks."
+                                        checked
+                                        onchange="this.form.submit()"
+                                        class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                </form>
                                 } else {
-                                <input
-                                    id="default-checkbox"
-                                    name="skipping"
-                                    type="checkbox"
-                                    hx-swap="none"
-                                    hx-post={pickPageModel.SkipUrl}
-                                    title="When selected you will automatically skip future picks."
-                                    class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                <form hx-swap="none" hx-post={pickPageModel.SkipUrl} class="contents">
+                                    @partials.CSRFToken(c)
+                                    <input
+                                        id="default-checkbox"
+                                        name="skipping"
+                                        type="checkbox"
+                                        title="When selected you will automatically skip future picks."
+                                        onchange="this.form.submit()"
+                                        class="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2">
+                                </form>
                                 }
                                 <label for="default-checkbox" class="text-sm font-medium text-slate-300 cursor-pointer">Auto skip picks?</label>
                             </div>
@@ -77,8 +86,8 @@ templ DraftPickIndex (pickPageModel PickPage) {
     </div>
 }
 
-templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftPick (c echo.Context, page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(c, page, fromProtected, username, draftId) {
         @cmp
     }
 }

@@ -104,9 +104,9 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
         IsSkipping: isSkipping,
         SkipUrl: skipUrl,
     }
-    pickPageIndex := draft.DraftPickIndex(pickPageModel)
+    pickPageIndex := draft.DraftPickIndex(c, pickPageModel)
     username := model.GetUsername(h.Database, userUuid)
-    pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId)
+    pickPageView := draft.DraftPick(c, " | Draft Picks", true, username, pickPageIndex, draftId)
     err = Render(c, pickPageView)
     return err
 }

@@ -1,8 +1,11 @@
 package partials
 
-import "fmt"
+import (
+    "fmt"
+    "github.com/labstack/echo/v4"
+)
 
-templ Navbar(fromProtected bool, username string, page string, data any) {
+templ Navbar(c echo.Context, fromProtected bool, username string, page string, data any) {
     <nav class="bg-slate-900 border-b border-slate-700 shadow-lg fixed top-0 w-full z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
@@ -87,19 +90,18 @@ templ Navbar(fromProtected bool, username string, page string, data any) {
                             </div>
                             <span class="text-slate-300 font-medium">{ username }</span>
                         </div>
-                        <button
-                            hx-swap="transition:true"
-                            hx-post="/logout"
-                            hx-confirm="Are you sure you want to log out?"
-                            hx-target="body"
-                            hx-push-url="true"
-                            class="flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
-                        >
+                        <form hx-post="/logout" hx-confirm="Are you sure you want to log out?" hx-target="body" hx-push-url="true" class="contents">
+                            @CSRFToken(c)
+                            <button
+                                type="submit"
+                                class="flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
+                            >
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                             </svg>
                             Logout
-                        </button>
+                            </button>
+                        </form>
                     } else {
                         <div class="flex items-center space-x-2">
                             <a

@@ -26,8 +26,8 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 
     invites := model.GetInvites(h.Database, userUuid)
 
-    inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
-    inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
+    inviteIndex := draftView.DraftInviteIndex(c, invites, hasError, errorMessage)
+    inviteView := draftView.DraftInvite(c, " | Draft Invites", true, username, inviteIndex)
     err = Render(c, inviteView)
     return err
 }

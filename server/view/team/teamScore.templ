@@ -1,9 +1,13 @@
 package team
 
-import "server/view"
-import "fmt"
+import (
+    "server/view"
+    "server/view/partials"
+    "fmt"
+    "github.com/labstack/echo/v4"
+)
 
-templ TeamScoreIndex() {
+templ TeamScoreIndex(c echo.Context) {
     <div class="min-h-screen bg-slate-900 p-6 flex flex-col">
         <div class="w-full max-w-[1400px] mx-auto flex-1 flex flex-col">
             <!-- Header Section -->
@@ -30,6 +34,7 @@ templ TeamScoreIndex() {
                             method="post"
                             class="space-y-3"
                         >
+                            @partials.CSRFToken(c)
                             <div>
                                 <label class="block text-base font-medium text-slate-300 mb-2">Team Number</label>
                                 <div class="relative">
@@ -67,8 +72,8 @@ templ TeamScoreIndex() {
     </div>
 }
 
-templ TeamPick(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+templ TeamPick(c echo.Context, page string, fromProtected bool, username string, cmp templ.Component) {
+    @view.Index(c, page, fromProtected, username, nil) {
         @cmp
     }
 }

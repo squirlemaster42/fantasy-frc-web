@@ -31,6 +31,21 @@ go test -v ./...
 go test -race ./...
 ```
 
+### Security Testing
+```bash
+# Run CSRF protection tests
+make test-csrf
+
+# Run manual CSRF testing script
+make test-csrf-manual
+
+# Generate CSRF test reports
+cd tools && go run generate_csrf_report.go test
+
+# Run all security tests
+make test
+```
+
 ### Linting and Formatting
 ```bash
 # Vet code for potential issues

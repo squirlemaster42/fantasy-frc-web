@@ -1,9 +1,13 @@
 package admin
 
-import "server/view"
-import "fmt"
+import (
+    "server/view"
+    "server/view/partials"
+    "fmt"
+    "github.com/labstack/echo/v4"
+)
 
-templ AdminConsoleIndex(username string) {
+templ AdminConsoleIndex(c echo.Context, username string) {
 <div class="w-full h-full p-4">
     <div class="terminal p-6 rounded-lg shadow-lg h-full">
         <div id="output" class="space-y-2 mb-4">
@@ -11,16 +15,19 @@ templ AdminConsoleIndex(username string) {
         </div>
         <div class="flex items-center">
             <span class="text-green-400">{fmt.Sprintf("%s@webapp~$", username)}</span>
-            <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
-                hx-on::after-request="document.getElementById('commandInput').value = ''"
-                hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend"/>
+            <form hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend" class="contents">
+                @partials.CSRFToken(c)
+                <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
+                    hx-on::after-request="document.getElementById('commandInput').value = ''"
+                    hx-include="this" />
+            </form>
         </div>
     </div>
 </div>
 }
 
-templ AdminConsole(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+templ AdminConsole(c echo.Context, page string, fromProtected bool, username string, cmp templ.Component) {
+    @view.Index(c, page, fromProtected, username, nil) {
         @cmp
     }
 }

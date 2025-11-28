@@ -42,6 +42,6 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
     }
 
     draftIndex := draft.DraftScoreIndex(userDraftScore)
-    draft := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId)
+    draft := draft.DraftScore(c, " | Draft Score", true, username, draftIndex, draftId)
     return Render(c, draft)
 }

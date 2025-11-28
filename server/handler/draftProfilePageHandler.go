@@ -46,8 +46,8 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		draftModel.EndTime = time.Now().Add(72 * time.Hour)
 	}
 
-	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
-	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
+	draftIndex := draftView.DraftProfileIndex(c, draftModel, isOwner)
+	draftView := draftView.DraftProfile(c, " | Draft Profile", true, username, draftIndex, draftId)
 	return Render(c, draftView)
 }
 
@@ -142,7 +142,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
-	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner)
+	searchResults := draftView.PlayerSearchResults(c, users, draftId, isOwner)
 	err = Render(c, searchResults)
 	return err
 }
@@ -182,7 +182,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	isOwner := invitingUserUuid == draftModel.Owner.UserUuid
 
-	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
+	updatedPage := draftView.UpdateAfterInvite(c, users, draftId, players, isOwner)
 	err = Render(c, updatedPage)
 
 	return err
@@ -203,7 +203,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	if err != nil {
 		slog.Warn("Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
 		c.Response().Status = http.StatusBadRequest
-		page := draftView.StartDraftButton(
+		page := draftView.StartDraftButton(c,
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			"Draft Id is not a number",
 			false,
@@ -215,14 +215,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	if err != nil {
 		slog.Warn("Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
-		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
+		page := draftView.StartDraftButton(c, fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
 		return Render(c, page)
 	}
 
 	if draft.GetOwner().UserUuid != requestingUser {
 		slog.Warn("User is not draft owner", "Draft Id", draftId, "User", requestingUser)
 		c.Response().Status = http.StatusUnauthorized
-		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
+		page := draftView.StartDraftButton(c, fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
 		return Render(c, page)
 	}
 

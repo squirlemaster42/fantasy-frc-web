@@ -1,0 +1,8 @@
+package partials
+
+import "github.com/labstack/echo/v4"
+
+// CSRFToken returns a hidden input field with CSRF token
+templ CSRFToken(c echo.Context) {
+	<input type="hidden" name="csrf_token" value={ c.Get("csrf").(string) } />
+}

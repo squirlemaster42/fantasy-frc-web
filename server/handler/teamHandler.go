@@ -17,8 +17,8 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
     userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userUuid)
 
-    teamIndex := team.TeamScoreIndex()
-    team := team.TeamPick(" | Team Score", true, username, teamIndex)
+    teamIndex := team.TeamScoreIndex(c)
+    team := team.TeamPick(c, " | Team Score", true, username, teamIndex)
     return Render(c, team)
 }
 

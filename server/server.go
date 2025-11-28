@@ -36,6 +36,13 @@ func CreateServer(serverPort string, h handler.Handler) {
 	app.Use(middleware.Gzip())
 	//app.Use(middleware.Recover())
 
+	// CSRF middleware for public routes (except webhooks)
+	app.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		Skipper: func(c echo.Context) bool {
+			return c.Request().URL.Path == "/tbaWebhook"
+		},
+	}))
+
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding)
 	app.GET("/login", h.HandleViewLogin)
@@ -46,6 +53,7 @@ func CreateServer(serverPort string, h handler.Handler) {
 	app.POST("/tbaWebhook", h.ConsumeTbaWebsocket)
 
 	protected := app.Group("/u", auth.Authenticate)
+	protected.Use(middleware.CSRF())
 	protected.GET("/home", h.HandleViewHome)
 	protected.GET("/createDraft", h.HandleViewCreateDraft)
 	protected.POST("/createDraft", h.HandleCreateDraftPost)

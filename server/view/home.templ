@@ -4,6 +4,7 @@ import (
     "server/model"
     "fmt"
 	"github.com/google/uuid"
+    "github.com/labstack/echo/v4"
 )
 
 templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
@@ -86,8 +87,8 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
     </section>
 }
 
-templ Home(page string, fromProtected bool, username string, cmp templ.Component) {
-    @Index(page, fromProtected, username, nil) {
+templ Home(c echo.Context, page string, fromProtected bool, username string, cmp templ.Component) {
+    @Index(c, page, fromProtected, username, nil) {
         @cmp
     }
 }

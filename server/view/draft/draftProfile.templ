@@ -3,11 +3,13 @@ package draft
 import (
     "server/view"
     "server/model"
+    "server/view/partials"
     "fmt"
 	"server/utils"
+    "github.com/labstack/echo/v4"
 )
 
-templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
+templ DraftProfileIndex (c echo.Context, draft model.DraftModel, isOwner bool) {
     <form
         class="flex flex-col lg:flex-row w-full h-full gap-6 pl-4 pr-8 py-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
         hx-swap="outerHTML"
@@ -16,6 +18,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
         method="post"
         enctype="multipart/form-data"
     >
+        @partials.CSRFToken(c)
         <!-- Draft Header Section -->
         <div class="w-full lg:w-2/3 flex-shrink-0">
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700 mb-6">
@@ -215,17 +218,20 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-300 mb-2">Search Users</label>
-                                <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    type="search"
-                                    name="search"
-                                    placeholder="Search users to invite..."
-                                    hx-post="/u/searchPlayers"
-                                    hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
-                                    hx-target="#searchResults"
-                                    hx-indicator=".htmx-indicator"
-                                    hx-swap="innerHTML"
-                                />
+                                <div>
+                                    <input
+                                        class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        type="search"
+                                        name="search"
+                                        placeholder="Search users to invite..."
+                                        hx-post="/u/searchPlayers"
+                                        hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
+                                        hx-target="#searchResults"
+                                        hx-indicator=".htmx-indicator"
+                                        hx-swap="innerHTML"
+                                    />
+                                    @partials.CSRFToken(c)
+                                </div>
                             </div>
                             <div id="searchResults" class="min-h-[200px]">
                                 <!-- Search results will appear here -->
@@ -236,27 +242,30 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
             </div>
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
                 <div class="card-body p-6">
-                    @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner)
+                    @StartDraftButton(c, fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner)
                 </div>
             </div>
         </div>
     </form>
 }
 
-templ StartDraftButton(submitUrl string, err string, isOwner bool) {
+templ StartDraftButton(c echo.Context, submitUrl string, err string, isOwner bool) {
     if err != "" {
         <span class="text-red-400">{err}</span>
     }
-    <button hx-post={submitUrl} disabled?={!isOwner} class="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2" >
+    <form hx-post={submitUrl} class="contents">
+        @partials.CSRFToken(c)
+        <button type="submit" disabled?={!isOwner} class="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2" >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
         </svg>
         Start Draft
-    </button>
+        </button>
+    </form>
 }
 
-templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftProfile (c echo.Context, page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
+    @view.Index(c, page, fromProtected, username, draftId) {
         @cmp
     }
 }
@@ -274,7 +283,7 @@ templ PlayerList(players []model.DraftPlayer) {
                         </div>
                         <h3 class="font-semibold text-slate-100 mb-2">{player.User.Username}</h3>
                         <div class="text-xs text-red-400 font-medium mb-2">Pending Invitation</div>
-                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder) }</span></div>
+                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
                     </div>
                 </div>
             } else {
@@ -287,7 +296,7 @@ templ PlayerList(players []model.DraftPlayer) {
                         </div>
                         <h3 class="font-semibold text-slate-100 mb-2">{player.User.Username}</h3>
                         <div class="text-xs text-green-400 font-medium mb-2">Joined</div>
-                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder) }</span></div>
+                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
                     </div>
                 </div>
             }
@@ -295,7 +304,7 @@ templ PlayerList(players []model.DraftPlayer) {
     </div>
 }
 
-templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
+templ PlayerSearchResults(c echo.Context, users []model.User, draftId int, isOwner bool) {
     <div class="space-y-2" id="inviteTable">
         if len(users) == 0 {
             <div class="text-center py-4 text-slate-400">
@@ -315,27 +324,32 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
                         </div>
                         <span class="font-medium text-slate-100">{ user.Username }</span>
                     </div>
-                    <button
-                        disabled?={!isOwner}
+                    <form
                         hx-target="#inviteTable"
                         hx-swap="outerHTML"
-                        name="userUuid"
-                        value={ fmt.Sprintf("%s", user.UserUuid) }
                         hx-post={ fmt.Sprintf("/u/draft/%d/invitePlayer", draftId) }
-                        class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
+                        class="contents"
                     >
+                        @partials.CSRFToken(c)
+                        <input type="hidden" name="userUuid" value={ fmt.Sprintf("%s", user.UserUuid) } />
+                        <button
+                            disabled?={!isOwner}
+                            type="submit"
+                            class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
                         </svg>
                         Invite
-                    </button>
+                        </button>
+                    </form>
                 </div>
             }
         }
     </div>
 }
 
-templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool) {
+templ UpdateAfterInvite(c echo.Context, users []model.User, draftId int, players []model.DraftPlayer, isOwner bool) {
     @PlayerList(players)
-    @PlayerSearchResults(users, draftId, isOwner)
+    @PlayerSearchResults(c, users, draftId, isOwner)
 }

@@ -22,8 +22,8 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
     userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
     username := model.GetUsername(h.Database, userUuid)
 
-    draftCreateIndex := draft.DraftProfileIndex(model.DraftModel{ Id: -1 }, true)
-    draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
+    draftCreateIndex := draft.DraftProfileIndex(c, model.DraftModel{ Id: -1 }, true)
+    draftCreate := draft.DraftProfile(c, " | Create Draft", true, username, draftCreateIndex, -1)
     err = Render(c, draftCreate)
     assert.NoError(err, "Handle View Draft Create Failed To Render")
     return nil

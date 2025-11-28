@@ -1,8 +1,12 @@
 package login
 
-import "server/view"
+import (
+	"server/view"
+	"server/view/partials"
+	"github.com/labstack/echo/v4"
+)
 
-templ RegisterIndex(fromProtected bool, errorMessage string) {
+templ RegisterIndex(c echo.Context, fromProtected bool, errorMessage string) {
     <div class="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div class="max-w-md w-full" id="register-box">
             <!-- Register Card -->
@@ -35,6 +39,7 @@ templ RegisterIndex(fromProtected bool, errorMessage string) {
                         method="post"
                         class="space-y-6"
                     >
+                        @partials.CSRFToken(c)
                         <!-- Username Field -->
                         <div>
                             <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -133,8 +138,8 @@ templ RegisterIndex(fromProtected bool, errorMessage string) {
     </div>
 }
 
-templ Register(page string, fromProtected bool, cmp templ.Component) {
-    @view.Index(page, fromProtected, "", nil) {
+templ Register(c echo.Context, page string, fromProtected bool, cmp templ.Component) {
+    @view.Index(c, page, fromProtected, "", nil) {
         @cmp
     }
 }

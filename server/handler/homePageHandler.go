@@ -49,7 +49,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
     slog.Info("Loaded drafts for user", "Username", username)
 
 	homeIndex := view.HomeIndex(drafts, userUuid)
-	home := view.Home(" | Draft Overview", true, username, homeIndex)
+	home := view.Home(c, " | Draft Overview", true, username, homeIndex)
 	err = Render(c, home)
 	assert.NoError(err, "Handle View Home Failed To Render")
     slog.Info("Rendered home page for user", "Username", username)
