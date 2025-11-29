@@ -36,7 +36,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
 
 ### Install PostgreSQL and Set Up Database
 
-1. Install PostgreSQL using your system's package manager or from the official website.
+1. Install PostgreSQL
 2. Create a new database:
    ```sql
    CREATE DATABASE fantasy_frc;
