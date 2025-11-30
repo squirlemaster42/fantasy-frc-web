@@ -41,10 +41,6 @@ go build
 ./fuzzer
 ```
 
-### Configuration
-
-The fuzzer can be configured to generate different types of match data. Check the `example.json` file for sample output format.
-
 ## Output
 
 Generates JSON files containing randomized match data that can be used to:
