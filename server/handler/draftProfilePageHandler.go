@@ -26,7 +26,10 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	username := model.GetUsername(h.Database, userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
-	assert.NoError(err, "Failed to convert draft id to int")
+	if err != nil {
+		slog.Warn("Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
@@ -160,7 +163,11 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userUuid, err := uuid.Parse(userUuidString)
 	assert.NoError(err, "Failed to parse user guid")
 
-	model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
+	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
+	if err != nil {
+		slog.Error("Failed to invite player", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to invite player")
+	}
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
