@@ -11,13 +11,13 @@ import (
 )
 
 type User struct {
-    UserUuid uuid.UUID
-    Username string
-    Password string
+	UserUuid uuid.UUID
+	Username string
+	Password string
 }
 
 func (u *User) String() string {
-    return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
+	return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
 }
 
 func RegisterUser(database *sql.DB, username string, password string) uuid.UUID {
@@ -35,54 +35,56 @@ func RegisterUser(database *sql.DB, username string, password string) uuid.UUID 
     return userUuid
 }
 
-func UsernameTaken(database *sql.DB, username string) bool {
-    query := `Select count(UserUuid) From Users Where username = $1;`
-    assert := assert.CreateAssertWithContext("Username Taken")
-    assert.AddContext("Username", username)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var count int
-    err = stmt.QueryRow(username).Scan(&count)
-    assert.NoError(err, "Failed to check username taken")
-    return count > 0
+func UsernameTaken(database *sql.DB, username string) (bool, error) {
+	query := `Select count(UserUuid) From Users Where username = $1;`
+	stmt, err := database.Prepare(query)
+	if err != nil {
+		return false, err
+	}
+	var count int
+	err = stmt.QueryRow(username).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
-    query := `Select UserUuid From Users Where username = $1;`
-    assert := assert.CreateAssertWithContext("Get User Uuid By Username")
-    assert.AddContext("Username", username)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var userUuid uuid.UUID
-    err = stmt.QueryRow(username).Scan(&userUuid)
-    assert.NoError(err, "Failed to get user")
-    return userUuid
+	query := `Select UserUuid From Users Where username = $1;`
+	assert := assert.CreateAssertWithContext("Get User Uuid By Username")
+	assert.AddContext("Username", username)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var userUuid uuid.UUID
+	err = stmt.QueryRow(username).Scan(&userUuid)
+	assert.NoError(err, "Failed to get user")
+	return userUuid
 }
 
 func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
-    query := `Select Username From Users Where UserUuid = $1;`
-    assert := assert.CreateAssertWithContext("Get Username")
-    assert.AddContext("User Id", userUuid)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var username string
-    err = stmt.QueryRow(userUuid).Scan(&username)
-    assert.NoError(err, "Failed to get user")
-    return username
+	query := `Select Username From Users Where UserUuid = $1;`
+	assert := assert.CreateAssertWithContext("Get Username")
+	assert.AddContext("User Id", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var username string
+	err = stmt.QueryRow(userUuid).Scan(&username)
+	assert.NoError(err, "Failed to get user")
+	return username
 }
 
 // All crypto should happen before this since this just communicates with the DB
 func ValidateLogin(database *sql.DB, username string, password string) bool {
-    query := `Select password From Users Where username = $1;`
-    assert := assert.CreateAssertWithContext("Validate Login")
-    assert.AddContext("Username", username)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var dbPassword string
-    err = stmt.QueryRow(username).Scan(&dbPassword)
-    assert.NoError(err, "Failed to validate login")
-    err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
-    return err == nil
+	assert := assert.CreateAssertWithContext("Validate Login")
+	query := `Select password From Users Where username = $1;`
+	assert.AddContext("Username", username)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var dbPassword string
+	err = stmt.QueryRow(username).Scan(&dbPassword)
+	assert.NoError(err, "Failed to validate login")
+	err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
+	return err == nil
 }
 
 // The old password logic should happen before this
@@ -140,28 +142,28 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
 }
 
 func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
-    query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
-    assert := assert.CreateAssertWithContext("User Is Admin")
-    assert.AddContext("User Id", userUuid)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var isAdmin bool
-    err = stmt.QueryRow(userUuid).Scan(&isAdmin)
-    assert.NoError(err, "Failed to get user")
-    return isAdmin
+	query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
+	assert := assert.CreateAssertWithContext("User Is Admin")
+	assert.AddContext("User Id", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var isAdmin bool
+	err = stmt.QueryRow(userUuid).Scan(&isAdmin)
+	assert.NoError(err, "Failed to get user")
+	return isAdmin
 }
 
 func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken string) {
-    //We want to make sure we only update the session token that the user logged in with
-    query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
-    assert := assert.CreateAssertWithContext("Update Session Expiration")
-    assert.AddContext("User Uuid", userUuid)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
-    hasher := crypto.SHA256.New()
-    hasher.Write([]byte(sessionToken))
-    _, err = stmt.Exec(userUuid, hasher.Sum(nil))
-    assert.NoError(err, "Failed to update session expiraton")
+	//We want to make sure we only update the session token that the user logged in with
+	query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
+	assert := assert.CreateAssertWithContext("Update Session Expiration")
+	assert.AddContext("User Uuid", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
+	hasher := crypto.SHA256.New()
+	hasher.Write([]byte(sessionToken))
+	_, err = stmt.Exec(userUuid, hasher.Sum(nil))
+	assert.NoError(err, "Failed to update session expiraton")
 }
 
 // Check if the session token is in the database and that it is not expired
@@ -183,7 +185,7 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 }
 
 func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, error) {
-    query := `SELECT
+	query := `SELECT
                     Users.UserUuid,
                     Users.Username
                 From Users
@@ -213,44 +215,44 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
                     ) U
                 )`
 
-    if searchString != "" {
-        query += " And Username Like CONCAT('%', CAST($2 As VARCHAR), '%');"
-    } else {
-        query += ";"
-    }
-    assert := assert.CreateAssertWithContext("Search Users")
-    assert.AddContext("Search String", searchString)
-    assert.AddContext("Query", query)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	if searchString != "" {
+		query += " And Username Like CONCAT('%', CAST($2 As VARCHAR), '%');"
+	} else {
+		query += ";"
+	}
+	assert := assert.CreateAssertWithContext("Search Users")
+	assert.AddContext("Search String", searchString)
+	assert.AddContext("Query", query)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
 
-    var userRows *sql.Rows
-    if searchString != "" {
-        userRows, err = stmt.Query(draftId, searchString)
-    } else {
-        userRows, err = stmt.Query(draftId)
-    }
-    assert.NoError(err, "Failed to search users")
+	var userRows *sql.Rows
+	if searchString != "" {
+		userRows, err = stmt.Query(draftId, searchString)
+	} else {
+		userRows, err = stmt.Query(draftId)
+	}
+	assert.NoError(err, "Failed to search users")
 
-    users := make([]User, 0)
+	users := make([]User, 0)
 
-    for userRows.Next() {
-        var userUuid uuid.UUID
-        var username string
+	for userRows.Next() {
+		var userUuid uuid.UUID
+		var username string
 
-        err = userRows.Scan(&userUuid, &username)
+		err = userRows.Scan(&userUuid, &username)
 
-        if err != nil {
-            return nil, err
-        }
+		if err != nil {
+			return nil, err
+		}
 
-        user := User{
-            UserUuid: userUuid,
-            Username: username,
-        }
+		user := User{
+			UserUuid: userUuid,
+			Username: username,
+		}
 
-        users = append(users, user)
-    }
+		users = append(users, user)
+	}
 
-    return users, nil
+	return users, nil
 }

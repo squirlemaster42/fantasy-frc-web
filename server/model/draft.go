@@ -17,24 +17,24 @@ import (
 type DraftState string
 
 const (
-    FILLING DraftState = "Filling"
-    WAITING_TO_START DraftState = "Waiting to Start"
-    PICKING DraftState = "Picking"
-    TEAMS_PLAYING DraftState = "Teams Playing"
-    COMPLETE DraftState = "Complete"
+	FILLING          DraftState = "Filling"
+	WAITING_TO_START DraftState = "Waiting to Start"
+	PICKING          DraftState = "Picking"
+	TEAMS_PLAYING    DraftState = "Teams Playing"
+	COMPLETE         DraftState = "Complete"
 )
 
 type DraftModel struct {
-    Id int
-    DisplayName string
-    Description string
-    Interval int //Number of seconds to pick
-    StartTime time.Time
-    EndTime time.Time
-    Owner User
-    Status DraftState
-    Players []DraftPlayer
-    NextPick DraftPlayer
+	Id          int
+	DisplayName string
+	Description string
+	Interval    int //Number of seconds to pick
+	StartTime   time.Time
+	EndTime     time.Time
+	Owner       User
+	Status      DraftState
+	Players     []DraftPlayer
+	NextPick    DraftPlayer
 }
 
 func (d *DraftModel) String() string {
@@ -52,12 +52,12 @@ func (d *DraftModel) String() string {
 }
 
 type DraftPlayer struct {
-    Id int
-    User User
-    PlayerOrder sql.NullInt16
-    Pending bool
-    Score int
-    Picks []Pick
+	Id          int
+	User        User
+	PlayerOrder sql.NullInt16
+	Pending     bool
+	Score       int
+	Picks       []Pick
 }
 
 func (d *DraftPlayer) String() string {
@@ -71,14 +71,14 @@ func (d *DraftPlayer) String() string {
 }
 
 type Pick struct {
-    Id int
-    Player int //DraftPlayerId
-    Pick sql.NullString //TeamTbaId
-    PickTime sql.NullTime
-    AvailableTime time.Time
-    ExpirationTime time.Time
-    Skipped bool
-    Score int
+	Id             int
+	Player         int            //DraftPlayerId
+	Pick           sql.NullString //TeamTbaId
+	PickTime       sql.NullTime
+	AvailableTime  time.Time
+	ExpirationTime time.Time
+	Skipped        bool
+	Score          int
 }
 
 func (p *Pick) String() string {
@@ -86,15 +86,15 @@ func (p *Pick) String() string {
 }
 
 type DraftInvite struct {
-    Id int
-    DraftId int //Draft
-    DraftName string
-    InvitedUserUuid uuid.UUID//User
-    invitingUserUuid uuid.UUID //User
-    InvitingPlayerName string
-    SentTime time.Time
-    AcceptedTime time.Time
-    Accepted bool
+	Id                 int
+	DraftId            int //Draft
+	DraftName          string
+	InvitedUserUuid    uuid.UUID //User
+	invitingUserUuid   uuid.UUID //User
+	InvitingPlayerName string
+	SentTime           time.Time
+	AcceptedTime       time.Time
+	Accepted           bool
 }
 
 func (d *DraftInvite) String() string {
@@ -103,46 +103,46 @@ func (d *DraftInvite) String() string {
 }
 
 func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
-    query := `SELECT
+	query := `SELECT
         Drafts.Id,
         DisplayName
     From Drafts
     Where DisplayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
-    assert := assert.CreateAssertWithContext("Get Drafts For User")
-    assert.AddContext("Search", searchString)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    rows, err := stmt.Query(searchString)
+	assert := assert.CreateAssertWithContext("Get Drafts For User")
+	assert.AddContext("Search", searchString)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	rows, err := stmt.Query(searchString)
 
-    if err != nil {
-        slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
-        return nil
-    }
+	if err != nil {
+		slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+		return nil
+	}
 
-    var drafts []DraftModel
-    for rows.Next() {
-        var draftId int
-        var displayName string
-        err = rows.Scan(&draftId, &displayName)
+	var drafts []DraftModel
+	for rows.Next() {
+		var draftId int
+		var displayName string
+		err = rows.Scan(&draftId, &displayName)
 
-        if err != nil {
-            slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+			return nil
+		}
 
-        draft := DraftModel {
-            Id:          draftId,
-            DisplayName: displayName,
-        }
+		draft := DraftModel{
+			Id:          draftId,
+			DisplayName: displayName,
+		}
 
-        drafts = append(drafts, draft)
-    }
+		drafts = append(drafts, draft)
+	}
 
-    return &drafts
+	return &drafts
 }
 
-func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
-    query := `SELECT DISTINCT
+func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error) {
+	query := `SELECT DISTINCT
         Drafts.Id,
         displayName,
         owners.UserUuid As ownerId,
@@ -156,48 +156,51 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
     Left Join Users owners On Drafts.OwnerUserUuid = owners.UserUuid
     Where DraftPlayers.UserUuid = $2 Or DraftInvites.InvitedUserUuid = $2;`
 
-    outerAssert := assert.CreateAssertWithContext("Get Drafts For User")
-    outerAssert.AddContext("User Uuid", userUuid)
-    stmt, err := database.Prepare(query)
-    outerAssert.NoError(err, "Failed to prepare statement")
-    rows, err := stmt.Query(FILLING, userUuid)
-    outerAssert.NoError(err, "Failed to get drafts for user")
+	stmt, err := database.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := stmt.Query(FILLING, userUuid)
+	if err != nil {
+		return nil, err
+	}
 
-    var drafts []DraftModel
-    for rows.Next() {
-        var draftId int
-        var displayName string
-        var ownerId uuid.UUID
-        var ownerUsername string
-        var status DraftState
-        err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
-        outerAssert.NoError(err, "Failed to load draft data")
+	var drafts []DraftModel
+	for rows.Next() {
+		var draftId int
+		var displayName string
+		var ownerId uuid.UUID
+		var ownerUsername string
+		var status DraftState
+		err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+		if err != nil {
+			return nil, err
+		}
 
-        draftModel := DraftModel {
-            Id:          draftId,
-            DisplayName: displayName,
-            Owner: User {
-                UserUuid: ownerId,
-                Username: ownerUsername,
-            },
-            Status: status,
-            Players: make([]DraftPlayer, 0),
-        }
+		draftModel := DraftModel{
+			Id:          draftId,
+			DisplayName: displayName,
+			Owner: User{
+				UserUuid: ownerId,
+				Username: ownerUsername,
+			},
+			Status:  status,
+			Players: make([]DraftPlayer, 0),
+		}
 
 		pick := Pick{}
-        outerAssert.AddContext("Status", status)
 		if status == PICKING {
-            pick = GetCurrentPick(database, draftId)
+			pick = GetCurrentPick(database, draftId)
 
-            if pick.Id != 0 {
-                draftModel.NextPick = DraftPlayer {
-                    Id: pick.Player,
-                    User: GetDraftPlayerUser(database, pick.Player),
-                }
-            }
-        }
+			if pick.Id != 0 {
+				draftModel.NextPick = DraftPlayer{
+					Id:   pick.Player,
+					User: GetDraftPlayerUser(database, pick.Player),
+				}
+			}
+		}
 
-        playerQuery := `SELECT
+		playerQuery := `SELECT
 	                    UserUuid,
 	                    USERNAME,
 	                    BOOL_OR(ACCEPTED) AS ACCEPTED
@@ -225,76 +228,90 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) *[]DraftModel {
                     GROUP BY UserUuid, USERNAME
                     ORDER BY MAX(PLAYERORDER);`
 
-        playerStmt, err := database.Prepare(playerQuery)
-        outerAssert.NoError(err, "Failed to prepare player query")
-        playerRows, err := playerStmt.Query(draftId)
-        outerAssert.NoError(err, "Failed to get users for draft")
+		playerStmt, err := database.Prepare(playerQuery)
+		if err != nil {
+			return nil, err
+		}
+		playerRows, err := playerStmt.Query(draftId)
+		if err != nil {
+			return nil, err
+		}
 
-        for playerRows.Next() {
-            var userUuid uuid.UUID
-            var username string
-            var accepted bool
+		for playerRows.Next() {
+			var userUuid uuid.UUID
+			var username string
+			var accepted bool
 
-            err = playerRows.Scan(&userUuid, &username, &accepted)
-            outerAssert.NoError(err, "Failed to load player data")
-            draftPlayer := DraftPlayer{
-                User: User{
-                    UserUuid: userUuid,
-                    Username: username,
-                },
-                Pending: !accepted,
-            }
+			err = playerRows.Scan(&userUuid, &username, &accepted)
+			if err != nil {
+				return nil, err
+			}
+			draftPlayer := DraftPlayer{
+				User: User{
+					UserUuid: userUuid,
+					Username: username,
+				},
+				Pending: !accepted,
+			}
 
-            draftModel.Players = append(draftModel.Players, draftPlayer)
-        }
+			draftModel.Players = append(draftModel.Players, draftPlayer)
+		}
 
-        drafts = append(drafts, draftModel)
-    }
+		drafts = append(drafts, draftModel)
+	}
 
-    return &drafts
+	return drafts, nil
 }
 
-func CreateDraft(database *sql.DB, draft *DraftModel) int {
-    query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
+func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
+	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
         EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
-    assert := assert.CreateAssertWithContext("Create Draft")
-    assert.AddContext("Owner", draft.Owner)
-    assert.AddContext("Display Name", draft.DisplayName)
-    assert.AddContext("Interval", draft.Interval)
-    assert.AddContext("Start Time", draft.StartTime)
-    assert.AddContext("End Time", draft.EndTime)
-    assert.AddContext("Status", draft.Status)
-    assert.AddContext("Description", draft.Description)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var draftId int
-    err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
-    assert.NoError(err, "Failed to insert draft")
-    playerQuery := `INSERT INTO DraftPlayers (draftId, useruuid) Values ($1, $2);`
-    stmt, err = database.Prepare(playerQuery)
-    assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(draftId, draft.Owner.UserUuid)
-    assert.NoError(err, "Failed to insert draft")
-    return draftId
+	assert := assert.CreateAssertWithContext("Create Draft")
+	assert.AddContext("Owner", draft.Owner)
+	assert.AddContext("Display Name", draft.DisplayName)
+	assert.AddContext("Interval", draft.Interval)
+	assert.AddContext("Start Time", draft.StartTime)
+	assert.AddContext("End Time", draft.EndTime)
+	assert.AddContext("Status", draft.Status)
+	assert.AddContext("Description", draft.Description)
+	stmt, err := database.Prepare(query)
+	if err != nil {
+		return -1, err
+	}
+	var draftId int
+	err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
+	if err != nil {
+		return -1, err
+	}
+	playerQuery := `INSERT INTO DraftPlayers (draftId, useruuid) Values ($1, $2);`
+	stmt, err = database.Prepare(playerQuery)
+	if err != nil {
+		return -1, err
+	}
+	_, err = stmt.Exec(draftId, draft.Owner.UserUuid)
+	if err != nil {
+		return -1, err
+	}
+	return draftId, nil
 }
 
-func UpdateDraftStatus(database *sql.DB, draftId int, status DraftState) {
-    query := `Update Drafts Set Status = $1 Where Id = $2;`
-    assert := assert.CreateAssertWithContext("Update Draft Status")
-    assert.AddContext("Draft Id", draftId)
-    assert.AddContext("Status", status)
+func UpdateDraftStatus(database *sql.DB, draftId int, status DraftState) error {
+	assert := assert.CreateAssertWithContext("Update Draft Status")
+	query := `Update Drafts Set Status = $1 Where Id = $2;`
 
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
 
-    _, err = stmt.Exec(status, draftId)
-    if err != nil {
-        slog.Error("Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
-    }
+	_, err = stmt.Exec(status, draftId)
+	if err != nil {
+		slog.Error("Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
+		return err
+	}
+	return nil
 }
 
 func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
-    query := `Select
+	query := `Select
         DisplayName,
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
@@ -303,27 +320,27 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         extract('epoch' from Interval)::int As Interval,
         OwnerUserUuid
     From Drafts Where Id = $1;`
-    assert := assert.CreateAssertWithContext("Get Draft")
-    assert.AddContext("Draft Id", draftId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    draftModel := DraftModel {
-        Id: draftId,
-    }
-    var ownerId uuid.UUID
-    err = stmt.QueryRow(draftId).Scan(
-        &draftModel.DisplayName,
-        &draftModel.Description,
-        &draftModel.Status,
-        &draftModel.StartTime,
-        &draftModel.EndTime,
-        &draftModel.Interval,
-        &ownerId,
-    )
-    if err != nil {
-        slog.Warn("Failed to load draft", "Draft Id", draftId)
-        return DraftModel{}, errors.New("failed to load draft")
-    }
+	stmt, err := database.Prepare(query)
+	if err != nil {
+		return DraftModel{}, err
+	}
+	draftModel := DraftModel{
+		Id: draftId,
+	}
+	var ownerId uuid.UUID
+	err = stmt.QueryRow(draftId).Scan(
+		&draftModel.DisplayName,
+		&draftModel.Description,
+		&draftModel.Status,
+		&draftModel.StartTime,
+		&draftModel.EndTime,
+		&draftModel.Interval,
+		&ownerId,
+	)
+	if err != nil {
+		slog.Warn("Failed to load draft", "Draft Id", draftId)
+		return DraftModel{}, errors.New("failed to load draft")
+	}
 
 	playerQuery := `SELECT
                         UserUuid,
@@ -356,20 +373,22 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
                     ORDER BY PLAYERORDER;`
 
 	playerStmt, err := database.Prepare(playerQuery)
-	assert.NoError(err, "Failed to prepare player query")
+	if err != nil {
+		return DraftModel{}, err
+	}
 	playerRows, err := playerStmt.Query(draftId)
-    if err != nil {
-        slog.Warn("Failed to load players for draft", "Draft Id", draftId)
-        return DraftModel{}, errors.New("failed to load draft")
-    }
+	if err != nil {
+		slog.Warn("Failed to load players for draft", "Draft Id", draftId)
+		return DraftModel{}, errors.New("failed to load draft")
+	}
 
-    slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status)
-    if draftModel.Status == PICKING {
-        slog.Info("Getting the current pick for the draft")
-        draftModel.NextPick = DraftPlayer {
-            Id: GetCurrentPick(database, draftId).Player,
-        }
-    }
+	slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
+	if draftModel.Status == PICKING {
+		slog.Info("Getting the current pick for the draft")
+		draftModel.NextPick = DraftPlayer{
+			Id: GetCurrentPick(database, draftId).Player,
+		}
+	}
 
 	for playerRows.Next() {
 		var userUuid uuid.UUID
@@ -378,36 +397,36 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		var playerOrder sql.NullInt16
 		var playerId int
 
-        err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId)
+		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId)
 
-        if err != nil {
-            return DraftModel{}, err
-        }
+		if err != nil {
+			return DraftModel{}, err
+		}
 
-        if userUuid == ownerId {
-            draftModel.Owner = User{
-                UserUuid: userUuid,
-                Username: username,
-            }
-        }
+		if userUuid == ownerId {
+			draftModel.Owner = User{
+				UserUuid: userUuid,
+				Username: username,
+			}
+		}
 
-        if playerId == draftModel.NextPick.Id {
-            draftModel.NextPick.User.UserUuid = userUuid
-        }
+		if playerId == draftModel.NextPick.Id {
+			draftModel.NextPick.User.UserUuid = userUuid
+		}
 
-        draftPlayer := DraftPlayer{
-            Id: playerId,
-            User: User{
-                UserUuid: userUuid,
-                Username: username,
-            },
-            PlayerOrder: playerOrder,
-            Pending: !accepted,
-        }
+		draftPlayer := DraftPlayer{
+			Id: playerId,
+			User: User{
+				UserUuid: userUuid,
+				Username: username,
+			},
+			PlayerOrder: playerOrder,
+			Pending:     !accepted,
+		}
 
-        //Get picks for the player
-        picks := GetDraftPlayerPicks(database, draftPlayer.Id)
-        draftPlayer.Picks = picks
+		//Get picks for the player
+		picks := GetDraftPlayerPicks(database, draftPlayer.Id)
+		draftPlayer.Picks = picks
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
 	}
@@ -416,7 +435,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 }
 
 func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
-    query := `SELECT
+	query := `SELECT
                 Picks.id,
                 Picks.player,
                 Picks.pick,
@@ -437,12 +456,12 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-        err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
 
-        if err != nil {
-            slog.Warn("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Warn("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
+			return nil
+		}
 
 		picks = append(picks, pick)
 	}
@@ -462,22 +481,22 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
 	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
-    return err
+	return err
 }
 
-func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) int {
-    query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
-    sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
+func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
 	assert := assert.CreateAssertWithContext("Invite Player")
-	assert.AddContext("Draft", draft)
-	assert.AddContext("Inviting Inviting User Uuid", invitingUserUuid)
-	assert.AddContext("Invited Invited User Uuid", invitedUserUuid)
+	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
+    sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
 	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to prepare statement")
+	assert.NoError(err, "Failed to prepare statment")
+
 	var inviteId int
 	err = stmt.QueryRow(draft, invitingUserUuid, invitedUserUuid, time.Now(), false).Scan(&inviteId)
-	assert.NoError(err, "Failed to insert invite player")
-	return inviteId
+	if err != nil {
+		return -1, err
+	}
+	return inviteId, nil
 }
 
 // Returns draftId, UserUuid
@@ -535,19 +554,19 @@ func GetInvite(database *sql.DB, inviteId int) DraftInvite {
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1;`
-    assert := assert.CreateAssertWithContext("Get Invite")
-    assert.AddContext("Invite", inviteId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    invite := DraftInvite{}
-    err = stmt.QueryRow(inviteId).Scan(
-        &invite.Id,
-        &invite.InvitingPlayerName,
-        &invite.InvitedUserUuid,
-        &invite.DraftName,
-        &invite.DraftId)
-    assert.NoError(err, "Failed to query invite")
-    return invite
+	assert := assert.CreateAssertWithContext("Get Invite")
+	assert.AddContext("Invite", inviteId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	invite := DraftInvite{}
+	err = stmt.QueryRow(inviteId).Scan(
+		&invite.Id,
+		&invite.InvitingPlayerName,
+		&invite.InvitedUserUuid,
+		&invite.DraftName,
+		&invite.DraftId)
+	assert.NoError(err, "Failed to query invite")
+	return invite
 }
 
 func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
@@ -566,20 +585,20 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
 	assert.NoError(err, "Failed to prepare statement")
 	rows, err := stmt.Query(userUuid)
 
-    if err != nil {
-        slog.Error("Failed to get invites", "User Uuid", userUuid, "Error", err)
-        return nil
-    }
+	if err != nil {
+		slog.Error("Failed to get invites", "User Uuid", userUuid, "Error", err)
+		return nil
+	}
 
 	var invites []DraftInvite
 	for rows.Next() {
 		invite := DraftInvite{}
-        err = rows.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.DraftName)
+		err = rows.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.DraftName)
 
-        if err != nil {
-            slog.Warn("Failed to get invite", "User Uuid", userUuid, "Error", err)
-            continue
-        }
+		if err != nil {
+			slog.Warn("Failed to get invite", "User Uuid", userUuid, "Error", err)
+			continue
+		}
 
 		invites = append(invites, invite)
 	}
@@ -606,9 +625,9 @@ func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 		pick := Pick{}
 		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
 
-        if err != nil {
-            return nil, err
-        }
+		if err != nil {
+			return nil, err
+		}
 
 		picks = append(picks, pick)
 	}
@@ -617,107 +636,107 @@ func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 }
 
 func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
-    query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
+	query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
 
-    assert := assert.CreateAssertWithContext("Get Draft Player Id")
-    assert.AddContext("Draft Id", draftId)
-    assert.AddContext("Player Id", userUuid)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
+	assert := assert.CreateAssertWithContext("Get Draft Player Id")
+	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("Player Id", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
 
-    var draftPlayerId int
-    err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
-    assert.NoError(err, "Failed to get draft player")
+	var draftPlayerId int
+	err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
+	assert.NoError(err, "Failed to get draft player")
 
-    return draftPlayerId
+	return draftPlayerId
 }
 
 func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) User {
-    query := `Select
+	query := `Select
         u.UserUuid,
         u.Username
     From DraftPlayers dp
     Inner Join Users u On dp.UserUuid = u.UserUuid
     Where dp.Id = $1;`
 
-    assert := assert.CreateAssertWithContext("Get Draft Player User")
-    assert.AddContext("Draft Player Id", draftPlayerId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	assert := assert.CreateAssertWithContext("Get Draft Player User")
+	assert.AddContext("Draft Player Id", draftPlayerId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
 
-    var user User
-    err = stmt.QueryRow(draftPlayerId).Scan(&user.UserUuid, &user.Username)
-    assert.NoError(err, "Failed to get User")
+	var user User
+	err = stmt.QueryRow(draftPlayerId).Scan(&user.UserUuid, &user.Username)
+	assert.NoError(err, "Failed to get User")
 
-    return user
+	return user
 }
 
 func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
-    query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
+	query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
 
-    assert := assert.CreateAssertWithContext("Make Pick Available")
-    assert.AddContext("Draft Player Id", draftPlayerId)
-    assert.AddContext("Available Time", availableTime)
-    assert.AddContext("Expiration Time", expirationTime)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statment")
+	assert := assert.CreateAssertWithContext("Make Pick Available")
+	assert.AddContext("Draft Player Id", draftPlayerId)
+	assert.AddContext("Available Time", availableTime)
+	assert.AddContext("Expiration Time", expirationTime)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statment")
 
-    var pickId int
-    err = stmt.QueryRow(draftPlayerId, availableTime, expirationTime).Scan(&pickId)
+	var pickId int
+	err = stmt.QueryRow(draftPlayerId, availableTime, expirationTime).Scan(&pickId)
 
-    assert.NoError(err, "Failed to make pick available")
+	assert.NoError(err, "Failed to make pick available")
 
-    return pickId
+	return pickId
 }
 
 func MakePick(database *sql.DB, pick Pick) {
-    query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
+	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
 
-    assert := assert.CreateAssertWithContext("Make Pick")
-    assert.AddContext("Player", pick.Player)
-    assert.AddContext("Team", pick.Pick)
-    assert.AddContext("Pick Time", pick.PickTime)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    var updatedId int
-    err = stmt.QueryRow(pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
-    assert.RunAssert(pick.Id == updatedId, "Updated id does not match or no pick was updated")
-    assert.NoError(err, "Failed to insert pick")
+	assert := assert.CreateAssertWithContext("Make Pick")
+	assert.AddContext("Player", pick.Player)
+	assert.AddContext("Team", pick.Pick)
+	assert.AddContext("Pick Time", pick.PickTime)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var updatedId int
+	err = stmt.QueryRow(pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
+	assert.RunAssert(pick.Id == updatedId, "Updated id does not match or no pick was updated")
+	assert.NoError(err, "Failed to insert pick")
 }
 
 func SetPlayerOrder(database *sql.DB, draftPlayerId int, playerOrder int) {
-    query := `Update DraftPlayers Set PlayerOrder = $1 Where DraftPlayers.Id = $2;`
+	query := `Update DraftPlayers Set PlayerOrder = $1 Where DraftPlayers.Id = $2;`
 
-    assert := assert.CreateAssertWithContext("Set Player Order")
-    assert.AddContext("Draft Player", draftPlayerId)
-    assert.AddContext("Player Order", playerOrder)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(playerOrder, draftPlayerId)
-    assert.NoError(err, "Failed to set player order")
+	assert := assert.CreateAssertWithContext("Set Player Order")
+	assert.AddContext("Draft Player", draftPlayerId)
+	assert.AddContext("Player Order", playerOrder)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	_, err = stmt.Exec(playerOrder, draftPlayerId)
+	assert.NoError(err, "Failed to set player order")
 }
 
 func GetAllPicks(database *sql.DB) []string {
-    query := `Select Distinct pick From Picks;`
-    assert := assert.CreateAssertWithContext("Get All Picks")
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    rows, err := stmt.Query()
-    assert.NoError(err, "Failed to query picks")
-    var picks []string
-    for rows.Next() {
-        var pick string
-        err = rows.Scan(&pick)
+	query := `Select Distinct pick From Picks;`
+	assert := assert.CreateAssertWithContext("Get All Picks")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	rows, err := stmt.Query()
+	assert.NoError(err, "Failed to query picks")
+	var picks []string
+	for rows.Next() {
+		var pick string
+		err = rows.Scan(&pick)
 
-        if err != nil {
-            slog.Error("Failed to get all picks", "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Error("Failed to get all picks", "Error", err)
+			return nil
+		}
 
-        picks = append(picks, pick)
-    }
+		picks = append(picks, pick)
+	}
 
-    return picks
+	return picks
 }
 
 func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
@@ -740,32 +759,32 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 
 func RandomizePickOrder(database *sql.DB, draftId int) {
 	draftModel, err := GetDraft(database, draftId)
-    if err != nil {
-        slog.Warn("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
-        return
-    }
+	if err != nil {
+		slog.Warn("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
+		return
+	}
 	awaitingAssignment := draftModel.Players
 	assert := assert.CreateAssertWithContext("Randomize Pick Order")
 
-    for i := range awaitingAssignment {
-        j := rand.Intn(i + 1)
-        awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
+	for i := range awaitingAssignment {
+		j := rand.Intn(i + 1)
+		awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
 	}
 
-    for i, player := range awaitingAssignment {
+	for i, player := range awaitingAssignment {
 		draftPlayerId := GetDraftPlayerId(database, draftId, player.User.UserUuid)
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
-        _, err = stmt.Exec(i, draftPlayerId)
-        if err != nil {
-            slog.Warn("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid , "Order", i, "Error", err)
-        }
-    }
+		_, err = stmt.Exec(i, draftPlayerId)
+		if err != nil {
+			slog.Warn("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
+		}
+	}
 }
 
-func GetAvailablePickId (database *sql.DB, draftId int) Pick {
-    query := `SELECT
+func GetAvailablePickId(database *sql.DB, draftId int) Pick {
+	query := `SELECT
         p.Id,
         p.Player
     From Picks p
@@ -777,70 +796,70 @@ func GetAvailablePickId (database *sql.DB, draftId int) Pick {
     And Pick Is Null
     And DraftPlayers.DraftId = $1) fp On p.Id = fp.Id;`
 
-    assert := assert.CreateAssertWithContext("Get Available Picks Id")
-    assert.AddContext("Draft Id", draftId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	assert := assert.CreateAssertWithContext("Get Available Picks Id")
+	assert.AddContext("Draft Id", draftId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
 
-    var pick Pick
-    err = stmt.QueryRow(draftId).Scan(&pick.Id, &pick.Player)
-    assert.NoError(err, "Failed to get pick id")
+	var pick Pick
+	err = stmt.QueryRow(draftId).Scan(&pick.Id, &pick.Player)
+	assert.NoError(err, "Failed to get pick id")
 
-    return pick
+	return pick
 }
 
 func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
-    assert := assert.CreateAssertWithContext("Next Pick")
+	assert := assert.CreateAssertWithContext("Next Pick")
 	picks, err := GetPicks(database, draftId)
 
-    if err != nil {
-        slog.Warn("Failed to get picks", "Draft Id", draftId, "Error", err)
-        return DraftPlayer{}
-    }
+	if err != nil {
+		slog.Warn("Failed to get picks", "Draft Id", draftId, "Error", err)
+		return DraftPlayer{}
+	}
 
 	draft, err := GetDraft(database, draftId)
-    if err != nil {
-        slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
-        return DraftPlayer{}
-    }
+	if err != nil {
+		slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
+		return DraftPlayer{}
+	}
 	var nextPlayer DraftPlayer
 
-    //I dont think we need to account for the case where there are only two players
-    if len(picks) < 2 {
-        for _, player := range draft.Players {
-            assert.RunAssert(player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-            if int(player.PlayerOrder.Int16) == len(picks) {
-                nextPlayer = player
-            }
-        }
-    } else {
-        //We can then figure out what direction
-        //we are going and if we hit the
-        //end then we decide what the next pick is
-        lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks)-1].Player)
-        secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks)-2].Player)
-        assert.RunAssert(lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-        direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
-        if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
-            if int(lastPlayer.PlayerOrder.Int16) == len(draft.Players) - 1 {
-                direction = -1
-            } else {
-                direction = 1
-            }
-        }
-        if len(picks) % 8 == 0 { //TODO Change to number of picks in draft
-            direction = 0
-        }
-        assert.AddContext("Last Player Id", lastPlayer.Id)
-        assert.AddContext("Second Last Player Id", secondLastPick.Id)
-        assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
-        assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
-        assert.AddContext("Direction", direction)
-        //We know draft.players is order by player order
-        assert.RunAssert(int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16 + direction && lastPlayer.PlayerOrder.Int16 + direction >= 0, "Next pick is out of bounds")
-        nextPlayer = draft.Players[lastPlayer.PlayerOrder.Int16 + direction]
-    }
+	//I dont think we need to account for the case where there are only two players
+	if len(picks) < 2 {
+		for _, player := range draft.Players {
+			assert.RunAssert(player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+			if int(player.PlayerOrder.Int16) == len(picks) {
+				nextPlayer = player
+			}
+		}
+	} else {
+		//We can then figure out what direction
+		//we are going and if we hit the
+		//end then we decide what the next pick is
+		lastPlayer := GetDraftPlayerFromDraft(draft, picks[len(picks)-1].Player)
+		secondLastPick := GetDraftPlayerFromDraft(draft, picks[len(picks)-2].Player)
+		assert.RunAssert(lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+		direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
+		if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
+			if int(lastPlayer.PlayerOrder.Int16) == len(draft.Players)-1 {
+				direction = -1
+			} else {
+				direction = 1
+			}
+		}
+		if len(picks)%8 == 0 { //TODO Change to number of picks in draft
+			direction = 0
+		}
+		assert.AddContext("Last Player Id", lastPlayer.Id)
+		assert.AddContext("Second Last Player Id", secondLastPick.Id)
+		assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
+		assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
+		assert.AddContext("Direction", direction)
+		//We know draft.players is order by player order
+		assert.RunAssert(int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16+direction && lastPlayer.PlayerOrder.Int16+direction >= 0, "Next pick is out of bounds")
+		nextPlayer = draft.Players[lastPlayer.PlayerOrder.Int16+direction]
+	}
 
 	//Take the pick and make it into a draft player
 	return nextPlayer
@@ -884,38 +903,38 @@ func StartDraft(database *sql.DB, draftId int) {
 }
 
 func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
-    assert := assert.CreateAssertWithContext("Shoud Skip Pick")
-    assert.AddContext("Draft Player", draftPlayer)
+	assert := assert.CreateAssertWithContext("Shoud Skip Pick")
+	assert.AddContext("Draft Player", draftPlayer)
 
-    query := `SELECT
+	query := `SELECT
         COALESCE(skipPicks, false) As skipPicks
     From DraftPlayers dp
     Where dp.Id = $1;`
 
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to preparte statement")
-    var shoudSkip bool
-    err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	var shoudSkip bool
+	err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
 
-    if err != nil {
-        slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
-        return false
-    }
+	if err != nil {
+		slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
+		return false
+	}
 
-    return shoudSkip
+	return shoudSkip
 }
 
 func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) error {
-    assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
-    assert.AddContext("Draft Player", draftPlayer)
+	assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
+	assert.AddContext("Draft Player", draftPlayer)
 
-    query := `Update DraftPlayers Set skipPicks = $2 Where Id = $1;`
+	query := `Update DraftPlayers Set skipPicks = $2 Where Id = $1;`
 
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to preparte statement")
-    _, err = stmt.Exec(draftPlayer, shouldSkip)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to preparte statement")
+	_, err = stmt.Exec(draftPlayer, shouldSkip)
 
-    return err
+	return err
 }
 
 func GetCurrentPick(database *sql.DB, draftId int) Pick {
@@ -942,73 +961,72 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
 	assert.NoError(err, "Failed to prepare statement")
 	var pick Pick
 	err = stmt.QueryRow(draftId).Scan(
-        &pick.Id,
+		&pick.Id,
 		&pick.Player,
 		&pick.Pick,
 		&pick.PickTime,
 		&pick.Skipped,
 		&pick.AvailableTime,
-        &pick.ExpirationTime,
-    )
+		&pick.ExpirationTime,
+	)
 
-    if err != nil {
-        //There is no current pick
-        slog.Warn(err.Error())
-        return Pick{}
-    }
+	if err != nil {
+		//There is no current pick
+		slog.Warn(err.Error())
+		return Pick{}
+	}
 
 	return pick
 }
 
 func SkipPick(database *sql.DB, pickId int) {
-    query := `Update Picks Set Skipped = true Where Id = $1`
+	query := `Update Picks Set Skipped = true Where Id = $1`
 
-    assert := assert.CreateAssertWithContext("Skip Pick")
-    assert.AddContext("Pick Id", pickId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(pickId)
-    assert.NoError(err, "Failed to skip pick")
+	assert := assert.CreateAssertWithContext("Skip Pick")
+	assert.AddContext("Pick Id", pickId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	_, err = stmt.Exec(pickId)
+	assert.NoError(err, "Failed to skip pick")
 }
 
 func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
-    assert := assert.CreateAssertWithContext("Get Drafts In Status")
-    assert.AddContext("Status", status)
+	assert := assert.CreateAssertWithContext("Get Drafts In Status")
+	assert.AddContext("Status", status)
 
-    query := `Select
+	query := `Select
         Id
     From Drafts
     Where Status = $1;`
 
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
 
-    rows, err := stmt.Query(status)
-    assert.NoError(err, "Failed to Query Drafts")
+	rows, err := stmt.Query(status)
+	assert.NoError(err, "Failed to Query Drafts")
 
-    var drafts []int
-    for rows.Next() {
-        var draftId int
-        err = rows.Scan(&draftId)
+	var drafts []int
+	for rows.Next() {
+		var draftId int
+		err = rows.Scan(&draftId)
 
-        if err != nil {
-            slog.Warn("Failed to load drafts in status", "Status", status, "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Warn("Failed to load drafts in status", "Status", status, "Error", err)
+			return nil
+		}
 
-        drafts = append(drafts, draftId)
-    }
+		drafts = append(drafts, draftId)
+	}
 
-    return drafts
+	return drafts
 }
 
-
 func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
-    assert := assert.CreateAssertWithContext("Get Draft Score")
-    assert.AddContext("Draft Id", draftId)
-    assert.RunAssert(draftId != 0, "Draft Id Should Not Be 0")
+	assert := assert.CreateAssertWithContext("Get Draft Score")
+	assert.AddContext("Draft Id", draftId)
+	assert.RunAssert(draftId != 0, "Draft Id Should Not Be 0")
 
-    query := `Select
+	query := `Select
         dp.Id,
         u.Username,
         p.Pick
@@ -1017,56 +1035,56 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
     Inner Join Users u On u.UserUuid = dp.UserUuid
     Where dp.DraftId = $1;`
 
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
 
-    rows, err := stmt.Query(draftId)
-    assert.NoError(err, "Failed to get picks for draft")
+	rows, err := stmt.Query(draftId)
+	assert.NoError(err, "Failed to get picks for draft")
 
-    picks := make(map[int][]string)
-    usernames := make(map[int]string)
-    for rows.Next() {
-        var playerId int
-        var username string
-        var pick string
-        err = rows.Scan(&playerId, &username, &pick)
+	picks := make(map[int][]string)
+	usernames := make(map[int]string)
+	for rows.Next() {
+		var playerId int
+		var username string
+		var pick string
+		err = rows.Scan(&playerId, &username, &pick)
 
-        if err != nil {
-            slog.Warn("Failed to get draft scores", "Draft Id", draftId, "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Warn("Failed to get draft scores", "Draft Id", draftId, "Error", err)
+			return nil
+		}
 
-        usernames[playerId] = username
-        picks[playerId] = append(picks[playerId], pick)
-    }
+		usernames[playerId] = username
+		picks[playerId] = append(picks[playerId], pick)
+	}
 
-    var playerScores []DraftPlayer
-    for player, playerPicks := range picks {
-        draftPlayer := DraftPlayer {
-            Id: player,
-            User: User{
-                Username: usernames[player],
-            },
-            Score: 0,
-        }
+	var playerScores []DraftPlayer
+	for player, playerPicks := range picks {
+		draftPlayer := DraftPlayer{
+			Id: player,
+			User: User{
+				Username: usernames[player],
+			},
+			Score: 0,
+		}
 
-        for _, pick := range playerPicks {
-            score := GetScore(database, pick)
-            draftPlayer.Score += score["Total Score"]
+		for _, pick := range playerPicks {
+			score := GetScore(database, pick)
+			draftPlayer.Score += score["Total Score"]
 
-            team := Pick {
-                Pick: sql.NullString{
-                    Valid: true,
-                    String: pick,
-                },
-                Score: score["Total Score"],
-            }
-            draftPlayer.Picks = append(draftPlayer.Picks, team)
-        }
-        playerScores = append(playerScores, draftPlayer)
-    }
+			team := Pick{
+				Pick: sql.NullString{
+					Valid:  true,
+					String: pick,
+				},
+				Score: score["Total Score"],
+			}
+			draftPlayer.Picks = append(draftPlayer.Picks, team)
+		}
+		playerScores = append(playerScores, draftPlayer)
+	}
 
-    return playerScores
+	return playerScores
 }
 
 func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
