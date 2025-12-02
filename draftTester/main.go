@@ -244,7 +244,7 @@ func createUser(username string) *User {
 }
 
 func createRandomString(minLen int, maxLen int) string {
-	alphabet := "abcdefghijklmnopqrstuvwxyz"
+	alphabet := "abcdefghijklmnopqrstuvwxyz0123456789"
 	length := rand.IntN(maxLen-minLen) + minLen
 	var sb strings.Builder
 	for range length {
