@@ -47,6 +47,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		slog.Error("Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
+
 	valid := taken && model.ValidateLogin(h.Database, username, password)
 	if valid {
 		slog.Info("Valid login attempt for user", "Username", username)

@@ -294,12 +294,11 @@ func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
 }
 
 func UpdateDraftStatus(database *sql.DB, draftId int, status DraftState) error {
+	assert := assert.CreateAssertWithContext("Update Draft Status")
 	query := `Update Drafts Set Status = $1 Where Id = $2;`
 
 	stmt, err := database.Prepare(query)
-	if err != nil {
-		return err
-	}
+	assert.NoError(err, "Failed to prepare statement")
 
 	_, err = stmt.Exec(status, draftId)
 	if err != nil {
@@ -484,12 +483,12 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 }
 
 func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
+	assert := assert.CreateAssertWithContext("Invite Player")
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
     sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
 	stmt, err := database.Prepare(query)
-	if err != nil {
-		return -1, err
-	}
+	assert.NoError(err, "Failed to prepare statment")
+
 	var inviteId int
 	err = stmt.QueryRow(draft, invitingUserUuid, invitedUserUuid, time.Now(), false).Scan(&inviteId)
 	if err != nil {
@@ -911,7 +910,7 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
     Where dp.Id = $1;`
 
 	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to preparte statement")
+	assert.NoError(err, "Failed to prepare statement")
 	var shoudSkip bool
 	err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
 
