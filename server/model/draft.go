@@ -61,11 +61,13 @@ type DraftPlayer struct {
 }
 
 func (d *DraftPlayer) String() string {
-	playerOrder := "null"
+	var playerOrderStr string
 	if d.PlayerOrder.Valid {
-		playerOrder = fmt.Sprintf("%d", d.PlayerOrder.Int16)
+		playerOrderStr = fmt.Sprintf("%d", d.PlayerOrder.Int16)
+	} else {
+		playerOrderStr = "NULL"
 	}
-	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n}", d.Id, d.User.UserUuid.String(), playerOrder, d.Pending)
+	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n}", d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending)
 }
 
 type Pick struct {
@@ -1083,4 +1085,37 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 	}
 
 	return playerScores
+}
+
+func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
+    assert := assert.CreateAssertWithContext("Get Drafts To Start")
+    assert.AddContext("Cutoff Date", cutoffDate)
+
+    query := `
+    Select
+        Id
+    From Drafts d
+    Where d.StartTime > $1
+    And d.Status = $2
+    `
+    stmt, err := database.Prepare(query)
+    assert.NoError(err, "Failed to prepare statement")
+    rows, err := stmt.Query(cutoffDate, WAITING_TO_START)
+
+    if err != nil {
+        return nil, err
+    }
+
+    var draftIds []int
+    for rows.Next() {
+        var draftId int
+        err = rows.Scan(&draftId)
+        if err != nil {
+            //Return the draft ids so that we can at least process those
+            return draftIds, err
+        }
+        draftIds = append(draftIds, draftId)
+    }
+
+    return draftIds, nil
 }

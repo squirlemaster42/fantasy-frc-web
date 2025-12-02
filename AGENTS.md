@@ -33,14 +33,10 @@ go test -race ./...
 
 ### Linting and Formatting
 ```bash
-# Format code
-go fmt ./...
-
 # Vet code for potential issues
 go vet ./...
 
-# Run both formatting and vetting
-go fmt ./... && go vet ./...
+For formatting, follow the format of the rest of the code, do not use Go's built in formatter.
 ```
 
 ### Dependencies
@@ -63,14 +59,6 @@ go mod verify
 - **Logging**: Use `log/slog` for structured logging
 - **Error Handling**: Use custom `assert` package for context-aware error handling
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
-
-### Naming Conventions
-
-- **Variables**: camelCase for unexported, PascalCase for exported
-- **Functions**: camelCase for unexported, PascalCase for exported
-- **Types/Structs**: PascalCase
-- **Constants**: camelCase for unexported, PascalCase for exported
-- **Methods**: PascalCase
 
 ### Import Organization
 

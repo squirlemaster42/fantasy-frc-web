@@ -211,9 +211,8 @@ func TestRegisterUser_ErrorPaths(t *testing.T) {
 
 			tt.mockSetup(mock)
 
-			result, err := RegisterUser(db, tt.username, tt.password)
+			result := RegisterUser(db, tt.username, tt.password)
 
-			assert.Error(t, err)
 			assert.Equal(t, uuid.Nil, result) // Error cases return zero UUID
 
 			assert.NoError(t, mock.ExpectationsWereMet())

@@ -68,10 +68,10 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	slog.Warn("Invalid login attempt for user", "Username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
-	err = Render(c, login)
+	err = RenderError(c, http.StatusUnauthorized, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
-	return nil
+	return err
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -117,7 +117,6 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
 
 		return nil
-
 	}
 
 	if password != confirmPassword {
@@ -132,11 +131,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 	slog.Info("Valid registration for user", "Username", username)
 	var userUuid uuid.UUID
-	userUuid, err = model.RegisterUser(h.Database, username, password)
-	if err != nil {
-		slog.Error("Failed to register user", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to register user")
-	}
+	userUuid = model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userUuid, sessionTok)
 	cookie := new(http.Cookie)

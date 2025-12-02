@@ -8,7 +8,7 @@ import (
 )
 
 func TestMatchQueueOrdering(t *testing.T) {
-    queue := &MatchQueue{}
+    queue := NewMatchQueue()
     queue.PushMatch(swagger.Match{
         Key: "2024cur_qm1",
     })

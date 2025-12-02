@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"server/assert"
-	"server/background"
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
@@ -13,30 +12,12 @@ import (
 )
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
-	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(database)
-	err := draftDaemon.Start()
-	if err != nil {
-		slog.Warn("Failed to start draft daemon", "Error", err)
-		return nil
-	}
-
-	slog.Info("Checking for drafts that need to be added to daemon")
-	drafts := model.GetDraftsInStatus(database, model.PICKING)
-	for _, draftId := range drafts {
-		err = draftDaemon.AddDraft(draftId)
-		if err != nil {
-			slog.Warn("Failed to add draft to manager in init", "Error", err)
-		}
-	}
-
-	draftManager := &DraftManager{
-		drafts:      map[int]*Draft{},
-		database:    database,
-		tbaHandler:  tbaHandler,
-		draftDaemon: draftDaemon,
-		states:      setupStates(database, draftDaemon),
-	}
+    draftManager := &DraftManager{
+        drafts: map[int]*Draft{},
+        database: database,
+        tbaHandler: tbaHandler,
+        states: setupStates(database),
+    }
 
 	slog.Info("Draft Manager Started")
 
@@ -56,26 +37,23 @@ func (tst *ToStartTransition) executeTransition(draft *Draft) error {
 }
 
 type ToPickingTransition struct {
-	database    *sql.DB
-	draftDaemon *background.DraftDaemon
+    database *sql.DB
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
-	return model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+    model.RandomizePickOrder(tpt.database, draft.draftId)
+    model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+    return nil
 }
 
 type ToPlayingTransition struct {
-	database    *sql.DB
-	draftDaemon *background.DraftDaemon
+    database *sql.DB
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft *Draft) error {
-	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
-	if err != nil {
-		return err
-	}
-	//Remove the draft from the pick daemon
-	return tpt.draftDaemon.RemoveDraft(draft.draftId)
+    model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
+    //Remove the draft from the pick daemon
+    return nil
 }
 
 type ToCompleteTransition struct {
@@ -91,33 +69,31 @@ type state struct {
 	transitions map[model.DraftState]stateTransition
 }
 
-func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[model.DraftState]*state {
-	states := make(map[model.DraftState]*state)
-	states[model.FILLING] = &state{
-		state:       model.FILLING,
-		transitions: make(map[model.DraftState]stateTransition),
-	}
-	states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition{
-		database: database,
-	}
+func setupStates(database *sql.DB) map[model.DraftState]*state {
+    states := make(map[model.DraftState]*state)
+    states[model.FILLING] = &state {
+        state: model.FILLING,
+        transitions: make(map[model.DraftState]stateTransition),
+    }
+    states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition {
+        database: database,
+    }
 
-	states[model.WAITING_TO_START] = &state{
-		state:       model.WAITING_TO_START,
-		transitions: make(map[model.DraftState]stateTransition),
-	}
-	states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition{
-		database:    database,
-		draftDaemon: draftDaemon,
-	}
+    states[model.WAITING_TO_START] = &state {
+        state: model.WAITING_TO_START,
+        transitions: make(map[model.DraftState]stateTransition),
+    }
+    states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition {
+        database: database,
+    }
 
-	states[model.PICKING] = &state{
-		state:       model.PICKING,
-		transitions: make(map[model.DraftState]stateTransition),
-	}
-	states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
-		database:    database,
-		draftDaemon: draftDaemon,
-	}
+    states[model.PICKING] = &state {
+        state: model.PICKING,
+        transitions: make(map[model.DraftState]stateTransition),
+    }
+    states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition {
+        database: database,
+    }
 
 	states[model.TEAMS_PLAYING] = &state{
 		state:       model.TEAMS_PLAYING,
@@ -135,13 +111,12 @@ func setupStates(database *sql.DB, draftDaemon *background.DraftDaemon) map[mode
 }
 
 type DraftManager struct {
-	//TODO this map should be thread safe
-	drafts      map[int]*Draft
-	locks       sync.Map
-	database    *sql.DB
-	tbaHandler  *tbaHandler.TbaHandler
-	states      map[model.DraftState]*state
-	draftDaemon *background.DraftDaemon
+    //TODO this map should be thread safe
+    drafts map[int]*Draft
+    locks sync.Map
+    database *sql.DB
+    tbaHandler *tbaHandler.TbaHandler
+    states map[model.DraftState]*state
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
@@ -193,29 +168,32 @@ func (e *invalidStateTransitionError) Error() string {
 }
 
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
-	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
-	draft := dm.drafts[draftId]
-	assert.AddContext("Draft Id", draft.draftId)
-	assert.AddContext("Current State", string(draft.model.Status))
-	assert.AddContext("Requested State", string(requestedState))
-	assert.RunAssert(draft != nil, "Did not load draft")
+    slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
+    assert := assert.CreateAssertWithContext("Execute Draft State Transition")
+    draft := dm.drafts[draftId]
+    assert.AddContext("Draft Id", draft.draftId)
+    assert.AddContext("Current State", string(draft.model.Status))
+    assert.AddContext("Requested State", string(requestedState))
+    assert.RunAssert(draft != nil, "Did not load draft")
 
 	lock := dm.getLock(draft.draftId)
 	lock.Lock()
 	defer lock.Unlock()
 
-	state, stateFound := dm.states[draft.model.Status]
-	assert.AddContext("Current Draft State", state)
-	assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
-	transition, transitionFound := state.transitions[requestedState]
-	if !transitionFound {
-		return &invalidStateTransitionError{
-			currentState:   model.FILLING,
-			requestedState: model.FILLING,
-		}
-	}
+    state, stateFound := dm.states[draft.model.Status]
+    assert.AddContext("Current Draft State", state)
+    assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
+    transition, transitionFound := state.transitions[requestedState]
+    if !transitionFound {
+        slog.Error("Did not find draft state transition", "Current State", draft.model.Status, "Requested State", requestedState)
+        return &invalidStateTransitionError{
+            currentState: draft.model.Status,
+            requestedState: requestedState,
+        }
+    }
 
-	return transition.executeTransition(draft)
+    slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
+    return transition.executeTransition(draft)
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
@@ -232,16 +210,11 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
-		if err != nil {
-			slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
-		}
-
-		err = dm.draftDaemon.RemoveDraft(draftId)
-		if err != nil {
-			slog.Warn("Failed to remove draft from daemon", "Draft Id", draftId, "Error", err)
-		}
-	}
-	return err
+        if err != nil {
+            slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+        }
+    }
+    return err
 }
 
 func (dm *DraftManager) getLock(draftId int) *sync.Mutex {

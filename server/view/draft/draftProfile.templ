@@ -32,7 +32,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         </div>
                         <div class="flex items-center gap-3">
                             <span class="text-slate-400 font-medium">Status:</span>
-                            <div class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                            <div class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold" id="draftStatus">
                                 { string(draft.Status) }
                             </div>
                         </div>
@@ -234,8 +234,6 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     }
                 </div>
             </div>
-
-            <!-- Start Draft Card -->
             <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
                 <div class="card-body p-6">
                     @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner)

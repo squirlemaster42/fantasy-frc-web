@@ -39,6 +39,16 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
+	if draftModel.StartTime.IsZero() {
+		slog.Info("Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now())
+		draftModel.StartTime = time.Now().Add(1 * time.Hour)
+	}
+
+	if draftModel.EndTime.IsZero() {
+		slog.Info("Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now())
+		draftModel.EndTime = time.Now().Add(72 * time.Hour)
+	}
+
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
 	return Render(c, draftView)
@@ -65,7 +75,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	intInterval, err := strconv.Atoi(interval)
 	assert.NoError(err, "Failed to parse interval")
 
-	layout := "2006-01-02T15:04"
+	layout := "2006-01-02T15:04:05"
 	parsedStartTime, err := time.Parse(layout, startTime)
 	assert.NoError(err, "Failed to parse start time")
 	parsedEndTime, err := time.Parse(layout, endTime)
@@ -186,19 +196,25 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 }
 
 func (h *Handler) HandleStartDraft(c echo.Context) error {
-	//TODO we shouldnt be using asserts on the user input here
+	//TODO we should check that the start time is after the current time. If
+	//not, should we move it to now or throw and error?
 	assert := assert.CreateAssertWithContext("Handle Start Draft")
 	userTok, err := c.Cookie("sessionToken")
 	// Session token should always be here because the middleware should have
 	// checked for it
 	assert.NoError(err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
+	slog.Info("Got a request to start a draft", "Draft Id", draftIdStr)
 	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		slog.Warn("Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
 		c.Response().Status = http.StatusBadRequest
-		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Draft Id is not a number", false)
+		page := draftView.StartDraftButton(
+			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
+			"Draft Id is not a number",
+			false,
+		)
 		return Render(c, page)
 	}
 
@@ -221,7 +237,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	//TODO What should we show to the user when this happens?
 	slog.Info("Requesting draft state change to picking", "Draft Id", draftId)
-	h.DraftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+	err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
+	if err != nil {
+		slog.Error("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+	}
 
 	return nil
 }

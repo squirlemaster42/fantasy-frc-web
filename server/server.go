@@ -21,7 +21,6 @@ func CreateServer(serverPort string, h handler.Handler) {
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			// Set Cache-Control header (30 days)
 			c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
 			return next(c)
 		}

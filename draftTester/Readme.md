@@ -2,13 +2,12 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 
-A testing utility for Fantasy FRC Web that creates drafts and simulates picks. Designed for development and stress testing of the drafting system.
+A testing utility for Fantasy FRC Web that creates drafts and simulates picks. Designed for creating drafts for developmentt/tesing and eventually stress testing of the system.
 
 ## Features
 
 - Create test drafts programmatically
 - Simulate player picks
-- Stress test the drafting system
 - Generate test data for development
 
 ## Installation
@@ -41,10 +40,6 @@ cd draftTester
 go build
 ./draftTester
 ```
-
-### Configuration
-
-The tool uses the same database configuration as the main Fantasy FRC application. Ensure your `.env` file is set up in the `server/` directory.
 
 ## Development
 

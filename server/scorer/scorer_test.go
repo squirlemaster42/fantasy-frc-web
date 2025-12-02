@@ -96,7 +96,7 @@ func TestScoreMatches(t *testing.T) {
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 1, scoredMatch.RedScore)
-    assert.Equal(t, 12, scoredMatch.BlueScore)
+    assert.Equal(t, 6, scoredMatch.BlueScore)
 
     match = tbaHandler.MakeMatchReq("2025mawor_sf4m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
@@ -120,19 +120,19 @@ func TestScoreMatches(t *testing.T) {
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
-    assert.Equal(t, 30, scoredMatch.BlueScore)
+    assert.Equal(t, 15, scoredMatch.BlueScore)
 
     match = tbaHandler.MakeMatchReq("2024cmptx_sf12m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
-    assert.Equal(t, 18, scoredMatch.RedScore)
+    assert.Equal(t, 9, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
     match = tbaHandler.MakeMatchReq("2024cmptx_f1m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
-    assert.Equal(t, 36, scoredMatch.BlueScore)
+    assert.Equal(t, 18, scoredMatch.BlueScore)
 }
 
 func TestGetAllianceSelectionScores (t *testing.T) {

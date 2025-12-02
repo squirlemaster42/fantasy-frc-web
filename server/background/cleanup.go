@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"server/assert"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type CleanupService struct {
     database *sql.DB
     interval int //Number of minutes to wait between runs
     running bool
+    startLock *sync.Mutex
 }
 
 func NewCleanupService(database *sql.DB, interval int) *CleanupService {
@@ -24,7 +26,8 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 
 //TODO Are we using any of this? If not we should start
 func (c *CleanupService) Start() error {
-    //TODO we need a mutex on this start
+    c.startLock.Lock()
+    defer c.startLock.Unlock()
     if c.running {
         return errors.New("clean up service already running")
     }
@@ -40,6 +43,8 @@ func (c *CleanupService) Start() error {
 }
 
 func (c *CleanupService) Stop() error {
+    c.startLock.Lock()
+    defer c.startLock.Unlock()
     if !c.running {
         return errors.New("clean up service already stopped")
     }

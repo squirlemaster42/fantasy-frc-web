@@ -4,29 +4,17 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Fantasy FRC is a web-based fantasy league game for FIRST Robotics Competition
-(FRC) teams. Created by students on FRC Team 1699 during the 2018 New England
-District Championships, this project automates the entire drafting and scoring
-process for FRC competitions.
+(FRC) teams. Created by then students (now alumni) of FRC Team 1699 (the Robocats)
+during the 2018 New England FIRST District Championships, this project automates 
+the entire drafting and scoring process for FRC competitions.
 
 ## Table of Contents
 
-- [Features](#features)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Building and Running](#building-and-running)
-- [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
-
-## Features
-
-- **Automated Drafting**: Create and manage fantasy drafts with real-time team selection
-- **Real-Time Scoring**: Automatically score all competition aspects from qualification matches to playoffs and Einstein using TBA webhooks
-- **User Management**: Invite players, manage profiles, and track team ownership
-- **Comprehensive Coverage**: Supports qualification matches, alliance selection, plyoffs, and Einstein 
-- **Web-Based Interface**: Modern web application built with Go and Templ
-- **Database Integration**: PostgreSQL backend for reliable data storage
-- **API Integration**: Seamless integration with The Blue Alliance (TBA) API
 
 ## Installation
 
@@ -39,15 +27,16 @@ process for FRC competitions.
 
 ### Install Go
 
-Fantasy FRC is built using the latest version of [Go](https://go.dev/doc/install). The current system requires Go 1.24+.
+Fantasy FRC is built using the latest version of Go. The current system requires Go 1.23+.
 
 ### Install Templ
 
 A guide to install Templ can be found [here](https://templ.guide/quick-start/installation/).
+Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/cmd/templ`
 
 ### Install PostgreSQL and Set Up Database
 
-1. Install PostgreSQL using your system's package manager or from the official website.
+1. Install PostgreSQL
 2. Create a new database:
    ```sql
    CREATE DATABASE fantasy_frc;
@@ -77,14 +66,14 @@ SERVER_PORT=8080
 - `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
 - `DB_*`: Database connection details
 - `SESSION_SECRET`: Random string for session encryption
-- `SERVER_PORT`: Port for the web server (default: 8080)
+- `SERVER_PORT`: Override port for the web server (default: 8080)
 
 ## Building and Running
 
-Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing:
+Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid excessive TBA API calls during development
-- `populateTeams=true`: Populates the database with teams from configured events on startup (deprecated, will be automated)
+- `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
 ### Build and Run
 
@@ -96,37 +85,6 @@ make
 make skipScoring=true
 make populateTeams=true
 ```
-
-### Development
-
-```bash
-# Run tests
-go test ./...
-
-# Format code
-go fmt ./...
-
-# Vet code
-go vet ./...
-```
-
-## Usage
-
-1. Start the server using `make`
-2. Access the web interface at `http://localhost:8080`
-3. Create an account and start a new draft
-4. Invite players and begin drafting teams
-5. Watch scores update in real-time as matches are played
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## License
 

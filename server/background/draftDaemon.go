@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"server/draft"
 	"server/model"
 	"server/picking"
 	"server/utils"
@@ -17,14 +18,16 @@ type DraftDaemon struct {
     mu sync.Mutex
     runningDrafts map[int]bool
     notifier *picking.PickNotifier
+    draftManager *draft.DraftManager
 }
 
-func NewDraftDaemon(database *sql.DB) *DraftDaemon {
+func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDaemon {
     return &DraftDaemon{
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),
         notifier: &picking.PickNotifier{},
+        draftManager: draftManager,
     }
 }
 
@@ -46,42 +49,76 @@ func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
         slog.Info("Starting iteration of the Draft Daemon")
-        for draftId, running := range d.runningDrafts {
-            if !running {
-                continue
-            }
-
-            curPick := model.GetCurrentPick(d.database, draftId)
-            skipped := false
-
-            //Check if the current player if skipping their pick. If so we
-            //should skip them
-            slog.Info("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-            shouldSkip := model.ShoudSkipPick(d.database, curPick.Player)
-            if shouldSkip {
-                slog.Info("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
-                nextPickPlayer := model.NextPick(d.database, draftId)
-                model.SkipPick(d.database, curPick.Id)
-                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-                d.notifier.NotifyWatchers(draftId)
-                skipped = true
-            }
-
-            slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-            now := time.Now()
-            if curPick.ExpirationTime.Before(now) && !skipped {
-                slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
-                //We want to skip the current pick and go to the next one
-                nextPickPlayer := model.NextPick(d.database, draftId)
-                model.SkipPick(d.database, curPick.Id)
-                model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-                d.notifier.NotifyWatchers(draftId)
-            } else {
-                slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
-            }
-        }
+        d.checkForDraftsToStart()
+        d.checkForPicksToSkip()
 
         time.Sleep(1 * time.Minute)
+    }
+}
+
+func (d *DraftDaemon) checkForDraftsToStart() error {
+    //Get all drafts that are in the waiting to start status
+    slog.Info("Checking for drafts to Start")
+    now := time.Now()
+    draftIds, err := model.GetDraftsToStart(d.database, now)
+    if err != nil && draftIds == nil {
+        return err
+    }
+
+    if len(draftIds) > 0 {
+        slog.Info("Found drafts to start")
+    }
+
+    if err != nil {
+        slog.Error("Failed to get drafts to start", "Now", now, "Error", err)
+    }
+
+    for _, draftId := range draftIds {
+        _, err := d.draftManager.GetDraft(draftId, false)
+        if err != nil {
+            slog.Warn("Failed to load draft", "Draft Id", draftId, "Error", err)
+            continue
+        }
+        d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+    }
+
+    return nil
+}
+
+func (d *DraftDaemon) checkForPicksToSkip() {
+    for draftId, running := range d.runningDrafts {
+        if !running {
+            continue
+        }
+
+        curPick := model.GetCurrentPick(d.database, draftId)
+        skipped := false
+
+        //Check if the current player if skipping their pick. If so we
+        //should skip them
+        slog.Info("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
+        shouldSkip := model.ShoudSkipPick(d.database, curPick.Player)
+        if shouldSkip {
+            slog.Info("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
+            nextPickPlayer := model.NextPick(d.database, draftId)
+            model.SkipPick(d.database, curPick.Id)
+            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+            d.notifier.NotifyWatchers(draftId)
+            skipped = true
+        }
+
+        slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
+        now := time.Now()
+        if curPick.ExpirationTime.Before(now) && !skipped {
+            slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
+            //We want to skip the current pick and go to the next one
+            nextPickPlayer := model.NextPick(d.database, draftId)
+            model.SkipPick(d.database, curPick.Id)
+            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+            d.notifier.NotifyWatchers(draftId)
+        } else {
+            slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
+        }
     }
 }
 

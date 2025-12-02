@@ -17,15 +17,15 @@ func TestParseArgString(t *testing.T) {
 }
 
 func TestFindNextExpirationTime(t *testing.T) {
-    assert.Equal(t, time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 17, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 8, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 22, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 7, 22, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 19, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 8, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 6, 11, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6,  8, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 6, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6, 17, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6, 22, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 11, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 14, 0, 0, 0, time.Local)))
-    assert.Equal(t, time.Date(2025, time.April, 12, 11, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 23, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 7, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 17, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 8, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 22, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 19, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 7, 21, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 6, 9, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6,  8, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 6, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6, 17, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 7, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6, 22, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 11, 18, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 14, 0, 0, 0, time.Local)))
+    assert.Equal(t, time.Date(2025, time.April, 12, 9, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 23, 0, 0, 0, time.Local)))
 }
 
 func TestCompareMatches(t *testing.T) {

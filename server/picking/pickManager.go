@@ -45,7 +45,6 @@ func (p *PickManager) SkipCurrentPick() {
     model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
     for _, listener := range p.listeners {
-        //TODO How do we get the error in here?
         (*listener).ReceivePickEvent(PickEvent {
             Pick: model.Pick{},
             Success: true,
