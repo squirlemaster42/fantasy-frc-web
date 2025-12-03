@@ -180,6 +180,8 @@ func (e *invalidStateTransitionError) Error() string {
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
     slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
     assert := assert.CreateAssertWithContext("Execute Draft State Transition")
+	// TODO instead of calling get draft here and at the bottom we should instead just get and load the draft directly so that we dont have to go through all of that logging
+	// If we dont want to repeat a bunch of code then we could just pull the reload part of GetDraft out into a private function
     draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
 		slog.Warn("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
