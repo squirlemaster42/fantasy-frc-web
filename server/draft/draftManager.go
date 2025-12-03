@@ -158,6 +158,10 @@ func (d *Draft) GetOwner() model.User {
 	return d.model.Owner
 }
 
+func (d *Draft) GetStatus() model.DraftState {
+	return d.model.Status
+}
+
 type invalidStateTransitionError struct {
 	currentState   model.DraftState
 	requestedState model.DraftState
@@ -193,7 +197,13 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     }
 
     slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
-    return transition.executeTransition(draft)
+	err := transition.executeTransition(draft)
+	if err != nil {
+		return err
+	}
+
+	_, err = dm.GetDraft(draftId, true)
+	return err
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {

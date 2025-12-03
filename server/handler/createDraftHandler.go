@@ -45,10 +45,9 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	intInterval, err := strconv.Atoi(interval)
 	assert.NoError(err, "Failed to parse interval")
 
-	layout := "2006-01-02T15:04"
-	parsedStartTime, err := time.Parse(layout, startTime)
+	parsedStartTime, err := time.Parse(time.RFC3339, startTime)
 	assert.NoError(err, "Failed to parse start time")
-	parsedEndTime, err := time.Parse(layout, endTime)
+	parsedEndTime, err := time.Parse(time.RFC3339, endTime)
 	assert.NoError(err, "Failed to parse end time")
 
 	userUuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)

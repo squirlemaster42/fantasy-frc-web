@@ -68,8 +68,25 @@ func main() {
     }
 
     // Wait for draft start time to hit and make sure draft goes into picking
+	waitUntilDraftState(owner, draft.Id, "Picking", 100)
 
     // Have play make picks in a random order. Some picks being valid and some being invalid
+}
+
+// This will block until the draft is in the desired state or the timeout is hit. Timeout is in milliseconds
+func waitUntilDraftState(user *User, draftId int, requestedStatus string, timeout int) {
+	waitTime := 300
+	currentStatus := getCurrentDraftStatus(user, draftId)
+	duration := 0
+	for currentStatus != requestedStatus {
+		if duration > timeout {
+			panic("wait until draft state timeout reached")
+		}
+
+		currentStatus = getCurrentDraftStatus(user, draftId)
+		time.Sleep(time.Duration(waitTime) * time.Second)
+		duration += waitTime
+	}
 }
 
 func startDraft(user *User, draftId int) {
@@ -244,7 +261,7 @@ func createUser(username string) *User {
 }
 
 func createRandomString(minLen int, maxLen int) string {
-	alphabet := "abcdefghijklmnopqrstuvwxyz0123456789"
+	alphabet := "abcdefghijklmnopqrstuvwxyz"
 	length := rand.IntN(maxLen-minLen) + minLen
 	var sb strings.Builder
 	for range length {
@@ -339,11 +356,14 @@ func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
 
 func createDraft(user *User) Draft {
 	slog.Info("Making request to make draft", "User", user.Username)
+
+	startTime := time.Now().Add(1 * time.Minute)
+
 	form := url.Values{}
 	form.Add("description", createRandomString(10, 1000))
 	form.Add("interval", "0")
-	form.Add("startTime", "0001-01-01T00:00")
-	form.Add("endTime", "0001-01-01T00:00")
+	form.Add("startTime", startTime.Format(time.RFC3339))
+	form.Add("endTime", startTime.Add(10 * time.Minute).Format(time.RFC3339))
 	form.Add("draftName", createRandomString(5, 50))
 
 	resp, err := user.Client.Post(target+"/u/createDraft", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
