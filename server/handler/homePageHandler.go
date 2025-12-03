@@ -29,8 +29,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	if isValid {
 		//If the cookie is valid we let the request through
 		//We should probaly log a message
-		userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-		slog.Info("User has successfully logged in", "User Uuid", userUuid, "Ip", c.RealIP())
+		model.GetUserBySessionToken(h.Database, userTok.Value)
 	} else {
 		//If the cookie is not valid then we redirect to the login page
 		slog.Warn("Failed login", "Ip", c.RealIP())

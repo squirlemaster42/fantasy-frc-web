@@ -25,14 +25,14 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
 }
 
 type stateTransition interface {
-	executeTransition(draft *Draft) error
+	executeTransition(draft Draft) error
 }
 
 type ToStartTransition struct {
 	database *sql.DB
 }
 
-func (tst *ToStartTransition) executeTransition(draft *Draft) error {
+func (tst *ToStartTransition) executeTransition(draft Draft) error {
 	return model.UpdateDraftStatus(tst.database, draft.draftId, model.WAITING_TO_START)
 }
 
@@ -40,7 +40,7 @@ type ToPickingTransition struct {
     database *sql.DB
 }
 
-func (tpt *ToPickingTransition) executeTransition(draft *Draft) error {
+func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
     model.RandomizePickOrder(tpt.database, draft.draftId)
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     return nil
@@ -50,7 +50,7 @@ type ToPlayingTransition struct {
     database *sql.DB
 }
 
-func (tpt *ToPlayingTransition) executeTransition(draft *Draft) error {
+func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
     //Remove the draft from the pick daemon
     return nil
@@ -60,7 +60,7 @@ type ToCompleteTransition struct {
 	database *sql.DB
 }
 
-func (tct *ToCompleteTransition) executeTransition(draft *Draft) error {
+func (tct *ToCompleteTransition) executeTransition(draft Draft) error {
 	return model.UpdateDraftStatus(tct.database, draft.draftId, model.COMPLETE)
 }
 
@@ -120,21 +120,25 @@ type DraftManager struct {
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
+	slog.Info("Get Draft", "Draft Id", draftId, "Reload", reload)
 	//We just need to be careful that only one call can reload the draft at one time
 	lock := dm.getLock(draftId)
 	draft, ok := dm.drafts[draftId]
 	if ok && !reload {
+		slog.Info("Returning cached draft", "Draft Id", draftId)
 		return *draft, nil
 	} else if reload {
+		slog.Info("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
-		defer lock.Unlock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
 		draft.model = &draftModel
+		lock.Unlock()
+		slog.Info("Reloaded Draft", "Draft Id", draftId)
 		return *draft, err
 	} else {
+		slog.Info("Loading Draft For First Time", "Draft Id", draftId)
 		//Load draft model
 		lock.Lock()
-		defer lock.Unlock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
 
 		//TODO we should probably check if we need to do this in the reload path
@@ -144,6 +148,8 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 			model:       &draftModel,
 		}
 		dm.drafts[draftId] = &draft
+		lock.Unlock()
+		slog.Info("Loaded Draft For First Time", "Draft Id", draftId)
 		return draft, err
 	}
 }
@@ -174,15 +180,17 @@ func (e *invalidStateTransitionError) Error() string {
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
     slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
     assert := assert.CreateAssertWithContext("Execute Draft State Transition")
-    draft := dm.drafts[draftId]
+    draft, err := dm.GetDraft(draftId, false)
+	if err != nil {
+		slog.Warn("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
+		return err
+	}
     assert.AddContext("Draft Id", draft.draftId)
     assert.AddContext("Current State", string(draft.model.Status))
     assert.AddContext("Requested State", string(requestedState))
-    assert.RunAssert(draft != nil, "Did not load draft")
 
 	lock := dm.getLock(draft.draftId)
 	lock.Lock()
-	defer lock.Unlock()
 
     state, stateFound := dm.states[draft.model.Status]
     assert.AddContext("Current Draft State", state)
@@ -197,12 +205,17 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     }
 
     slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
-	err := transition.executeTransition(draft)
+	err = transition.executeTransition(draft)
 	if err != nil {
+		slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err
 	}
+	slog.Info("Executed draft state transition", "Draft Id", draftId)
+	lock.Unlock()
 
-	_, err = dm.GetDraft(draftId, true)
+	draft, err = dm.GetDraft(draftId, true)
+	slog.Info("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
+
 	return err
 }
 
