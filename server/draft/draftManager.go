@@ -119,6 +119,8 @@ type DraftManager struct {
     states map[model.DraftState]*state
 }
 
+// TODO we need to do something better with the locks here because there are some
+// times where we are already locked from the parent and others where we need to aquire the lock here.
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 	slog.Info("Get Draft", "Draft Id", draftId, "Reload", reload)
 	//We just need to be careful that only one call can reload the draft at one time
