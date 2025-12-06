@@ -68,24 +68,24 @@ func main() {
     }
 
     // Wait for draft start time to hit and make sure draft goes into picking
-	waitUntilDraftState(owner, draft.Id, "Picking", 100)
+	waitUntilDraftState(owner, draft.Id, "Picking", 100 * time.Second)
 
     // Have play make picks in a random order. Some picks being valid and some being invalid
 }
 
 // This will block until the draft is in the desired state or the timeout is hit. Timeout is in milliseconds
-func waitUntilDraftState(user *User, draftId int, requestedStatus string, timeout int) {
-	waitTime := 300
+func waitUntilDraftState(user *User, draftId int, requestedStatus string, timeout time.Duration) {
+	waitTime := 30 * time.Second
+	timeoutTime := time.Now().Add(timeout)
 	currentStatus := getCurrentDraftStatus(user, draftId)
-	duration := 0
 	for currentStatus != requestedStatus {
-		if duration > timeout {
+		slog.Info("Checking if current draft is in requested status", "Requested Status", requestedStatus, "Current Status", currentStatus)
+		if time.Now().After(timeoutTime) {
 			panic("wait until draft state timeout reached")
 		}
 
 		currentStatus = getCurrentDraftStatus(user, draftId)
-		time.Sleep(time.Duration(waitTime) * time.Second)
-		duration += waitTime
+		time.Sleep(waitTime)
 	}
 }
 
