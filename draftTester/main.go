@@ -70,7 +70,14 @@ func main() {
     // Wait for draft start time to hit and make sure draft goes into picking
 	waitUntilDraftState(owner, draft.Id, "Picking", 100 * time.Second)
 
+	slog.Info("Starting to make picks")
     // Have play make picks in a random order. Some picks being valid and some being invalid
+	for getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
+	}
+}
+
+func selectRandomPlayer(users []*User) *User {
+	return users[rand.IntN(len(users))]
 }
 
 // This will block until the draft is in the desired state or the timeout is hit. Timeout is in milliseconds
