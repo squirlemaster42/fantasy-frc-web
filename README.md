@@ -6,7 +6,7 @@
 Fantasy FRC is a web-based fantasy league game for FIRST Robotics Competition
 (FRC) teams. Created by then students (now alumni) of FRC Team 1699 (the Robocats)
 during the 2018 New England FIRST District Championships, this project automates 
-the entire drafting and scoring process for the FRC World Championship. 
+the entire drafting and scoring process for the FRC World Championship (other events TBD).
 
 ## Table of Contents
 
