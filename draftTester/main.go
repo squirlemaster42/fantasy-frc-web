@@ -74,6 +74,8 @@ func main() {
     // Have play make picks in a random order. Some picks being valid and some being invalid
 	for getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
 	}
+
+	// Make sure teams get scored
 }
 
 func selectRandomPlayer(users []*User) *User {
