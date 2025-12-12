@@ -73,13 +73,48 @@ func main() {
 	slog.Info("Starting to make picks")
     // Have play make picks in a random order. Some picks being valid and some being invalid
 	for getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
+		player := selectRandomPlayer(users);
+		makePickRequest(draft.Id, player, getRandomTeamId())
 	}
 
-	// Make sure teams get scored
+	// Make sure the draft goes to teams playing status
 }
 
-func selectRandomPlayer(users []*User) *User {
-	return users[rand.IntN(len(users))]
+func getRandomTeamId() int {
+	return rand.IntN(10000)
+}
+
+// True if pick was made successfully
+func makePickRequest(draftId int, user *User, team int) bool {
+	slog.Info("Make Pick", "Draft Id", draftId, "User", user.Username, "Team", team)
+	form := url.Values{}
+	form.Add("pickInput", strconv.Itoa(team))
+
+	resp, err := user.Client.Post(fmt.Sprintf("%s/u/draft/%d/makePick", target, draftId), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+	if err != nil {
+		slog.Error("Failed to make pick", "Team", team, "Draft Id", draftId, "Username", user.Username, "Error", err)
+		panic(err)
+	}
+
+	if resp.StatusCode != 200 {
+		slog.Error("Failed to make pick", "Team", team, "Draft Id", draftId, "User", user.Username)
+		panic("failed to make pick")
+	}
+
+	slog.Info("Make pick request make", "Draft Id", draftId, "User", user.Username, "Status", resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic("failed to read response body after attempting to make pick")
+	}
+	fmt.Println(body)
+
+	return false
+}
+
+func selectRandomPlayer(users map[string]*User) *User {
+	keys := reflect.ValueOf(users).MapKeys()
+	return users[keys[rand.IntN(len(keys))].String()]
 }
 
 // This will block until the draft is in the desired state or the timeout is hit. Timeout is in milliseconds
