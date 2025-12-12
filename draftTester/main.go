@@ -61,23 +61,73 @@ func main() {
 	startDraft(owner, draft.Id)
 
 	//Check that draft is in the correct status
-    currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
-    if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
-        slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
-        panic("draft status is not correct")
-    }
+	currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
+	if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
+		slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
+		panic("draft status is not correct")
+	}
 
-    // Wait for draft start time to hit and make sure draft goes into picking
-	waitUntilDraftState(owner, draft.Id, "Picking", 100 * time.Second)
+	// Wait for draft start time to hit and make sure draft goes into picking
+	waitUntilDraftState(owner, draft.Id, "Picking", 100*time.Second)
 
 	slog.Info("Starting to make picks")
-    // Have play make picks in a random order. Some picks being valid and some being invalid
+
+	successfulPicks := 0
+	invalidPicks := 0
+
+	// Have play make picks in a random order. Some picks being valid and some being invalid
 	for getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
-		player := selectRandomPlayer(users);
-		makePickRequest(draft.Id, player, getRandomTeamId())
+		var pickingPlayer *User
+		for _, player := range users {
+			if isPickingPlayer(player, draft.Id) {
+				pickingPlayer = player
+				break
+			}
+		}
+		slog.Info("Got picking player", "Username", pickingPlayer.Username)
+		if rand.IntN(10) < 3 {
+			pickingPlayer = selectRandomPlayer(users)
+			slog.Info("Chose random player instead", "Username", pickingPlayer.Username)
+		}
+		success := makePickRequest(draft.Id, pickingPlayer, getRandomTeamId())
+		if success {
+			successfulPicks++
+		} else {
+			invalidPicks++
+		}
+
+		if successfulPicks > 64 {
+			panic("too many picks were made")
+		}
+		slog.Info("Picking round made", "Successful Picks", successfulPicks, "Invalid Picks", invalidPicks)
 	}
 
 	// Make sure the draft goes to teams playing status
+}
+
+func isPickingPlayer (user *User, draftId int) bool {
+	slog.Info("Getting picking player", "Draft Id", draftId, "User", user.Username)
+
+	resp, err := user.Client.Get(fmt.Sprintf("%s/u/draft/%d/pick", target, draftId))
+	if err != nil {
+		slog.Error("Failed to get pick page", "Draft Id", draftId, "Username", user.Username, "Error", err)
+		panic(err)
+	}
+
+	if resp.StatusCode != 200 {
+		slog.Error("Failed to get pick page", "Draft Id", draftId, "User", user.Username)
+		panic("failed to get pick page")
+	}
+
+	slog.Info("Make pick request make", "Draft Id", draftId, "User", user.Username, "Status", resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic("failed to read response body after attempting to get pick page")
+	}
+	defer resp.Body.Close()
+
+	return strings.Contains(string(body), `name="pickInput"`)
 }
 
 func getRandomTeamId() int {
@@ -107,9 +157,9 @@ func makePickRequest(draftId int, user *User, team int) bool {
 	if err != nil {
 		panic("failed to read response body after attempting to make pick")
 	}
-	fmt.Println(body)
+	defer resp.Body.Close()
 
-	return false
+	return !strings.Contains(string(body), "id=\"pickError\"")
 }
 
 func selectRandomPlayer(users map[string]*User) *User {
@@ -166,6 +216,7 @@ func acceptInvite(user *User) {
 		panic(err)
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
@@ -212,6 +263,7 @@ func getDraftIdPage(user *User, draftId int) string {
 		panic(err)
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
@@ -264,6 +316,7 @@ func sendAcceptInvite(user *User, inviteId int) string {
 		panic("failed to accept invite")
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
@@ -343,6 +396,7 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 		panic("failed to create draft")
 	}
 
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	slog.Info("Request made", "User", username, "Status", resp.StatusCode)
 
@@ -407,7 +461,7 @@ func createDraft(user *User) Draft {
 	form.Add("description", createRandomString(10, 1000))
 	form.Add("interval", "0")
 	form.Add("startTime", startTime.Format(time.RFC3339))
-	form.Add("endTime", startTime.Add(10 * time.Minute).Format(time.RFC3339))
+	form.Add("endTime", startTime.Add(10*time.Minute).Format(time.RFC3339))
 	form.Add("draftName", createRandomString(5, 50))
 
 	resp, err := user.Client.Post(target+"/u/createDraft", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
