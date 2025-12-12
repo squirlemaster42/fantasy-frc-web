@@ -54,7 +54,8 @@ func (p *PickManager) SkipCurrentPick() {
     }
 }
 
-//Return error if pick is not able to be made
+// TODO Deal with error on all callers
+// Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
     p.lock.Lock()
     defer p.lock.Unlock()
@@ -73,7 +74,10 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 
     if err == nil {
         //If we have not found any errors indicating that the pick is invalid, make the pick
-        model.MakePick(p.database, pick)
+		err := model.MakePick(p.database, pick)
+		if err != nil {
+			return false, err
+		}
         nextPickPlayer := model.NextPick(p.database, p.draftId)
 
         //Make the next pick available if we havn't aleady made all picks

@@ -27,7 +27,7 @@ templ DraftPickIndex (pickPageModel PickPage) {
                 <div id="draft-table" class="flex flex-col gap-6">
                     <div class="w-full flex items-center justify-center">
                         if pickPageModel.PickError != nil {
-                            <div class="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg font-medium">
+                            <div id="pickError" class="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg font-medium">
                                 {pickPageModel.PickError.Error()}
                             </div>
                         }
