@@ -45,7 +45,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```bash
    psql -d fantasy_frc -f database/fantasyFrcDb.sql
    ```
-4. Run any additional migration scripts as needed.
+4. Run any additional migration scripts as needed. They can ve found in the database directory. 
 
 **Note**: Database versioning is planned for future releases.
 
