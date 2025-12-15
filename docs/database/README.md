@@ -73,20 +73,6 @@ Database versioning and upgrade procedures:
 - **Session Security**: Hashed tokens with expiration
 - **Data Encryption**: Password hashing with bcrypt
 
-## 📈 Database Metrics
-
-### Scale Characteristics
-- **Concurrent Users**: 1,000+ active sessions
-- **Draft Operations**: 50+ simultaneous drafts
-- **Match Data**: 50,000+ matches per championship
-- **Growth Rate**: 10% monthly user growth
-
-### Performance Benchmarks
-- **Query Response**: <50ms for 95% of queries
-- **Connection Pool**: 95% utilization during peak
-- **Cache Hit Rate**: 85% for TBA API calls
-- **Transaction Throughput**: 1,000+ operations/second
-
 ---
 
 *Database documentation focuses on data structure, relationships, and management procedures that ensure reliable and performant data storage.*
