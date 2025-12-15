@@ -80,10 +80,6 @@ Fantasy FRC uses `make` for building. The Makefile includes options to disable c
 ```bash
 # Build and run the application
 make
-
-# Build with options
-make skipScoring=true
-make populateTeams=true
 ```
 
 ## License
