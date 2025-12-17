@@ -71,21 +71,17 @@ graph TD
 2. Authentication validates user session
 3. Draft Manager validates draft parameters
 4. Database saves draft configuration
-5. WebSocket notifies potential players
 
 ### Pick Processing Flow
 1. Client submits team pick
 2. Pick Manager validates selection
 3. Database records pick with timestamp
 4. WebSocket broadcasts pick to all players
-5. Draft Daemon updates next player turn
 
 ### Score Update Flow
 1. TBA Handler receives match results
 2. Scorer processes match data
 3. Database updates team and player scores
-4. WebSocket pushes live score updates
-5. Leaderboards are recalculated
 
 ## 🔐 Security Interactions
 
