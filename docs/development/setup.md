@@ -10,16 +10,10 @@ This guide covers setting up a complete development environment for Fantasy FRC,
 
 ### Required Software
 - **Go**: Version 1.24+ with toolchain go1.24.0
-- **PostgreSQL**: Version 12+ (recommended 14+)
+- **PostgreSQL**: Version 14+
 - **Templ**: Template engine for Go
 - **Make**: Build tool
 - **Git**: Version control
-
-### Development Tools (Recommended)
-- **VS Code**: Go extension and support
-- **Postico**: PostgreSQL GUI client
-- **Postman**: API testing tool
-- **Docker**: Containerization (optional)
 
 ## 🚀 Quick Start
 
@@ -83,119 +77,6 @@ TBA_TOKEN=your_tba_dev_token
 ```bash
 # Build and run the application
 make
-
-# Or run with specific options
-make skipScoring=true populateTeams=true
-```
-
-## 🔧 Detailed Setup
-
-### Go Installation
-
-#### macOS
-```bash
-# Install Go using Homebrew
-brew install go
-
-# Set up environment
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.zshrc
-echo 'export GOPATH=$HOME/go' >> ~/.zshrc
-source ~/.zshrc
-```
-
-#### Ubuntu/Debian
-```bash
-# Download and install Go
-wget https://go.dev/dl/go1.24.0.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.24.0.linux-amd64.tar.gz
-
-# Set up environment
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
-source ~/.profile
-```
-
-### PostgreSQL Installation
-
-#### macOS
-```bash
-# Install PostgreSQL
-brew install postgresql
-
-# Start PostgreSQL service
-brew services start postgresql
-
-# Create database user
-createuser -s dev_user
-
-# Create database
-createdb -O dev_user fantasy_frc
-```
-
-#### Ubuntu
-```bash
-# Install PostgreSQL
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-
-# Start PostgreSQL
-sudo systemctl start postgresql
-
-# Create database user
-sudo -u postgres createuser -s dev_user
-
-# Create database
-sudo -u postgres createdb -O dev_user fantasy_frc
-```
-
-### Templ Installation
-```bash
-# Install Templ
-go install github.com/a-h/templ/cmd/templ@latest
-
-# Verify installation
-templ version
-```
-
-## 🗄️ Database Setup
-
-### Initial Schema
-```bash
-# Navigate to project root
-cd fantasy-frc-web
-
-# Connect to PostgreSQL
-psql -d postgres
-
-# Run schema creation
-\i database/fantasyFrcDb.sql
-```
-
-### Run Migrations
-Execute migrations in order for proper database setup:
-
-```bash
-# Migration 1: UUID Migration
-\i database/changeUserIdToGuid.sql
-
-# Migration 2: ETag Cache
-\i database/etagUpgrade.sql
-
-# Migration 3: Skip Feature
-\i database/optInSkip.sql
-```
-
-### Verify Database Setup
-```bash
-# Connect to your database
-psql -d fantasy_frc -U dev_user
-
-# List tables
-\dt
-
-# Verify schema
-\d users
-\d drafts
-\d teams
 ```
 
 ## 🔌 Development Workflow
@@ -228,18 +109,6 @@ fantasy-frc-web/
 ```bash
 # Standard build and run
 make
-
-# Build without scoring (reduces TBA API calls)
-make skipScoring=true
-
-# Build with team pre-population
-make populateTeams=true
-
-# Build with both options
-make skipScoring=true populateTeams=true
-
-# Clean build artifacts
-make clean
 ```
 
 ### Testing
@@ -322,119 +191,6 @@ curl -H "X-TBA-Auth-Key: your_token" \
 ```
 
 **Solution**: Verify token is valid and has required permissions
-
-## 🐳 Docker Development
-
-### Docker Compose Setup
-Create `docker-compose.dev.yml`:
-
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: fantasy_frc
-      POSTGRES_USER: dev_user
-      POSTGRES_PASSWORD: dev_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database:/docker-entrypoint-initdb.d
-
-  app:
-    build: .
-    working_dir: /app/server
-    ports:
-      - "8080:8080"
-    environment:
-      - DB_PASSWORD=dev_password
-      - DB_USERNAME=dev_user
-      - DB_IP=postgres
-      - DB_NAME=fantasy_frc
-      - SERVER_PORT=8080
-      - SESSION_SECRET=dev_session_secret_minimum_32_characters_longer_is_better
-      - TBA_TOKEN=${TBA_TOKEN}
-    depends_on:
-      - postgres
-    volumes:
-      - ./server:/app/server
-
-volumes:
-  postgres_data:
-```
-
-### Docker Commands
-```bash
-# Start development environment
-docker-compose -f docker-compose.dev.yml up
-
-# Build and start
-docker-compose -f docker-compose.dev.yml up --build
-
-# Stop environment
-docker-compose -f docker-compose.dev.yml down
-
-# View logs
-docker-compose -f docker-compose.dev.yml logs -f app
-```
-
-## 🔧 IDE Configuration
-
-### VS Code Setup
-
-#### Recommended Extensions
-- **Go**: Go language support
-- **Templ**: Template syntax highlighting
-- **PostgreSQL**: Database client
-- **GitLens**: Git integration
-- **Thunder Client**: API testing
-
-#### Workspace Configuration
-Create `.vscode/settings.json`:
-```json
-{
-    "go.useLanguageServer": true,
-    "go.toolsManagement.checkForUpdates": "local",
-    "go.formatTool": "default",
-    "go.lintTool": "default",
-    "go.testFlags": ["-v", "-race"],
-    "files.exclude": {
-        "**/server/assets": true,
-        "**/*.templ.go": true
-    }
-}
-```
-
-### Debugging Configuration
-
-#### Launch Configuration
-Create `.vscode/launch.json`:
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Launch Fantasy FRC",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/server/main.go",
-            "env": {
-                "DB_PASSWORD": "dev_password",
-                "DB_USERNAME": "dev_user", 
-                "DB_IP": "localhost",
-                "DB_NAME": "fantasy_frc",
-                "SERVER_PORT": "8080",
-                "SESSION_SECRET": "dev_session_secret_minimum_32_characters_longer_is_better",
-                "TBA_TOKEN": "${env:TBA_TOKEN}"
-            },
-            "console": "integratedTerminal"
-        }
-    ]
-}
-```
 
 ## 📊 Development Tools
 
