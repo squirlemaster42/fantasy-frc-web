@@ -137,12 +137,6 @@ SELECT * FROM drafts LIMIT 10;  # Sample data
 ```bash
 # Standard development build
 make
-
-# Build with options
-make skipScoring=true populateTeams=true
-
-# Clean build artifacts
-make clean
 ```
 
 ### Testing Build
