@@ -126,22 +126,6 @@ graph TD
     N --> O
 ```
 
-## ⏰ Match Processing Priority
-
-```mermaid
-gantt
-    title Match Processing Order
-    dateFormat X
-    axisFormat %s
-    
-    section Event Types
-    Qualification Matches :active, qm1, 0, 1
-    Quarterfinals :active, qf1, 1, 2
-    Semifinals :active, sf1, 2, 3
-    Finals :active, f1, 3, 4
-    Einstein Special :active, einstein, 4, 5
-```
-
 ## 🎯 Score Calculation Examples
 
 ### Example 1: Championship Team Performance
