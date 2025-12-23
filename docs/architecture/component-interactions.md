@@ -114,14 +114,7 @@ sequenceDiagram
 - **Transaction Boundaries**: Minimal lock duration
 
 ### Caching Strategy
-- **Session Cache**: Redis for fast session lookup
 - **Score Cache**: Frequently accessed score data
-- **Static Assets**: CDN for improved load times
-
-### Real-time Efficiency
-- **WebSocket Groups**: Selective client notifications
-- **Message Batching**: Reduced network overhead
-- **Connection Management**: Resource cleanup
 
 ---
 
