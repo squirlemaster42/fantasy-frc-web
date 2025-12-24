@@ -48,7 +48,6 @@ stateDiagram-v2
 
 **Valid Operations**:
 - ✅ View draft details
-- ✅ Accept pending invitations (if space allows)
 - ❌ Modify draft settings
 - ❌ Make picks
 - ❌ Add/remove players
