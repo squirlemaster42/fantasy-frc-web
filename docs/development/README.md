@@ -93,44 +93,6 @@ Contribution process and standards:
 - Add TODO comments for future work
 - Document any breaking changes
 
-## 🐛 Debugging Setup
-
-### Local Debugging
-```bash
-# Build with debugging symbols
-go build -gcflags="all=-N -l" ./server
-
-# Run with Delve debugger
-dlv debug ./server
-```
-
-### VS Code Debugging
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Launch Package",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/server/main.go"
-        }
-    ]
-}
-```
-
-### Database Debugging
-```bash
-# Connect to development database
-psql -h localhost -U dev_user -d fantasy_frc
-
-# Common debugging queries
-\dt                    # List tables
-\d table_name          # Describe table
-SELECT * FROM drafts LIMIT 10;  # Sample data
-```
-
 ## 🔄 Build Process
 
 ### Development Build
