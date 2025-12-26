@@ -44,7 +44,7 @@ Rules governing valid team selections:
 
 ### Scoring Components
 - **Qualification Score**: Points from qualification matches
-- **Playoff Score**: Points from elimination matches  
+- **Playoff Score**: Points from elimination matches
 - **Alliance Score**: Points from alliance selection position
 - **Einstein Score**: Doubled playoff points at championship
 
@@ -55,9 +55,9 @@ Rules governing valid team selections:
 - **Auto-skip**: Automatic progression on expired picks
 
 ### Player Experience
-- **8 Players**: Standard draft size
-- **8 Teams**: Each player drafts 8 teams
-- **64 Total Picks**: Complete draft coverage
+- **8 Players**: Standard draft size -- May be configurable in the cuture
+- **8 Teams**: Each player drafts 8 teams -- May be configurable in the cuture
+- **64 Total Picks**: Complete draft coverage -- May be configurable in the cuture
 - **Live Rankings**: Real-time score updates
 
 ## 🔗 Related Documentation
