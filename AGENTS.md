@@ -1,6 +1,6 @@
 # AGENTS.md - Development Guidelines for Fantasy FRC Web
 
-This file contains build/lint/test commands and code style guidelines for agentic coding assistants working on this Go web application.
+This file contains build/lint/test commands and code style guidelines for agentic coding assistants working on this Go, templ, Htmx, Postgres web application.
 
 ## Build/Lint/Test Commands
 
