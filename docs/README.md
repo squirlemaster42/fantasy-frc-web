@@ -61,13 +61,4 @@ graph TD
     F --> I
 ```
 
-## 🔗 Related Resources
-
-- [Main README](../README.md)
-- [Development Guidelines](../AGENTS.md)
-- [Code of Conduct](../CODE_OF_CONDUCT.md)
-- [Security Policy](../SECURITY.md)
-
----
-
 *Last updated: 2025-12-11*
