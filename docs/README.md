@@ -10,9 +10,7 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Data Flow](./architecture/data-flow.md) - Data movement through the system
 
 ### [🔌 API](./api/)
-- [REST API](./api/rest-api.md) - Complete API reference
 - [WebSocket API](./api/websocket-api.md) - Real-time notifications
-- [Error Handling](./api/error-handling.md) - Error codes and responses
 
 ### [🗄️ Database](./database/)
 - [Schema](./database/schema.md) - Database structure and relationships
