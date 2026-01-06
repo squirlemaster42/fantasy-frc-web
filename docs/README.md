@@ -31,10 +31,6 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Setup Guide](./development/setup.md) - Development environment
 - [Development Overview](./development/README.md) - Development workflow and standards
 
-### [⚙️ Operations](./operations/) *(Coming Soon)*
-- [Monitoring](./operations/monitoring.md) - System monitoring
-- [Troubleshooting](./operations/troubleshooting.md) - Common issues
-
 ## 🎯 Quick Start
 
 1. **For Developers**: Start with [Development Setup](./development/setup.md)
