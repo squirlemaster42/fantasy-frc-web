@@ -66,7 +66,7 @@ SERVER_PORT=8080
 - `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
 - `DB_*`: Database connection details
 - `SESSION_SECRET`: Random string for session encryption
-- `SERVER_PORT`: Override port for the web server (default: 8080)
+- `SERVER_PORT`: Override port for the web server
 
 ## Building and Running
 
