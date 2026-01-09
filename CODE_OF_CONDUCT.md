@@ -1,3 +1,3 @@
 # Contributor Covenant Code of Conduct
 
-Be Nice Pls :)
+Be Nice pls :)
