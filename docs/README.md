@@ -19,7 +19,6 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 ### [🚀 Environment Setup](./development/setup.md)
 - Development environment configuration
 - Prerequisites and tool installation
-- Local development workflow
 
 ### [💼 Business Logic](./business-logic/)
 - [Scoring Algorithm](./business-logic/scoring.md) - How points are calculated
