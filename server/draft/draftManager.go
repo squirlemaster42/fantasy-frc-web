@@ -42,6 +42,8 @@ type ToPickingTransition struct {
 
 func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
     model.RandomizePickOrder(tpt.database, draft.draftId)
+    // TODO I think there is an issue here where we dont set the first player
+    // as picking
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     return nil
 }
