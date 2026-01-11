@@ -646,6 +646,7 @@ func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
 
 	var draftPlayerId int
 	err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
+	// TODO This should not cause the program to crash
 	assert.NoError(err, "Failed to get draft player")
 
 	return draftPlayerId

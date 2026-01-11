@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -72,6 +74,8 @@ func main() {
 
 	slog.Info("Starting to make picks")
 
+	validTeams := loadValidTeams()
+
 	successfulPicks := 0
 	invalidPicks := 0
 
@@ -84,12 +88,17 @@ func main() {
 				break
 			}
 		}
+
+		if pickingPlayer == nil {
+			panic("failed to find picking player")
+		}
+
 		slog.Info("Got picking player", "Username", pickingPlayer.Username)
 		if rand.IntN(10) < 3 {
 			pickingPlayer = selectRandomPlayer(users)
 			slog.Info("Chose random player instead", "Username", pickingPlayer.Username)
 		}
-		success := makePickRequest(draft.Id, pickingPlayer, getRandomTeamId())
+		success := makePickRequest(draft.Id, pickingPlayer, getRandomTeamId(validTeams))
 		if success {
 			successfulPicks++
 		} else {
@@ -103,6 +112,27 @@ func main() {
 	}
 
 	// Make sure the draft goes to teams playing status
+}
+
+func loadValidTeams() []int {
+	file, err := os.Open("./frc-worlds-2025.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	var validTeams []int
+
+	scanner := bufio.NewScanner(file)
+    for scanner.Scan() {
+		line := scanner.Text()
+		teamNum, err := strconv.Atoi(line)
+		if err != nil {
+			panic(err)
+		}
+
+		validTeams = append(validTeams, teamNum)
+    }
+	return validTeams
 }
 
 func isPickingPlayer (user *User, draftId int) bool {
@@ -130,7 +160,11 @@ func isPickingPlayer (user *User, draftId int) bool {
 	return strings.Contains(string(body), `name="pickInput"`)
 }
 
-func getRandomTeamId() int {
+// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
+func getRandomTeamId(validPicks []int) int {
+	if rand.IntN(5) != 1 {
+		return validPicks[rand.IntN(len(validPicks))]
+	}
 	return rand.IntN(10000)
 }
 
