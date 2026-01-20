@@ -31,7 +31,6 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Development Overview](./development/README.md) - Development workflow and standards
 
 ## 🎯 Quick Start
-
 1. **For Developers**: Start with [Development Setup](./development/setup.md)
 2. **For API Users**: See [REST API](./api/rest-api.md)
 3. **For Database Setup**: See [Database Schema](./database/schema.md)

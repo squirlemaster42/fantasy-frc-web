@@ -8,7 +8,9 @@ import (
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
+	"server/utils"
 	"sync"
+	"time"
 )
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
@@ -42,8 +44,8 @@ type ToPickingTransition struct {
 
 func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
     model.RandomizePickOrder(tpt.database, draft.draftId)
-    // TODO I think there is an issue here where we dont set the first player
-    // as picking
+	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
+	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
     return nil
 }
@@ -53,6 +55,7 @@ type ToPlayingTransition struct {
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
+	slog.Info("Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
     model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
     //Remove the draft from the pick daemon
     return nil
@@ -116,7 +119,8 @@ type DraftManager struct {
     //TODO this map should be thread safe
     drafts map[int]*Draft
     loadLocks sync.Map
-    transitonLocks sync.Map
+    transitionLocks sync.Map
+    pickLocks sync.Map
     database *sql.DB
     tbaHandler *tbaHandler.TbaHandler
     states map[model.DraftState]*state
@@ -186,8 +190,11 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 
 	lock := dm.getTransitionLock(draftId)
 	lock.Lock()
+	defer lock.Unlock()
+	slog.Info("Aquired transition lock", "Draft Id", draftId)
 
     draft, err := dm.GetDraft(draftId, false)
+	slog.Info("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
 		slog.Warn("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
 		return err
@@ -199,6 +206,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
     state, stateFound := dm.states[draft.model.Status]
     assert.AddContext("Current Draft State", state)
     assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
+	slog.Info("Found draft state", "Draft Id", draft.draftId, "State", state.state)
     transition, transitionFound := state.transitions[requestedState]
     if !transitionFound {
         slog.Error("Did not find draft state transition", "Current State", draft.model.Status, "Requested State", requestedState)
@@ -218,26 +226,24 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 
 	draft, err = dm.GetDraft(draftId, true)
 	slog.Info("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
-	lock.Unlock()
 
 	return err
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
-	loadLock := dm.getLoadLock(draftId)
-	loadLock.Lock()
 	draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
 		return err
 	}
-	loadLock.Unlock()
 
-	transitionLock := dm.getTransitionLock(draftId)
-	transitionLock.Lock()
-	defer transitionLock.Unlock()
+	pickLock := dm.getPickLock(draftId)
+	pickLock.Lock()
+	defer pickLock.Unlock()
 	pickingComplete, err := draft.pickManager.MakePick(pick)
 	if pickingComplete {
 		slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
+		// TODO This transition does not execute because we have the lock above
+		// I should probably just make a pick lock
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
         if err != nil {
@@ -259,12 +265,23 @@ func (dm *DraftManager) getLoadLock(draftId int) *sync.Mutex {
 	return lock.(*sync.Mutex)
 }
 
-func (dm *DraftManager) getTransitionLock(draftId int) *sync.Mutex {
+func (dm *DraftManager) getPickLock(draftId int) *sync.Mutex {
 	//Get the lock if it exists for the draft, if not register it
-	lock, ok := dm.transitonLocks.Load(draftId)
+	lock, ok := dm.pickLocks.Load(draftId)
 	if !ok {
 		mtx := &sync.Mutex{}
-		dm.transitonLocks.Store(draftId, mtx)
+		dm.pickLocks.Store(draftId, mtx)
+		return mtx
+	}
+	return lock.(*sync.Mutex)
+}
+
+func (dm *DraftManager) getTransitionLock(draftId int) *sync.Mutex {
+	//Get the lock if it exists for the draft, if not register it
+	lock, ok := dm.transitionLocks.Load(draftId)
+	if !ok {
+		mtx := &sync.Mutex{}
+		dm.transitionLocks.Store(draftId, mtx)
 		return mtx
 	}
 	return lock.(*sync.Mutex)

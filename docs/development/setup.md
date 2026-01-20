@@ -206,27 +206,6 @@ psql -h localhost -U dev_user -d fantasy_frc
 \du                   # List users
 ```
 
-### API Testing
-```bash
-# Test authentication
-curl -X POST http://localhost:8080/login \
-     -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "username=test&password=test"
-
-# Test API endpoints
-curl -X GET http://localhost:8080/u/home \
-     -H "Cookie: session_token=your_session"
-```
-
-### Log Monitoring
-```bash
-# View application logs
-tail -f /var/log/fantasy-frc/app.log
-
-# Or if running directly
-./server | tee app.log
-```
-
 ## 🔄 Development Workflow
 
 ### 1. Feature Development

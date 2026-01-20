@@ -57,6 +57,9 @@ func (p *PickManager) SkipCurrentPick() {
 // TODO Deal with error on all callers
 // Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
+	// TODO There is a bug on the last pick when watching the page with
+	// websockets that causes a new row to show up after pick 64 is made
+
     p.lock.Lock()
     defer p.lock.Unlock()
 
@@ -93,9 +96,9 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
             slog.Info("Making next pick available", "Draft Id", p.draftId)
             model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
         } else {
-            //Set draft to the teams playing state
-            //This isnt entirely correct becuase it doesnt account for skips
-            //But I dont care about that for this year
+            // Set draft to the teams playing state
+            // This isnt entirely correct becuase it doesnt account for skips
+            // But I dont care about that for this year
             pickingComplete = true
         }
     }

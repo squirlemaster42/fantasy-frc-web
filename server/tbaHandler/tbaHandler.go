@@ -126,6 +126,8 @@ func (t *TbaHandler) makeRequest(url string) []byte {
         return nil
     }
 
+	// TODO It looks like we might not be caching anything anymore.
+	// Need to figure out why
     t.cacheData(url, resp.Header["Etag"][0], body)
 
     return body
