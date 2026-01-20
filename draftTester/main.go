@@ -88,10 +88,9 @@ func main() {
 				break
 			}
 		}
-
-		if pickingPlayer == nil {
-			panic("failed to find picking player")
-		}
+        if pickingPlayer == nil {
+            panic("failed to find picking player")
+        }
 
 		slog.Info("Got picking player", "Username", pickingPlayer.Username)
 		if rand.IntN(10) < 3 {
