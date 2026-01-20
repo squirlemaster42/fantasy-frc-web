@@ -65,7 +65,8 @@ Rules governing valid team selections:
 - [Architecture Overview](../architecture/system-overview.md)
 - [Data Flow](../architecture/data-flow.md)
 - [Database Schema](../database/schema.md)
-- [API Routes](../api/rest-api.md)
+- [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
+- [WebSocket API](../api/websocket-api.md) - Real-time notifications
 
 ## 🛠️ Implementation Details
 

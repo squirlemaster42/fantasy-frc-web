@@ -10,6 +10,7 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Data Flow](./architecture/data-flow.md) - Data movement through the system
 
 ### [🔌 API](./api/)
+- [Web Endpoints](./api/web-endpoints.md) - HTTP endpoints and forms
 - [WebSocket API](./api/websocket-api.md) - Real-time notifications
 
 ### [🗄️ Database](./database/)
@@ -32,7 +33,7 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 
 ## 🎯 Quick Start
 1. **For Developers**: Start with [Development Setup](./development/setup.md)
-2. **For API Users**: See [REST API](./api/rest-api.md)
+2. **For API Users**: See [Web Endpoints](./api/web-endpoints.md)
 3. **For Database Setup**: See [Database Schema](./database/schema.md)
 4. **For System Architecture**: See [System Overview](./architecture/system-overview.md)
 

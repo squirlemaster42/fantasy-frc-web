@@ -140,7 +140,8 @@ docker build -t fantasy-frc:latest .
 
 - [Architecture Overview](../architecture/system-overview.md) - System design
 - [Database Schema](../database/schema.md) - Data structure
-- [API Documentation](../api/rest-api.md) - Application interfaces
+- [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
+- [WebSocket API](../api/websocket-api.md) - Real-time notifications
 - [Deployment Guide](../deployment/configuration.md) - Environment setup
 
 ## 🚀 Quick Start

@@ -4,15 +4,33 @@ import (
     "server/view"
     "server/model"
     "fmt"
+    "strings"
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
-    <div class="w-full overflow-x-auto flex row justify-evenly mt-10 gap-2">
-        for _, player := range userDraftScore {
-            @DraftScoreReport(player)
-        }
+    <div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
+        <div class="w-full">
+            <h2 class="text-2xl font-bold text-slate-100 mb-6 text-center">Draft Scores</h2>
+            <div class="flex flex-nowrap gap-6 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);" id="draftScoresContainer">
+                for _, player := range userDraftScore {
+                    @DraftScoreReport(player)
+                }
+            </div>
+        </div>
     </div>
-    <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('draftScoresContainer');
+            if (container) {
+                container.addEventListener('wheel', (e) => {
+                    if (e.deltaY !== 0) {
+                        container.scrollLeft += e.deltaY;
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
+        });
+    </script>
 }
 
 templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
@@ -22,16 +40,65 @@ templ DraftScore(page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ DraftScoreReport(player model.DraftPlayer) {
-<div class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700">
-    <h5 class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-    </h5>
-    {player.User.Username}: {fmt.Sprintf("%d", player.Score)}
-    <hr/>
-        for _, pick := range player.Picks{
-        <p class="font-normal text-gray-700 dark:text-gray-400 whitespace-nowrap">
-            {pick.Pick.String} Score: {fmt.Sprintf("%d", pick.Score)}
-        </p>
-        }
-</div>
+    <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl border border-slate-700 min-w-[350px] w-[350px] flex flex-col">
+        <div class="card-body p-6 flex flex-col">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-100">{player.User.Username}</h2>
+                    <p class="text-slate-400 text-sm">Draft Player</p>
+                </div>
+            </div>
 
+            if len(player.Picks) > 0 {
+                <div class="mb-4 pt-4 border-t border-slate-600">
+                    <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Team Picks</h3>
+                    <div class="space-y-2">
+                        for _, pick := range player.Picks{
+                            if pick.Pick.Valid {
+                                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600 hover:border-slate-500 transition-colors duration-200">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-300">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <div class="font-mono text-lg font-semibold text-slate-100">{fmt.Sprintf("%s", strings.TrimLeft(pick.Pick.String, "frc"))}</div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-sm font-medium text-slate-400 uppercase tracking-wide">Score</div>
+                                            <div class="text-xl font-bold text-blue-400">{fmt.Sprintf("%d", pick.Score)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="mt-4 pt-4 border-t border-slate-600">
+                <div class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg p-4 border border-slate-600">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-slate-400 uppercase tracking-wide">Total Score</div>
+                            <div class="text-3xl font-bold text-slate-100">{fmt.Sprintf("%d", player.Score)}</div>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3v1.5a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 23.25V21a3 3 0 0 1 3-3m9 0V9a3 3 0 0 0-3-3m-9 9V9a3 3 0 0 1 3-3m9 0a3 3 0 0 1 3 3m-9 0a3 3 0 0 1 3 3m9 0V21" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 }
