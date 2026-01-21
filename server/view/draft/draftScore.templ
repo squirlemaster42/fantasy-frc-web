@@ -8,7 +8,7 @@ import (
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
-    <div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
+    <div class="flex flex-col w-full gap-6 p-6">
         <div class="w-full">
             <h2 class="text-2xl font-bold text-slate-100 mb-6 text-center">Draft Scores</h2>
             <div class="flex flex-nowrap gap-6 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);" id="draftScoresContainer">
