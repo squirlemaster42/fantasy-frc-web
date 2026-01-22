@@ -8,10 +8,10 @@ import (
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
-    <div class="flex flex-col w-full gap-6 p-6">
-        <div class="w-full">
+    <div class="flex flex-col w-full gap-6 p-6 h-full">
+        <div class="flex flex-col flex-1 min-h-0">
             <h2 class="text-2xl font-bold text-slate-100 mb-6 text-center">Draft Scores</h2>
-            <div class="flex flex-nowrap gap-6 overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);" id="draftScoresContainer">
+            <div class="grid grid-flow-col auto-cols-max gap-6 overflow-x-auto overflow-y-hidden items-stretch scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);" id="draftScoresContainer">
                 for _, player := range userDraftScore {
                     @DraftScoreReport(player)
                 }
@@ -40,8 +40,8 @@ templ DraftScore(page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ DraftScoreReport(player model.DraftPlayer) {
-    <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl border border-slate-700 min-w-[350px] w-[350px] flex flex-col">
-        <div class="card-body p-6 flex flex-col">
+    <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl border border-slate-700 min-w-[350px] w-[350px] flex flex-col h-full">
+        <div class="card-body p-6 flex flex-col h-full">
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-white">
@@ -55,31 +55,33 @@ templ DraftScoreReport(player model.DraftPlayer) {
             </div>
 
             if len(player.Picks) > 0 {
-                <div class="mb-4 pt-4 border-t border-slate-600">
-                    <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Team Picks</h3>
-                    <div class="space-y-2">
-                        for _, pick := range player.Picks{
-                            if pick.Pick.Valid {
-                                <div class="bg-slate-700 rounded-lg p-3 border border-slate-600 hover:border-slate-500 transition-colors duration-200">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-300">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-                                                </svg>
+                <div class="flex-1 overflow-y-auto min-h-0">
+                    <div class="mb-4 pt-4 border-t border-slate-600">
+                        <h3 class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Team Picks</h3>
+                        <div class="space-y-2">
+                            for _, pick := range player.Picks{
+                                if pick.Pick.Valid {
+                                    <div class="bg-slate-700 rounded-lg p-3 border border-slate-600 hover:border-slate-500 transition-colors duration-200">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-300">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <div class="font-mono text-lg font-semibold text-slate-100">{fmt.Sprintf("%s", strings.TrimLeft(pick.Pick.String, "frc"))}</div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div class="font-mono text-lg font-semibold text-slate-100">{fmt.Sprintf("%s", strings.TrimLeft(pick.Pick.String, "frc"))}</div>
+                                            <div class="text-right">
+                                                <div class="text-sm font-medium text-slate-400 uppercase tracking-wide">Score</div>
+                                                <div class="text-xl font-bold text-blue-400">{fmt.Sprintf("%d", pick.Score)}</div>
                                             </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <div class="text-sm font-medium text-slate-400 uppercase tracking-wide">Score</div>
-                                            <div class="text-xl font-bold text-blue-400">{fmt.Sprintf("%d", pick.Score)}</div>
                                         </div>
                                     </div>
-                                </div>
+                                }
                             }
-                        }
+                        </div>
                     </div>
                 </div>
             }

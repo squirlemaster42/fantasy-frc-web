@@ -1,5 +1,8 @@
 # Strategy Tips
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Ready to dominate your Fantasy FRC league? These strategies will help you build a winning team and outsmart your competition.
 
 ## 🎯 Core Strategy Principles

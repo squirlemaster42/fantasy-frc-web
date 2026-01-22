@@ -1,5 +1,8 @@
 # Scoring Explained
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Understanding how teams (and your fantasy roster) earn points is key to Fantasy FRC success. This guide breaks down the scoring system in simple terms.
 
 ## 🎯 Scoring Overview

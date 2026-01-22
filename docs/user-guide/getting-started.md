@@ -1,5 +1,8 @@
 # Getting Started with Fantasy FRC
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Welcome to Fantasy FRC! This guide will help you understand what fantasy FRC is and how to get started playing.
 
 ## 🤔 What is Fantasy FRC?

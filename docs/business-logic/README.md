@@ -1,5 +1,8 @@
 # Business Logic Documentation
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Core business rules and algorithms that drive the Fantasy FRC system.
 
 ## 📚 Documentation
