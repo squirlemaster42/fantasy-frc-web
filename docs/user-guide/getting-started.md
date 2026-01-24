@@ -93,10 +93,6 @@ Just like in traditional fantasy sports, you become a "team owner" who selects a
 - **Competition season**: Check in periodically during events
 - **Total time**: Very casual - most activity is passive
 
-### Cost
-- **Free to play**: No cost to participate
-- **Just for fun**: This is a fan-run community project
-
 ## 🏆 Championship Events
 
 Fantasy FRC focuses on these major FRC Championship events:
