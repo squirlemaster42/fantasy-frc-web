@@ -25,7 +25,7 @@ Just like in traditional fantasy sports, you become a "team owner" who selects a
 - **8 players per draft**: Standard league size for optimal competition
 
 ### 2. Participate in the Live Draft
-- **Snake draft order**: Pick order reverses each round (1→8→1→8...)
+- **Snake draft order**: Pick order reverses each round (1→8→8→1...)
 - **8 teams per player**: You'll draft 8 FRC teams total
 - **Time limits**: Each pick has a time limit to keep drafts moving
 - **Real-time updates**: Watch other players' picks as they happen
@@ -92,10 +92,6 @@ Just like in traditional fantasy sports, you become a "team owner" who selects a
 - **Draft day**: 1-2 hours for the live draft
 - **Competition season**: Check in periodically during events
 - **Total time**: Very casual - most activity is passive
-
-### Cost
-- **Free to play**: No cost to participate
-- **Just for fun**: This is a fan-run community project
 
 ## 🏆 Championship Events
 
