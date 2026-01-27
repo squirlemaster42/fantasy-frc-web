@@ -15,7 +15,7 @@ type PickPage struct {
 }
 
 templ DraftPickIndex (pickPageModel PickPage) {
-    <div id="draftPicks" class="flex flex-col w-full h-full gap-6 p-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
+    <div id="draftPicks" class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
         <div hx-ext="ws" ws-connect={pickPageModel.NotifierUrl} class="w-full">
             <form
                 hx-swap="outerHTML transition:true"

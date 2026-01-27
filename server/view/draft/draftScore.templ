@@ -12,7 +12,7 @@ templ DraftScoreIndex(userDraftScore []model.DraftPlayer) {
             @DraftScoreReport(player)
         }
     </div>
-    <div id="score-container" class="overflow-auto" style="height: calc(100vh - 240px)"></div>
+    <div id="score-container" class="overflow-auto h-full"></div>
 }
 
 templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {

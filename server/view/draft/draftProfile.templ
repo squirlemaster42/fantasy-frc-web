@@ -9,7 +9,7 @@ import (
 
 templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
     <form
-        class="flex flex-col lg:flex-row w-full h-full gap-6 pl-4 pr-8 py-6 pb-20 mb-8 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
+        class="flex flex-col lg:flex-row w-full gap-6 pl-4 pr-8 py-6 overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
         hx-swap="outerHTML"
         hx-post={utils.GetUpdateUrl(draft.Id)}
         action=""

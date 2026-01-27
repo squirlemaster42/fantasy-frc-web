@@ -11,7 +11,7 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
         </div>
     }
 
-    <div class="overflow-y-auto ml-6 mr-6 pt-6" style="max-height: calc(100vh - 100px);" id="pendingTable">
+    <div class="overflow-y-auto ml-6 mr-6 pt-6" id="pendingTable">
         if len(invites) == 0 {
             <div class="text-center py-12">
                 <div class="text-slate-400 text-lg mb-2">No pending invitations</div>
