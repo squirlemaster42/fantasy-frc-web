@@ -1,5 +1,8 @@
 # Draft State Machine
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Complete documentation of the Fantasy FRC draft lifecycle and state management system.
 
 ## 🎯 Overview

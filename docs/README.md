@@ -1,5 +1,8 @@
 # Fantasy FRC Web Documentation
 
+> **AI-Generated Documentation**
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+
 Welcome to the comprehensive documentation for the Fantasy FRC web application.
 
 ## 📚 Documentation Index
@@ -10,6 +13,7 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Data Flow](./architecture/data-flow.md) - Data movement through the system
 
 ### [🔌 API](./api/)
+- [Web Endpoints](./api/web-endpoints.md) - HTTP endpoints and forms
 - [WebSocket API](./api/websocket-api.md) - Real-time notifications
 
 ### [🗄️ Database](./database/)
@@ -26,15 +30,23 @@ Welcome to the comprehensive documentation for the Fantasy FRC web application.
 - [Draft States](./business-logic/draft-states.md) - Draft state machine
 - [Draft State Visual Guide](./business-logic/draft-states-visual.md) - Draft lifecycle diagrams
 
+### [🎮 User Guide](./user-guide/)
+- [Getting Started](./user-guide/getting-started.md) - How to play Fantasy FRC
+- [Draft Process](./user-guide/draft-process.md) - Complete draft walkthrough
+- [Scoring Explained](./user-guide/scoring-explained.md) - How points work
+- [Strategy Tips](./user-guide/strategy-tips.md) - Build winning teams
+
 ### [👨‍💻 Development](./development/)
 - [Setup Guide](./development/setup.md) - Development environment
 - [Development Overview](./development/README.md) - Development workflow and standards
 
 ## 🎯 Quick Start
-1. **For Developers**: Start with [Development Setup](./development/setup.md)
-2. **For API Users**: See [REST API](./api/rest-api.md)
-3. **For Database Setup**: See [Database Schema](./database/schema.md)
-4. **For System Architecture**: See [System Overview](./architecture/system-overview.md)
+1. **For Players**: Start with [Getting Started](./user-guide/getting-started.md)
+2. **For Draft Commissioners**: See [Draft Process](./user-guide/draft-process.md)
+3. **For Developers**: Start with [Development Setup](./development/setup.md)
+4. **For API Users**: See [Web Endpoints](./api/web-endpoints.md)
+5. **For Database Setup**: See [Database Schema](./database/schema.md)
+6. **For System Architecture**: See [System Overview](./architecture/system-overview.md)
 
 ## 📊 System Overview
 

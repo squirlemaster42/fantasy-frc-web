@@ -29,7 +29,7 @@ graph LR
 
 ### HTTP/HTTPS
 - **Purpose**: Client-server communication
-- **Format**: REST API with JSON payloads
+- **Format**: HTML endpoints with form submissions
 - **Authentication**: Session-based middleware
 
 ### WebSocket

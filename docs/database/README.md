@@ -50,7 +50,8 @@ Database versioning and upgrade procedures:
 
 - [Business Logic](../business-logic/) - Scoring and draft algorithms
 - [Architecture Overview](../architecture/system-overview.md) - System design
-- [API Routes](../api/rest-api.md) - Data access patterns
+- [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
+- [WebSocket API](../api/websocket-api.md) - Real-time notifications
 - [Deployment](../deployment/configuration.md) - Database setup
 
 ## 🛠️ Database Operations
