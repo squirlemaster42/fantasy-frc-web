@@ -17,8 +17,8 @@ Your Score = Team 1 Points + Team 2 Points + ... + Team 8 Points
 ### Team Score Breakdown
 Each team's total comes from four main components:
 1. **Qualification Score** - Performance in early matches
-2. **Playoff Score** - Elimination round performance  
-3. **Alliance Score** - Championship alliance selection
+2. **Alliance Selection Score** - Championship alliance selection
+3. **Playoff Score** - Elimination round performance  
 4. **Einstein Score** - Einstein Championship performance (double points!)
 
 ## 📊 The Four Score Components
