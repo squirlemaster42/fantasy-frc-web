@@ -233,13 +233,10 @@ Players are ranked by total points:
 ## ❓ Frequently Asked Questions
 
 **Do teams earn points if they lose?**
-Yes! Teams earn points for wins and bonuses even if they lose the overall match. Alliance selection points also don't depend on match outcomes.
+Yes! Teams earn points for wins as well as bonuses, even if they lose the overall match.
 
 **What if a team gets disqualified?**
 Disqualified teams earn 0 points for that specific match, but can still earn points in other matches.
-
-**How are ties handled in standings?**
-Most leagues use draft position as tiebreaker (earlier pick wins). Some commissioners may use other methods.
 
 **Can scores change after being calculated?**
 Yes, if match results are corrected or overturned, scores are automatically updated.
