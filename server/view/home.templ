@@ -10,7 +10,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
     <section class="mr-6 ml-6 mx-auto flex flex-col gap-8 bg-slate-900 p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500" style="scrollbar-width: thin; scrollbar-color: rgb(71 85 105) rgb(30 41 59);">
             for _, draft := range *drafts {
-                <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border border-slate-700 hover:border-slate-600 h-[28rem] flex flex-col">
+                <div class="card bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-500 rounded-2xl border border-slate-700 hover:border-slate-600 flex flex-col">
                     <div class="card-body p-6 text-slate-100 flex-1 flex flex-col">
                          <div class="card-title pb-4 flex-shrink-0 flex items-center">
                              <h1 class="text-lg font-bold text-blue-400 leading-tight break-all flex items-center">
@@ -69,7 +69,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
                     </div>
                 </div>
             }
-            <div class="card bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl border-2 border-dashed border-slate-600 hover:border-blue-500 h-[28rem] flex flex-col cursor-pointer group">
+            <div class="card bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl border-2 border-dashed border-slate-600 hover:border-blue-500 flex flex-col cursor-pointer group">
                 <div class="card-body p-8 text-slate-100 text-center flex-1 flex flex-col justify-center items-center">
                     <a class="mb-6" href="/u/createDraft">
                         <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-500 group-hover:scale-110 transition-all duration-300 shadow-lg">
