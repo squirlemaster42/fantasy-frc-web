@@ -31,7 +31,7 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 2. Fill in draft settings:
    - **Draft Name**: Give your league a fun name
    - **Description**: Optional rules or theme
-   - **Pick Interval**: Time per pick (recommend 90 seconds)
+   - **Pick Interval**: Time per pick
    - **Start Time**: When drafting opens
    - **End Time**: When drafting must be completed
 3. Invite players using the search function
@@ -84,7 +84,7 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 
 #### When It's Your Turn:
 1. **Timer starts**: You have the set time limit
-2. **Browse teams**: Use search or scroll through available teams
+2. **Browse teams**: Use The Blue Alliance and other tools to find available teams
 3. **Select team**: Click on your desired team
 4. **Confirm pick**: Click "Make Pick" to confirm
 5. **Pick registered**: Team is added to your roster
