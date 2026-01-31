@@ -28,7 +28,7 @@ func CreateServer(serverPort string, h handler.Handler) {
 
 	app.Add(
 		http.MethodGet,
-		"/css",
+		"/css/*",
 		echo.StaticDirectoryHandler(os.DirFS("./assets/css"), false),
 		cacheControlMiddleware,
 	)
