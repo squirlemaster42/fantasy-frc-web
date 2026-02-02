@@ -17,12 +17,46 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func initLogger(logLevel string, logFormat string, logAddSource bool) {
+	var level slog.Level
+	switch logLevel {
+	case "debug", "DEBUG", "Debug":
+		level = slog.LevelDebug
+	case "warn", "WARN", "Warn":
+		level = slog.LevelWarn
+	case "error", "ERROR", "Error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{
+		Level:     level,
+		AddSource: logAddSource,
+	}
+
+	var handler slog.Handler
+	if logFormat == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+
+	slog.SetDefault(slog.New(handler))
+}
+
 func main() {
-	assert := assert.CreateAssertWithContext("Main")
-	slog.Info("-------- Starting Fantasy FRC --------")
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
 	populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")
+	logLevel := flag.String("logLevel", "info", "Set the log level (debug, info, warn, error)")
+	logFormat := flag.String("logFormat", "text", "Set the log format (text, json)")
+	logAddSource := flag.Bool("logAddSource", false, "Add source file and line number to logs")
 	flag.Parse()
+
+	initLogger(*logLevel, *logFormat, *logAddSource)
+
+	assert := assert.CreateAssertWithContext("Main")
+	slog.Info("-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	assert.NoError(err, "Failed to load env vars")

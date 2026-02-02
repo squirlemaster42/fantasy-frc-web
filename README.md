@@ -75,11 +75,34 @@ Fantasy FRC uses `make` for building. The Makefile includes options to disable c
 - `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
 - `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
+### Logging Options
+
+The application supports configurable logging via command-line arguments:
+
+- `-logLevel=<level>`: Set the logging level (default: `info`)
+  - Valid values: `debug`, `info`, `warn`, `error`
+  - Case-insensitive (e.g., `DEBUG`, `Debug`, `debug` all work)
+- `-logFormat=<format>`: Set the log output format (default: `text`)
+  - Valid values: `text`, `json`
+- `-logAddSource`: Include source file path and line number in log entries (useful for debugging)
+
 ### Build and Run
 
 ```bash
-# Build and run the application
-make
+# Build the application
+make build
+
+# Run the compiled binary with default settings
+./server
+
+# Run with debug logging in JSON format
+./server -logLevel=debug -logFormat=json
+
+# Run with warnings only and source locations
+./server -logLevel=warn -logAddSource=true
+
+# Development mode with hot reload (uses make run)
+make run
 ```
 
 ## License
