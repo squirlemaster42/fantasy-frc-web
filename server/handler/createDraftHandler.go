@@ -65,14 +65,14 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		Status:      model.FILLING,
 	}
 
-	slog.Info("Created Draft for user", "Draft", draftModel.String(), "User", username)
+	slog.Info("Created Draft for user", "draft", draftModel.String(), "user", username)
 
 	draftId, err := model.CreateDraft(h.Database, &draftModel)
 	if err != nil {
 		slog.Error("Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")
 	}
-	slog.Info("Draft created. Redirecting to /u/draft/:draftId:/profile", "Draft Id", draftId)
+	slog.Info("Draft created. Redirecting to /u/draft/:draftId:/profile", "draftId", draftId)
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
 	return nil
 }

@@ -50,7 +50,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	valid := taken && model.ValidateLogin(h.Database, username, password)
 	if valid {
-		slog.Info("Valid login attempt for user", "Username", username)
+		slog.Info("Valid login attempt for user", "username", username)
 		userUuid := model.GetUserUuidByUsername(h.Database, username)
 		sessionTok := generateSessionToken()
 		model.RegisterSession(h.Database, userUuid, sessionTok)
@@ -66,7 +66,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		return nil
 	}
 
-	slog.Warn("Invalid login attempt for user", "Username", username)
+	slog.Warn("Invalid login attempt for user", "username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
 	err = RenderError(c, http.StatusUnauthorized, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
@@ -110,7 +110,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
 	}
 	if taken {
-		slog.Info("Account creation attempt for existing user but username was taken", "Username", username)
+		slog.Info("Account creation attempt for existing user but username was taken", "username", username)
 
 		register := login.RegisterIndex(false, "Username Taken")
 		err = Render(c, register)
@@ -120,7 +120,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	if password != confirmPassword {
-		slog.Info("Password and Confirm Password do not match for user attempting to register", "Username", username)
+		slog.Info("Password and Confirm Password do not match for user attempting to register", "username", username)
 
 		register := login.RegisterIndex(false, "Passwords Do Not Match")
 		err = Render(c, register)
@@ -129,7 +129,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return nil
 	}
 
-	slog.Info("Valid registration for user", "Username", username)
+	slog.Info("Valid registration for user", "username", username)
 	var userUuid uuid.UUID
 	userUuid = model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
