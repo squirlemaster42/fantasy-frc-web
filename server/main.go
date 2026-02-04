@@ -17,34 +17,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func initLogger(logLevel string, logFormat string, logAddSource bool) {
-	var level slog.Level
-	switch logLevel {
-	case "debug", "DEBUG", "Debug":
-		level = slog.LevelDebug
-	case "warn", "WARN", "Warn":
-		level = slog.LevelWarn
-	case "error", "ERROR", "Error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-
-	opts := &slog.HandlerOptions{
-		Level:     level,
-		AddSource: logAddSource,
-	}
-
-	var handler slog.Handler
-	if logFormat == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
-	}
-
-	slog.SetDefault(slog.New(handler))
-}
-
 func main() {
     assert := assert.CreateAssertWithContext("Main")
     slog.Info("-------- Starting Fantasy FRC --------")
