@@ -110,7 +110,6 @@ Fantasy FRC focuses on these major FRC Championship events:
 ### Einstein Championship
 - **Einstein (cmptx)**: The ultimate championship
 - **Double points**: All scores are doubled here
-- **Crown jewel**: Most prestigious scoring opportunity
 
 ## 🎮 Next Steps
 
