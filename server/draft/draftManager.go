@@ -287,11 +287,19 @@ func (dm *DraftManager) getTransitionLock(draftId int) *sync.Mutex {
 	return lock.(*sync.Mutex)
 }
 
-func (dm *DraftManager) SkipCurrentPick(draftId int) {
+func (dm *DraftManager) SkipCurrentPick(draftId int) error {
 	lock := dm.getTransitionLock(draftId)
 	lock.Lock()
 	defer lock.Unlock()
-	dm.drafts[draftId].pickManager.SkipCurrentPick()
+	draft, err := dm.GetDraft(draftId, false)
+
+	if err != nil {
+		slog.Warn("Skip Current Pick Error", "Draft Id", draftId, "Error", err)
+		return err
+	}
+
+	draft.pickManager.SkipCurrentPick()
+	return nil
 }
 
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {

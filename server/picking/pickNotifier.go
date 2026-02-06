@@ -60,12 +60,14 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 }
 
 func (pn *PickNotifier) RecievePickEvent(pickEvent PickEvent) {
+	slog.Info("Received Pick Event", "Pick Id", pickEvent.Pick.Id)
     for _, watcher := range pn.Watchers[pickEvent.DraftId] {
         watcher.NotifierQueue <- true
     }
 }
 
 func (pn *PickNotifier) NotifyWatchers(draftId int) {
+	slog.Info("Notifying Watchers", "Draft Id", draftId)
     for _, watcher := range pn.Watchers[draftId] {
         watcher.NotifierQueue <- true
     }
