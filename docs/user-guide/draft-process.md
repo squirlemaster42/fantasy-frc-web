@@ -60,7 +60,6 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 2. **Navigate to draft**: Click the draft link or find it in your dashboard
 3. **Draft room interface**: 
    - Current pick display
-   - Available teams list
    - Timer countdown
    - Draft board showing all picks so far
    - Your roster display
