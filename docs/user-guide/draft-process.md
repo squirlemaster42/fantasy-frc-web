@@ -223,9 +223,6 @@ Currently, trading is not supported. Your roster is locked after the draft.
 **What happens if the draft server goes down?**
 The system has backup mechanisms. Contact your draft commissioner for assistance.
 
-**Can I join a draft late?**
-Only if there are still open spots and the draft hasn't progressed too far. Check with the commissioner.
-
 **How are ties broken in final standings?**
 Ties are broken by draft position (earlier pick wins) in most leagues.
 
