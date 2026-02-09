@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"os"
 	"server/swagger"
+	"server/utils"
 
 	"github.com/labstack/echo/v4"
 )
@@ -25,7 +27,7 @@ func validMAC(message []byte, messageMAC []byte, key []byte) bool {
 	return hmac.Equal(messageMAC, []byte(hex.EncodeToString(expectedMAC)))
 }
 
-func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
+func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
     slog.Info("Received webhook message")
     body, err := io.ReadAll(c.Request().Body)
     if err != nil {
@@ -33,18 +35,22 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
         return nil
     }
 
+    var event TbaWebsocketEvent
+    err = json.Unmarshal(body, &event)
+    if err != nil {
+        slog.Error("Failed to decode webhook message", "Error", err, "Message", string(body))
+        return nil
+    }
+
+	if event.MessageType == "verification" {
+        h.HandleVerificationEvent(event.MessageData)
+	}
+
     messageMac := c.Request().Header.Get("X-TBA-HMAC")
     valid := validMAC(body, []byte(messageMac), []byte(h.TbaWekhookSecret))
 
     if !valid {
         slog.Warn("Webhook event authentication failed", "Message", string(body))
-        return nil
-    }
-
-    var event TbaWebsocketEvent
-    err = json.Unmarshal(body, &event)
-    if err != nil {
-        slog.Error("Failed to decode webhook message", "Error", err, "Message", string(body))
         return nil
     }
 
@@ -68,8 +74,6 @@ func (h *Handler) ConsumeTbaWebsocket(c echo.Context) error {
         h.HandlePingEvent(event.MessageData)
     case "broadcast":
         h.HandleBroadcastEvent(event.MessageData)
-    case "verification":
-        h.HandleVerificationEvent(event.MessageData)
     default:
         slog.Warn("Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
     }
@@ -108,7 +112,7 @@ func (h *Handler) HandleAllianceSelectionEvent(messageData json.RawMessage) {
     var notification AllianceSelectionNotification
     err := json.Unmarshal(messageData, &notification)
     if err != nil {
-        slog.Warn("Failed to decode alliance seleciton notification", "Error", err, "Message", messageData)
+        slog.Warn("Failed to decode alliance selection notification", "Error", err, "Message", messageData)
         return
     }
     h.Scorer.ScoreAllianceSelection(notification.EventKey)
@@ -197,5 +201,22 @@ type VerificationEvent struct {
 }
 
 func (h *Handler) HandleVerificationEvent(messageData json.RawMessage) {
+	// TODO I think that we should save this to a file and
+	// then load it when we create the handler. We should
+	// also make an admin command which can be used to get
+	// the code.
     slog.Info("Received Verification Event", "Message", messageData)
+
+	var event VerificationEvent
+    err := json.Unmarshal(messageData, &event)
+    if err != nil {
+        slog.Warn("Failed to decode verification event", "Error", err, "Message", messageData)
+        return
+    }
+
+	h.TbaWekhookSecret = event.VerificationKey
+	err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaWekhookSecret), 0644)
+	if err != nil {
+		slog.Warn("Failed to write tba webhook file body", "Error", err)
+	}
 }

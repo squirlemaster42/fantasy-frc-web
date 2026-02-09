@@ -280,3 +280,7 @@ func getMatchLevel(matchKey string) string {
     return match
 }
 
+func GetWebhookFilePath() string {
+	// TODO we need a better way to store this information
+	return "./webhookSecret.txt"
+}
