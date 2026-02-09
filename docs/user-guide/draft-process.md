@@ -1,7 +1,7 @@
 # Draft Process Guide
 
 > **AI-Generated Documentation**
-> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
+> This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team.
 
 The draft is the most exciting part of Fantasy FRC! This guide walks you through everything you need to know about drafting your FRC teams.
 
@@ -60,7 +60,6 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 2. **Navigate to draft**: Click the draft link or find it in your dashboard
 3. **Draft room interface**: 
    - Current pick display
-   - Available teams list
    - Timer countdown
    - Draft board showing all picks so far
    - Your roster display
@@ -223,9 +222,6 @@ Currently, trading is not supported. Your roster is locked after the draft.
 
 **What happens if the draft server goes down?**
 The system has backup mechanisms. Contact your draft commissioner for assistance.
-
-**Can I join a draft late?**
-Only if there are still open spots and the draft hasn't progressed too far. Check with the commissioner.
 
 **How are ties broken in final standings?**
 Ties are broken by draft position (earlier pick wins) in most leagues.

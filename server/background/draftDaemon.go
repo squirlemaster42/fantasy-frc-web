@@ -7,8 +7,6 @@ import (
 	"server/assert"
 	"server/draft"
 	"server/model"
-	"server/picking"
-	"server/utils"
 	"sync"
 	"time"
 )
@@ -18,7 +16,6 @@ type DraftDaemon struct {
     running bool
     mu sync.Mutex
     runningDrafts map[int]bool
-    notifier *picking.PickNotifier
     draftManager *draft.DraftManager
 }
 
@@ -27,7 +24,6 @@ func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDa
         database: database,
         running: false,
         runningDrafts: make(map[int]bool),
-        notifier: &picking.PickNotifier{},
         draftManager: draftManager,
     }
 }
@@ -107,11 +103,8 @@ func (d *DraftDaemon) checkForPicksToSkip() {
         shouldSkip := model.ShoudSkipPick(d.database, curPick.Player)
         if shouldSkip {
             slog.Info("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
-            nextPickPlayer := model.NextPick(d.database, draftId)
-            model.SkipPick(d.database, curPick.Id)
-            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-            d.notifier.NotifyWatchers(draftId)
-            skipped = true
+			err := d.draftManager.SkipCurrentPick(draftId)
+            skipped = err == nil
         }
 
         slog.Info("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
@@ -119,10 +112,10 @@ func (d *DraftDaemon) checkForPicksToSkip() {
         if curPick.ExpirationTime.Before(now) && !skipped {
             slog.Info("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
             //We want to skip the current pick and go to the next one
-            nextPickPlayer := model.NextPick(d.database, draftId)
-            model.SkipPick(d.database, curPick.Id)
-            model.MakePickAvailable(d.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-            d.notifier.NotifyWatchers(draftId)
+			err := d.draftManager.SkipCurrentPick(draftId)
+			if err != nil {
+				slog.Warn("Failed to skip pick", "Draft Id", draftId, "Current Pick", curPick.Id, "Error", err)
+			}
         } else {
             slog.Info("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
         }
