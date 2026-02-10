@@ -59,6 +59,7 @@ func CreateServer(serverPort string, h handler.Handler) {
 	protected.GET("/team/score", h.HandleTeamScore)
 	protected.POST("/team/score", h.HandleGetTeamScore)
 	protected.GET("/draft/:id/draftScore", h.HandleDraftScore)
+	protected.GET("/draft/:id/team/:teamNumber", h.HandleDraftTeamScore)
 	protected.POST("/searchPlayers", h.SearchPlayers)
 	protected.GET("/viewInvites", h.HandleViewInvites)
 	protected.POST("/acceptInvite", h.HandleAcceptInvite)

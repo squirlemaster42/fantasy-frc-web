@@ -25,7 +25,7 @@ templ Navbar(fromProtected bool, username string, page string, data any) {
                 <!-- Navigation Links -->
                 if fromProtected {
                     <div class="hidden md:flex items-center space-x-1">
-                        if (page == " | Draft Profile" || page == " | Draft Picks" || page == " | Draft Score") && data != nil && data != -1 {
+                        if (page == " | Draft Profile" || page == " | Score Breakdown" || page == " | Draft Picks" || page == " | Draft Score") && data != nil && data != -1 {
                             <a
                                 href={templ.URL(fmt.Sprintf("/u/draft/%d/profile", data))}
                                 class="flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
