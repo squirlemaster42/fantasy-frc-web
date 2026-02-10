@@ -8,16 +8,25 @@ import (
 	"server/authentication"
 	"server/handler"
 
+	"github.com/getsentry/sentry-go"
+	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(serverPort string, h handler.Handler) {
+func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	slog.Info("Starting Server")
 	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
+
+	// To initialize Sentry's handler, you need to initialize Sentry itself beforehand
+	if err := sentry.Init(sentry.ClientOptions{
+		Dsn: sentryDNS,
+	}); err != nil {
+		slog.Error("Sentry initialize failed", "Error", err)
+	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -35,6 +44,9 @@ func CreateServer(serverPort string, h handler.Handler) {
 
 	app.Use(middleware.Gzip())
 	//app.Use(middleware.Recover())
+	app.Use(sentryecho.New(sentryecho.Options{
+		Repanic: true,
+	}))
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding)
