@@ -3,7 +3,9 @@ package handler
 import (
 	"database/sql"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -91,6 +93,21 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) stri
     return "Draft Started"
 }
 
+type ViewWebhookKey struct {}
+
+func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, argStr string) string {
+	file, err := os.Open(utils.GetWebhookFilePath())
+	if err != nil {
+		return "Failed to open file: " + err.Error()
+	}
+	body, err := io.ReadAll(file)
+	if err != nil {
+		return "Failed to read file: " + err.Error()
+	}
+
+	return string(body)
+}
+
 type SkipPickCommand struct {}
 
 func (s *SkipPickCommand) ProcessCommand(database *sql.DB, argStr string) string {
@@ -107,8 +124,10 @@ func (s *SkipPickCommand) ProcessCommand(database *sql.DB, argStr string) string
     model.SkipPick(database, curPick.Id)
     model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-    //TODO How do we get the notifier in here?
-    //d.notifier.NotifyWatchers(draftId)
+    // TODO How do we get the notifier in here?
+	// This should be pretty easy to do now...
+	// I just need to do it
+    // d.notifier.NotifyWatchers(draftId)
 
     return "Player was skipped"
 }
@@ -118,6 +137,7 @@ var commands = map[string]Command {
     "listdraft": &ListDraftsCommand{},
     "startdraft": &StartDraftCommand{},
     "skippick": &SkipPickCommand{},
+	"viewWebhookKey": &ViewWebhookKey{},
 }
 
 // ---------------- Handler Funcs --------------------------
@@ -153,7 +173,11 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
         return Render(c, noCommandResponse)
     }
 
-    command := commands[cmd]
+    command, ok := commands[cmd]
+	if !ok {
+		response := admin.RenderCommand(username, commandString, "Invalid command")
+		return Render(c, response)
+	}
     result := command.ProcessCommand(h.Database, args)
 
     assert.AddContext("Command", commandString)
