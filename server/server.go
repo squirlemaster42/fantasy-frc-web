@@ -24,6 +24,8 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	// To initialize Sentry's handler, you need to initialize Sentry itself beforehand
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn: sentryDNS,
+		EnableLogs: true,
+		TracesSampleRate: 1.0,
 	}); err != nil {
 		slog.Error("Sentry initialize failed", "Error", err)
 	}
