@@ -21,18 +21,19 @@ func (u *User) String() string {
 }
 
 func RegisterUser(database *sql.DB, username string, password string) uuid.UUID {
-    query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
-    assert := assert.CreateAssertWithContext("Register User")
-    assert.AddContext("Username", username)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    userUuid := uuid.New()
-    assert.NoError(err, "Failed to create uuid")
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-    assert.NoError(err, "Failed to generate password hash")
-    err = stmt.QueryRow(userUuid, username, string(hashedPassword)).Scan(&userUuid)
-    assert.NoError(err, "Failed to register user")
-    return userUuid
+	query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
+	assert := assert.CreateAssertWithContext("Register User")
+	assert.AddContext("Username", username)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	userUuid := uuid.New()
+	assert.NoError(err, "Failed to create uuid")
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	assert.NoError(err, "Failed to generate password hash")
+	err = stmt.QueryRow(userUuid, username, string(hashedPassword)).Scan(&userUuid)
+	assert.NoError(err, "Failed to register user")
+	return userUuid
 }
 
 func UsernameTaken(database *sql.DB, username string) (bool, error) {
@@ -41,6 +42,7 @@ func UsernameTaken(database *sql.DB, username string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	defer stmt.Close()
 	var count int
 	err = stmt.QueryRow(username).Scan(&count)
 	if err != nil {
@@ -55,6 +57,7 @@ func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 	var userUuid uuid.UUID
 	err = stmt.QueryRow(username).Scan(&userUuid)
 	assert.NoError(err, "Failed to get user")
@@ -67,6 +70,7 @@ func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 	var username string
 	err = stmt.QueryRow(userUuid).Scan(&username)
 	assert.NoError(err, "Failed to get user")
@@ -80,6 +84,7 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 	var dbPassword string
 	err = stmt.QueryRow(username).Scan(&dbPassword)
 	assert.NoError(err, "Failed to validate login")
@@ -91,54 +96,58 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
 // Should we move more logic here? No, we want to be able to
 // send back error messages which we should need to check the database for
 func UpdatePassword(database *sql.DB, username string, newPassword string) {
-    query := `Update Users Set password = $1 Where username = $2;`
-    assert := assert.CreateAssertWithContext("Update Password")
-    assert.AddContext("Username", username)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
-    assert.NoError(err, "Failed to generate password hash")
-    _, err = stmt.Exec(string(hashedPassword), username)
-    assert.NoError(err, "Failed to Update Password")
+	query := `Update Users Set password = $1 Where username = $2;`
+	assert := assert.CreateAssertWithContext("Update Password")
+	assert.AddContext("Username", username)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
+	assert.NoError(err, "Failed to generate password hash")
+	_, err = stmt.Exec(string(hashedPassword), username)
+	assert.NoError(err, "Failed to Update Password")
 }
 
 // This can probably clean up session that expired more than a month ago or something
 // Actually it can probably be sooner than that because expire tokens should never be reissued
 func RegisterSession(database *sql.DB, userUuid uuid.UUID, sessionToken string) {
-    query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
-    assert := assert.CreateAssertWithContext("Register Session")
-    assert.AddContext("User Uuid", userUuid)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
-    hasher := crypto.SHA256.New()
-    hasher.Write([]byte(sessionToken))
-    _, err = stmt.Exec(userUuid, hasher.Sum(nil))
-    assert.NoError(err, "Failed to register session")
+	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
+	assert := assert.CreateAssertWithContext("Register Session")
+	assert.AddContext("User Uuid", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
+	defer stmt.Close()
+	hasher := crypto.SHA256.New()
+	hasher.Write([]byte(sessionToken))
+	_, err = stmt.Exec(userUuid, hasher.Sum(nil))
+	assert.NoError(err, "Failed to register session")
 }
 
 func UnRegisterSession(database *sql.DB, sessionToken string) {
-    query := `Delete From UserSessions Where sessionToken = $1;`
-    assert := assert.CreateAssertWithContext("Unregister Session")
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    hasher := crypto.SHA256.New()
-    hasher.Write([]byte(sessionToken))
-    _, err = stmt.Exec(hasher.Sum(nil))
-    assert.NoError(err, "Failed to delete user session")
+	query := `Delete From UserSessions Where sessionToken = $1;`
+	assert := assert.CreateAssertWithContext("Unregister Session")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	hasher := crypto.SHA256.New()
+	hasher.Write([]byte(sessionToken))
+	_, err = stmt.Exec(hasher.Sum(nil))
+	assert.NoError(err, "Failed to delete user session")
 }
 
 func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
-    query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
-    assert := assert.CreateAssertWithContext("Get User By Session Token")
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    hasher := crypto.SHA256.New()
-    hasher.Write([]byte(sessionToken))
-    var userUuid uuid.UUID
-    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&userUuid)
-    assert.NoError(err, "Failed to get user")
-    UpdateSessionExpiration(database, userUuid, sessionToken)
-    return userUuid
+	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	assert := assert.CreateAssertWithContext("Get User By Session Token")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	hasher := crypto.SHA256.New()
+	hasher.Write([]byte(sessionToken))
+	var userUuid uuid.UUID
+	err = stmt.QueryRow(hasher.Sum(nil)).Scan(&userUuid)
+	assert.NoError(err, "Failed to get user")
+	UpdateSessionExpiration(database, userUuid, sessionToken)
+	return userUuid
 }
 
 func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
@@ -147,6 +156,7 @@ func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 	var isAdmin bool
 	err = stmt.QueryRow(userUuid).Scan(&isAdmin)
 	assert.NoError(err, "Failed to get user")
@@ -160,6 +170,7 @@ func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken 
 	assert.AddContext("User Uuid", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
+	defer stmt.Close()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.Exec(userUuid, hasher.Sum(nil))
@@ -168,20 +179,21 @@ func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken 
 
 // Check if the session token is in the database and that it is not expired
 func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
-    //I think <= is fine, it probably doesn't matter though
-    query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
-    assert := assert.CreateAssertWithContext("Validate Session Token")
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare query")
-    hasher := crypto.SHA256.New()
-    hasher.Write([]byte(sessionToken))
-    var count int
-    err = stmt.QueryRow(hasher.Sum(nil)).Scan(&count)
-    assert.NoError(err, "Failed to validate session")
-    //If the count is greater than one there is a problem
-    //It probably means that we inserted the same token twice which shouldn't happen
-    //Do we want to invalidate the session in that case
-    return count == 1
+	//I think <= is fine, it probably doesn't matter though
+	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	assert := assert.CreateAssertWithContext("Validate Session Token")
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
+	defer stmt.Close()
+	hasher := crypto.SHA256.New()
+	hasher.Write([]byte(sessionToken))
+	var count int
+	err = stmt.QueryRow(hasher.Sum(nil)).Scan(&count)
+	assert.NoError(err, "Failed to validate session")
+	//If the count is greater than one there is a problem
+	//It probably means that we inserted the same token twice which shouldn't happen
+	//Do we want to invalidate the session in that case
+	return count == 1
 }
 
 func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, error) {
@@ -225,6 +237,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 	assert.AddContext("Query", query)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
+	defer stmt.Close()
 
 	var userRows *sql.Rows
 	if searchString != "" {

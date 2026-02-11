@@ -11,113 +11,117 @@ import (
 )
 
 type Team struct {
-    TbaId         string
-    Name          string
-    AllianceScore int
+	TbaId         string
+	Name          string
+	AllianceScore int
 }
 
 func (t *Team) String() string {
-    return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n AllianceScore: %d\n}",
-		       t.TbaId, t.Name, t.AllianceScore)
+	return fmt.Sprintf("Team: {\n TbaId: %s\n Name: %s\n AllianceScore: %d\n}",
+		t.TbaId, t.Name, t.AllianceScore)
 }
 
 func GetTeam(database *sql.DB, tbaId string) *Team {
-    query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
-    assert := assert.CreateAssertWithContext("Get Team")
-    assert.AddContext("TbaId", tbaId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    team := Team{}
-    err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
-    if err != nil || team.TbaId == "" {
-        return nil
-    }
-    return &team
+	query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
+	assert := assert.CreateAssertWithContext("Get Team")
+	assert.AddContext("TbaId", tbaId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	team := Team{}
+	err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
+	if err != nil || team.TbaId == "" {
+		return nil
+	}
+	return &team
 }
 
 func CreateTeam(database *sql.DB, tbaId string, name string) {
-    query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
-    assert := assert.CreateAssertWithContext("Create Team")
-    assert.AddContext("Tba Id", tbaId)
-    assert.AddContext("Name", name)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(tbaId, name)
-    assert.NoError(err, "Failed to create team")
+	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
+	assert := assert.CreateAssertWithContext("Create Team")
+	assert.AddContext("Tba Id", tbaId)
+	assert.AddContext("Name", name)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	_, err = stmt.Exec(tbaId, name)
+	assert.NoError(err, "Failed to create team")
 
 }
 
 func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16) {
-    query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
-    assert := assert.CreateAssertWithContext("Update Team Alliance Score")
-    assert.AddContext("Tba Id", tbaId)
-    assert.AddContext("Alliance Score", allianceScore)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
-    _, err = stmt.Exec(allianceScore, tbaId)
-    assert.NoError(err, "Failed to associate team")
+	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
+	assert := assert.CreateAssertWithContext("Update Team Alliance Score")
+	assert.AddContext("Tba Id", tbaId)
+	assert.AddContext("Alliance Score", allianceScore)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
+	_, err = stmt.Exec(allianceScore, tbaId)
+	assert.NoError(err, "Failed to associate team")
 }
 
 func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
-    if tbaId == "" {
-        return false, errors.New("no team entered")
-    }
+	if tbaId == "" {
+		return false, errors.New("no team entered")
+	}
 
-    picked := HasBeenPicked(database, draftId, tbaId)
+	picked := HasBeenPicked(database, draftId, tbaId)
 
-    if picked {
-        return false, errors.New("team already picked")
-    }
+	if picked {
+		return false, errors.New("team already picked")
+	}
 
-    events := handler.MakeEventListReq(tbaId)
-    draftEvents := utils.Events()
+	events := handler.MakeEventListReq(tbaId)
+	draftEvents := utils.Events()
 
-    validEvent := false
-    //Looping here should always be faster because of the small lists
-    slog.Info("Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
-    for _, event := range events {
-        for _, draftEvent := range draftEvents {
-            if event == draftEvent {
-                validEvent = true
-                break
-            }
-        }
+	validEvent := false
+	//Looping here should always be faster because of the small lists
+	slog.Info("Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
+	for _, event := range events {
+		for _, draftEvent := range draftEvents {
+			if event == draftEvent {
+				validEvent = true
+				break
+			}
+		}
 
-        if validEvent {
-            break
-        }
-    }
+		if validEvent {
+			break
+		}
+	}
 
-    slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
-    if !validEvent {
-        return false, errors.New("team not at event")
-    }
+	slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
+	if !validEvent {
+		return false, errors.New("team not at event")
+	}
 
-    return true, nil
+	return true, nil
 }
 
 // Keys are the string that represents display name and the value is the score
 // for that display name
 // Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
 func GetScore(database *sql.DB, tbaId string) map[string]int {
-    query := `Select
+	query := `Select
                 COALESCE(t.AllianceScore, 0) As AllianceScore
             From Teams t
             Where t.TbaId = $1`
 
-    assert := assert.CreateAssertWithContext("Get Score")
-    assert.AddContext("TbaId", tbaId)
-    stmt, err := database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
+	assert := assert.CreateAssertWithContext("Get Score")
+	assert.AddContext("TbaId", tbaId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 
-    var allianceScore int
-    err = stmt.QueryRow(tbaId).Scan(&allianceScore)
-    if err != nil {
-        slog.Error("Failed to get alliance score for team", "Team", tbaId, "Error", err)
-        return nil
-    }
+	var allianceScore int
+	err = stmt.QueryRow(tbaId).Scan(&allianceScore)
+	if err != nil {
+		slog.Error("Failed to get alliance score for team", "Team", tbaId, "Error", err)
+		return nil
+	}
 
-    query = `Select
+	query = `Select
                 Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
                      When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
                      Else 'Playoff Score' End As DisplayName,
@@ -131,35 +135,36 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
                      Else 'Playoff Score' End
              Order By mt.Team_TbaId`
 
-    stmt, err = database.Prepare(query)
-    assert.NoError(err, "Failed to prepare statement")
+	stmt, err = database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer stmt.Close()
 
-    var displayName string
-    var matchScore int
-    rows, err := stmt.Query(tbaId)
-    if err != nil {
-        slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
-        return nil
-    }
+	var displayName string
+	var matchScore int
+	rows, err := stmt.Query(tbaId)
+	if err != nil {
+		slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
+		return nil
+	}
 
-    scores := make(map[string]int)
-    total := 0
-    for rows.Next() {
-        err = rows.Scan(&displayName, &matchScore)
+	scores := make(map[string]int)
+	total := 0
+	for rows.Next() {
+		err = rows.Scan(&displayName, &matchScore)
 
-        if err != nil {
-            slog.Warn("Failed to get scores for team", "Team", tbaId, "Error", err)
-            return nil
-        }
+		if err != nil {
+			slog.Warn("Failed to get scores for team", "Team", tbaId, "Error", err)
+			return nil
+		}
 
-        total += matchScore
-        scores[displayName] = matchScore
-    }
+		total += matchScore
+		scores[displayName] = matchScore
+	}
 
-    scores["Alliance Score"] = allianceScore
-    scores["Total Score"] = total + allianceScore
+	scores["Alliance Score"] = allianceScore
+	scores["Total Score"] = total + allianceScore
 
-    slog.Info("Got scores for team", "Team", tbaId, "Scores", scores)
+	slog.Info("Got scores for team", "Team", tbaId, "Scores", scores)
 
-    return scores
+	return scores
 }
