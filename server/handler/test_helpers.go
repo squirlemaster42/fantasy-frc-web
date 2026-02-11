@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto"
 	"database/sql"
+	"log/slog"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -28,7 +29,10 @@ func NewTestHelper(t *testing.T) *TestHelper {
 
 // Close cleans up the test helper
 func (th *TestHelper) Close() {
-	th.DB.Close()
+	err := th.DB.Close()
+    if err != nil {
+        slog.Warn("Failde to close db connection", "Error", err)
+    }
 }
 
 // CreateMockHandler creates a handler with mocked dependencies

@@ -46,7 +46,10 @@ func (d *DraftDaemon) Run() {
     for d.running {
         //Get current picks for the running drafts
         slog.Info("Starting iteration of the Draft Daemon")
-        d.checkForDraftsToStart()
+		err := d.checkForDraftsToStart()
+		if err != nil {
+			slog.Error("Failde to start draft", "Error", err)
+		}
         d.checkForPicksToSkip()
 
         time.Sleep(1 * time.Minute)
@@ -82,7 +85,10 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 		assert.NoError(err, "Failed to load draft")
 		assert.AddContext("Draft Status", draft.GetStatus())
 		assert.RunAssert(draft.GetStatus() == model.WAITING_TO_START, "Invalid draft status to transition to picking")
-        d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+		err = d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+		if err != nil {
+			slog.Error("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		}
     }
 
     return nil

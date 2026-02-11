@@ -9,7 +9,6 @@ import (
 	"server/model"
 	"server/view/login"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -130,8 +129,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	slog.Info("Valid registration for user", "Username", username)
-	var userUuid uuid.UUID
-	userUuid = model.RegisterUser(h.Database, username, password)
+	userUuid := model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userUuid, sessionTok)
 	cookie := new(http.Cookie)

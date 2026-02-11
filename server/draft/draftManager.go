@@ -46,7 +46,11 @@ func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
     model.RandomizePickOrder(tpt.database, draft.draftId)
 	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
 	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-    model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+	if err != nil {
+		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+		return err
+	}
     return nil
 }
 
@@ -56,7 +60,10 @@ type ToPlayingTransition struct {
 
 func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
 	slog.Info("Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
-    model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
+	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
+	if err != nil {
+		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+	}
     //Remove the draft from the pick daemon
     return nil
 }

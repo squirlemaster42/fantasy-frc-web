@@ -112,15 +112,24 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
 	assert.AddContext("Search", searchString)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+    defer func () {
+        err := stmt.Close()
+        if err != nil {
+            slog.Warn("Failed to close get drafts by name statement", "Error", err)
+        }
+    }()
 	rows, err := stmt.Query(searchString)
 
 	if err != nil {
 		slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
 		return nil
 	}
-	defer rows.Close()
-
+	defer func () {
+        err := rows.Close()
+        if err != nil {
+            slog.Warn("Failed to close get drafts by name rows", "Error", err)
+        }
+    }()
 	var drafts []DraftModel
 	for rows.Next() {
 		var draftId int
@@ -162,13 +171,22 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 	if err != nil {
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() {
+        err := stmt.Close()
+        if err != nil {
+            slog.Warn("Failed to close get drafts for user statement", "Error", err)
+        }
+    }()
 	rows, err := stmt.Query(FILLING, userUuid)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
+	defer func() {
+        err := rows.Close()
+        if err != nil {
+            slog.Warn("Failed to close get drafts for user rows", "Error", err)
+        }
+    }()
 	var drafts []DraftModel
 	for rows.Next() {
 		var draftId int
