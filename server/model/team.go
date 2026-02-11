@@ -146,6 +146,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 		slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
 		return nil
 	}
+	defer rows.Close()
 
 	scores := make(map[string]int)
 	total := 0

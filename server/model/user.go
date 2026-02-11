@@ -246,6 +246,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 		userRows, err = stmt.Query(draftId)
 	}
 	assert.NoError(err, "Failed to search users")
+	defer userRows.Close()
 
 	users := make([]User, 0)
 

@@ -119,6 +119,7 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
 		slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
 		return nil
 	}
+	defer rows.Close()
 
 	var drafts []DraftModel
 	for rows.Next() {
@@ -166,6 +167,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var drafts []DraftModel
 	for rows.Next() {
@@ -239,6 +241,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 		if err != nil {
 			return nil, err
 		}
+		defer playerRows.Close()
 
 		for playerRows.Next() {
 			var userUuid uuid.UUID
@@ -389,6 +392,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		slog.Warn("Failed to load players for draft", "Draft Id", draftId)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
+	defer playerRows.Close()
 
 	slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
 	if draftModel.Status == PICKING {
@@ -461,6 +465,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 
 	rows, err := stmt.Query(draftPlayerId)
 	assert.NoError(err, "Failed to query for picks")
+	defer rows.Close()
 
 	var picks []Pick
 	for rows.Next() {
@@ -606,6 +611,7 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
 		slog.Error("Failed to get invites", "User Uuid", userUuid, "Error", err)
 		return nil
 	}
+	defer rows.Close()
 
 	var invites []DraftInvite
 	for rows.Next() {
@@ -637,6 +643,7 @@ func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 	defer stmt.Close()
 	rows, err := stmt.Query(draft)
 	assert.NoError(err, "Failed to query for picks")
+	defer rows.Close()
 
 	var picks []Pick
 	for rows.Next() {
@@ -752,6 +759,7 @@ func GetAllPicks(database *sql.DB) []string {
 	defer stmt.Close()
 	rows, err := stmt.Query()
 	assert.NoError(err, "Failed to query picks")
+	defer rows.Close()
 	var picks []string
 	for rows.Next() {
 		var pick string
@@ -1043,6 +1051,7 @@ func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 
 	rows, err := stmt.Query(status)
 	assert.NoError(err, "Failed to Query Drafts")
+	defer rows.Close()
 
 	var drafts []int
 	for rows.Next() {
@@ -1080,6 +1089,7 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 
 	rows, err := stmt.Query(draftId)
 	assert.NoError(err, "Failed to get picks for draft")
+	defer rows.Close()
 
 	picks := make(map[int][]string)
 	usernames := make(map[int]string)
@@ -1146,6 +1156,7 @@ func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var draftIds []int
 	for rows.Next() {
