@@ -27,7 +27,11 @@ func GetTeam(database *sql.DB, tbaId string) *Team {
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	team := Team{}
 	err = stmt.QueryRow(tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
 	if err != nil || team.TbaId == "" {
@@ -43,7 +47,11 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 	assert.AddContext("Name", name)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec(tbaId, name)
 	assert.NoError(err, "Failed to create team")
 
@@ -56,7 +64,11 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
 	assert.AddContext("Alliance Score", allianceScore)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec(allianceScore, tbaId)
 	assert.NoError(err, "Failed to associate team")
 }
@@ -112,7 +124,11 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	var allianceScore int
 	err = stmt.QueryRow(tbaId).Scan(&allianceScore)
@@ -137,7 +153,11 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 
 	stmt, err = database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	var displayName string
 	var matchScore int
@@ -146,7 +166,11 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 		slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
 		return nil
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			slog.Error("Failed to close rows", "error", err)
+		}
+	}()
 
 	scores := make(map[string]int)
 	total := 0

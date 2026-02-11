@@ -46,7 +46,11 @@ func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
     Where url = $1;`
 	stmt, err := t.database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	var etag string
 	var body []byte
@@ -69,7 +73,11 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 	query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3);`
 	stmt, err := t.database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	_, err = stmt.Exec(url, etag, body)
 	if err != nil {

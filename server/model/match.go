@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"server/assert"
 	"strings"
 )
@@ -28,7 +29,11 @@ func AddMatch(database *sql.DB, tbaId string) {
 	a := assert.CreateAssertWithContext("Add Match")
 	a.AddContext("MatchTbaId", tbaId)
 	a.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec(tbaId, false, 0, 0)
 	a.NoError(err, "Failed to insert into database")
 }
@@ -41,7 +46,11 @@ func UpdateScore(database *sql.DB, tbaId string, redScore int, blueScore int) {
 	a.AddContext("BlueScore", blueScore)
 	stmt, err := database.Prepare(query)
 	a.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec(true, redScore, blueScore, tbaId)
 	a.NoError(err, "Failed to update in database")
 }
@@ -53,7 +62,11 @@ func GetMatch(database *sql.DB, tbaId string) *Match {
 	a := assert.CreateAssertWithContext("Get Match")
 	a.AddContext("MatchTbaId", tbaId)
 	a.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	match := Match{}
 	err = stmt.QueryRow(tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {

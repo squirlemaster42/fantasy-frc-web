@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"server/assert"
 
 	"github.com/google/uuid"
@@ -26,7 +27,11 @@ func RegisterUser(database *sql.DB, username string, password string) uuid.UUID 
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	userUuid := uuid.New()
 	assert.NoError(err, "Failed to create uuid")
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -42,7 +47,11 @@ func UsernameTaken(database *sql.DB, username string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	var count int
 	err = stmt.QueryRow(username).Scan(&count)
 	if err != nil {
@@ -57,7 +66,11 @@ func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	var userUuid uuid.UUID
 	err = stmt.QueryRow(username).Scan(&userUuid)
 	assert.NoError(err, "Failed to get user")
@@ -70,7 +83,11 @@ func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	var username string
 	err = stmt.QueryRow(userUuid).Scan(&username)
 	assert.NoError(err, "Failed to get user")
@@ -84,7 +101,11 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	var dbPassword string
 	err = stmt.QueryRow(username).Scan(&dbPassword)
 	assert.NoError(err, "Failed to validate login")
@@ -101,7 +122,11 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
 	assert.AddContext("Username", username)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
 	assert.NoError(err, "Failed to generate password hash")
 	_, err = stmt.Exec(string(hashedPassword), username)
@@ -116,7 +141,11 @@ func RegisterSession(database *sql.DB, userUuid uuid.UUID, sessionToken string) 
 	assert.AddContext("User Uuid", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.Exec(userUuid, hasher.Sum(nil))
@@ -128,7 +157,11 @@ func UnRegisterSession(database *sql.DB, sessionToken string) {
 	assert := assert.CreateAssertWithContext("Unregister Session")
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.Exec(hasher.Sum(nil))
@@ -140,7 +173,11 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
 	assert := assert.CreateAssertWithContext("Get User By Session Token")
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var userUuid uuid.UUID
@@ -156,7 +193,11 @@ func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	var isAdmin bool
 	err = stmt.QueryRow(userUuid).Scan(&isAdmin)
 	assert.NoError(err, "Failed to get user")
@@ -170,7 +211,11 @@ func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken 
 	assert.AddContext("User Uuid", userUuid)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.Exec(userUuid, hasher.Sum(nil))
@@ -184,7 +229,11 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 	assert := assert.CreateAssertWithContext("Validate Session Token")
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var count int
@@ -237,7 +286,11 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 	assert.AddContext("Query", query)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 
 	var userRows *sql.Rows
 	if searchString != "" {
@@ -246,7 +299,11 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 		userRows, err = stmt.Query(draftId)
 	}
 	assert.NoError(err, "Failed to search users")
-	defer userRows.Close()
+	defer func() {
+		if err := userRows.Close(); err != nil {
+			slog.Error("Failed to close rows", "error", err)
+		}
+	}()
 
 	users := make([]User, 0)
 

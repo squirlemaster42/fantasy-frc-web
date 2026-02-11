@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"server/assert"
 )
 
@@ -32,7 +33,11 @@ func AssocateTeam(database *sql.DB, matchTbaId string, teamTbaId string, allianc
 	assert.AddContext("Is Dqed", isDqed)
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec(teamTbaId, matchTbaId, alliance, isDqed)
 	assert.NoError(err, "Failed to associate team")
 }

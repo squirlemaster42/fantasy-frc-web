@@ -58,7 +58,11 @@ func (c *CleanupService) CleanExpiredSessionTokens() {
 	assert := assert.CreateAssertWithContext("Clean Expired Session Tokens")
 	stmt, err := c.database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Error("Failed to close statement", "error", err)
+		}
+	}()
 	_, err = stmt.Exec()
 	assert.NoError(err, "Failed To Cleanup Session Tokens")
 	slog.Info("Finished iteration of cleanup service")
