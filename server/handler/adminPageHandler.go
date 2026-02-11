@@ -13,18 +13,19 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"server/assert"
+	"server/draft"
 	"server/model"
 	"server/utils"
 	"server/view/admin"
 )
 
 type Command interface {
-    ProcessCommand(database *sql.DB, argStr string) string
+    ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string
 }
 
 type PingCommand struct { }
 
-func (p *PingCommand) ProcessCommand(database *sql.DB, argStr string) string {
+func (p *PingCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
     if len(argStr) > 0 {
         return "Ping does not take any inputs"
     }
@@ -33,7 +34,7 @@ func (p *PingCommand) ProcessCommand(database *sql.DB, argStr string) string {
 
 type ListDraftsCommand struct {}
 
-func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
     //Parse command inputs
     argMap, _ := utils.ParseArgString(argStr)
     searchString := argMap["s"]
@@ -54,7 +55,7 @@ func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, argStr string) stri
 
 type StartDraftCommand struct {}
 
-func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
     argMap, _ := utils.ParseArgString(argStr)
     draftId, err := strconv.Atoi(argMap["id"])
 
@@ -95,7 +96,7 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, argStr string) stri
 
 type ViewWebhookKey struct {}
 
-func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, argStr string) string {
+func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftManager, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		return "Failed to open file: " + err.Error()
@@ -110,7 +111,7 @@ func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, argStr string) string 
 
 type SkipPickCommand struct {}
 
-func (s *SkipPickCommand) ProcessCommand(database *sql.DB, argStr string) string {
+func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
     slog.Info("Calling skip command", "Args", argStr)
     argMap, _ := utils.ParseArgString(argStr)
     draftId, err := strconv.Atoi(argMap["id"])
@@ -119,15 +120,10 @@ func (s *SkipPickCommand) ProcessCommand(database *sql.DB, argStr string) string
         return "Draft Id Could Not Be Converted To An Int"
     }
 
-    curPick := model.GetCurrentPick(database, draftId)
-    nextPickPlayer := model.NextPick(database, draftId)
-    model.SkipPick(database, curPick.Id)
-    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-
-    // TODO How do we get the notifier in here?
-	// This should be pretty easy to do now...
-	// I just need to do it
-    // d.notifier.NotifyWatchers(draftId)
+	err = draftManager.SkipCurrentPick(draftId)
+	if err != nil {
+		return "Failed to skip player: " + err.Error()
+	}
 
     return "Player was skipped"
 }
@@ -178,7 +174,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
 		return Render(c, response)
 	}
-    result := command.ProcessCommand(h.Database, args)
+    result := command.ProcessCommand(h.Database, h.DraftManager, args)
 
     assert.AddContext("Command", commandString)
 
