@@ -29,7 +29,7 @@ func RegisterUser(database *sql.DB, username string, password string) uuid.UUID 
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("RegisterUser: Failed to close statement", "error", err)
 		}
 	}()
 	userUuid := uuid.New()
@@ -49,7 +49,7 @@ func UsernameTaken(database *sql.DB, username string) (bool, error) {
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UsernameTaken: Failed to close statement", "error", err)
 		}
 	}()
 	var count int
@@ -68,7 +68,7 @@ func GetUserUuidByUsername(database *sql.DB, username string) uuid.UUID {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetUserUuidByUsername: Failed to close statement", "error", err)
 		}
 	}()
 	var userUuid uuid.UUID
@@ -85,7 +85,7 @@ func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetUsername: Failed to close statement", "error", err)
 		}
 	}()
 	var username string
@@ -103,7 +103,7 @@ func ValidateLogin(database *sql.DB, username string, password string) bool {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("ValidateLogin: Failed to close statement", "error", err)
 		}
 	}()
 	var dbPassword string
@@ -124,7 +124,7 @@ func UpdatePassword(database *sql.DB, username string, newPassword string) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UpdatePassword: Failed to close statement", "error", err)
 		}
 	}()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
@@ -143,7 +143,7 @@ func RegisterSession(database *sql.DB, userUuid uuid.UUID, sessionToken string) 
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("RegisterSession: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -159,7 +159,7 @@ func UnRegisterSession(database *sql.DB, sessionToken string) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UnRegisterSession: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -175,7 +175,7 @@ func GetUserBySessionToken(database *sql.DB, sessionToken string) uuid.UUID {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetUserBySessionToken: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -195,7 +195,7 @@ func UserIsAdmin(database *sql.DB, userUuid uuid.UUID) bool {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UserIsAdmin: Failed to close statement", "error", err)
 		}
 	}()
 	var isAdmin bool
@@ -213,7 +213,7 @@ func UpdateSessionExpiration(database *sql.DB, userUuid uuid.UUID, sessionToken 
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UpdateSessionExpiration: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -231,7 +231,7 @@ func ValidateSessionToken(database *sql.DB, sessionToken string) bool {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("ValidateSessionToken: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -288,7 +288,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("SearchUsers: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -301,7 +301,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 	assert.NoError(err, "Failed to search users")
 	defer func() {
 		if err := userRows.Close(); err != nil {
-			slog.Error("Failed to close rows", "error", err)
+			slog.Warn("SearchUsers: Failed to close rows", "error", err)
 		}
 	}()
 

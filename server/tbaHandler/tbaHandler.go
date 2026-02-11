@@ -48,7 +48,7 @@ func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("checkCache: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -75,7 +75,7 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("cacheData: Failed to close statement", "error", err)
 		}
 	}()
 

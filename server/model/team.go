@@ -29,7 +29,7 @@ func GetTeam(database *sql.DB, tbaId string) *Team {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetTeam: Failed to close statement", "error", err)
 		}
 	}()
 	team := Team{}
@@ -49,7 +49,7 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("CreateTeam: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(tbaId, name)
@@ -66,7 +66,7 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UpdateTeamAllianceScore: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(allianceScore, tbaId)
@@ -126,7 +126,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetScore: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -155,7 +155,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetScore: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -168,7 +168,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Error("Failed to close rows", "error", err)
+			slog.Warn("GetScore: Failed to close rows", "error", err)
 		}
 	}()
 

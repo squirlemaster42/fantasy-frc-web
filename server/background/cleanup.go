@@ -60,7 +60,7 @@ func (c *CleanupService) CleanExpiredSessionTokens() {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("CleanExpiredSessionTokens: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec()

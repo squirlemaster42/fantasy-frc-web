@@ -31,7 +31,7 @@ func AddMatch(database *sql.DB, tbaId string) {
 	a.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("AddMatch: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(tbaId, false, 0, 0)
@@ -48,7 +48,7 @@ func UpdateScore(database *sql.DB, tbaId string, redScore int, blueScore int) {
 	a.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("UpdateScore: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(true, redScore, blueScore, tbaId)
@@ -64,7 +64,7 @@ func GetMatch(database *sql.DB, tbaId string) *Match {
 	a.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Error("Failed to close statement", "error", err)
+			slog.Warn("GetMatch: Failed to close statement", "error", err)
 		}
 	}()
 	match := Match{}
