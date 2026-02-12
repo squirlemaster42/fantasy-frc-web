@@ -170,6 +170,53 @@ func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *d
 	return fmt.Sprintf("Successfully updated pick expiration time to %s", newExpirationTime.Format("2006-01-02 15:04:05 MST"))
 }
 
+type AdminPickCommand struct{}
+
+func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	slog.Info("Calling admin pick command", "Args", argStr)
+	argMap, _ := utils.ParseArgString(argStr)
+
+	draftIdStr, ok := argMap["id"]
+	if !ok {
+		return "Missing required argument: -id=<draftId>"
+	}
+
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
+
+	teamStr, ok := argMap["team"]
+	if !ok {
+		return "Missing required argument: -team=<teamNumber>"
+	}
+
+	// Format team ID (e.g., "254" -> "frc254")
+	tbaId := "frc" + teamStr
+
+	// Get the current pick
+	currentPick := model.GetCurrentPick(database, draftId)
+	if currentPick.Id == 0 {
+		return "No current pick found for this draft"
+	}
+
+	// Build the pick struct
+	pick := model.Pick{
+		Id:       currentPick.Id,
+		Player:   currentPick.Player,
+		Pick:     sql.NullString{String: tbaId, Valid: true},
+		PickTime: sql.NullTime{Time: time.Now(), Valid: true},
+	}
+
+	// Make the pick (this handles all validation)
+	err = draftManager.MakePick(draftId, pick)
+	if err != nil {
+		return "Failed to make pick: " + err.Error()
+	}
+
+	return fmt.Sprintf("Successfully picked team %s", teamStr)
+}
+
 var commands = map[string]Command{
 	"ping":           &PingCommand{},
 	"listdraft":      &ListDraftsCommand{},
@@ -177,6 +224,7 @@ var commands = map[string]Command{
 	"skippick":       &SkipPickCommand{},
 	"viewWebhookKey": &ViewWebhookKey{},
 	"modifypicktime": &ModifyPickTimeCommand{},
+	"adminpick":      &AdminPickCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
