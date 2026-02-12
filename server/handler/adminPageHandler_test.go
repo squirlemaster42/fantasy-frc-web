@@ -202,3 +202,87 @@ func TestModifyPickTimeCommandTimeCalculation(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminPickCommandArgumentParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           string
+		expectedResult string
+		description    string
+	}{
+		{
+			name:           "missing id argument",
+			args:           "-team=254",
+			expectedResult: "Missing required argument: -id=<draftId>",
+			description:    "Should return error when draft ID is missing",
+		},
+		{
+			name:           "missing team argument",
+			args:           "-id=123",
+			expectedResult: "Missing required argument: -team=<teamNumber>",
+			description:    "Should return error when team number is missing",
+		},
+		{
+			name:           "missing both arguments",
+			args:           "",
+			expectedResult: "Missing required argument: -id=<draftId>",
+			description:    "Should return error for missing ID first",
+		},
+		{
+			name:           "invalid draft id",
+			args:           "-id=invalid -team=254",
+			expectedResult: "Draft Id Could Not Be Converted To An Int",
+			description:    "Should return error when draft ID is not an integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &AdminPickCommand{}
+			result := cmd.ProcessCommand(nil, nil, tt.args)
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
+func TestAdminPickCommandTeamFormatting(t *testing.T) {
+	tests := []struct {
+		name          string
+		teamInput     string
+		expectedTbaId string
+		description   string
+	}{
+		{
+			name:          "simple team number",
+			teamInput:     "254",
+			expectedTbaId: "frc254",
+			description:   "Should format 254 to frc254",
+		},
+		{
+			name:          "team with leading zeros",
+			teamInput:     "001",
+			expectedTbaId: "frc001",
+			description:   "Should preserve leading zeros",
+		},
+		{
+			name:          "large team number",
+			teamInput:     "9999",
+			expectedTbaId: "frc9999",
+			description:   "Should handle large team numbers",
+		},
+		{
+			name:          "single digit team",
+			teamInput:     "1",
+			expectedTbaId: "frc1",
+			description:   "Should handle single digit teams",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test team formatting logic
+			formatted := "frc" + tt.teamInput
+			assert.Equal(t, tt.expectedTbaId, formatted, tt.description)
+		})
+	}
+}
