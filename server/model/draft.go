@@ -1202,6 +1202,23 @@ func SkipPick(database *sql.DB, pickId int) {
 	assert.NoError(err, "Failed to skip pick")
 }
 
+func UpdatePickExpirationTime(database *sql.DB, pickId int, expirationTime time.Time) error {
+	query := `Update Picks Set ExpirationTime = $1 Where Id = $2;`
+
+	assert := assert.CreateAssertWithContext("Update Pick Expiration Time")
+	assert.AddContext("Pick Id", pickId)
+	assert.AddContext("Expiration Time", expirationTime)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Warn("UpdatePickExpirationTime: Failed to close statement", "error", err)
+		}
+	}()
+	_, err = stmt.Exec(expirationTime, pickId)
+	return err
+}
+
 func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 	assert := assert.CreateAssertWithContext("Get Drafts In Status")
 	assert.AddContext("Status", status)

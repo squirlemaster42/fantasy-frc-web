@@ -20,81 +20,81 @@ import (
 )
 
 type Command interface {
-    ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string
+	ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string
 }
 
-type PingCommand struct { }
+type PingCommand struct{}
 
 func (p *PingCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-    if len(argStr) > 0 {
-        return "Ping does not take any inputs"
-    }
-    return "Pong"
+	if len(argStr) > 0 {
+		return "Ping does not take any inputs"
+	}
+	return "Pong"
 }
 
-type ListDraftsCommand struct {}
+type ListDraftsCommand struct{}
 
 func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-    //Parse command inputs
-    argMap, _ := utils.ParseArgString(argStr)
-    searchString := argMap["s"]
+	//Parse command inputs
+	argMap, _ := utils.ParseArgString(argStr)
+	searchString := argMap["s"]
 
-    drafts := model.GetDraftsByName(database, searchString)
+	drafts := model.GetDraftsByName(database, searchString)
 
-    var sb strings.Builder
+	var sb strings.Builder
 
-    sb.WriteString("Id    |  Name\n")
-    sb.WriteString("-------------\n")
+	sb.WriteString("Id    |  Name\n")
+	sb.WriteString("-------------\n")
 
-    for _, draft := range *drafts {
-        sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
-    }
+	for _, draft := range *drafts {
+		sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
+	}
 
-    return sb.String()
+	return sb.String()
 }
 
-type StartDraftCommand struct {}
+type StartDraftCommand struct{}
 
 func (s *StartDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-    argMap, _ := utils.ParseArgString(argStr)
-    draftId, err := strconv.Atoi(argMap["id"])
+	argMap, _ := utils.ParseArgString(argStr)
+	draftId, err := strconv.Atoi(argMap["id"])
 
-    if err != nil {
-        return "Draft Id Could Not Be Converted To An Int"
-    }
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
 
-    draft, err := model.GetDraft(database, draftId)
-    if err != nil {
-        return "Draft Id Does Not Match A Valid Draft"
-    }
+	draft, err := model.GetDraft(database, draftId)
+	if err != nil {
+		return "Draft Id Does Not Match A Valid Draft"
+	}
 
-    //Check that eight players have accepted the draft
-    numAccepted := 0
-    for _, player := range draft.Players {
-        if !player.Pending {
-            numAccepted += 1
-        }
-    }
+	//Check that eight players have accepted the draft
+	numAccepted := 0
+	for _, player := range draft.Players {
+		if !player.Pending {
+			numAccepted += 1
+		}
+	}
 
-    if numAccepted != 8 {
-        return "Not Enough Players Have Accepted The Draft"
-    }
+	if numAccepted != 8 {
+		return "Not Enough Players Have Accepted The Draft"
+	}
 
-    //Randomize pick order
-    model.RandomizePickOrder(database, draftId)
+	//Randomize pick order
+	model.RandomizePickOrder(database, draftId)
 
-    model.StartDraft(database, draftId)
+	model.StartDraft(database, draftId)
 
-    //Get the next pick and ready up that pick
-    nextPickPlayer := model.NextPick(database, draftId)
+	//Get the next pick and ready up that pick
+	nextPickPlayer := model.NextPick(database, draftId)
 
-    model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+	model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-    // Need to start draft watch dog
-    return "Draft Started"
+	// Need to start draft watch dog
+	return "Draft Started"
 }
 
-type ViewWebhookKey struct {}
+type ViewWebhookKey struct{}
 
 func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftManager, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
@@ -109,75 +109,118 @@ func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftMana
 	return string(body)
 }
 
-type SkipPickCommand struct {}
+type SkipPickCommand struct{}
 
 func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-    slog.Info("Calling skip command", "Args", argStr)
-    argMap, _ := utils.ParseArgString(argStr)
-    draftId, err := strconv.Atoi(argMap["id"])
+	slog.Info("Calling skip command", "Args", argStr)
+	argMap, _ := utils.ParseArgString(argStr)
+	draftId, err := strconv.Atoi(argMap["id"])
 
-    if err != nil {
-        return "Draft Id Could Not Be Converted To An Int"
-    }
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
 
 	err = draftManager.SkipCurrentPick(draftId)
 	if err != nil {
 		return "Failed to skip player: " + err.Error()
 	}
 
-    return "Player was skipped"
+	return "Player was skipped"
 }
 
-var commands = map[string]Command {
-    "ping": &PingCommand{},
-    "listdraft": &ListDraftsCommand{},
-    "startdraft": &StartDraftCommand{},
-    "skippick": &SkipPickCommand{},
+type ModifyPickTimeCommand struct{}
+
+func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	slog.Info("Calling modify pick time command", "Args", argStr)
+	argMap, _ := utils.ParseArgString(argStr)
+
+	draftIdStr, ok := argMap["id"]
+	if !ok {
+		return "Missing required argument: -id=<draftId>"
+	}
+
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
+
+	durationStr, ok := argMap["time"]
+	if !ok {
+		return "Missing required argument: -time=<duration>"
+	}
+
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return "Invalid duration format. Use format like: 45m, 1h30m, 2h15m30s"
+	}
+
+	currentPick := model.GetCurrentPick(database, draftId)
+	if currentPick.Id == 0 {
+		return "No current pick found for this draft"
+	}
+
+	newExpirationTime := time.Now().Add(duration)
+
+	err = model.UpdatePickExpirationTime(database, currentPick.Id, newExpirationTime)
+	if err != nil {
+		slog.Error("Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
+		return "Failed to update pick expiration time"
+	}
+
+	return fmt.Sprintf("Successfully updated pick expiration time to %s", newExpirationTime.Format("2006-01-02 15:04:05 MST"))
+}
+
+var commands = map[string]Command{
+	"ping":           &PingCommand{},
+	"listdraft":      &ListDraftsCommand{},
+	"startdraft":     &StartDraftCommand{},
+	"skippick":       &SkipPickCommand{},
 	"viewWebhookKey": &ViewWebhookKey{},
+	"modifypicktime": &ModifyPickTimeCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
-    slog.Info("Got request to render admin console")
-    assert := assert.CreateAssertWithContext("Handle Admin Console Get")
-    userTok, err := c.Cookie("sessionToken")
-    assert.NoError(err, "Failed to get user token")
+	slog.Info("Got request to render admin console")
+	assert := assert.CreateAssertWithContext("Handle Admin Console Get")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
 
-    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	username := model.GetUsername(h.Database, userUuid)
 
-    adminConsoleIndex := admin.AdminConsoleIndex(username)
-    adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
-    return Render(c, adminConsole)
+	adminConsoleIndex := admin.AdminConsoleIndex(username)
+	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
+	return Render(c, adminConsole)
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
-    assert := assert.CreateAssertWithContext("Run Admin Console Command")
-    userTok, err := c.Cookie("sessionToken")
-    assert.NoError(err, "Failed to get user token")
+	assert := assert.CreateAssertWithContext("Run Admin Console Command")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
 
-    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	username := model.GetUsername(h.Database, userUuid)
 
 	commandString := c.FormValue("command")
-    cmd, args, _ := strings.Cut(commandString, " ")
-    //This is to handle the case where we have no params
-    slog.Info("Running command", "Command", cmd, "Argument", args)
+	cmd, args, _ := strings.Cut(commandString, " ")
+	//This is to handle the case where we have no params
+	slog.Info("Running command", "Command", cmd, "Argument", args)
 
-    if len(cmd) < 1 {
-        noCommandResponse := admin.RenderCommand(username, commandString, "")
-        return Render(c, noCommandResponse)
-    }
+	if len(cmd) < 1 {
+		noCommandResponse := admin.RenderCommand(username, commandString, "")
+		return Render(c, noCommandResponse)
+	}
 
-    command, ok := commands[cmd]
+	command, ok := commands[cmd]
 	if !ok {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
 		return Render(c, response)
 	}
-    result := command.ProcessCommand(h.Database, h.DraftManager, args)
+	result := command.ProcessCommand(h.Database, h.DraftManager, args)
 
-    assert.AddContext("Command", commandString)
+	assert.AddContext("Command", commandString)
 
-    response := admin.RenderCommand(username, commandString, result)
-    return Render(c, response)
+	response := admin.RenderCommand(username, commandString, result)
+	return Render(c, response)
 }
