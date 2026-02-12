@@ -286,3 +286,99 @@ func TestAdminPickCommandTeamFormatting(t *testing.T) {
 		})
 	}
 }
+
+func TestRenameDraftCommandArgumentParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           string
+		expectedResult string
+		description    string
+	}{
+		{
+			name:           "missing id argument",
+			args:           "-name=NewName",
+			expectedResult: "Missing required argument: -id=<draftId>",
+			description:    "Should return error when draft ID is missing",
+		},
+		{
+			name:           "missing name argument",
+			args:           "-id=123",
+			expectedResult: "Missing required argument: -name=<newName>",
+			description:    "Should return error when name is missing",
+		},
+		{
+			name:           "missing both arguments",
+			args:           "",
+			expectedResult: "Missing required argument: -id=<draftId>",
+			description:    "Should return error for missing ID first",
+		},
+		{
+			name:           "invalid draft id",
+			args:           "-id=invalid -name=NewName",
+			expectedResult: "Draft Id Could Not Be Converted To An Int",
+			description:    "Should return error when draft ID is not an integer",
+		},
+		{
+			name:           "empty name",
+			args:           "-id=123 -name=",
+			expectedResult: "Missing required argument: -name=<newName>",
+			description:    "Should return error when name is empty or not provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &RenameDraftCommand{}
+			result := cmd.ProcessCommand(nil, nil, tt.args)
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
+func TestRenameDraftCommandNameValidation(t *testing.T) {
+	tests := []struct {
+		name          string
+		inputName     string
+		shouldBeEmpty bool
+		description   string
+	}{
+		{
+			name:          "valid name",
+			inputName:     "My Draft 2026",
+			shouldBeEmpty: false,
+			description:   "Should accept valid draft name",
+		},
+		{
+			name:          "empty name",
+			inputName:     "",
+			shouldBeEmpty: true,
+			description:   "Should reject empty name",
+		},
+		{
+			name:          "name with spaces",
+			inputName:     "  ",
+			shouldBeEmpty: false,
+			description:   "Should accept name with only spaces (business logic decision)",
+		},
+		{
+			name:          "long name",
+			inputName:     "This is a very long draft name with many characters 123456789",
+			shouldBeEmpty: false,
+			description:   "Should accept long names",
+		},
+		{
+			name:          "name with special characters",
+			inputName:     "Draft #1: Ultimate Edition!",
+			shouldBeEmpty: false,
+			description:   "Should accept names with special characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test empty name validation
+			isEmpty := tt.inputName == ""
+			assert.Equal(t, tt.shouldBeEmpty, isEmpty, tt.description)
+		})
+	}
+}

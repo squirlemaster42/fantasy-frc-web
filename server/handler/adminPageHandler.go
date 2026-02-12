@@ -217,6 +217,50 @@ func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.
 	return fmt.Sprintf("Successfully picked team %s", teamStr)
 }
 
+type RenameDraftCommand struct{}
+
+func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	slog.Info("Calling rename draft command", "Args", argStr)
+	argMap, _ := utils.ParseArgString(argStr)
+
+	draftIdStr, ok := argMap["id"]
+	if !ok {
+		return "Missing required argument: -id=<draftId>"
+	}
+
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
+
+	newName, ok := argMap["name"]
+	if !ok {
+		return "Missing required argument: -name=<newName>"
+	}
+
+	if newName == "" {
+		return "Draft name cannot be empty"
+	}
+
+	// Fetch the draft
+	draft, err := model.GetDraft(database, draftId)
+	if err != nil {
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	oldName := draft.DisplayName
+	draft.DisplayName = newName
+
+	// Update the draft
+	err = model.UpdateDraft(database, &draft)
+	if err != nil {
+		slog.Error("Failed to update draft name", "Draft Id", draftId, "Error", err)
+		return "Failed to update draft name"
+	}
+
+	return fmt.Sprintf("Successfully renamed draft from '%s' to '%s'", oldName, newName)
+}
+
 var commands = map[string]Command{
 	"ping":           &PingCommand{},
 	"listdraft":      &ListDraftsCommand{},
@@ -225,6 +269,7 @@ var commands = map[string]Command{
 	"viewWebhookKey": &ViewWebhookKey{},
 	"modifypicktime": &ModifyPickTimeCommand{},
 	"adminpick":      &AdminPickCommand{},
+	"renamedraft":    &RenameDraftCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
