@@ -335,6 +335,36 @@ func TestRenameDraftCommandArgumentParsing(t *testing.T) {
 	}
 }
 
+func TestUndoPickCommandArgumentParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           string
+		expectedResult string
+		description    string
+	}{
+		{
+			name:           "missing id argument",
+			args:           "",
+			expectedResult: "Missing required argument: -id=<draftId>",
+			description:    "Should return error when draft ID is missing",
+		},
+		{
+			name:           "invalid draft id",
+			args:           "-id=invalid",
+			expectedResult: "Draft Id Could Not Be Converted To An Int",
+			description:    "Should return error when draft ID is not an integer",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &UndoPickCommand{}
+			result := cmd.ProcessCommand(nil, nil, tt.args)
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
 func TestRenameDraftCommandNameValidation(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -1219,6 +1219,82 @@ func UpdatePickExpirationTime(database *sql.DB, pickId int, expirationTime time.
 	return err
 }
 
+func GetPreviousPick(database *sql.DB, draftId int, currentPickId int) (Pick, error) {
+	query := `Select
+                p.Id,
+                p.Player,
+                COALESCE(p.Pick, '') As Pick,
+                p.PickTime,
+                p.Skipped,
+                p.AvailableTime,
+                p.ExpirationTime At Time Zone 'America/New_York'
+            From Picks p
+            Inner Join DraftPlayers dp On p.Player = dp.Id
+            Where dp.DraftId = $1 And p.Id < $2
+            Order By p.Id Desc
+            Limit 1`
+
+	assert := assert.CreateAssertWithContext("Get Previous Pick")
+	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("Current Pick Id", currentPickId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Warn("GetPreviousPick: Failed to close statement", "error", err)
+		}
+	}()
+	var pick Pick
+	err = stmt.QueryRow(draftId, currentPickId).Scan(
+		&pick.Id,
+		&pick.Player,
+		&pick.Pick,
+		&pick.PickTime,
+		&pick.Skipped,
+		&pick.AvailableTime,
+		&pick.ExpirationTime,
+	)
+
+	if err != nil {
+		return Pick{}, err
+	}
+
+	return pick, nil
+}
+
+func DeletePick(database *sql.DB, pickId int) error {
+	query := `Delete From Picks Where Id = $1`
+
+	assert := assert.CreateAssertWithContext("Delete Pick")
+	assert.AddContext("Pick Id", pickId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Warn("DeletePick: Failed to close statement", "error", err)
+		}
+	}()
+	_, err = stmt.Exec(pickId)
+	return err
+}
+
+func ResetPick(database *sql.DB, pickId int, expirationTime time.Time) error {
+	query := `Update Picks Set Pick = Null, PickTime = Null, ExpirationTime = $1 Where Id = $2`
+
+	assert := assert.CreateAssertWithContext("Reset Pick")
+	assert.AddContext("Pick Id", pickId)
+	assert.AddContext("Expiration Time", expirationTime)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			slog.Warn("ResetPick: Failed to close statement", "error", err)
+		}
+	}()
+	_, err = stmt.Exec(expirationTime, pickId)
+	return err
+}
+
 func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 	assert := assert.CreateAssertWithContext("Get Drafts In Status")
 	assert.AddContext("Status", status)

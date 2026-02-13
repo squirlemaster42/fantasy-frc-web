@@ -261,6 +261,59 @@ func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draf
 	return fmt.Sprintf("Successfully renamed draft from '%s' to '%s'", oldName, newName)
 }
 
+type UndoPickCommand struct{}
+
+func (u *UndoPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	slog.Info("Calling undo pick command", "Args", argStr)
+	argMap, _ := utils.ParseArgString(argStr)
+
+	draftIdStr, ok := argMap["id"]
+	if !ok {
+		return "Missing required argument: -id=<draftId>"
+	}
+
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return "Draft Id Could Not Be Converted To An Int"
+	}
+
+	// Get the current pick
+	currentPick := model.GetCurrentPick(database, draftId)
+	if currentPick.Id == 0 {
+		return "No current pick found for this draft"
+	}
+
+	// Get the previous pick
+	previousPick, err := model.GetPreviousPick(database, draftId, currentPick.Id)
+	if err != nil {
+		return "Cannot undo pick: this is the first pick of the draft"
+	}
+
+	// Get the previous player for the success message
+	previousPlayer := model.GetDraftPlayerUser(database, previousPick.Player)
+
+	// Delete the current pick
+	err = model.DeletePick(database, currentPick.Id)
+	if err != nil {
+		slog.Error("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
+		return "Failed to delete current pick"
+	}
+
+	// Set the expiration time to 3 hours from now
+	newExpirationTime := time.Now().Add(3 * time.Hour)
+
+	// Reset the previous pick (null out pick and pickTime, and set new expiration)
+	err = model.ResetPick(database, previousPick.Id, newExpirationTime)
+	if err != nil {
+		slog.Error("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
+		return "Failed to reset previous pick"
+	}
+
+	return fmt.Sprintf("Successfully undid pick. Player %s now has until %s to make their pick",
+		previousPlayer.Username,
+		newExpirationTime.Format("2006-01-02 15:04:05 MST"))
+}
+
 var commands = map[string]Command{
 	"ping":           &PingCommand{},
 	"listdraft":      &ListDraftsCommand{},
@@ -270,6 +323,7 @@ var commands = map[string]Command{
 	"modifypicktime": &ModifyPickTimeCommand{},
 	"adminpick":      &AdminPickCommand{},
 	"renamedraft":    &RenameDraftCommand{},
+	"undopick":       &UndoPickCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
