@@ -22,8 +22,13 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	username := model.GetUsername(h.Database, userUuid)
+	draftModel := model.DraftModel {
+		Id: -1,
+	}
+	draftModel.StartTime = time.Now().Add(72 * time.Hour)
+	draftModel.EndTime = time.Now().Add(144 * time.Hour)
 
-	draftCreateIndex := draft.DraftProfileIndex(model.DraftModel{Id: -1}, true)
+	draftCreateIndex := draft.DraftProfileIndex(draftModel, true)
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
 	err = Render(c, draftCreate)
 	assert.NoError(err, "Handle View Draft Create Failed To Render")
@@ -45,9 +50,10 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	intInterval, err := strconv.Atoi(interval)
 	assert.NoError(err, "Failed to parse interval")
 
-	parsedStartTime, err := time.Parse(time.RFC3339, startTime)
+	layout := "2006-01-02T15:04:05"
+	parsedStartTime, err := time.Parse(layout, startTime)
 	assert.NoError(err, "Failed to parse start time")
-	parsedEndTime, err := time.Parse(time.RFC3339, endTime)
+	parsedEndTime, err := time.Parse(layout, endTime)
 	assert.NoError(err, "Failed to parse end time")
 
 	userUuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
