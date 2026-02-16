@@ -3,7 +3,7 @@
 > **AI-Generated Documentation**
 > This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team.
 
-The draft is the most exciting part of Fantasy FRC! This guide walks you through everything you need to know about drafting your FRC teams.
+This guide walks you through everything you need to know about drafting your FRC teams.
 
 ## 🎯 Draft Overview
 
