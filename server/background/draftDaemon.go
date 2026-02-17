@@ -100,7 +100,10 @@ func (d *DraftDaemon) checkForPicksToSkip() {
             continue
         }
 
-        curPick := model.GetCurrentPick(d.database, draftId)
+        curPick, err := model.GetCurrentPick(d.database, draftId)
+		if err != nil {
+			continue
+		}
         skipped := false
 
         //Check if the current player if skipping their pick. If so we

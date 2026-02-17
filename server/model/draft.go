@@ -212,12 +212,20 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 
 		pick := Pick{}
 		if status == PICKING {
-			pick = GetCurrentPick(database, draftId)
+			pick, err  = GetCurrentPick(database, draftId)
+			if err != nil {
+				return []DraftModel{}, err
+			}
 
 			if pick.Id != 0 {
+				user, err := GetDraftPlayerUser(database, pick.Player)
+				if err != nil {
+					return []DraftModel{}, err
+				}
+
 				draftModel.NextPick = DraftPlayer{
 					Id:   pick.Player,
-					User: GetDraftPlayerUser(database, pick.Player),
+					User: user,
 				}
 			}
 		}
@@ -447,8 +455,12 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 	slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
 	if draftModel.Status == PICKING {
 		slog.Info("Getting the current pick for the draft")
+		currPick, err := GetCurrentPick(database, draftId)
+		if err != nil {
+			return DraftModel{}, err
+		}
 		draftModel.NextPick = DraftPlayer{
-			Id: GetCurrentPick(database, draftId).Player,
+			Id: currPick.Player,
 		}
 	}
 
@@ -784,7 +796,7 @@ func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
 	return draftPlayerId
 }
 
-func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) User {
+func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) (User, error) {
 	query := `Select
         u.UserUuid,
         u.Username
@@ -804,9 +816,11 @@ func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) User {
 
 	var user User
 	err = stmt.QueryRow(draftPlayerId).Scan(&user.UserUuid, &user.Username)
-	assert.NoError(err, "Failed to get User")
+	if err != nil {
+		return User{}, err
+	}
 
-	return user
+	return user, nil
 }
 
 func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
@@ -1139,7 +1153,7 @@ func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) erro
 	return err
 }
 
-func GetCurrentPick(database *sql.DB, draftId int) Pick {
+func GetCurrentPick(database *sql.DB, draftId int) (Pick, error) {
 	query := `Select
                 p.Id,
                 p.Player,
@@ -1180,10 +1194,10 @@ func GetCurrentPick(database *sql.DB, draftId int) Pick {
 	if err != nil {
 		//There is no current pick
 		slog.Warn(err.Error())
-		return Pick{}
+		return Pick{}, err
 	}
 
-	return pick
+	return pick, nil
 }
 
 func SkipPick(database *sql.DB, pickId int) {
