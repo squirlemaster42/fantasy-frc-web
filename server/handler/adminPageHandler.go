@@ -154,20 +154,13 @@ func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *d
 		return "Invalid duration format. Use format like: 45m, 1h30m, 2h15m30s"
 	}
 
-	currentPick := model.GetCurrentPick(database, draftId)
-	if currentPick.Id == 0 {
-		return "No current pick found for this draft"
-	}
-
-	newExpirationTime := time.Now().Add(duration)
-
-	err = model.UpdatePickExpirationTime(database, currentPick.Id, newExpirationTime)
+	err = draftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
-		slog.Error("Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
-		return "Failed to update pick expiration time"
+		slog.Warn("Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
+		return err.Error()
 	}
 
-	return fmt.Sprintf("Successfully updated pick expiration time to %s", newExpirationTime.Format("2006-01-02 15:04:05 MST"))
+	return "Successfully updated pick expiration time"
 }
 
 type AdminPickCommand struct{}
@@ -195,8 +188,8 @@ func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.
 	tbaId := "frc" + teamStr
 
 	// Get the current pick
-	currentPick := model.GetCurrentPick(database, draftId)
-	if currentPick.Id == 0 {
+	currentPick, err := draftManager.GetCurrentPick(draftId)
+	if currentPick.Id == 0 || err != nil {
 		return "No current pick found for this draft"
 	}
 
@@ -243,16 +236,16 @@ func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draf
 	}
 
 	// Fetch the draft
-	draft, err := model.GetDraft(database, draftId)
+	draft, err := draftManager.GetDraft(draftId, true)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
 
-	oldName := draft.DisplayName
-	draft.DisplayName = newName
+	oldName := draft.Model.DisplayName
+	draft.Model.DisplayName = newName
 
 	// Update the draft
-	err = model.UpdateDraft(database, &draft)
+	err = draftManager.UpdateDraft(*draft.Model)
 	if err != nil {
 		slog.Error("Failed to update draft name", "Draft Id", draftId, "Error", err)
 		return "Failed to update draft name"
@@ -277,41 +270,12 @@ func (u *UndoPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.D
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	// Get the current pick
-	currentPick := model.GetCurrentPick(database, draftId)
-	if currentPick.Id == 0 {
-		return "No current pick found for this draft"
-	}
-
-	// Get the previous pick
-	previousPick, err := model.GetPreviousPick(database, draftId, currentPick.Id)
+	err = draftManager.UndoLastPick(draftId)
 	if err != nil {
-		return "Cannot undo pick: this is the first pick of the draft"
+		return err.Error()
 	}
 
-	// Get the previous player for the success message
-	previousPlayer := model.GetDraftPlayerUser(database, previousPick.Player)
-
-	// Delete the current pick
-	err = model.DeletePick(database, currentPick.Id)
-	if err != nil {
-		slog.Error("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
-		return "Failed to delete current pick"
-	}
-
-	// Set the expiration time to 3 hours from now
-	newExpirationTime := time.Now().Add(3 * time.Hour)
-
-	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = model.ResetPick(database, previousPick.Id, newExpirationTime)
-	if err != nil {
-		slog.Error("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
-		return "Failed to reset previous pick"
-	}
-
-	return fmt.Sprintf("Successfully undid pick. Player %s now has until %s to make their pick",
-		previousPlayer.Username,
-		newExpirationTime.Format("2006-01-02 15:04:05 MST"))
+	return "Successfully undid pick. Player %s now has until %s to make their pick"
 }
 
 var commands = map[string]Command{
@@ -327,6 +291,7 @@ var commands = map[string]Command{
 }
 
 // ---------------- Handler Funcs --------------------------
+
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	slog.Info("Got request to render admin console")
 	assert := assert.CreateAssertWithContext("Handle Admin Console Get")

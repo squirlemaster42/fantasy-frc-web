@@ -60,9 +60,12 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
     //Make the pick
     draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userUuid)
-    pickId := model.GetCurrentPick(h.Database, draftId).Id
+    currPick, err := model.GetCurrentPick(h.Database, draftId)
+	if err != nil {
+		return err
+	}
     pickStruct := model.Pick{
-        Id: pickId,
+        Id: currPick.Id,
         Player: draftPlayer,
         Pick: sql.NullString{
             Valid: true,

@@ -490,11 +490,12 @@ func createDraft(user *User) Draft {
 
 	startTime := time.Now().Add(1 * time.Minute)
 
+	layout := "2006-01-02T15:04:05"
 	form := url.Values{}
 	form.Add("description", createRandomString(10, 1000))
 	form.Add("interval", "0")
-	form.Add("startTime", startTime.Format(time.RFC3339))
-	form.Add("endTime", startTime.Add(10*time.Minute).Format(time.RFC3339))
+	form.Add("startTime", startTime.Format(layout))
+	form.Add("endTime", startTime.Add(10*time.Minute).Format(layout))
 	form.Add("draftName", createRandomString(5, 50))
 
 	resp, err := user.Client.Post(target+"/u/createDraft", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))

@@ -38,8 +38,11 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
     }
 }
 
-func (p *PickManager) SkipCurrentPick() {
-    curPick := model.GetCurrentPick(p.database, p.draftId)
+func (p *PickManager) SkipCurrentPick() error {
+    curPick, err := model.GetCurrentPick(p.database, p.draftId)
+	if err != nil {
+		return err
+	}
     nextPickPlayer := model.NextPick(p.database, p.draftId)
     model.SkipPick(p.database, curPick.Id)
     model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
@@ -52,6 +55,7 @@ func (p *PickManager) SkipCurrentPick() {
             DraftId: p.draftId,
         })
     }
+	return nil
 }
 
 // TODO Deal with error on all callers
