@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"database/sql"
+	"errors"
 	"log/slog"
 	"strconv"
 
@@ -12,63 +14,70 @@ import (
 )
 
 func (h *Handler) HandleViewInvites(c echo.Context) error {
-    return renderInviteTable(h, c, false, "")
+	return renderInviteTable(h, c, false, "")
 }
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string) error {
-    assert := assert.CreateAssertWithContext("Render Invite Table")
+	assert := assert.CreateAssertWithContext("Render Invite Table")
 
-    userTok, err := c.Cookie("sessionToken")
-    assert.NoError(err, "Failed to get user token")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
 
-    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	username := model.GetUsername(h.Database, userUuid)
 
-    invites := model.GetInvites(h.Database, userUuid)
+	invites := model.GetInvites(h.Database, userUuid)
 
-    inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
-    inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
-    err = Render(c, inviteView)
-    return err
+	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
+	inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
+	err = Render(c, inviteView)
+	return err
 }
 
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
-    assert := assert.CreateAssertWithContext("Handle Accept Invite")
+	assert := assert.CreateAssertWithContext("Handle Accept Invite")
 
-    userTok, err := c.Cookie("sessionToken")
-    assert.NoError(err, "Failed to get user token")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
 
-    userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-    inviteIdStr := c.FormValue("inviteId")
-    slog.Info("Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
-    inviteId, err := strconv.Atoi(inviteIdStr)
-    assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
-    assert.NoError(err, "Failed to parse invite id")
-    invite := model.GetInvite(h.Database, inviteId)
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	inviteIdStr := c.FormValue("inviteId")
+	slog.Info("Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
+	assert.NoError(err, "Failed to parse invite id")
+	invite, err := model.GetInvite(h.Database, inviteId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.")
+		}
+		slog.Error("Failed to get invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.")
+	}
 
-    //Make sure that other players cannot accept someones draft
-    if invite.InvitedUserUuid != userUuid {
-        slog.Info("Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
-        return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
-    }
+	//Make sure that other players cannot accept someones draft
+	if invite.InvitedUserUuid != userUuid {
+		slog.Info("Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
+		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
+	}
 
-    slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
+	slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
 
-    // If more than 8 players are invites then we cancel the other outstanding invites
-    // Maybe we need an active bool
-    // Check that accepting this invite will not lead to more than eight players being in the draft
-    numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
-    if numPlayers >= 8 {
-        model.CancelOutstandingInvites(h.Database, invite.DraftId)
-        return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.")
-    }
+	// If more than 8 players are invites then we cancel the other outstanding invites
+	// Maybe we need an active bool
+	// Check that accepting this invite will not lead to more than eight players being in the draft
+	numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
+	if numPlayers >= 8 {
+		model.CancelOutstandingInvites(h.Database, invite.DraftId)
+		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.")
+	}
 
-    draftId, playerId := model.AcceptInvite(h.Database, inviteId)
-    model.AddPlayerToDraft(h.Database, draftId, playerId)
+	draftId, playerId := model.AcceptInvite(h.Database, inviteId)
+	model.AddPlayerToDraft(h.Database, draftId, playerId)
 
-    if numPlayers >= 7 {
-        model.CancelOutstandingInvites(h.Database, invite.DraftId)
-    }
+	if numPlayers >= 7 {
+		model.CancelOutstandingInvites(h.Database, invite.DraftId)
+	}
 
-    return renderInviteTable(h, c, false, "")
+	return renderInviteTable(h, c, false, "")
 }

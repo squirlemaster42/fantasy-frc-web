@@ -645,7 +645,7 @@ func CancelOutstandingInvites(database *sql.DB, draftId int) {
 	assert.NoError(err, "Failed to update drafts")
 }
 
-func GetInvite(database *sql.DB, inviteId int) DraftInvite {
+func GetInvite(database *sql.DB, inviteId int) (DraftInvite, error) {
 	query := `SELECT
             di.Id,
             u.username,
@@ -656,10 +656,11 @@ func GetInvite(database *sql.DB, inviteId int) DraftInvite {
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1;`
-	assert := assert.CreateAssertWithContext("Get Invite")
-	assert.AddContext("Invite", inviteId)
 	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to prepare statement")
+	if err != nil {
+		slog.Error("GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
+		return DraftInvite{}, err
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			slog.Warn("GetInvite: Failed to close statement", "error", err)
@@ -672,8 +673,11 @@ func GetInvite(database *sql.DB, inviteId int) DraftInvite {
 		&invite.InvitedUserUuid,
 		&invite.DraftName,
 		&invite.DraftId)
-	assert.NoError(err, "Failed to query invite")
-	return invite
+	if err != nil {
+		slog.Error("GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
+		return DraftInvite{}, err
+	}
+	return invite, nil
 }
 
 func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
