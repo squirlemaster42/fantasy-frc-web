@@ -1,4 +1,5 @@
 package handler
+
 import (
 	"database/sql"
 	"server/background"
@@ -8,10 +9,10 @@ import (
 )
 
 type Handler struct {
-    Database *sql.DB
-    TbaHandler tbaHandler.TbaHandler
-    DraftManager *draft.DraftManager
-    DraftDaemon *background.DraftDaemon
-    Scorer *scorer.Scorer
-    TbaWekhookSecret string
+	Database         *sql.DB
+	TbaHandler       tbaHandler.TbaHandler
+	DraftManager     *draft.DraftManager
+	DraftDaemon      *background.DraftDaemon
+	Scorer           *scorer.Scorer
+	TbaWekhookSecret string
 }

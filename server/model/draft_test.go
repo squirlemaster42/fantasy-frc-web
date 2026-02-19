@@ -112,7 +112,7 @@ func TestGetInvite_FunctionBehavior(t *testing.T) {
 	t.Run("returns DraftInvite and error", func(t *testing.T) {
 		// Verify function signature: returns (DraftInvite, error)
 		// This is a compile-time check
-		var fn func(*sql.DB, int) (DraftInvite, error) = GetInvite
+		fn := GetInvite
 		assert.NotNil(t, fn)
 	})
 }
@@ -145,7 +145,7 @@ func TestGetInvite_ErrorHandling(t *testing.T) {
 		// In production with real DB, this should return sql.ErrNoRows
 		// which the handler checks with errors.Is(err, sql.ErrNoRows)
 
-		var err error = sql.ErrNoRows
+		err := sql.ErrNoRows
 		assert.True(t, errors.Is(err, sql.ErrNoRows),
 			"Error should be sql.ErrNoRows for non-existent invite")
 	})
