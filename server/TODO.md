@@ -13,7 +13,7 @@ Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FR
 | File | Line | Description | Status |
 |------|------|-------------|--------|
 | `picking/pickManager.go` | 60 | Bug on last pick when watching page | Open |
-| `model/draft.go` | 649 | Should not crash program on error | Open |
+| `model/draft.go` | 649 | Should not crash program on error | Fixed |
 | `draft/draftManager.go` | 245 | Transition doesn't execute due to lock | Open |
 
 ### Medium Priority (Validation)

@@ -212,7 +212,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 
 		pick := Pick{}
 		if status == PICKING {
-			pick, err  = GetCurrentPick(database, draftId)
+			pick, err = GetCurrentPick(database, draftId)
 			if err != nil {
 				return []DraftModel{}, err
 			}
@@ -642,19 +642,26 @@ func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
 	assert.NoError(err, "Failed to accept invite")
 }
 
-func CancelOutstandingInvites(database *sql.DB, draftId int) {
+func CancelOutstandingInvites(database *sql.DB, draftId int) error {
 	query := `Update DraftInvites Set Canceled = true Where DraftId = $1;`
 	assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
 	assert.AddContext("Draft Id", draftId)
+
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare statement")
+
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			slog.Warn("CancelOutstandingInvites: Failed to close statement", "error", err)
 		}
 	}()
+
 	_, err = stmt.Exec(draftId)
-	assert.NoError(err, "Failed to update drafts")
+	if err != nil {
+		return fmt.Errorf("failed to cancel invites for draft %d: %w", draftId, err)
+	}
+
+	return nil
 }
 
 func GetInvite(database *sql.DB, inviteId int) (DraftInvite, error) {
