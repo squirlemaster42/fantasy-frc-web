@@ -3,11 +3,14 @@ package tbaHandler
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"server/assert"
 	"server/swagger"
+	"time"
 )
 
 const (
@@ -259,7 +262,6 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
 	url := BASE_URL + "event/" + eventId + "/alliances"
 	var alliances []swagger.EliminationAlliance
 	jsonData := t.makeRequest(url)
-	slog.Info(string(jsonData))
 	err := json.Unmarshal(jsonData, &alliances)
 
 	if err != nil {
@@ -268,4 +270,25 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
 	}
 
 	return alliances
+}
+
+func (t *TbaHandler) MakeTeamAvatarRequest(teamId string) (string, error) {
+    url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
+	var media []swagger.TeamMedia
+	jsonData := t.makeRequest(url)
+	err := json.Unmarshal(jsonData, &media)
+
+	if err != nil {
+		return "", err
+	}
+
+	// The avatar seems to be the first value in the array
+	// so this loop should usually only run once
+	for _, m := range media {
+		if m.Type == "avatar" {
+			return m.Details.Base64Image, nil
+		}
+	}
+
+	return "", errors.New("Failed to find avatar in response: " + string(jsonData))
 }
