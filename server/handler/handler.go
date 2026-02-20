@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"server/background"
+	"server/cache"
 	"server/draft"
 	"server/scorer"
 	"server/tbaHandler"
@@ -14,5 +15,6 @@ type Handler struct {
 	DraftManager     *draft.DraftManager
 	DraftDaemon      *background.DraftDaemon
 	Scorer           *scorer.Scorer
+    AvatarStore 	 *cache.AvatarStore
 	TbaWekhookSecret string
 }

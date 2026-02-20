@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -16,16 +14,10 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return errors.New("Id must be a valid team number")
 	}
 
-	// TODO cache base64 in database
-	base64Str, err := h.TbaHandler.MakeTeamAvatarRequest(fmt.Sprintf("frc%d", teamNum))
+	avatar, err := h.AvatarStore.GetAvatar(teamNum)
 	if err != nil {
 		return err
 	}
 
-	image, err := base64.StdEncoding.DecodeString(base64Str)
-	if err != nil {
-		return errors.New("Failed to decode team image")
-	}
-
-	return c.Blob(http.StatusOK, "image/png", image)
+	return c.Blob(http.StatusOK, "image/png", avatar)
 }

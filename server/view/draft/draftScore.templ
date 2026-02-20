@@ -54,7 +54,7 @@ func getTeamColorClass(teamNumber string) string {
         "bg-pink-500",
         "bg-rose-500",
     }
-    
+
     hash := 0
     for _, char := range teamNumber {
         hash = (hash*31 + int(char)) % len(colors)
@@ -66,7 +66,7 @@ func getTeamColorClass(teamNumber string) string {
 }
 
 templ DraftScoreReport(player model.DraftPlayer, rank int, draftId int) {
-    {{ 
+    {{
         rankClass := "bg-slate-700 text-slate-300 border-slate-600"
         rankIcon := ""
         if rank == 1 {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"server/assert"
 	"server/background"
+	"server/cache"
 	"server/database"
 	"server/draft"
 	"server/handler"
@@ -78,11 +79,15 @@ func main() {
 		scorer.RunScorer()
 	}
 
+	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
+	assert.NoError(err, "Failed to create avatar store")
+
 	handler := handler.Handler{
 		Database:     database,
 		TbaHandler:   *tbaHandler,
 		DraftManager: draftManager,
 		Scorer:       scorer,
+		AvatarStore: &avatarStore,
 	}
 
 	// Load the tba webhook secret
