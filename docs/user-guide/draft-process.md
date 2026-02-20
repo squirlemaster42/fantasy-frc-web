@@ -15,7 +15,7 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 - **Snake draft order**: 1→8→8→1... (reverses each round)
 - **8 rounds** of drafting
 - **64 total team selections** (8 teams × 8 players)
-- **Time limits** for each pick (typically 3 hours)
+- **Time limits** for each pick (typically 3 hours, decreasing as we get closer to the first match)
 
 ## 📅 Before the Draft
 
