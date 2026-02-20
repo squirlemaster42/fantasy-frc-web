@@ -111,7 +111,13 @@ templ DraftScoreReport(player model.DraftPlayer, rank int, draftId int) {
                                 {{ teamNum := strings.TrimLeft(pick.Pick.String, "frc") }}
                                 {{ colorClass := getTeamColorClass(teamNum) }}
                                 <div class="flex items-center gap-2 bg-slate-700/50 rounded-lg p-2 border border-slate-600/50">
-                                    <div class={"w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0 " + colorClass}></div>
+                                    <div class={"w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0 overflow-hidden " + colorClass}>
+                                        <img 
+                                            src={fmt.Sprintf("/u/team/%s/avatar", teamNum)}
+                                            class="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    </div>
                                     <a href={fmt.Sprintf("/u/draft/%d/team/%s", draftId, teamNum)} class="text-base sm:text-lg font-semibold text-blue-400 flex-shrink-0 hover:text-blue-300 hover:underline transition-colors underline underline-offset-2 decoration-blue-400/50 hover:decoration-blue-300">
                                         {teamNum}
                                     </a>
