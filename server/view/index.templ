@@ -1,8 +1,11 @@
 package view
 
-import "server/view/partials"
+import (
+	"server/types"
+	"server/view/partials"
+)
 
-templ Index(page string, fromProtected bool, username string, data any) {
+templ Index(page string, fromProtected bool, username string, data *types.PageData) {
     <!DOCTYPE html>
 	<html lang="en" data-theme="dark">
         <head>

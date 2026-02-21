@@ -50,7 +50,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	}
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
-	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId)
+	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
 }
 

@@ -22,29 +22,28 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	draftId, err := strconv.Atoi(c.Param("id"))
 	assert.NoError(err, "Failed to convert draft id to int")
 
+	draftModel, err := model.GetDraft(h.Database, draftId)
+	if err != nil {
+		assert.NoError(err, "Failed to get draft")
+	}
+
+	isOwner := draftModel.Owner.UserUuid == userUuid
+
 	userDraftScore := model.GetDraftScore(h.Database, draftId)
 
-	//Sort user scores
 	slices.SortFunc(userDraftScore, func(a, b model.DraftPlayer) int {
-		//This will return a negative number when a score is less than b score
-		//a positive number is a score is greater than b score
-		//and 0 if they are equal
 		return b.Score - a.Score
 	})
 
 	for _, draftPlayer := range userDraftScore {
-		//Sort team scores
 		slices.SortFunc(draftPlayer.Picks, func(a, b model.Pick) int {
-			//This will return a negative number when a score is less than b score
-			//a positive number is a score is greater than b score
-			//and 0 if they are equal
 			return b.Score - a.Score
 		})
 	}
 
 	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId)
-	draft := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId)
-	return Render(c, draft)
+	draftView := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId, isOwner)
+	return Render(c, draftView)
 }
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
@@ -58,6 +57,13 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	draftId, err := strconv.Atoi(c.Param("id"))
 	assert.NoError(err, "Failed to convert draft id to int")
 
+	draftModel, err := model.GetDraft(h.Database, draftId)
+	if err != nil {
+		assert.NoError(err, "Failed to get draft")
+	}
+
+	isOwner := draftModel.Owner.UserUuid == userUuid
+
 	teamNumber := c.Param("teamNumber")
 	assert.AddContext("Team Number", teamNumber)
 	assert.AddContext("Draft ID", draftId)
@@ -65,6 +71,6 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	scores := model.GetScore(h.Database, "frc"+teamNumber)
 
 	teamScoreReport := team.TeamScoreReport(teamNumber, scores)
-	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId)
+	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, isOwner)
 	return Render(c, draftTeamScore)
 }

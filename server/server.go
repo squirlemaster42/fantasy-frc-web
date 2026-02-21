@@ -23,8 +23,8 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 
 	// To initialize Sentry's handler, you need to initialize Sentry itself beforehand
 	if err := sentry.Init(sentry.ClientOptions{
-		Dsn: sentryDNS,
-		EnableLogs: true,
+		Dsn:              sentryDNS,
+		EnableLogs:       true,
 		TracesSampleRate: 1.0,
 	}); err != nil {
 		slog.Error("Sentry initialize failed", "Error", err)
@@ -74,6 +74,11 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	protected.POST("/team/score", h.HandleGetTeamScore)
 	protected.GET("/draft/:id/draftScore", h.HandleDraftScore)
 	protected.GET("/draft/:id/team/:teamNumber", h.HandleDraftTeamScore)
+	protected.GET("/draft/:id/admin", h.HandleDraftAdminGet)
+	protected.POST("/draft/:id/admin/skipPick", h.HandleAdminSkipPick)
+	protected.POST("/draft/:id/admin/extendTime", h.HandleAdminExtendTime)
+	protected.POST("/draft/:id/admin/makePick", h.HandleAdminMakePick)
+	protected.POST("/draft/:id/admin/undoPick", h.HandleAdminUndoPick)
 	protected.POST("/searchPlayers", h.SearchPlayers)
 	protected.GET("/viewInvites", h.HandleViewInvites)
 	protected.POST("/acceptInvite", h.HandleAcceptInvite)

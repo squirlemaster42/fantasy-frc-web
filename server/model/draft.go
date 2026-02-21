@@ -486,6 +486,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 
 		if playerId == draftModel.NextPick.Id {
 			draftModel.NextPick.User.UserUuid = userUuid
+			draftModel.NextPick.User.Username = username
 		}
 
 		draftPlayer := DraftPlayer{

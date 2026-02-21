@@ -1,8 +1,11 @@
 package draft
 
-import "server/model"
-import "server/view"
-import "strings"
+import (
+	"server/model"
+	"server/types"
+	"server/view"
+	"strings"
+)
 
 type PickPage struct {
     Draft model.DraftModel
@@ -77,8 +80,8 @@ templ DraftPickIndex (pickPageModel PickPage) {
     </div>
 }
 
-templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
+    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
         @cmp
     }
 }

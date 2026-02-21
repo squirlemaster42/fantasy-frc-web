@@ -1,9 +1,10 @@
 package draft
 
 import (
-    "server/view"
-    "server/model"
-    "fmt"
+	"server/types"
+	"server/view"
+	"server/model"
+	"fmt"
 	"server/utils"
 )
 
@@ -248,8 +249,8 @@ templ StartDraftButton(submitUrl string, err string, isOwner bool) {
     </button>
 }
 
-templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
+    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
         @cmp
     }
 }

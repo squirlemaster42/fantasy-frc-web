@@ -1,10 +1,11 @@
 package draft
 
 import (
-    "server/view"
-    "server/model"
-    "fmt"
-    "strings"
+	"server/types"
+	"server/view"
+	"server/model"
+	"fmt"
+	"strings"
 )
 
 templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int) {
@@ -18,14 +19,14 @@ templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int) {
     </div>
 }
 
-templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
+    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
         @cmp
     }
 }
 
-templ DraftTeamScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int) {
-    @view.Index(page, fromProtected, username, draftId) {
+templ DraftTeamScore(page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
+    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
         <div class="flex items-center justify-center w-full h-full p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
             <div class="max-w-2xl w-full">
                 @cmp

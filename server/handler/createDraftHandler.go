@@ -22,14 +22,14 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	username := model.GetUsername(h.Database, userUuid)
-	draftModel := model.DraftModel {
+	draftModel := model.DraftModel{
 		Id: -1,
 	}
 	draftModel.StartTime = time.Now().Add(72 * time.Hour)
 	draftModel.EndTime = time.Now().Add(144 * time.Hour)
 
 	draftCreateIndex := draft.DraftProfileIndex(draftModel, true)
-	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1)
+	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
 	err = Render(c, draftCreate)
 	assert.NoError(err, "Handle View Draft Create Failed To Render")
 	return nil
