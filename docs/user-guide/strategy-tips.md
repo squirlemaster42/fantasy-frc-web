@@ -300,7 +300,6 @@ Ready to dominate your Fantasy FRC league? These strategies will help you build 
 **Focus on your teams:**
 - Track when each team plays qualification matches
 - Know their division's playoff schedule
-- Plan to watch alliance selection for all divisions
 
 **Score tracking:**
 - Monitor your dashboard for real-time updates
