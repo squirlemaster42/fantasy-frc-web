@@ -3,7 +3,7 @@
 > **AI-Generated Documentation**
 > This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
 
-Ready to dominate your Fantasy FRC league? These strategies will help you build a winning team and outsmart your competition.
+Ready to dominate your Fantasy FRC league? These strategies could help you build a winning team and outsmart your competition.
 
 ## 🎯 Core Strategy Principles
 
@@ -300,7 +300,6 @@ Ready to dominate your Fantasy FRC league? These strategies will help you build 
 **Focus on your teams:**
 - Track when each team plays qualification matches
 - Know their division's playoff schedule
-- Plan to watch alliance selection for all divisions
 
 **Score tracking:**
 - Monitor your dashboard for real-time updates
