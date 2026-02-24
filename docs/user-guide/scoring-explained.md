@@ -9,11 +9,6 @@ Understanding how teams (and your fantasy roster) earn points is key to Fantasy 
 
 Each FRC team you draft earns points based on their actual performance during championship events. Your fantasy score is simply the sum of all your drafted teams' points.
 
-### Basic Formula
-```
-Your Score = Team 1 Points + Team 2 Points + ... + Team 8 Points
-```
-
 ### Team Score Breakdown
 Each team's total comes from four main components:
 1. **Qualification Score** - Performance in early matches
