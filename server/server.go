@@ -3,8 +3,8 @@ package main
 import (
 	"log/slog"
 	"net/http"
-	"os"
 	"server/assert"
+	"server/assets"
 	"server/authentication"
 	"server/handler"
 
@@ -40,7 +40,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	app.Add(
 		http.MethodGet,
 		"/css/*",
-		echo.StaticDirectoryHandler(os.DirFS("./assets/css"), false),
+		echo.StaticDirectoryHandler(assets.CSS(), false),
 		cacheControlMiddleware,
 	)
 

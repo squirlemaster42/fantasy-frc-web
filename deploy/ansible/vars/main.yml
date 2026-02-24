@@ -1,0 +1,22 @@
+---
+# Application configuration
+db_name: fantasyfrc
+db_username: fantasyfrc
+db_password: "{{ vault_db_password }}"
+
+# Server configuration
+server_port: "8080"
+
+# TBA Configuration
+tba_token: "{{ vault_tba_token }}"
+tba_webhook_secret: "{{ vault_tba_webhook_secret | default('') }}"
+
+# Sentry (optional)
+sentry_dsn: "{{ vault_sentry_dsn | default('') }}"
+
+# Session secret
+session_secret: "{{ vault_session_secret }}"
+
+# Build paths (relative to playbook location or absolute)
+local_binary_path: "../../server/server"
+local_migrations_path: "../migrations"

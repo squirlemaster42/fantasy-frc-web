@@ -1,0 +1,38 @@
+[Unit]
+Description=Fantasy FRC Web Server
+After=network.target postgresql.service redis-server.service
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=fantasyfrc
+Group=fantasyfrc
+WorkingDirectory=/opt/fantasy-frc
+
+# Environment
+EnvironmentFile=/opt/fantasy-frc/config/.env
+
+# Binary path
+ExecStart=/opt/fantasy-frc/bin/server
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=fantasy-frc
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/fantasy-frc /var/log/fantasy-frc
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
