@@ -15,7 +15,7 @@ Fantasy FRC is a fantasy league game for FIRST Robotics Competition (FRC), simil
 - **Follow along** during championship events to track your teams' success
 
 ### The Concept
-Just like in traditional fantasy sports, you become a "team owner" who selects a portfolio of real FRC teams. Your fantasy score is the sum of all your drafted teams' actual competition performance scores.
+Just like in traditional fantasy sports, you become a "team owner" (or alliance captain in the robot world) who selects a portfolio of real FRC teams. Your fantasy score is the sum of all your drafted teams' actual competition performance scores.
 
 ## 🎯 How It Works
 
