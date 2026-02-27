@@ -35,7 +35,7 @@ Just like in traditional fantasy sports, you become a "team owner" (or alliance 
 - **Multiple events**: Teams compete across various championship divisions
 - **Real-time scoring**: Watch your score update as matches complete
 
-### 4. Win the League
+### 4. View Your Results
 - **Highest score wins**: The player with the most points at the end wins
 - **Strategy matters**: Team selection and draft order are crucial
 - **Bragging rights**: Compete for the title of best FRC strategist
