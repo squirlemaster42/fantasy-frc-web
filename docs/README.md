@@ -41,8 +41,7 @@ Welcome to the documentation for the Fantasy FRC web application.
 - [Development Overview](./development/README.md) - Development workflow and standards
 
 ## 🎯 Quick Start
-1. **For Players**: Start with [Getting Started](./user-guide/getting-started.md)
-2. **For Draft Commissioners**: See [Draft Process](./user-guide/draft-process.md)
+1. **For Players**: Start with [Getting Started](./user-guide/getting-started.md) and [Draft Process](./user-guide/draft-process.md)
 3. **For Developers**: Start with [Development Setup](./development/setup.md)
 4. **For API Users**: See [Web Endpoints](./api/web-endpoints.md)
 5. **For Database Setup**: See [Database Schema](./database/schema.md)
