@@ -222,7 +222,7 @@ Players are ranked by total points:
 
 ### Einstein Impact
 - **Double points**: Einstein can dramatically change rankings
-- **Limited spots**: Only 24 teams qualify
+- **Limited spots**: Only 32 teams qualify
 - **Game changer**: One Einstein run can win your league
 
 ## ❓ Frequently Asked Questions
