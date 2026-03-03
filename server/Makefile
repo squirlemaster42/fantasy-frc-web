@@ -21,10 +21,10 @@ watch-css: $(TAILWIND_BIN)
 	$(TAILWIND_BIN) -i $(CSS_INPUT) -o $(CSS_OUTPUT) --watch
 
 # Run development server with hot reload
-run: $(TAILWIND_BIN)
-	@echo "Starting development server..."
+run-verbose: $(TAILWIND_BIN)
+	@echo "Starting development server with verbose logging..."
 	@make watch-css &
-	@go tool templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -skipScoring=true -populateTeams=false"
+	@go tool templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -v -skipScoring=true -populateTeams=false"
 
 # Generate templ files
 generate:

@@ -89,7 +89,7 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
-	slog.Info("Making TBA request", "Url", url)
+	slog.Debug("Making TBA request", "Url", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -97,11 +97,11 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 		return nil
 	}
 
-	slog.Info("Checking cache for tba data", "Url", url)
+	slog.Debug("Checking cache for tba data", "Url", url)
 	body, etag, err := t.checkCache(url)
 
 	if err == nil {
-		slog.Info("Found cached data", "Url", url, "Etag", etag)
+		slog.Debug("Found cached data", "Url", url, "Etag", etag)
 		req.Header.Add("If-None-Match", etag)
 	} else {
 		slog.Warn("Did not find cached tba data", "Url", url, "Error", err)
@@ -121,15 +121,15 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 		}
 	}()
 
-	slog.Info("Got response from tba", "Status", resp.Status)
+	slog.Debug("Got response from tba", "Status", resp.Status)
 	switch resp.StatusCode {
 	case http.StatusNotModified:
-		slog.Info("Got not modified from tba, using cache data", "Url", url)
+		slog.Debug("Got not modified from tba, using cache data", "Url", url)
 		return body
 	case http.StatusNotFound:
 		return nil
 	default:
-		slog.Info("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
+		slog.Debug("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
 	}
 
 	body, err = io.ReadAll(resp.Body)
@@ -273,7 +273,7 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
 }
 
 func (t *TbaHandler) MakeTeamAvatarRequest(teamId string) (string, error) {
-    url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
+	url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
 	var media []swagger.TeamMedia
 	jsonData := t.makeRequest(url)
 	err := json.Unmarshal(jsonData, &media)

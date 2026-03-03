@@ -45,7 +45,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	)
 
 	app.Use(middleware.Gzip())
-	//app.Use(middleware.Recover())
+	app.Use(middleware.Recover())
 	app.Use(sentryecho.New(sentryecho.Options{
 		Repanic: true,
 	}))

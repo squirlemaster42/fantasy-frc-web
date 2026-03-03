@@ -15,12 +15,12 @@ import (
 )
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
-    draftManager := &DraftManager{
-        drafts: map[int]*Draft{},
-        database: database,
-        tbaHandler: tbaHandler,
-        states: setupStates(database),
-    }
+	draftManager := &DraftManager{
+		drafts:     map[int]*Draft{},
+		database:   database,
+		tbaHandler: tbaHandler,
+		states:     setupStates(database),
+	}
 
 	slog.Info("Draft Manager Started")
 
@@ -40,11 +40,11 @@ func (tst *ToStartTransition) executeTransition(draft Draft) error {
 }
 
 type ToPickingTransition struct {
-    database *sql.DB
+	database *sql.DB
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
-    model.RandomizePickOrder(tpt.database, draft.draftId)
+	model.RandomizePickOrder(tpt.database, draft.draftId)
 	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
 	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
@@ -52,11 +52,11 @@ func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
 		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
 	}
-    return nil
+	return nil
 }
 
 type ToPlayingTransition struct {
-    database *sql.DB
+	database *sql.DB
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
@@ -65,8 +65,8 @@ func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
 	if err != nil {
 		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 	}
-    //Remove the draft from the pick daemon
-    return nil
+	//Remove the draft from the pick daemon
+	return nil
 }
 
 type ToCompleteTransition struct {
@@ -83,30 +83,30 @@ type state struct {
 }
 
 func setupStates(database *sql.DB) map[model.DraftState]*state {
-    states := make(map[model.DraftState]*state)
-    states[model.FILLING] = &state {
-        state: model.FILLING,
-        transitions: make(map[model.DraftState]stateTransition),
-    }
-    states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition {
-        database: database,
-    }
+	states := make(map[model.DraftState]*state)
+	states[model.FILLING] = &state{
+		state:       model.FILLING,
+		transitions: make(map[model.DraftState]stateTransition),
+	}
+	states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition{
+		database: database,
+	}
 
-    states[model.WAITING_TO_START] = &state {
-        state: model.WAITING_TO_START,
-        transitions: make(map[model.DraftState]stateTransition),
-    }
-    states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition {
-        database: database,
-    }
+	states[model.WAITING_TO_START] = &state{
+		state:       model.WAITING_TO_START,
+		transitions: make(map[model.DraftState]stateTransition),
+	}
+	states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition{
+		database: database,
+	}
 
-    states[model.PICKING] = &state {
-        state: model.PICKING,
-        transitions: make(map[model.DraftState]stateTransition),
-    }
-    states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition {
-        database: database,
-    }
+	states[model.PICKING] = &state{
+		state:       model.PICKING,
+		transitions: make(map[model.DraftState]stateTransition),
+	}
+	states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
+		database: database,
+	}
 
 	states[model.TEAMS_PLAYING] = &state{
 		state:       model.TEAMS_PLAYING,
@@ -124,14 +124,14 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
 }
 
 type DraftManager struct {
-    //TODO this map should be thread safe
-    drafts map[int]*Draft
-    loadLocks sync.Map
-    transitionLocks sync.Map
-    pickLocks sync.Map
-    database *sql.DB
-    tbaHandler *tbaHandler.TbaHandler
-    states map[model.DraftState]*state
+	//TODO this map should be thread safe
+	drafts          map[int]*Draft
+	loadLocks       sync.Map
+	transitionLocks sync.Map
+	pickLocks       sync.Map
+	database        *sql.DB
+	tbaHandler      *tbaHandler.TbaHandler
+	states          map[model.DraftState]*state
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
@@ -140,18 +140,18 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 	lock := dm.getLoadLock(draftId)
 	draft, ok := dm.drafts[draftId]
 	if ok && !reload {
-		slog.Info("Returning cached draft", "Draft Id", draftId)
+		slog.Debug("Returning cached draft", "Draft Id", draftId)
 		return *draft, nil
 	} else if reload {
-		slog.Info("Reloading Draft", "Draft Id", draftId)
+		slog.Debug("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
 		draft.Model = &draftModel
 		lock.Unlock()
-		slog.Info("Reloaded Draft", "Draft Id", draftId)
+		slog.Debug("Reloaded Draft", "Draft Id", draftId)
 		return *draft, err
 	} else {
-		slog.Info("Loading Draft For First Time", "Draft Id", draftId)
+		slog.Debug("Loading Draft For First Time", "Draft Id", draftId)
 		//Load draft model
 		lock.Lock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
@@ -164,7 +164,7 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		}
 		dm.drafts[draftId] = &draft
 		lock.Unlock()
-		slog.Info("Loaded Draft For First Time", "Draft Id", draftId)
+		slog.Debug("Loaded Draft For First Time", "Draft Id", draftId)
 		return draft, err
 	}
 }
@@ -193,38 +193,38 @@ func (e *invalidStateTransitionError) Error() string {
 }
 
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
-    slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
-    assert := assert.CreateAssertWithContext("Execute Draft State Transition")
+	slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
+	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
 
 	lock := dm.getTransitionLock(draftId)
 	lock.Lock()
 	defer lock.Unlock()
-	slog.Info("Aquired transition lock", "Draft Id", draftId)
+	slog.Debug("Aquired transition lock", "Draft Id", draftId)
 
-    draft, err := dm.GetDraft(draftId, false)
-	slog.Info("Loaded draft to execute transition", "Draft Id", draftId)
+	draft, err := dm.GetDraft(draftId, false)
+	slog.Debug("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
 		slog.Warn("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
 		return err
 	}
-    assert.AddContext("Draft Id", draft.draftId)
-    assert.AddContext("Current State", string(draft.Model.Status))
-    assert.AddContext("Requested State", string(requestedState))
+	assert.AddContext("Draft Id", draft.draftId)
+	assert.AddContext("Current State", string(draft.Model.Status))
+	assert.AddContext("Requested State", string(requestedState))
 
-    state, stateFound := dm.states[draft.Model.Status]
-    assert.AddContext("Current Draft State", state)
-    assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
-	slog.Info("Found draft state", "Draft Id", draft.draftId, "State", state.state)
-    transition, transitionFound := state.transitions[requestedState]
-    if !transitionFound {
-        slog.Error("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
-        return &invalidStateTransitionError{
-            currentState: draft.Model.Status,
-            requestedState: requestedState,
-        }
-    }
+	state, stateFound := dm.states[draft.Model.Status]
+	assert.AddContext("Current Draft State", state)
+	assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
+	slog.Debug("Found draft state", "Draft Id", draft.draftId, "State", state.state)
+	transition, transitionFound := state.transitions[requestedState]
+	if !transitionFound {
+		slog.Error("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
+		return &invalidStateTransitionError{
+			currentState:   draft.Model.Status,
+			requestedState: requestedState,
+		}
+	}
 
-    slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
+	slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
 	err = transition.executeTransition(draft)
 	if err != nil {
 		slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
@@ -233,7 +233,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	slog.Info("Executed draft state transition", "Draft Id", draftId)
 
 	draft, err = dm.GetDraft(draftId, true)
-	slog.Info("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
+	slog.Debug("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
 
 	return err
 }
@@ -298,11 +298,11 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		// I should probably just make a pick lock
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
-        if err != nil {
-            slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
-        }
-    }
-    return err
+		if err != nil {
+			slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		}
+	}
+	return err
 }
 
 // TODO Can we do something nicer with these two lock functions?

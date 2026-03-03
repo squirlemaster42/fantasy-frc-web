@@ -21,10 +21,17 @@ import (
 
 func main() {
 	assert := assert.CreateAssertWithContext("Main")
-	slog.Info("-------- Starting Fantasy FRC --------")
+
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
 	populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")
+	verbose := flag.Bool("v", false, "Enable debug logging")
 	flag.Parse()
+
+	if *verbose {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
+	slog.Info("-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	assert.NoError(err, "Failed to load env vars")
@@ -44,11 +51,11 @@ func main() {
 	if *populateTeams {
 		slog.Info("Populating Teams")
 		for _, event := range utils.Events() {
-			slog.Info("Creating teams for event", "Event", event)
+			slog.Debug("Creating teams for event", "Event", event)
 			for _, team := range tbaHandler.MakeTeamsAtEventRequest(event) {
-				slog.Info("Checking if team is needed", "Team", team.Key, "Event", event)
+				slog.Debug("Checking if team is needed", "Team", team.Key, "Event", event)
 				if model.GetTeam(database, team.Key) == nil {
-					slog.Info("Creating team", "Team", team.Key, "Event", event)
+					slog.Debug("Creating team", "Team", team.Key, "Event", event)
 					model.CreateTeam(database, team.Key, "")
 				}
 			}
@@ -64,7 +71,7 @@ func main() {
 		panic("failed to start draft manager")
 	}
 
-	slog.Info("Checking for drafts that need to be added to daemon")
+	slog.Debug("Checking for drafts that need to be added to daemon")
 	drafts := model.GetDraftsInStatus(database, model.PICKING)
 	for _, draftId := range drafts {
 		err = draftDaemon.AddDraft(draftId)
@@ -87,7 +94,7 @@ func main() {
 		TbaHandler:   *tbaHandler,
 		DraftManager: draftManager,
 		Scorer:       scorer,
-		AvatarStore: &avatarStore,
+		AvatarStore:  &avatarStore,
 	}
 
 	// Load the tba webhook secret

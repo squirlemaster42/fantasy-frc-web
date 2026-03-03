@@ -16,7 +16,7 @@ import (
 // to be a reasonable LRU cache and we should always just go to redis.
 // Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
-	client *redis.Client
+	client     *redis.Client
 	tbaHandler tbaHandler.TbaHandler
 }
 
@@ -24,9 +24,9 @@ func NewAvatarStore(tbaHander tbaHandler.TbaHandler) (AvatarStore, error) {
 	// TODO Set options from env file
 	// TODO We should not cache the avatars on the default db
 	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr:     "localhost:6379",
 		Password: "",
-		DB: 0,
+		DB:       0,
 		Protocol: 2,
 	})
 	ctx := context.Background()
@@ -34,8 +34,8 @@ func NewAvatarStore(tbaHander tbaHandler.TbaHandler) (AvatarStore, error) {
 	if err != nil {
 		return AvatarStore{}, nil
 	}
-	return AvatarStore {
-		client: rdb,
+	return AvatarStore{
+		client:     rdb,
 		tbaHandler: tbaHander,
 	}, nil
 }
@@ -49,7 +49,7 @@ func (a *AvatarStore) Close() error {
 // TODO Need to figure out the implications of passing different contextes
 func (a *AvatarStore) storeAvatar(teamNum int, avatar []byte) error {
 	// Store the avatar for 4 weeks
-	return a.client.Set(context.Background(), strconv.Itoa(teamNum), avatar, 4 * 7 * 24 * time.Hour).Err()
+	return a.client.Set(context.Background(), strconv.Itoa(teamNum), avatar, 4*7*24*time.Hour).Err()
 }
 
 func (a *AvatarStore) checkCache(teamNum int) ([]byte, error) {
@@ -58,11 +58,11 @@ func (a *AvatarStore) checkCache(teamNum int) ([]byte, error) {
 }
 
 func (a *AvatarStore) GetAvatar(teamNum int) ([]byte, error) {
-	slog.Info("Loading avatar", "Team Num", teamNum)
+	slog.Debug("Loading avatar", "Team Num", teamNum)
 	avatar, err := a.checkCache(teamNum)
 
 	if err == redis.Nil {
-		slog.Info("Avatar not in redis, loading from TBA", "Team Num", teamNum)
+		slog.Debug("Avatar not in redis, loading from TBA", "Team Num", teamNum)
 		base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(fmt.Sprintf("frc%d", teamNum))
 		if err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func (a *AvatarStore) GetAvatar(teamNum int) ([]byte, error) {
 		slog.Warn("Failed to get cached avatar", "Team number", teamNum, "Error", err)
 		return nil, err
 	} else {
-		slog.Info("Avatar in redis", "Team Num", teamNum)
+		slog.Debug("Avatar in redis", "Team Num", teamNum)
 	}
 
 	return avatar, nil
