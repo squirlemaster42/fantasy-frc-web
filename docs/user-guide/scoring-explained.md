@@ -170,7 +170,6 @@ Players are ranked by total points:
 - **1st Place**: Highest total score
 - **2nd Place**: Second-highest score
 - **...etc**
-- **Tiebreaker**: Usually draft position (earlier pick wins)
 
 ## 🔄 Score Updates
 
