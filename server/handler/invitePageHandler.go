@@ -3,12 +3,12 @@ package handler
 import (
 	"database/sql"
 	"errors"
-	"log/slog"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 
 	"server/assert"
+	"server/log"
 	"server/model"
 	draftView "server/view/draft"
 )
@@ -42,7 +42,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	inviteIdStr := c.FormValue("inviteId")
-	slog.Info("Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
+	log.Info(c.Request().Context(), "Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
 	inviteId, err := strconv.Atoi(inviteIdStr)
 	assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
 	assert.NoError(err, "Failed to parse invite id")
@@ -51,17 +51,17 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 		if errors.Is(err, sql.ErrNoRows) {
 			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.")
 		}
-		slog.Error("Failed to get invite", "error", err, "inviteId", inviteId)
+		log.Error(c.Request().Context(), "Failed to get invite", "error", err, "inviteId", inviteId)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.")
 	}
 
 	//Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != userUuid {
-		slog.Info("Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
+		log.Info(c.Request().Context(), "Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
 		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
 	}
 
-	slog.Info("Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
+	log.Info(c.Request().Context(), "Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
 
 	// If more than 8 players are invites then we cancel the other outstanding invites
 	// Maybe we need an active bool
@@ -69,7 +69,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
 	if numPlayers >= 8 {
 		if err := model.CancelOutstandingInvites(h.Database, invite.DraftId); err != nil {
-			slog.Error("Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
+			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.")
 	}
@@ -79,7 +79,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
 	if numPlayers >= 7 {
 		if err := model.CancelOutstandingInvites(h.Database, invite.DraftId); err != nil {
-			slog.Error("Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
+			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 	}
 

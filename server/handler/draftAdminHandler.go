@@ -3,9 +3,9 @@ package handler
 import (
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"server/assert"
+	"server/log"
 	"server/model"
 	draftView "server/view/draft"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 )
 
 func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
-	slog.Info("Got request to serve draft admin page")
+	log.Info(c.Request().Context(), "Got request to serve draft admin page")
 	assert := assert.CreateAssertWithContext("Handle Draft Admin Get")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -26,18 +26,18 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		slog.Warn("Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
+		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		slog.Warn("User attempted to visit admin for invalid draft", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "User attempted to visit admin for invalid draft", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		slog.Warn("Non-owner attempted to access draft admin", "User Uuid", userUuid, "Draft Id", draftId, "Owner", draftModel.Owner.UserUuid)
+		log.Warn(c.Request().Context(), "Non-owner attempted to access draft admin", "User Uuid", userUuid, "Draft Id", draftId, "Owner", draftModel.Owner.UserUuid)
 		return c.String(http.StatusForbidden, "You do not have permission to access this page")
 	}
 
@@ -49,7 +49,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 }
 
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
-	slog.Info("Got request to skip pick")
+	log.Info(c.Request().Context(), "Got request to skip pick")
 	assert := assert.CreateAssertWithContext("Handle Admin Skip Pick")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -73,7 +73,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 
 	err = h.DraftManager.SkipCurrentPick(draftId)
 	if err != nil {
-		slog.Warn("Failed to skip pick", "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to skip pick", "Draft Id", draftId, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to skip pick: %s", err.Error()), false))
 	}
 
@@ -81,7 +81,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 }
 
 func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
-	slog.Info("Got request to extend pick time")
+	log.Info(c.Request().Context(), "Got request to extend pick time")
 	assert := assert.CreateAssertWithContext("Handle Admin Extend Time")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -119,7 +119,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 
 	err = h.DraftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
-		slog.Warn("Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to extend time: %s", err.Error()), false))
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 }
 
 func (h *Handler) HandleAdminMakePick(c echo.Context) error {
-	slog.Info("Got request to make admin pick")
+	log.Info(c.Request().Context(), "Got request to make admin pick")
 	assert := assert.CreateAssertWithContext("Handle Admin Make Pick")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -170,7 +170,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 	err = h.DraftManager.MakePick(draftId, pick)
 	if err != nil {
-		slog.Warn("Failed to make admin pick", "Draft Id", draftId, "Team", teamStr, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to make admin pick", "Draft Id", draftId, "Team", teamStr, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to make pick: %s", err.Error()), false))
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 }
 
 func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
-	slog.Info("Got request to undo pick")
+	log.Info(c.Request().Context(), "Got request to undo pick")
 	assert := assert.CreateAssertWithContext("Handle Admin Undo Pick")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -202,7 +202,7 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 
 	err = h.DraftManager.UndoLastPick(draftId)
 	if err != nil {
-		slog.Warn("Failed to undo pick", "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to undo pick", "Draft Id", draftId, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to undo pick: %s", err.Error()), false))
 	}
 

@@ -2,9 +2,9 @@ package handler
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"server/assert"
+	"server/log"
 	"server/model"
 	draftView "server/view/draft"
 	"strconv"
@@ -16,7 +16,7 @@ import (
 )
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
-	slog.Info("Got a request to serve the draft profile page")
+	log.Info(c.Request().Context(), "Got a request to serve the draft profile page")
 	assert := assert.CreateAssertWithContext("Handle update Draft Profile")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -27,25 +27,25 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		slog.Warn("Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
+		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
-		slog.Warn("User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	if draftModel.StartTime.IsZero() {
-		slog.Info("Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now())
+		log.Info(c.Request().Context(), "Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now())
 		draftModel.StartTime = time.Now().Add(1 * time.Hour)
 	}
 
 	if draftModel.EndTime.IsZero() {
-		slog.Info("Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now())
+		log.Info(c.Request().Context(), "Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now())
 		draftModel.EndTime = time.Now().Add(72 * time.Hour)
 	}
 
@@ -55,7 +55,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
-	slog.Info("Got request to update a draft")
+	log.Info(c.Request().Context(), "Got request to update a draft")
 	assert := assert.CreateAssertWithContext("Handle Update Draft Profile")
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -85,7 +85,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		slog.Warn("User attempted to write to invalid draft id", "User Uuid", userUuid, "Draft Id", draftId)
+		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "User Uuid", userUuid, "Draft Id", draftId)
 		return nil
 	}
 
@@ -93,7 +93,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		//The user would need to hand craft this payload
 		//so for now we just won't tell them what is wrong
 		//because it is probably malicious
-		slog.Info("User tried to update draft but was not the owner.", "User Uuid", userUuid, "DraftId", draftId, "Owner Id", draftModel.Owner.UserUuid)
+		log.Info(c.Request().Context(), "User tried to update draft but was not the owner.", "User Uuid", userUuid, "DraftId", draftId, "Owner Id", draftModel.Owner.UserUuid)
 		return nil
 	}
 
@@ -115,7 +115,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		return err
 	}
 
-	slog.Info("Draft updated, reloading page", "Draft Id", draftId)
+	log.Info(c.Request().Context(), "Draft updated, reloading page", "Draft Id", draftId)
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
 	return nil
 }
@@ -125,17 +125,17 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
 	assert.NoErrorCF(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	slog.Info("Got request to search users")
+	log.Info(c.Request().Context(), "Got request to search users")
 
 	users, err := model.SearchUsers(h.Database, searchInput, draftId)
 	if err != nil {
-		slog.Warn("Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		slog.Warn("User attempted to search for players in an invalid draft", "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "User attempted to search for players in an invalid draft", "Draft Id", draftId, "Error", err)
 		return nil
 	}
 
@@ -165,24 +165,24 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
 	if err != nil {
-		slog.Error("Failed to invite player", "error", err)
+		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
 	}
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	slog.Info("Got request to search users")
+	log.Info(c.Request().Context(), "Got request to search users")
 
 	users, err := model.SearchUsers(h.Database, searchInput, draftId)
 
 	if err != nil {
-		slog.Warn("Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		slog.Warn("User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
+		log.Warn(c.Request().Context(), "User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
 	}
 
 	players := draftModel.Players
@@ -204,11 +204,11 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	// checked for it
 	assert.NoError(err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
-	slog.Info("Got a request to start a draft", "Draft Id", draftIdStr)
+	log.Info(c.Request().Context(), "Got a request to start a draft", "Draft Id", draftIdStr)
 	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
-		slog.Warn("Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
+		log.Warn(c.Request().Context(), "Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
@@ -220,14 +220,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	draft, err := h.DraftManager.GetDraft(draftId, false)
 	if err != nil {
-		slog.Warn("Could not load draft", "Draft Id", draftId, "Error", err)
+		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
 		return Render(c, page)
 	}
 
 	if draft.GetOwner().UserUuid != requestingUser {
-		slog.Warn("User is not draft owner", "Draft Id", draftId, "User", requestingUser)
+		log.Warn(c.Request().Context(), "User is not draft owner", "Draft Id", draftId, "User", requestingUser)
 		c.Response().Status = http.StatusUnauthorized
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
 		return Render(c, page)
@@ -236,10 +236,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	//TODO Need to check that all players have accepted the draft
 
 	//TODO What should we show to the user when this happens?
-	slog.Info("Requesting draft state change to picking", "Draft Id", draftId)
+	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
 	err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
 	if err != nil {
-		slog.Error("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 	}
 
 	return nil

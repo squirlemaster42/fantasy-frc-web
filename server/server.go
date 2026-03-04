@@ -7,11 +7,12 @@ import (
 	"server/assets"
 	"server/authentication"
 	"server/handler"
+	"server/middleware"
 
 	"github.com/getsentry/sentry-go"
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
 func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
@@ -44,8 +45,9 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 		cacheControlMiddleware,
 	)
 
-	app.Use(middleware.Gzip())
-	app.Use(middleware.Recover())
+	app.Use(echomiddleware.Gzip())
+	app.Use(echomiddleware.Recover())
+	app.Use(middleware.CorrelationID())
 	app.Use(sentryecho.New(sentryecho.Options{
 		Repanic: true,
 	}))
