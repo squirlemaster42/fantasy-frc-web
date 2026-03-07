@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"server/assert"
+	"server/log"
 	"server/swagger"
 	"time"
 )
@@ -51,7 +51,7 @@ func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("checkCache: Failed to close statement", "error", err)
+			log.WarnNoContext("checkCache: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -78,63 +78,63 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("cacheData: Failed to close statement", "error", err)
+			log.WarnNoContext("cacheData: Failed to close statement", "error", err)
 		}
 	}()
 
 	_, err = stmt.Exec(url, etag, body)
 	if err != nil {
-		slog.Error("Failed to cache tba data", "Error", err)
+		log.ErrorNoContext("Failed to cache tba data", "Error", err)
 	}
 }
 
 func (t *TbaHandler) makeRequest(url string) []byte {
-	slog.Debug("Making TBA request", "Url", url)
+	log.DebugNoContext("Making TBA request", "Url", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		slog.Error("Failed to construct tba request", "Error", err)
+		log.ErrorNoContext("Failed to construct tba request", "Error", err)
 		return nil
 	}
 
-	slog.Debug("Checking cache for tba data", "Url", url)
+	log.DebugNoContext("Checking cache for tba data", "Url", url)
 	body, etag, err := t.checkCache(url)
 
 	if err == nil {
-		slog.Debug("Found cached data", "Url", url, "Etag", etag)
+		log.DebugNoContext("Found cached data", "Url", url, "Etag", etag)
 		req.Header.Add("If-None-Match", etag)
 	} else {
-		slog.Warn("Did not find cached tba data", "Url", url, "Error", err)
+		log.WarnNoContext("Did not find cached tba data", "Url", url, "Error", err)
 	}
 
 	req.Header.Add("X-TBA-Auth-Key", t.tbaToken)
 	resp, err := t.client.Do(req)
 	if err != nil {
-		slog.Error("Failed to run tba request", "Error", err)
+		log.ErrorNoContext("Failed to run tba request", "Error", err)
 		return nil
 	}
 
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			slog.Warn("Failed to close tba request", "Url", url, "Error", err)
+			log.WarnNoContext("Failed to close tba request", "Url", url, "Error", err)
 		}
 	}()
 
-	slog.Debug("Got response from tba", "Status", resp.Status)
+	log.DebugNoContext("Got response from tba", "Status", resp.Status)
 	switch resp.StatusCode {
 	case http.StatusNotModified:
-		slog.Debug("Got not modified from tba, using cache data", "Url", url)
+		log.DebugNoContext("Got not modified from tba, using cache data", "Url", url)
 		return body
 	case http.StatusNotFound:
 		return nil
 	default:
-		slog.Debug("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
+		log.DebugNoContext("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
 	}
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("Failed to read tba request body", "Error", err)
+		log.ErrorNoContext("Failed to read tba request body", "Error", err)
 		return nil
 	}
 
@@ -153,7 +153,7 @@ func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.M
 	err := json.Unmarshal(jsonData, &matches)
 
 	if err != nil {
-		slog.Error("Failed to parse match list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse match list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
 		return nil
 	}
 
@@ -167,7 +167,7 @@ func (t *TbaHandler) MakeEventListReq(teamId string) []string {
 	err := json.Unmarshal(jsonData, &events)
 
 	if err != nil {
-		slog.Error("Failed to parse event list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+		log.ErrorNoContext("Failed to parse event list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
 		return nil
 	}
 
@@ -181,7 +181,7 @@ func (t *TbaHandler) MakeMatchReq(matchId string) swagger.Match {
 	err := json.Unmarshal(jsonData, &match)
 
 	if err != nil {
-		slog.Error("Failed to parse match from tba", "Message Data", jsonData, "Match", matchId, "Error", err)
+		log.ErrorNoContext("Failed to parse match from tba", "Message Data", jsonData, "Match", matchId, "Error", err)
 		return swagger.Match{}
 	}
 
@@ -195,7 +195,7 @@ func (t *TbaHandler) MakeMatchKeysRequest(teamId string, eventId string) []strin
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
-		slog.Error("Failed to parse match key list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse match key list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
 		return nil
 	}
 
@@ -209,7 +209,7 @@ func (t *TbaHandler) MakeEventMatchKeysRequest(eventId string) []string {
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
-		slog.Error("Failed to parse event match key list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse event match key list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
 		return nil
 	}
 
@@ -223,7 +223,7 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
 	err := json.Unmarshal(jsonData, &matches)
 
 	if err != nil {
-		slog.Error("Failed to parse match key year list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+		log.ErrorNoContext("Failed to parse match key year list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
 		return nil
 	}
 
@@ -237,7 +237,7 @@ func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) s
 	err := json.Unmarshal(jsonData, &event)
 
 	if err != nil {
-		slog.Error("Failed to parse event status from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse event status from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
 		return swagger.TeamEventStatus{}
 	}
 
@@ -251,7 +251,7 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
 	err := json.Unmarshal(jsonData, &teams)
 
 	if err != nil {
-		slog.Error("Failed to parse teams at event list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse teams at event list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
 		return nil
 	}
 
@@ -265,7 +265,7 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
 	err := json.Unmarshal(jsonData, &alliances)
 
 	if err != nil {
-		slog.Error("Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+		log.ErrorNoContext("Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
 		return nil
 	}
 

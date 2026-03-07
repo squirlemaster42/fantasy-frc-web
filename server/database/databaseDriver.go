@@ -2,14 +2,14 @@ package database
 
 import (
 	"database/sql"
-	"log/slog"
 	"server/assert"
+	"server/log"
 
 	_ "github.com/lib/pq"
 )
 
 func RegisterDatabaseConnection(username string, password string, ip string, dbName string) *sql.DB {
-	slog.Info("Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
+	log.InfoNoContext("Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
 	connStr := createConnectionString(username, password, ip, dbName)
 
 	a := assert.CreateAssertWithContext("Register DB")

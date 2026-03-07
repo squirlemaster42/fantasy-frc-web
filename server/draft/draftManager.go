@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"server/assert"
+	"server/log"
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
@@ -22,7 +22,7 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Draft
 		states:     setupStates(database),
 	}
 
-	slog.Info("Draft Manager Started")
+	log.InfoNoContext("Draft Manager Started")
 
 	return draftManager
 }
@@ -49,7 +49,7 @@ func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
 	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
 	if err != nil {
-		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+		log.ErrorNoContext("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
 	}
 	return nil
@@ -60,10 +60,10 @@ type ToPlayingTransition struct {
 }
 
 func (tpt *ToPlayingTransition) executeTransition(draft Draft) error {
-	slog.Info("Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
+	log.InfoNoContext("Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
 	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
 	if err != nil {
-		slog.Error("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+		log.ErrorNoContext("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 	}
 	//Remove the draft from the pick daemon
 	return nil
@@ -135,23 +135,23 @@ type DraftManager struct {
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
-	slog.Info("Get Draft", "Draft Id", draftId, "Reload", reload)
+	log.InfoNoContext("Get Draft", "Draft Id", draftId, "Reload", reload)
 	//We just need to be careful that only one call can reload the draft at one time
 	lock := dm.getLoadLock(draftId)
 	draft, ok := dm.drafts[draftId]
 	if ok && !reload {
-		slog.Debug("Returning cached draft", "Draft Id", draftId)
+		log.DebugNoContext("Returning cached draft", "Draft Id", draftId)
 		return *draft, nil
 	} else if reload {
-		slog.Debug("Reloading Draft", "Draft Id", draftId)
+		log.DebugNoContext("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
 		draft.Model = &draftModel
 		lock.Unlock()
-		slog.Debug("Reloaded Draft", "Draft Id", draftId)
+		log.DebugNoContext("Reloaded Draft", "Draft Id", draftId)
 		return *draft, err
 	} else {
-		slog.Debug("Loading Draft For First Time", "Draft Id", draftId)
+		log.DebugNoContext("Loading Draft For First Time", "Draft Id", draftId)
 		//Load draft model
 		lock.Lock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
@@ -164,7 +164,7 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		}
 		dm.drafts[draftId] = &draft
 		lock.Unlock()
-		slog.Debug("Loaded Draft For First Time", "Draft Id", draftId)
+		log.DebugNoContext("Loaded Draft For First Time", "Draft Id", draftId)
 		return draft, err
 	}
 }
@@ -193,18 +193,18 @@ func (e *invalidStateTransitionError) Error() string {
 }
 
 func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState model.DraftState) error {
-	slog.Info("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
+	log.InfoNoContext("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
 	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
 
 	lock := dm.getTransitionLock(draftId)
 	lock.Lock()
 	defer lock.Unlock()
-	slog.Debug("Aquired transition lock", "Draft Id", draftId)
+	log.DebugNoContext("Aquired transition lock", "Draft Id", draftId)
 
 	draft, err := dm.GetDraft(draftId, false)
-	slog.Debug("Loaded draft to execute transition", "Draft Id", draftId)
+	log.DebugNoContext("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
-		slog.Warn("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
+		log.WarnNoContext("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
 		return err
 	}
 	assert.AddContext("Draft Id", draft.draftId)
@@ -214,26 +214,26 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	state, stateFound := dm.states[draft.Model.Status]
 	assert.AddContext("Current Draft State", state)
 	assert.RunAssert(stateFound, "Current draft state is not registed in state machine")
-	slog.Debug("Found draft state", "Draft Id", draft.draftId, "State", state.state)
+	log.DebugNoContext("Found draft state", "Draft Id", draft.draftId, "State", state.state)
 	transition, transitionFound := state.transitions[requestedState]
 	if !transitionFound {
-		slog.Error("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
+		log.ErrorNoContext("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
 		return &invalidStateTransitionError{
 			currentState:   draft.Model.Status,
 			requestedState: requestedState,
 		}
 	}
 
-	slog.Info("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
+	log.InfoNoContext("Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
 	err = transition.executeTransition(draft)
 	if err != nil {
-		slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err
 	}
-	slog.Info("Executed draft state transition", "Draft Id", draftId)
+	log.InfoNoContext("Executed draft state transition", "Draft Id", draftId)
 
 	draft, err = dm.GetDraft(draftId, true)
-	slog.Debug("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
+	log.DebugNoContext("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
 
 	return err
 }
@@ -258,7 +258,7 @@ func (dm *DraftManager) UndoLastPick(draftId int) error {
 	// Delete the current pick
 	err = model.DeletePick(dm.database, currentPick.Id)
 	if err != nil {
-		slog.Error("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
+		log.ErrorNoContext("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
 		return errors.New("failed to delete current pick")
 	}
 
@@ -268,7 +268,7 @@ func (dm *DraftManager) UndoLastPick(draftId int) error {
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
 	err = model.ResetPick(dm.database, previousPick.Id, newExpirationTime)
 	if err != nil {
-		slog.Error("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
+		log.ErrorNoContext("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
 		return errors.New("failed to reset previous pick")
 	}
 	return nil
@@ -293,13 +293,13 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 	defer pickLock.Unlock()
 	pickingComplete, err := draft.pickManager.MakePick(pick)
 	if pickingComplete {
-		slog.Info("Update status to TEAMS_PLAYING", "Draft Id", draftId)
+		log.InfoNoContext("Update status to TEAMS_PLAYING", "Draft Id", draftId)
 		// TODO This transition does not execute because we have the lock above
 		// I should probably just make a pick lock
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
 		if err != nil {
-			slog.Warn("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+			log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		}
 	}
 	return err
@@ -346,7 +346,7 @@ func (dm *DraftManager) SkipCurrentPick(draftId int) error {
 	draft, err := dm.GetDraft(draftId, false)
 
 	if err != nil {
-		slog.Warn("Skip Current Pick Error", "Draft Id", draftId, "Error", err)
+		log.WarnNoContext("Skip Current Pick Error", "Draft Id", draftId, "Error", err)
 		return err
 	}
 
@@ -360,7 +360,7 @@ func (dm *DraftManager) SkipCurrentPick(draftId int) error {
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {
 	draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
-		slog.Error("Failed to load draft when adding pick listener", "Error", err)
+		log.ErrorNoContext("Failed to load draft when adding pick listener", "Error", err)
 		return
 	}
 	draft.pickManager.AddListener(listener)
@@ -375,7 +375,7 @@ func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
 	defer transitionLock.Unlock()
 	err := model.UpdateDraft(dm.database, &draftModel)
 	if err != nil {
-		slog.Warn("Failed to update draft", "Error", err)
+		log.WarnNoContext("Failed to update draft", "Error", err)
 		return err
 	}
 	_, err = dm.GetDraft(draftModel.Id, true)
@@ -399,7 +399,7 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, expirationT
 
 	err = model.UpdatePickExpirationTime(dm.database, currentPick.Id, newExpirationTime)
 	if err != nil {
-		slog.Error("Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
+		log.ErrorNoContext("Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
 		return errors.New("failed to update pick expiration time")
 	}
 
