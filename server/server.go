@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log/slog"
 	"net/http"
 	"server/assert"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
+	"server/log"
 	"server/middleware"
 
 	"github.com/getsentry/sentry-go"
@@ -16,7 +16,7 @@ import (
 )
 
 func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
-	slog.Info("Starting Server")
+	log.InfoNoContext("Starting Server")
 	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
@@ -28,7 +28,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 		EnableLogs:       true,
 		TracesSampleRate: 1.0,
 	}); err != nil {
-		slog.Error("Sentry initialize failed", "Error", err)
+		log.ErrorNoContext("Sentry initialize failed", "Error", err)
 	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {

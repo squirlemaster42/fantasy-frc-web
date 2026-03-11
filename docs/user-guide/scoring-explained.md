@@ -203,7 +203,7 @@ Players are ranked by total points:
 - **Veteran teams**: Historically successful programs
 
 ### High-Risk, High-Reward
-- **Rookie teams**: Unknown potential, could breakout
+- **Rookie teams**: Unknown potential, could breakout, could be good last round picks
 - **Wildcards**: Teams that qualify unexpectedly
 - **Specialists**: Teams that excel at specific game elements
 

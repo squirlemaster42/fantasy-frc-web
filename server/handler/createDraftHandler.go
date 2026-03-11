@@ -2,9 +2,9 @@ package handler
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"server/assert"
+	"server/log"
 	"server/model"
 	"server/view/draft"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle View Create Draft")
-	slog.Info("Got request to serve the create draft page")
+	log.Info(c.Request().Context(), "Got request to serve the create draft page")
 
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get user token")
@@ -36,7 +36,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 }
 
 func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
-	slog.Info("Got request to create a draft")
+	log.Info(c.Request().Context(), "Got request to create a draft")
 	assert := assert.CreateAssertWithContext("Handle Create Draft Post")
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
@@ -71,14 +71,14 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		Status:      model.FILLING,
 	}
 
-	slog.Info("Created Draft for user", "Draft", draftModel.String(), "User", username)
+	log.Info(c.Request().Context(), "Created Draft for user", "Draft", draftModel.String(), "User", username)
 
 	draftId, err := model.CreateDraft(h.Database, &draftModel)
 	if err != nil {
-		slog.Error("Failed to create draft", "error", err)
+		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")
 	}
-	slog.Info("Draft created. Redirecting to /u/draft/:draftId:/profile", "Draft Id", draftId)
+	log.Info(c.Request().Context(), "Draft created. Redirecting to /u/draft/:draftId:/profile", "Draft Id", draftId)
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
 	return nil
 }

@@ -3,10 +3,10 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Fantasy FRC is a web-based fantasy league game for FIRST Robotics Competition
+Fantasy FRC is a web-based fantasy football-style game for FIRST Robotics Competition
 (FRC) teams. Created by then students (now alumni) of FRC Team 1699 (the Robocats)
 during the 2018 New England FIRST District Championships, this project automates 
-the entire drafting and scoring process for the FRC World Championship.
+the entire drafting and scoring process for the Fantasy FRC.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ the entire drafting and scoring process for the FRC World Championship.
 
 ### Install Go
 
-Fantasy FRC is built using the latest version of Go. The current system requires Go 1.24+.
+Fantasy FRC is built using Go 1.24+. Current testing against Go 1.24.
 
 ### Install Templ
 
@@ -70,7 +70,7 @@ SERVER_PORT=8080
 
 ## Building and Running
 
-Fantasy FRC uses `make` for building. The Makefile includes options to disable certain features during testing or prepopulate teams:
+Fantasy FRC uses `make run` for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
 - `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)

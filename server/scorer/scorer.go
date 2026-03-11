@@ -2,8 +2,8 @@ package scorer
 
 import (
 	"database/sql"
-	"log/slog"
 	"server/assert"
+	"server/log"
 	"server/model"
 	"server/swagger"
 	"server/tbaHandler"
@@ -58,13 +58,13 @@ func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, boo
 	scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
 	scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
 
-	slog.Debug("Scored Match", "Match", scoredMatch.String())
+	log.DebugNoContext("Scored Match", "Match", scoredMatch.String())
 
 	return scoredMatch, true
 }
 
 func getQualMatchScore(match swagger.Match) (int, int) {
-	slog.Debug("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
+	log.DebugNoContext("Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
 
 	redScore, blueScore := getWinningAllianceScores(match, 3)
 
@@ -74,32 +74,32 @@ func getQualMatchScore(match swagger.Match) (int, int) {
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.AutoBonusAchieved {
 		redScore += 1
-		slog.Debug("Red Auto Bonus Achieved", "Score", redScore)
+		log.DebugNoContext("Red Auto Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.BargeBonusAchieved {
 		redScore += 1
-		slog.Debug("Red Barge Bonus Achieved", "Score", redScore)
+		log.DebugNoContext("Red Barge Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.CoralBonusAchieved {
 		redScore += 1
-		slog.Debug("Red Coral Bonus Achieved", "Score", redScore)
+		log.DebugNoContext("Red Coral Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.AutoBonusAchieved {
 		blueScore += 1
-		slog.Debug("Blue Auto Bonus Achieved", "Score", blueScore)
+		log.DebugNoContext("Blue Auto Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.BargeBonusAchieved {
 		blueScore += 1
-		slog.Debug("Blue Barge Bonus Achieved", "Score", blueScore)
+		log.DebugNoContext("Blue Barge Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.CoralBonusAchieved {
 		blueScore += 1
-		slog.Debug("Blue Coral Bonus Achieved", "Score", blueScore)
+		log.DebugNoContext("Blue Coral Bonus Achieved", "Score", blueScore)
 	}
 
 	return redScore, blueScore
@@ -139,7 +139,7 @@ func getWinningAllianceScores(match swagger.Match, winningPoints int) (int, int)
 	case "blue":
 		blueScore = winningPoints
 	default:
-		slog.Debug("No winning alliance found", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
+		log.DebugNoContext("No winning alliance found", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
 	}
 
 	return redScore, blueScore
@@ -159,7 +159,7 @@ func getPlayoffMatchScore(match swagger.Match) (int, int) {
 			matchPoints = 15
 		}
 	default:
-		slog.Warn("Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
+		log.WarnNoContext("Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
 	}
 
 	if match.EventKey == utils.Einstein() {
@@ -233,16 +233,16 @@ func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance)
 
 	splitAllianceName := strings.Split(alliance.Name, " ")
 	if len(splitAllianceName) != 2 {
-		slog.Error("Alliance name was not in an expected format", "Name", alliance.Name)
+		log.ErrorNoContext("Alliance name was not in an expected format", "Name", alliance.Name)
 	}
 
 	allianceNum, err := strconv.Atoi(splitAllianceName[1])
 	if err != nil {
-		slog.Error("Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
+		log.ErrorNoContext("Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
 	}
 
 	if allianceNum > 8 || allianceNum < 1 {
-		slog.Error("Unsupported alliance number", "Alliance", alliance.Name)
+		log.ErrorNoContext("Unsupported alliance number", "Alliance", alliance.Name)
 	}
 
 	scoreArr := ALLIANCE_SCORES[allianceNum]
@@ -275,7 +275,7 @@ func (s *Scorer) getNextMatchToScore() swagger.Match {
 }
 
 func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
-	slog.Debug("Updating Match Scores", "Match", dbMatch.String())
+	log.DebugNoContext("Updating Match Scores", "Match", dbMatch.String())
 	model.UpdateScore(s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
 	for _, team := range dbMatch.BlueAlliance {
 		model.AssocateTeam(s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
@@ -303,17 +303,17 @@ func (s *Scorer) scoringRunner() {
 	}
 
 	for {
-		slog.Debug("Starting scoring iteration")
+		log.DebugNoContext("Starting scoring iteration")
 
 		match := s.getNextMatchToScore()
 
-		slog.Debug("Checking if we need to get match data", "Match", match)
+		log.DebugNoContext("Checking if we need to get match data", "Match", match)
 		if match.MatchNumber == 0 {
-			slog.Debug("Loading match data", "Match", match.Key)
+			log.DebugNoContext("Loading match data", "Match", match.Key)
 			match = s.tbaHandler.MakeMatchReq(match.Key)
 		}
 
-		slog.Debug("Starting scoring run", "Match", match.Key)
+		log.DebugNoContext("Starting scoring run", "Match", match.Key)
 		dbMatchPtr := model.GetMatch(s.database, match.Key)
 
 		if dbMatchPtr == nil {
@@ -326,7 +326,7 @@ func (s *Scorer) scoringRunner() {
 				Played:       false,
 			}
 		}
-		slog.Debug("Scoring match", "Match", dbMatchPtr.String())
+		log.DebugNoContext("Scoring match", "Match", dbMatchPtr.String())
 
 		dbMatch, _ := s.scoreMatch(match, true)
 		s.updateMatchInDB(dbMatch)
@@ -338,7 +338,7 @@ func (s *Scorer) ScoreAllianceSelection(event string) {
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
-			slog.Debug("Update alliance score for team", "Team", team, "Score", score)
+			log.DebugNoContext("Update alliance score for team", "Team", team, "Score", score)
 			model.UpdateTeamAllianceScore(s.database, team, score)
 		}
 	}

@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math/rand"
 	"server/assert"
+	"server/log"
 	"strconv"
 	"strings"
 	"time"
@@ -115,19 +115,19 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
 	defer func() {
 		err := stmt.Close()
 		if err != nil {
-			slog.Warn("GetDraftsByName: Failed to close statement", "Error", err)
+			log.WarnNoContext("GetDraftsByName: Failed to close statement", "Error", err)
 		}
 	}()
 	rows, err := stmt.Query(searchString)
 
 	if err != nil {
-		slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+		log.ErrorNoContext("Failed to get drafts by name", "Search string", searchString, "Error", err)
 		return nil
 	}
 	defer func() {
 		err := rows.Close()
 		if err != nil {
-			slog.Warn("GetDraftsByName: Failed to close rows", "Error", err)
+			log.WarnNoContext("GetDraftsByName: Failed to close rows", "Error", err)
 		}
 	}()
 	var drafts []DraftModel
@@ -137,7 +137,7 @@ func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
 		err = rows.Scan(&draftId, &displayName)
 
 		if err != nil {
-			slog.Error("Failed to get drafts by name", "Search string", searchString, "Error", err)
+			log.ErrorNoContext("Failed to get drafts by name", "Search string", searchString, "Error", err)
 			return nil
 		}
 
@@ -174,7 +174,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 	defer func() {
 		err := stmt.Close()
 		if err != nil {
-			slog.Warn("GetDraftsForUser: Failed to close statement", "Error", err)
+			log.WarnNoContext("GetDraftsForUser: Failed to close statement", "Error", err)
 		}
 	}()
 	rows, err := stmt.Query(FILLING, userUuid)
@@ -184,7 +184,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 	defer func() {
 		err := rows.Close()
 		if err != nil {
-			slog.Warn("GetDraftsForUser: Failed to close rows", "Error", err)
+			log.WarnNoContext("GetDraftsForUser: Failed to close rows", "Error", err)
 		}
 	}()
 	var drafts []DraftModel
@@ -264,7 +264,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 		}
 		defer func() {
 			if err := playerStmt.Close(); err != nil {
-				slog.Warn("GetDraftsForUser: Failed to close statement", "error", err)
+				log.WarnNoContext("GetDraftsForUser: Failed to close statement", "error", err)
 			}
 		}()
 		playerRows, err := playerStmt.Query(draftId)
@@ -273,7 +273,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 		}
 		defer func() {
 			if err := playerRows.Close(); err != nil {
-				slog.Warn("GetDraftsForUser: Failed to close rows", "error", err)
+				log.WarnNoContext("GetDraftsForUser: Failed to close rows", "error", err)
 			}
 		}()
 
@@ -320,7 +320,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("CreateDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
 	var draftId int
@@ -335,7 +335,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("CreateDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(draftId, draft.Owner.UserUuid)
@@ -353,13 +353,13 @@ func UpdateDraftStatus(database *sql.DB, draftId int, status DraftState) error {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("UpdateDraftStatus: Failed to close statement", "error", err)
+			log.WarnNoContext("UpdateDraftStatus: Failed to close statement", "error", err)
 		}
 	}()
 
 	_, err = stmt.Exec(status, draftId)
 	if err != nil {
-		slog.Error("Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
+		log.ErrorNoContext("Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
 		return err
 	}
 	return nil
@@ -381,7 +381,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
 		}
 	}()
 	draftModel := DraftModel{
@@ -398,7 +398,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		&ownerId,
 	)
 	if err != nil {
-		slog.Warn("Failed to load draft", "Draft Id", draftId)
+		log.WarnNoContext("Failed to load draft", "Draft Id", draftId)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
 
@@ -438,23 +438,23 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 	}
 	defer func() {
 		if err := playerStmt.Close(); err != nil {
-			slog.Warn("GetDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
 		}
 	}()
 	playerRows, err := playerStmt.Query(draftId)
 	if err != nil {
-		slog.Warn("Failed to load players for draft", "Draft Id", draftId)
+		log.WarnNoContext("Failed to load players for draft", "Draft Id", draftId)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
 	defer func() {
 		if err := playerRows.Close(); err != nil {
-			slog.Warn("GetDraft: Failed to close rows", "error", err)
+			log.WarnNoContext("GetDraft: Failed to close rows", "error", err)
 		}
 	}()
 
-	slog.Info("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
+	log.InfoNoContext("Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
 	if draftModel.Status == PICKING {
-		slog.Info("Getting the current pick for the draft")
+		log.InfoNoContext("Getting the current pick for the draft")
 		currPick, err := GetCurrentPick(database, draftId)
 		if err != nil {
 			return DraftModel{}, err
@@ -526,7 +526,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftPlayerPicks: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftPlayerPicks: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -534,7 +534,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	assert.NoError(err, "Failed to query for picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetDraftPlayerPicks: Failed to close rows", "error", err)
+			log.WarnNoContext("GetDraftPlayerPicks: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -544,7 +544,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
 
 		if err != nil {
-			slog.Warn("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
+			log.WarnNoContext("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
 			return nil
 		}
 
@@ -567,7 +567,7 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("UpdateDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("UpdateDraft: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
@@ -582,7 +582,7 @@ func InvitePlayer(database *sql.DB, draft int, invitingUserUuid uuid.UUID, invit
 	assert.NoError(err, "Failed to prepare statment")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("InvitePlayer: Failed to close statement", "error", err)
+			log.WarnNoContext("InvitePlayer: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -603,7 +603,7 @@ func AcceptInvite(database *sql.DB, inviteId int) (int, uuid.UUID) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("AcceptInvite: Failed to close statement", "error", err)
+			log.WarnNoContext("AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(true, time.Now(), inviteId)
@@ -614,7 +614,7 @@ func AcceptInvite(database *sql.DB, inviteId int) (int, uuid.UUID) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("AcceptInvite: Failed to close statement", "error", err)
+			log.WarnNoContext("AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
 	var draftId int
@@ -636,7 +636,7 @@ func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("AddPlayerToDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("AddPlayerToDraft: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(draft, player)
@@ -653,7 +653,7 @@ func CancelOutstandingInvites(database *sql.DB, draftId int) error {
 
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("CancelOutstandingInvites: Failed to close statement", "error", err)
+			log.WarnNoContext("CancelOutstandingInvites: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -678,12 +678,12 @@ func GetInvite(database *sql.DB, inviteId int) (DraftInvite, error) {
         Where di.Id = $1;`
 	stmt, err := database.Prepare(query)
 	if err != nil {
-		slog.Error("GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
+		log.ErrorNoContext("GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
 		return DraftInvite{}, err
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetInvite: Failed to close statement", "error", err)
+			log.WarnNoContext("GetInvite: Failed to close statement", "error", err)
 		}
 	}()
 	invite := DraftInvite{}
@@ -694,7 +694,7 @@ func GetInvite(database *sql.DB, inviteId int) (DraftInvite, error) {
 		&invite.DraftName,
 		&invite.DraftId)
 	if err != nil {
-		slog.Error("GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
+		log.ErrorNoContext("GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
 		return DraftInvite{}, err
 	}
 	return invite, nil
@@ -716,18 +716,18 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetInvites: Failed to close statement", "error", err)
+			log.WarnNoContext("GetInvites: Failed to close statement", "error", err)
 		}
 	}()
 	rows, err := stmt.Query(userUuid)
 
 	if err != nil {
-		slog.Error("Failed to get invites", "User Uuid", userUuid, "Error", err)
+		log.ErrorNoContext("Failed to get invites", "User Uuid", userUuid, "Error", err)
 		return nil
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetInvites: Failed to close rows", "error", err)
+			log.WarnNoContext("GetInvites: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -737,7 +737,7 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
 		err = rows.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.DraftName)
 
 		if err != nil {
-			slog.Warn("Failed to get invite", "User Uuid", userUuid, "Error", err)
+			log.WarnNoContext("Failed to get invite", "User Uuid", userUuid, "Error", err)
 			continue
 		}
 
@@ -760,14 +760,14 @@ func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetPicks: Failed to close statement", "error", err)
+			log.WarnNoContext("GetPicks: Failed to close statement", "error", err)
 		}
 	}()
 	rows, err := stmt.Query(draft)
 	assert.NoError(err, "Failed to query for picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetPicks: Failed to close rows", "error", err)
+			log.WarnNoContext("GetPicks: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -796,7 +796,7 @@ func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftPlayerId: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftPlayerId: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -822,7 +822,7 @@ func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) (User, error) {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftPlayerUser: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftPlayerUser: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -846,7 +846,7 @@ func MakePickAvailable(database *sql.DB, draftPlayerId int, availableTime time.T
 	assert.NoError(err, "Failed to prepare statment")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("MakePickAvailable: Failed to close statement", "error", err)
+			log.WarnNoContext("MakePickAvailable: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -869,13 +869,13 @@ func MakePick(database *sql.DB, pick Pick) error {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("MakePick: Failed to close statement", "error", err)
+			log.WarnNoContext("MakePick: Failed to close statement", "error", err)
 		}
 	}()
 	var updatedId int
 	err = stmt.QueryRow(pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
 	if err != nil {
-		slog.Warn("Failed to make pick", "Error", err)
+		log.WarnNoContext("Failed to make pick", "Error", err)
 		return err
 	}
 	assert.RunAssert(pick.Id == updatedId, "Updated id does not match or no pick was updated")
@@ -892,7 +892,7 @@ func SetPlayerOrder(database *sql.DB, draftPlayerId int, playerOrder int) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("SetPlayerOrder: Failed to close statement", "error", err)
+			log.WarnNoContext("SetPlayerOrder: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(playerOrder, draftPlayerId)
@@ -906,14 +906,14 @@ func GetAllPicks(database *sql.DB) []string {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetAllPicks: Failed to close statement", "error", err)
+			log.WarnNoContext("GetAllPicks: Failed to close statement", "error", err)
 		}
 	}()
 	rows, err := stmt.Query()
 	assert.NoError(err, "Failed to query picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetAllPicks: Failed to close rows", "error", err)
+			log.WarnNoContext("GetAllPicks: Failed to close rows", "error", err)
 		}
 	}()
 	var picks []string
@@ -922,7 +922,7 @@ func GetAllPicks(database *sql.DB) []string {
 		err = rows.Scan(&pick)
 
 		if err != nil {
-			slog.Error("Failed to get all picks", "Error", err)
+			log.ErrorNoContext("Failed to get all picks", "Error", err)
 			return nil
 		}
 
@@ -946,7 +946,7 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("HasBeenPicked: Failed to close statement", "error", err)
+			log.WarnNoContext("HasBeenPicked: Failed to close statement", "error", err)
 		}
 	}()
 	var numPicked int
@@ -958,7 +958,7 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 func RandomizePickOrder(database *sql.DB, draftId int) {
 	draftModel, err := GetDraft(database, draftId)
 	if err != nil {
-		slog.Warn("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
+		log.WarnNoContext("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
 		return
 	}
 	awaitingAssignment := draftModel.Players
@@ -976,12 +976,12 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 		assert.NoError(err, "Failed to prepare statement")
 		defer func() {
 			if err := stmt.Close(); err != nil {
-				slog.Warn("RandomizePickOrder: Failed to close statement", "error", err)
+				log.WarnNoContext("RandomizePickOrder: Failed to close statement", "error", err)
 			}
 		}()
 		_, err = stmt.Exec(i, draftPlayerId)
 		if err != nil {
-			slog.Warn("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
+			log.WarnNoContext("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
 		}
 	}
 }
@@ -1005,7 +1005,7 @@ func GetAvailablePickId(database *sql.DB, draftId int) Pick {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetAvailablePickId: Failed to close statement", "error", err)
+			log.WarnNoContext("GetAvailablePickId: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -1022,13 +1022,13 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
 	picks, err := GetPicks(database, draftId)
 
 	if err != nil {
-		slog.Warn("Failed to get picks", "Draft Id", draftId, "Error", err)
+		log.WarnNoContext("Failed to get picks", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
 	}
 
 	draft, err := GetDraft(database, draftId)
 	if err != nil {
-		slog.Warn("Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
+		log.WarnNoContext("Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
 	}
 	var nextPlayer DraftPlayer
@@ -1086,7 +1086,7 @@ func GetNumPlayersInInvitedDraft(database *sql.DB, inviteId int) int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetNumPlayersInInvitedDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("GetNumPlayersInInvitedDraft: Failed to close statement", "error", err)
 		}
 	}()
 	var numPlayers int
@@ -1113,7 +1113,7 @@ func StartDraft(database *sql.DB, draftId int) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("StartDraft: Failed to close statement", "error", err)
+			log.WarnNoContext("StartDraft: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(PICKING, draftId)
@@ -1133,14 +1133,14 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("ShoudSkipPick: Failed to close statement", "error", err)
+			log.WarnNoContext("ShoudSkipPick: Failed to close statement", "error", err)
 		}
 	}()
 	var shoudSkip bool
 	err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
 
 	if err != nil {
-		slog.Warn("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
+		log.WarnNoContext("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
 		return false
 	}
 
@@ -1157,7 +1157,7 @@ func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) erro
 	assert.NoError(err, "Failed to preparte statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("MarkShouldSkipPick: Failed to close statement", "error", err)
+			log.WarnNoContext("MarkShouldSkipPick: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(draftPlayer, shouldSkip)
@@ -1189,7 +1189,7 @@ func GetCurrentPick(database *sql.DB, draftId int) (Pick, error) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetCurrentPick: Failed to close statement", "error", err)
+			log.WarnNoContext("GetCurrentPick: Failed to close statement", "error", err)
 		}
 	}()
 	var pick Pick
@@ -1205,7 +1205,7 @@ func GetCurrentPick(database *sql.DB, draftId int) (Pick, error) {
 
 	if err != nil {
 		//There is no current pick
-		slog.Warn(err.Error())
+		log.WarnNoContext(err.Error())
 		return Pick{}, err
 	}
 
@@ -1221,7 +1221,7 @@ func SkipPick(database *sql.DB, pickId int) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("SkipPick: Failed to close statement", "error", err)
+			log.WarnNoContext("SkipPick: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(pickId)
@@ -1238,7 +1238,7 @@ func UpdatePickExpirationTime(database *sql.DB, pickId int, expirationTime time.
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("UpdatePickExpirationTime: Failed to close statement", "error", err)
+			log.WarnNoContext("UpdatePickExpirationTime: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(expirationTime, pickId)
@@ -1267,7 +1267,7 @@ func GetPreviousPick(database *sql.DB, draftId int, currentPickId int) (Pick, er
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetPreviousPick: Failed to close statement", "error", err)
+			log.WarnNoContext("GetPreviousPick: Failed to close statement", "error", err)
 		}
 	}()
 	var pick Pick
@@ -1297,7 +1297,7 @@ func DeletePick(database *sql.DB, pickId int) error {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("DeletePick: Failed to close statement", "error", err)
+			log.WarnNoContext("DeletePick: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(pickId)
@@ -1314,7 +1314,7 @@ func ResetPick(database *sql.DB, pickId int, expirationTime time.Time) error {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("ResetPick: Failed to close statement", "error", err)
+			log.WarnNoContext("ResetPick: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(expirationTime, pickId)
@@ -1334,7 +1334,7 @@ func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftsInStatus: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftsInStatus: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -1342,7 +1342,7 @@ func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 	assert.NoError(err, "Failed to Query Drafts")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetDraftsInStatus: Failed to close rows", "error", err)
+			log.WarnNoContext("GetDraftsInStatus: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -1352,7 +1352,7 @@ func GetDraftsInStatus(database *sql.DB, status DraftState) []int {
 		err = rows.Scan(&draftId)
 
 		if err != nil {
-			slog.Warn("Failed to load drafts in status", "Status", status, "Error", err)
+			log.WarnNoContext("Failed to load drafts in status", "Status", status, "Error", err)
 			return nil
 		}
 
@@ -1380,7 +1380,7 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftScore: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftScore: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -1388,7 +1388,7 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 	assert.NoError(err, "Failed to get picks for draft")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetDraftScore: Failed to close rows", "error", err)
+			log.WarnNoContext("GetDraftScore: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -1401,7 +1401,7 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
 		err = rows.Scan(&playerId, &username, &pick)
 
 		if err != nil {
-			slog.Warn("Failed to get draft scores", "Draft Id", draftId, "Error", err)
+			log.WarnNoContext("Failed to get draft scores", "Draft Id", draftId, "Error", err)
 			return nil
 		}
 
@@ -1453,7 +1453,7 @@ func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetDraftsToStart: Failed to close statement", "error", err)
+			log.WarnNoContext("GetDraftsToStart: Failed to close statement", "error", err)
 		}
 	}()
 	rows, err := stmt.Query(cutoffDate, WAITING_TO_START)
@@ -1463,7 +1463,7 @@ func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetDraftsToStart: Failed to close rows", "error", err)
+			log.WarnNoContext("GetDraftsToStart: Failed to close rows", "error", err)
 		}
 	}()
 

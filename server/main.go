@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"io"
-	"log/slog"
 	"os"
 	"server/assert"
 	"server/background"
@@ -11,6 +10,7 @@ import (
 	"server/database"
 	"server/draft"
 	"server/handler"
+	"server/log"
 	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
@@ -27,10 +27,10 @@ func main() {
 	flag.Parse()
 
 	if *verbose {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
+		log.SetLevel(log.LevelDebug)
 	}
 
-	slog.Info("-------- Starting Fantasy FRC --------")
+	log.InfoNoContext("-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	assert.NoError(err, "Failed to load env vars")
@@ -41,9 +41,9 @@ func main() {
 	dbIp := os.Getenv("DB_IP")
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
-	slog.Info("Extracted Env Vars")
+	log.InfoNoContext("Extracted Env Vars")
 	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
-	slog.Info("Registered Database Connection")
+	log.InfoNoContext("Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
@@ -52,22 +52,22 @@ func main() {
 	draftDaemon := background.NewDraftDaemon(database, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
-		slog.Warn("Failed to start draft daemon", "Error", err)
+		log.WarnNoContext("Failed to start draft daemon", "Error", err)
 		panic("failed to start draft manager")
 	}
 
-	slog.Debug("Checking for drafts that need to be added to daemon")
+	log.DebugNoContext("Checking for drafts that need to be added to daemon")
 	drafts := model.GetDraftsInStatus(database, model.PICKING)
 	for _, draftId := range drafts {
 		err = draftDaemon.AddDraft(draftId)
 		if err != nil {
-			slog.Warn("Failed to add draft to manager in init", "Error", err)
+			log.WarnNoContext("Failed to add draft to manager in init", "Error", err)
 		}
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, database)
 	if !*skipScoring {
-		slog.Info("Started Scorer")
+		log.InfoNoContext("Started Scorer")
 		scorer.RunScorer()
 	}
 
@@ -85,11 +85,11 @@ func main() {
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		slog.Warn("Unable to open tba webhook secret file", "Error", err)
+		log.WarnNoContext("Unable to open tba webhook secret file", "Error", err)
 	} else {
 		body, err := io.ReadAll(file)
 		if err != nil {
-			slog.Warn("Failed to read tba webhook file body", "Error", err)
+			log.WarnNoContext("Failed to read tba webhook file body", "Error", err)
 		} else {
 			handler.TbaWekhookSecret = string(body)
 		}

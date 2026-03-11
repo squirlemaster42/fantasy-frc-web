@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"server/assert"
 	"server/draft"
+	"server/log"
 	"server/model"
 	"server/utils"
 	"server/view/admin"
@@ -140,7 +140,7 @@ func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftMana
 type SkipPickCommand struct{}
 
 func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	slog.Info("Calling skip command", "Args", argStr)
+	log.InfoNoContext("Calling skip command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -159,7 +159,7 @@ func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.D
 type ModifyPickTimeCommand struct{}
 
 func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	slog.Info("Calling modify pick time command", "Args", argStr)
+	log.InfoNoContext("Calling modify pick time command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -184,7 +184,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *d
 
 	err = draftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
-		slog.Warn("Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
+		log.WarnNoContext("Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
 		return err.Error()
 	}
 
@@ -194,7 +194,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *d
 type AdminPickCommand struct{}
 
 func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	slog.Info("Calling admin pick command", "Args", argStr)
+	log.InfoNoContext("Calling admin pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -241,7 +241,7 @@ func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.
 type RenameDraftCommand struct{}
 
 func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	slog.Info("Calling rename draft command", "Args", argStr)
+	log.InfoNoContext("Calling rename draft command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -275,7 +275,7 @@ func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draf
 	// Update the draft
 	err = draftManager.UpdateDraft(*draft.Model)
 	if err != nil {
-		slog.Error("Failed to update draft name", "Draft Id", draftId, "Error", err)
+		log.ErrorNoContext("Failed to update draft name", "Draft Id", draftId, "Error", err)
 		return "Failed to update draft name"
 	}
 
@@ -285,7 +285,7 @@ func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draf
 type UndoPickCommand struct{}
 
 func (u *UndoPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	slog.Info("Calling undo pick command", "Args", argStr)
+	log.InfoNoContext("Calling undo pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -322,7 +322,7 @@ var commands = map[string]Command{
 // ---------------- Handler Funcs --------------------------
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
-	slog.Info("Got request to render admin console")
+	log.Info(c.Request().Context(), "Got request to render admin console")
 	assert := assert.CreateAssertWithContext("Handle Admin Console Get")
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get user token")
@@ -346,7 +346,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")
 	//This is to handle the case where we have no params
-	slog.Info("Running command", "Command", cmd, "Argument", args)
+	log.Info(c.Request().Context(), "Running command", "Command", cmd, "Argument", args)
 
 	if len(cmd) < 1 {
 		noCommandResponse := admin.RenderCommand(username, commandString, "")

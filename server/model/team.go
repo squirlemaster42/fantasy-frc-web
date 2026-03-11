@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"server/assert"
+	"server/log"
 	"server/tbaHandler"
 	"server/utils"
 )
@@ -29,7 +29,7 @@ func GetTeam(database *sql.DB, tbaId string) *Team {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetTeam: Failed to close statement", "error", err)
+			log.WarnNoContext("GetTeam: Failed to close statement", "error", err)
 		}
 	}()
 	team := Team{}
@@ -49,7 +49,7 @@ func CreateTeam(database *sql.DB, tbaId string, name string) {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("CreateTeam: Failed to close statement", "error", err)
+			log.WarnNoContext("CreateTeam: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(tbaId, name)
@@ -66,7 +66,7 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("UpdateTeamAllianceScore: Failed to close statement", "error", err)
+			log.WarnNoContext("UpdateTeamAllianceScore: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec(allianceScore, tbaId)
@@ -89,7 +89,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 
 	validEvent := false
 	//Looping here should always be faster because of the small lists
-	slog.Info("Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
+	log.InfoNoContext("Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
 	for _, event := range events {
 		for _, draftEvent := range draftEvents {
 			if event == draftEvent {
@@ -103,7 +103,7 @@ func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, d
 		}
 	}
 
-	slog.Info("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
+	log.InfoNoContext("Checked if team is a valid pick", "Team", tbaId, "Picked", picked, "Valid Event", validEvent)
 	if !validEvent {
 		return false, errors.New("team not at event")
 	}
@@ -126,14 +126,14 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetScore: Failed to close statement", "error", err)
+			log.WarnNoContext("GetScore: Failed to close statement", "error", err)
 		}
 	}()
 
 	var allianceScore int
 	err = stmt.QueryRow(tbaId).Scan(&allianceScore)
 	if err != nil {
-		slog.Error("Failed to get alliance score for team", "Team", tbaId, "Error", err)
+		log.ErrorNoContext("Failed to get alliance score for team", "Team", tbaId, "Error", err)
 		return nil
 	}
 
@@ -155,7 +155,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			slog.Warn("GetScore: Failed to close statement", "error", err)
+			log.WarnNoContext("GetScore: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -163,12 +163,12 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	var matchScore int
 	rows, err := stmt.Query(tbaId)
 	if err != nil {
-		slog.Error("Failed to get score for team", "Team", tbaId, "Error", err)
+		log.ErrorNoContext("Failed to get score for team", "Team", tbaId, "Error", err)
 		return nil
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			slog.Warn("GetScore: Failed to close rows", "error", err)
+			log.WarnNoContext("GetScore: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -178,7 +178,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 		err = rows.Scan(&displayName, &matchScore)
 
 		if err != nil {
-			slog.Warn("Failed to get scores for team", "Team", tbaId, "Error", err)
+			log.WarnNoContext("Failed to get scores for team", "Team", tbaId, "Error", err)
 			return nil
 		}
 
@@ -189,7 +189,7 @@ func GetScore(database *sql.DB, tbaId string) map[string]int {
 	scores["Alliance Score"] = allianceScore
 	scores["Total Score"] = total + allianceScore
 
-	slog.Info("Got scores for team", "Team", tbaId, "Scores", scores)
+	log.InfoNoContext("Got scores for team", "Team", tbaId, "Scores", scores)
 
 	return scores
 }

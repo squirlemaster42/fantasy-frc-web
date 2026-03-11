@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log/slog"
+	"server/log"
 	"server/tbaHandler"
 	"strconv"
 	"time"
@@ -58,11 +58,11 @@ func (a *AvatarStore) checkCache(teamNum int) ([]byte, error) {
 }
 
 func (a *AvatarStore) GetAvatar(teamNum int) ([]byte, error) {
-	slog.Debug("Loading avatar", "Team Num", teamNum)
+	log.DebugNoContext("Loading avatar", "Team Num", teamNum)
 	avatar, err := a.checkCache(teamNum)
 
 	if err == redis.Nil {
-		slog.Debug("Avatar not in redis, loading from TBA", "Team Num", teamNum)
+		log.DebugNoContext("Avatar not in redis, loading from TBA", "Team Num", teamNum)
 		base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(fmt.Sprintf("frc%d", teamNum))
 		if err != nil {
 			return nil, err
@@ -75,13 +75,13 @@ func (a *AvatarStore) GetAvatar(teamNum int) ([]byte, error) {
 
 		err = a.storeAvatar(teamNum, avatar)
 		if err != nil {
-			slog.Warn("Failed to store avatar in redis", "Error", err)
+			log.WarnNoContext("Failed to store avatar in redis", "Error", err)
 		}
 	} else if err != nil {
-		slog.Warn("Failed to get cached avatar", "Team number", teamNum, "Error", err)
+		log.WarnNoContext("Failed to get cached avatar", "Team number", teamNum, "Error", err)
 		return nil, err
 	} else {
-		slog.Debug("Avatar in redis", "Team Num", teamNum)
+		log.DebugNoContext("Avatar in redis", "Team Num", teamNum)
 	}
 
 	return avatar, nil

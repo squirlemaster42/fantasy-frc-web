@@ -1,9 +1,9 @@
 package assert
 
 import (
-	"log"
-	"log/slog"
+	stdlog "log"
 	"runtime"
+	"server/log"
 )
 
 type assert struct {
@@ -33,20 +33,20 @@ func (a *assert) RunAssert(predicate bool, msg string) {
 }
 
 func (a *assert) printContext(msg string) {
-	slog.Error("assertion failed", "name", a.name)
+	log.ErrorNoContext("assertion failed", "name", a.name)
 	_, file, line, ok := runtime.Caller(2)
 	if ok {
-		slog.Error("assertion failed", "line", line, "file", file)
+		log.ErrorNoContext("assertion failed", "line", line, "file", file)
 	}
 	for k, v := range a.context {
-		slog.Error("assertion context", "key", k, "value", v)
+		log.ErrorNoContext("assertion context", "key", k, "value", v)
 	}
-	log.Fatal(msg)
+	stdlog.Fatal(msg)
 }
 
 func (a *assert) NoError(err error, msg string) {
 	if err != nil {
-		slog.Error("NoError#error encountered", "error", err)
+		log.ErrorNoContext("NoError#error encountered", "error", err)
 		a.printContext(msg)
 	}
 }
@@ -55,9 +55,9 @@ func AssertCF(predicate bool, msg string) {
 	if !predicate {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			slog.Error("assertion failed", "line", line, "file", file)
+			log.ErrorNoContext("assertion failed", "line", line, "file", file)
 		}
-		log.Fatal(msg)
+		stdlog.Fatal(msg)
 	}
 }
 
@@ -65,9 +65,9 @@ func NoErrorCF(err error, msg string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			slog.Error("assertion failed", "line", line, "file", file)
+			log.ErrorNoContext("assertion failed", "line", line, "file", file)
 		}
-		slog.Error("NoError#error encountered", "error", err)
-		log.Fatal(msg)
+		log.ErrorNoContext("NoError#error encountered", "error", err)
+		stdlog.Fatal(msg)
 	}
 }

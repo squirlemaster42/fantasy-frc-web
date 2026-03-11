@@ -43,13 +43,13 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	//We wont validate the password if the user does not exist
 	taken, err := model.UsernameTaken(h.Database, username)
 	if err != nil {
-		slog.Error("Failed to check if username is taken", "error", err)
+		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
 	valid := taken && model.ValidateLogin(h.Database, username, password)
 	if valid {
-		slog.Info("Valid login attempt for user", "Username", username)
+		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
 		userUuid := model.GetUserUuidByUsername(h.Database, username)
 		sessionTok := generateSessionToken()
 		model.RegisterSession(h.Database, userUuid, sessionTok)
@@ -65,7 +65,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		return nil
 	}
 
-	slog.Warn("Invalid login attempt for user", "Username", username)
+	log.Warn(c.Request().Context(), "Invalid login attempt for user", "Username", username)
 	login := login.LoginIndex(false, "You have entered an invalid username or password")
 	err = RenderError(c, http.StatusUnauthorized, login)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
@@ -105,11 +105,11 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 	taken, err := model.UsernameTaken(h.Database, username)
 	if err != nil {
-		slog.Error("Failed to check if username is taken", "error", err)
+		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
 	}
 	if taken {
-		slog.Info("Account creation attempt for existing user but username was taken", "Username", username)
+		log.Info(c.Request().Context(), "Account creation attempt for existing user but username was taken", "Username", username)
 
 		register := login.RegisterIndex(false, "Username Taken")
 		err = Render(c, register)
@@ -119,7 +119,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	if password != confirmPassword {
-		slog.Info("Password and Confirm Password do not match for user attempting to register", "Username", username)
+		log.Info(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "Username", username)
 
 		register := login.RegisterIndex(false, "Passwords Do Not Match")
 		err = Render(c, register)
@@ -128,7 +128,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return nil
 	}
 
-	slog.Info("Valid registration for user", "Username", username)
+	log.Info(c.Request().Context(), "Valid registration for user", "Username", username)
 	userUuid := model.RegisterUser(h.Database, username, password)
 	sessionTok := generateSessionToken()
 	model.RegisterSession(h.Database, userUuid, sessionTok)
