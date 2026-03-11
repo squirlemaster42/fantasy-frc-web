@@ -153,12 +153,6 @@ erDiagram
     Users ||--o{ UserSessions : has
 ```
 
-### Cache Layer (Redis)
-- **Session Storage**: Fast user authentication
-- **Score Cache**: Frequently accessed rankings
-- **Draft State**: Current draft status for quick lookups
-- **TTL Strategy**: Automatic cache expiration
-
 ## 📈 Data Volume and Performance
 
 ### Data Characteristics
