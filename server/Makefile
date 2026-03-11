@@ -24,7 +24,7 @@ watch-css: $(TAILWIND_BIN)
 run-verbose: $(TAILWIND_BIN)
 	@echo "Starting development server with verbose logging..."
 	@make watch-css &
-	@go tool templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -v -skipScoring=true -populateTeams=false"
+	@go tool templ generate --watch --proxy="http://localhost:3000" --cmd="go run . -v -skipScoring=true"
 
 # Generate templ files
 generate:

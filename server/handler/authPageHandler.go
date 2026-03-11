@@ -3,9 +3,9 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"log/slog"
 	"net/http"
 	"server/assert"
-	"server/log"
 	"server/model"
 	"server/view/login"
 

@@ -23,7 +23,6 @@ func main() {
 	assert := assert.CreateAssertWithContext("Main")
 
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
-	populateTeams := flag.Bool("populateTeams", false, "When true is entered, we will take the list of events and add all of those teams to the database")
 	verbose := flag.Bool("v", false, "Enable debug logging")
 	flag.Parse()
 
@@ -47,20 +46,6 @@ func main() {
 	slog.Info("Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
-
-	if *populateTeams {
-		slog.Info("Populating Teams")
-		for _, event := range utils.Events() {
-			slog.Debug("Creating teams for event", "Event", event)
-			for _, team := range tbaHandler.MakeTeamsAtEventRequest(event) {
-				slog.Debug("Checking if team is needed", "Team", team.Key, "Event", event)
-				if model.GetTeam(database, team.Key) == nil {
-					slog.Debug("Creating team", "Team", team.Key, "Event", event)
-					model.CreateTeam(database, team.Key, "")
-				}
-			}
-		}
-	}
 
 	draftManager := draft.NewDraftManager(tbaHandler, database)
 	//Start the draft daemon and add all running drafts to it

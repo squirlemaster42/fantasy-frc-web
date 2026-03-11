@@ -365,6 +365,30 @@ func TestUndoPickCommandArgumentParsing(t *testing.T) {
 	}
 }
 
+func TestPopulateTeamsCommandArgumentParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           string
+		expectedResult string
+		description    string
+	}{
+		{
+			name:           "with arguments",
+			args:           "-somearg=value",
+			expectedResult: "PopulateTeams does not take any inputs",
+			description:    "Should return error when arguments are provided",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &PopulateTeamsCommand{}
+			result := cmd.ProcessCommand(nil, nil, tt.args)
+			assert.Equal(t, tt.expectedResult, result, tt.description)
+		})
+	}
+}
+
 func TestRenameDraftCommandNameValidation(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -405,3 +405,7 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, expirationT
 
 	return nil
 }
+
+func (dm *DraftManager) GetTbaHandler() *tbaHandler.TbaHandler {
+	return dm.tbaHandler
+}

@@ -32,6 +32,34 @@ func (p *PingCommand) ProcessCommand(database *sql.DB, draftManager *draft.Draft
 	return "Pong"
 }
 
+type PopulateTeamsCommand struct{}
+
+func (p *PopulateTeamsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	if len(argStr) > 0 {
+		return "PopulateTeams does not take any inputs"
+	}
+
+	slog.Info("Populating Teams")
+	count := 0
+
+	tbaHandler := draftManager.GetTbaHandler()
+	for _, event := range utils.Events() {
+		slog.Debug("Creating teams for event", "Event", event)
+		teams := tbaHandler.MakeTeamsAtEventRequest(event)
+		for _, team := range teams {
+			slog.Debug("Checking if team is needed", "Team", team.Key, "Event", event)
+			if model.GetTeam(database, team.Key) == nil {
+				slog.Debug("Creating team", "Team", team.Key, "Event", event)
+				model.CreateTeam(database, team.Key, "")
+				count++
+			}
+		}
+	}
+
+	slog.Info("Finished populating teams", "Count", count)
+	return fmt.Sprintf("Successfully populated %d teams", count)
+}
+
 type ListDraftsCommand struct{}
 
 func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
@@ -280,6 +308,7 @@ func (u *UndoPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.D
 
 var commands = map[string]Command{
 	"ping":           &PingCommand{},
+	"populateTeams":  &PopulateTeamsCommand{},
 	"listdraft":      &ListDraftsCommand{},
 	"startdraft":     &StartDraftCommand{},
 	"skippick":       &SkipPickCommand{},
