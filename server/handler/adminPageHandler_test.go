@@ -49,7 +49,7 @@ func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &ModifyPickTimeCommand{}
-			result := cmd.ProcessCommand(nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -239,7 +239,7 @@ func TestAdminPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &AdminPickCommand{}
-			result := cmd.ProcessCommand(nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -329,7 +329,7 @@ func TestRenameDraftCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &RenameDraftCommand{}
-			result := cmd.ProcessCommand(nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -359,7 +359,7 @@ func TestUndoPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UndoPickCommand{}
-			result := cmd.ProcessCommand(nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -383,7 +383,7 @@ func TestPopulateTeamsCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &PopulateTeamsCommand{}
-			result := cmd.ProcessCommand(nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}

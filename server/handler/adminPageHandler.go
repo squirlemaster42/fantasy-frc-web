@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -20,12 +21,12 @@ import (
 )
 
 type Command interface {
-	ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string
+	ProcessCommand(context context.Context, database  *sql.DB, draftManager *draft.DraftManager, argStr string) string
 }
 
 type PingCommand struct{}
 
-func (p *PingCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (p *PingCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	if len(argStr) > 0 {
 		return "Ping does not take any inputs"
 	}
@@ -34,35 +35,35 @@ func (p *PingCommand) ProcessCommand(database *sql.DB, draftManager *draft.Draft
 
 type PopulateTeamsCommand struct{}
 
-func (p *PopulateTeamsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (p *PopulateTeamsCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	if len(argStr) > 0 {
 		return "PopulateTeams does not take any inputs"
 	}
 
-	slog.Info("Populating Teams")
+	log.Info(context, "Populating Teams")
 	count := 0
 
 	tbaHandler := draftManager.GetTbaHandler()
 	for _, event := range utils.Events() {
-		slog.Debug("Creating teams for event", "Event", event)
+		log.Debug(context, "Creating teams for event", "Event", event)
 		teams := tbaHandler.MakeTeamsAtEventRequest(event)
 		for _, team := range teams {
-			slog.Debug("Checking if team is needed", "Team", team.Key, "Event", event)
+			log.Debug(context, "Checking if team is needed", "Team", team.Key, "Event", event)
 			if model.GetTeam(database, team.Key) == nil {
-				slog.Debug("Creating team", "Team", team.Key, "Event", event)
+				log.Debug(context, "Creating team", "Team", team.Key, "Event", event)
 				model.CreateTeam(database, team.Key, "")
 				count++
 			}
 		}
 	}
 
-	slog.Info("Finished populating teams", "Count", count)
+	log.Info(context, "Finished populating teams", "Count", count)
 	return fmt.Sprintf("Successfully populated %d teams", count)
 }
 
 type ListDraftsCommand struct{}
 
-func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	//Parse command inputs
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
@@ -83,7 +84,7 @@ func (l *ListDraftsCommand) ProcessCommand(database *sql.DB, draftManager *draft
 
 type StartDraftCommand struct{}
 
-func (s *StartDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -124,7 +125,7 @@ func (s *StartDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft
 
 type ViewWebhookKey struct{}
 
-func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftManager, argStr string) string {
+func (s *ViewWebhookKey) ProcessCommand(context context.Context, database *sql.DB, draft *draft.DraftManager, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		return "Failed to open file: " + err.Error()
@@ -139,7 +140,7 @@ func (s *ViewWebhookKey) ProcessCommand(database *sql.DB, draft *draft.DraftMana
 
 type SkipPickCommand struct{}
 
-func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (s *SkipPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	log.InfoNoContext("Calling skip command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
@@ -158,7 +159,7 @@ func (s *SkipPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.D
 
 type ModifyPickTimeCommand struct{}
 
-func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (m *ModifyPickTimeCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	log.InfoNoContext("Calling modify pick time command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -193,7 +194,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(database *sql.DB, draftManager *d
 
 type AdminPickCommand struct{}
 
-func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (a *AdminPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	log.InfoNoContext("Calling admin pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -240,7 +241,7 @@ func (a *AdminPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.
 
 type RenameDraftCommand struct{}
 
-func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (r *RenameDraftCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	log.InfoNoContext("Calling rename draft command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -284,7 +285,7 @@ func (r *RenameDraftCommand) ProcessCommand(database *sql.DB, draftManager *draf
 
 type UndoPickCommand struct{}
 
-func (u *UndoPickCommand) ProcessCommand(database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (u *UndoPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
 	log.InfoNoContext("Calling undo pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -358,7 +359,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
 		return Render(c, response)
 	}
-	result := command.ProcessCommand(h.Database, h.DraftManager, args)
+	result := command.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
 
 	assert.AddContext("Command", commandString)
 
