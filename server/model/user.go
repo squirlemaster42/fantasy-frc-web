@@ -327,3 +327,14 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
 
 	return users, nil
 }
+
+func GetUserCount(database *sql.DB) int {
+	query := `SELECT COUNT(*) FROM Users;`
+	var count int
+	err := database.QueryRow(query).Scan(&count)
+	if err != nil {
+		log.ErrorNoContext("GetUserCount: Failed to query", "Error", err)
+		return 0
+	}
+	return count
+}

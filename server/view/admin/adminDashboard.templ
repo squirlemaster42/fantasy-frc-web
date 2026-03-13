@@ -1,0 +1,346 @@
+package admin
+
+import (
+	"server/model"
+	"server/view"
+	"fmt"
+)
+
+type DashboardStats struct {
+	TotalDrafts   int
+	ActiveDrafts  int
+	TotalUsers    int
+	SystemStatus  string
+}
+
+templ AdminDashboardIndex(stats DashboardStats, drafts []model.DraftSummary, selectedDraftId int) {
+	<div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
+		<div class="max-w-6xl mx-auto w-full space-y-6">
+			<div class="flex items-center justify-between">
+				<h1 class="text-2xl font-bold text-slate-100">Admin Dashboard</h1>
+			</div>
+
+			@StatsCards(stats)
+
+			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				<div class="lg:col-span-2">
+					@DraftManagementCard(drafts, selectedDraftId)
+				</div>
+				<div class="space-y-6">
+					@SystemActionsCard()
+					@ActiveDraftOperations(selectedDraftId)
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ StatsCards(stats DashboardStats) {
+	<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+		<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+			<div class="card-body p-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-blue-400">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 1 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148 9.613-9.613M14.25 5.25h5.25v5.25" />
+						</svg>
+					</div>
+					<div>
+						<div class="text-slate-400 text-sm">Total Drafts</div>
+						<div class="text-2xl font-bold text-slate-100">{ fmt.Sprintf("%d", stats.TotalDrafts) }</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+			<div class="card-body p-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-green-400">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 1 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+						</svg>
+					</div>
+					<div>
+						<div class="text-slate-400 text-sm">Active Drafts</div>
+						<div class="text-2xl font-bold text-slate-100">{ fmt.Sprintf("%d", stats.ActiveDrafts) }</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+			<div class="card-body p-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-purple-400">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+						</svg>
+					</div>
+					<div>
+						<div class="text-slate-400 text-sm">Total Users</div>
+						<div class="text-2xl font-bold text-slate-100">{ fmt.Sprintf("%d", stats.TotalUsers) }</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+			<div class="card-body p-4">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 bg-amber-600/20 rounded-lg flex items-center justify-center">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-amber-400">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z" />
+						</svg>
+					</div>
+					<div>
+						<div class="text-slate-400 text-sm">System Status</div>
+						<div id="systemStatus" class="text-lg font-semibold text-green-400">Online</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ DraftManagementCard(drafts []model.DraftSummary, selectedDraftId int) {
+	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+		<div class="card-body p-6">
+			<h2 class="text-lg font-bold text-slate-100 mb-4">Draft Management</h2>
+			
+			<div class="overflow-x-auto">
+				<table class="table w-full">
+					<thead>
+						<tr class="border-slate-700">
+							<th class="text-slate-400 bg-slate-800/50">ID</th>
+							<th class="text-slate-400 bg-slate-800/50">Name</th>
+							<th class="text-slate-400 bg-slate-800/50">Status</th>
+							<th class="text-slate-400 bg-slate-800/50">Players</th>
+							<th class="text-slate-400 bg-slate-800/50">Owner</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, draft := range drafts {
+							<tr class="border-slate-700 hover:bg-slate-700/30 cursor-pointer" 
+							    hx-get={ fmt.Sprintf("/u/admin/selectDraft/%d", draft.Id) }
+							    hx-target="#dashboard-content"
+							    hx-swap="innerHTML">
+								<td class="text-slate-300">{ fmt.Sprintf("%d", draft.Id) }</td>
+								<td class="text-slate-300 font-medium">{ draft.DisplayName }</td>
+								<td>
+									@StatusBadge(draft.Status)
+								</td>
+								<td class="text-slate-300">{ fmt.Sprintf("%d", draft.PlayerCount) }</td>
+								<td class="text-slate-300">{ draft.Owner }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+}
+
+templ StatusBadge(status model.DraftState) {
+	<span class={ "px-2 py-1 rounded-full text-xs font-medium", getBadgeClass(status) }>{ string(status) }</span>
+}
+
+func getBadgeClass(status model.DraftState) string {
+	switch status {
+	case model.WAITING_TO_START:
+		return "bg-yellow-600/20 text-yellow-400 border border-yellow-600/30"
+	case model.PICKING:
+		return "bg-green-600/20 text-green-400 border border-green-600/30"
+	case model.TEAMS_PLAYING:
+		return "bg-blue-600/20 text-blue-400 border border-blue-600/30"
+	case model.COMPLETE:
+		return "bg-purple-600/20 text-purple-400 border border-purple-600/30"
+	default:
+		return "bg-slate-600 text-slate-200"
+	}
+}
+
+templ SystemActionsCard() {
+	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+		<div class="card-body p-6">
+			<h2 class="text-lg font-bold text-slate-100 mb-4">System Actions</h2>
+			<div class="space-y-3">
+				<button
+					hx-post="/u/admin/populateTeams"
+					hx-target="#adminMessage"
+					hx-swap="innerHTML"
+					class="w-full flex items-center gap-3 p-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-blue-400">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+					</svg>
+					<span class="text-slate-100 font-medium">Populate Teams</span>
+				</button>
+
+				<button
+					hx-post="/u/admin/viewWebhookKey"
+					hx-target="#webhookKeyResult"
+					hx-swap="innerHTML"
+					class="w-full flex items-center gap-3 p-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-amber-400">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+					</svg>
+					<span class="text-slate-100 font-medium">View Webhook Key</span>
+				</button>
+				<div id="webhookKeyResult"></div>
+
+				<button
+					hx-post="/u/admin/ping"
+					hx-target="#systemStatus"
+					hx-swap="innerHTML"
+					class="w-full flex items-center gap-3 p-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
+				>
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-green-400">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z" />
+					</svg>
+					<span class="text-slate-100 font-medium">Ping</span>
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+templ ActiveDraftOperations(selectedDraftId int) {
+	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+		<div class="card-body p-6">
+			<h2 class="text-lg font-bold text-slate-100 mb-4">Active Draft Operations</h2>
+			
+			if selectedDraftId > 0 {
+				<div class="text-sm text-slate-400 mb-4">Selected Draft ID: { fmt.Sprintf("%d", selectedDraftId) }</div>
+				
+				<div class="space-y-4">
+					<div>
+						<label class="block text-sm font-medium text-slate-300 mb-2">Extend Pick Time</label>
+						<div class="flex flex-wrap gap-2">
+							<button
+								hx-post={ fmt.Sprintf("/u/admin/extendTime?id=%d&duration=30m", selectedDraftId) }
+								hx-target="#adminMessage"
+								hx-swap="innerHTML"
+								class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 text-sm"
+							>
+								+30 min
+							</button>
+							<button
+								hx-post={ fmt.Sprintf("/u/admin/extendTime?id=%d&duration=1h", selectedDraftId) }
+								hx-target="#adminMessage"
+								hx-swap="innerHTML"
+								class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 text-sm"
+							>
+								+1 hour
+							</button>
+							<button
+								hx-post={ fmt.Sprintf("/u/admin/extendTime?id=%d&duration=2h", selectedDraftId) }
+								hx-target="#adminMessage"
+								hx-swap="innerHTML"
+								class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 text-sm"
+							>
+								+2 hours
+							</button>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<button
+							hx-post={ fmt.Sprintf("/u/admin/skippick?id=%d", selectedDraftId) }
+							hx-target="#adminMessage"
+							hx-swap="innerHTML"
+							class="flex flex-col items-center gap-1 p-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-amber-400">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
+							</svg>
+							<span class="text-slate-100 text-sm font-medium">Skip Pick</span>
+						</button>
+
+						<button
+							hx-post={ fmt.Sprintf("/u/admin/undopick?id=%d", selectedDraftId) }
+							hx-target="#adminMessage"
+							hx-swap="innerHTML"
+							hx-confirm="Are you sure you want to undo the last pick?"
+							class="flex flex-col items-center gap-1 p-3 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-red-400">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+							</svg>
+							<span class="text-slate-100 text-sm font-medium">Undo Pick</span>
+						</button>
+					</div>
+
+					<div>
+						<label class="block text-sm font-medium text-slate-300 mb-2">Make Pick For Current Player</label>
+						<form
+							hx-post={ fmt.Sprintf("/u/admin/adminpick?id=%d", selectedDraftId) }
+							hx-target="#adminMessage"
+							hx-swap="innerHTML"
+							class="flex gap-2"
+						>
+							<input
+								type="text"
+								name="team"
+								placeholder="Team #"
+								class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+							/>
+							<button
+								type="submit"
+								class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-all duration-200 text-sm font-medium"
+							>
+								Pick
+							</button>
+						</form>
+					</div>
+				</div>
+			} else {
+				<div class="text-center py-6">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-10 mx-auto mb-3 text-slate-500">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
+					</svg>
+					<div class="text-slate-400 text-sm">Select a draft from the table to manage it</div>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ AdminDashboard(page string, fromProtected bool, username string, cmp templ.Component) {
+	@view.Index(page, fromProtected, username, nil) {
+		<div id="adminMessage"></div>
+		<div id="dashboard-content">
+			@cmp
+		</div>
+	}
+}
+
+templ AdminMessage(message string, isSuccess bool) {
+	<div id="adminMessage" class="p-4 rounded-lg mb-4">
+		if isSuccess {
+			<div class="flex items-center gap-2 text-green-400">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+				</svg>
+				<span>{ message }</span>
+			</div>
+		} else {
+			<div class="flex items-center gap-2 text-red-400">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+				</svg>
+				<span>{ message }</span>
+			</div>
+		}
+	</div>
+}
+
+templ WebhookKeyResult(key string) {
+	<div id="webhookKeyResult" class="mt-2 p-3 bg-slate-700 rounded-lg">
+		<div class="flex items-center gap-2">
+			<code class="text-green-400 text-sm break-all flex-1">{ key }</code>
+		</div>
+		<div class="text-slate-500 text-xs mt-1">Click to select all</div>
+	</div>
+}

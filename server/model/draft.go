@@ -1480,3 +1480,70 @@ func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
 
 	return draftIds, nil
 }
+
+type DraftSummary struct {
+	Id          int
+	DisplayName string
+	Status      DraftState
+	Owner       string
+	PlayerCount int
+}
+
+func GetDraftsSummary(database *sql.DB) []DraftSummary {
+	query := `SELECT
+        d.Id,
+        d.DisplayName,
+        COALESCE(d.Status, '') As Status,
+        u.Username,
+        COUNT(dp.Id) As PlayerCount
+    FROM Drafts d
+    LEFT JOIN Users u ON u.UserUuid = d.OwnerUserUuid
+    LEFT JOIN DraftPlayers dp ON dp.DraftId = d.Id
+    GROUP BY d.Id, d.DisplayName, d.Status, u.Username
+    ORDER BY d.Id DESC;`
+
+	stmt, err := database.Prepare(query)
+	if err != nil {
+		log.ErrorNoContext("GetDraftsSummary: Failed to prepare statement", "Error", err)
+		return nil
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("GetDraftsSummary: Failed to close statement", "Error", err)
+		}
+	}()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		log.ErrorNoContext("GetDraftsSummary: Failed to query", "Error", err)
+		return nil
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.WarnNoContext("GetDraftsSummary: Failed to close rows", "Error", err)
+		}
+	}()
+
+	var drafts []DraftSummary
+	for rows.Next() {
+		var ds DraftSummary
+		if err := rows.Scan(&ds.Id, &ds.DisplayName, &ds.Status, &ds.Owner, &ds.PlayerCount); err != nil {
+			log.ErrorNoContext("GetDraftsSummary: Failed to scan row", "Error", err)
+			continue
+		}
+		drafts = append(drafts, ds)
+	}
+
+	return drafts
+}
+
+func GetActiveDraftsCount(database *sql.DB) int {
+	query := `SELECT COUNT(*) FROM Drafts WHERE Status IN ('Picking', 'Waiting to Start');`
+	var count int
+	err := database.QueryRow(query).Scan(&count)
+	if err != nil {
+		log.ErrorNoContext("GetActiveDraftsCount: Failed to query", "Error", err)
+		return 0
+	}
+	return count
+}

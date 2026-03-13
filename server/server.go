@@ -89,7 +89,14 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 
 	admin := protected.Group("/admin", auth.CheckAdmin)
 	admin.GET("/console", h.HandleAdminConsoleGet)
-	admin.POST("/processCommand", h.HandleRunCommand)
+	admin.POST("/ping", h.HandleAdminPing)
+	admin.POST("/populateTeams", h.HandleAdminPopulateTeams)
+	admin.POST("/viewWebhookKey", h.HandleAdminViewWebhookKey)
+	admin.POST("/extendTime", h.HandleAdminDashboardExtendTime)
+	admin.POST("/skippick", h.HandleAdminDashboardSkipPick)
+	admin.POST("/undopick", h.HandleAdminDashboardUndoPick)
+	admin.POST("/adminpick", h.HandleAdminDashboardMakePick)
+	admin.GET("/selectDraft/:id", h.HandleAdminSelectDraft)
 
 	err := app.Start(":" + serverPort)
 	assert.NoError(err, "Failed to start server")

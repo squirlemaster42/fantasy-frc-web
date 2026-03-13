@@ -21,7 +21,7 @@ import (
 )
 
 type Command interface {
-	ProcessCommand(context context.Context, database  *sql.DB, draftManager *draft.DraftManager, argStr string) string
+	ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string
 }
 
 type PingCommand struct{}
@@ -331,38 +331,96 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	username := model.GetUsername(h.Database, userUuid)
 
-	adminConsoleIndex := admin.AdminConsoleIndex(username)
-	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
-	return Render(c, adminConsole)
+	drafts := model.GetDraftsSummary(h.Database)
+	activeCount := model.GetActiveDraftsCount(h.Database)
+	userCount := model.GetUserCount(h.Database)
+
+	stats := admin.DashboardStats{
+		TotalDrafts:  len(drafts),
+		ActiveDrafts: activeCount,
+		TotalUsers:   userCount,
+		SystemStatus: "Online",
+	}
+
+	dashboardIndex := admin.AdminDashboardIndex(stats, drafts, 0)
+	dashboard := admin.AdminDashboard(" | Admin Dashboard", true, username, dashboardIndex)
+	return Render(c, dashboard)
 }
 
-func (h *Handler) HandleRunCommand(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Run Admin Console Command")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+func (h *Handler) HandleAdminPing(c echo.Context) error {
+	cmd := &PingCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, "")
+	return Render(c, admin.AdminMessage("Pong: "+result, true))
+}
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+func (h *Handler) HandleAdminPopulateTeams(c echo.Context) error {
+	cmd := &PopulateTeamsCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, "")
+	return Render(c, admin.AdminMessage(result, true))
+}
 
-	commandString := c.FormValue("command")
-	cmd, args, _ := strings.Cut(commandString, " ")
-	//This is to handle the case where we have no params
-	log.Info(c.Request().Context(), "Running command", "Command", cmd, "Argument", args)
+func (h *Handler) HandleAdminViewWebhookKey(c echo.Context) error {
+	cmd := &ViewWebhookKey{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, "")
+	return Render(c, admin.WebhookKeyResult(result))
+}
 
-	if len(cmd) < 1 {
-		noCommandResponse := admin.RenderCommand(username, commandString, "")
-		return Render(c, noCommandResponse)
+func (h *Handler) HandleAdminDashboardExtendTime(c echo.Context) error {
+	draftId := c.QueryParam("id")
+	duration := c.QueryParam("duration")
+	args := fmt.Sprintf("id=%s duration=%s", draftId, duration)
+	cmd := &ModifyPickTimeCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
+	isSuccess := !strings.Contains(result, "Could not") && !strings.Contains(result, "Error") && !strings.Contains(result, "Failed")
+	return Render(c, admin.AdminMessage(result, isSuccess))
+}
+
+func (h *Handler) HandleAdminDashboardSkipPick(c echo.Context) error {
+	draftId := c.QueryParam("id")
+	args := fmt.Sprintf("id=%s", draftId)
+	cmd := &SkipPickCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
+	isSuccess := !strings.Contains(result, "Could not") && !strings.Contains(result, "Error") && !strings.Contains(result, "Failed")
+	return Render(c, admin.AdminMessage(result, isSuccess))
+}
+
+func (h *Handler) HandleAdminDashboardUndoPick(c echo.Context) error {
+	draftId := c.QueryParam("id")
+	args := fmt.Sprintf("id=%s", draftId)
+	cmd := &UndoPickCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
+	isSuccess := !strings.Contains(result, "Could not") && !strings.Contains(result, "Error") && !strings.Contains(result, "Failed")
+	return Render(c, admin.AdminMessage(result, isSuccess))
+}
+
+func (h *Handler) HandleAdminDashboardMakePick(c echo.Context) error {
+	draftId := c.QueryParam("id")
+	team := c.FormValue("team")
+	args := fmt.Sprintf("id=%s team=%s", draftId, team)
+	cmd := &AdminPickCommand{}
+	result := cmd.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
+	isSuccess := !strings.Contains(result, "Could not") && !strings.Contains(result, "Error") && !strings.Contains(result, "Failed")
+	return Render(c, admin.AdminMessage(result, isSuccess))
+}
+
+func (h *Handler) HandleAdminSelectDraft(c echo.Context) error {
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return Render(c, admin.AdminMessage("Invalid draft ID", false))
 	}
 
-	command, ok := commands[cmd]
-	if !ok {
-		response := admin.RenderCommand(username, commandString, "Invalid command")
-		return Render(c, response)
+	drafts := model.GetDraftsSummary(h.Database)
+	activeCount := model.GetActiveDraftsCount(h.Database)
+	userCount := model.GetUserCount(h.Database)
+
+	stats := admin.DashboardStats{
+		TotalDrafts:  len(drafts),
+		ActiveDrafts: activeCount,
+		TotalUsers:   userCount,
+		SystemStatus: "Online",
 	}
-	result := command.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
 
-	assert.AddContext("Command", commandString)
-
-	response := admin.RenderCommand(username, commandString, result)
-	return Render(c, response)
+	dashboardIndex := admin.AdminDashboardIndex(stats, drafts, draftId)
+	return Render(c, dashboardIndex)
 }
