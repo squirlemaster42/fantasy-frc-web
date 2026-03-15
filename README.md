@@ -79,7 +79,7 @@ Fantasy FRC uses `make run` for running the app. The Makefile includes options t
 
 ```bash
 # Build and run the application
-make
+make run-verbose
 ```
 
 ## Deployment
