@@ -163,6 +163,17 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userUuid, err := uuid.Parse(userUuidString)
 	assert.NoError(err, "Failed to parse user guid")
 
+	// Check that the draft is in the correct state
+	draft, err := h.DraftManager.GetDraft(draftId, false)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to load draft", "Draft Id", draftId, "Error", err)
+		return err
+	}
+
+	if draft.GetStatus() != model.FILLING {
+		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to invite players")
+	}
+
 	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)

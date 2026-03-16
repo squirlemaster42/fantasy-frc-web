@@ -203,6 +203,15 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                             <div class="text-rose-400 font-medium">Save Draft First</div>
                             <div class="text-slate-500 text-sm mt-1">Save your draft to start inviting players</div>
                         </div>
+                    } else if draft.Status  != model.FILLING {
+                        <div class="text-center py-8">
+                            <div class="text-slate-400 mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-slate-500">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                            </div>
+                            <div class="text-rose-400 font-medium">Draft must be in filling status to invite players</div>
+                        </div>
                     } else {
                         <div class="space-y-4">
                             <div>
