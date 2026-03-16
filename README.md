@@ -51,7 +51,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
 
 ## Configuration
 .
-Create a `.env` file in the `server/` directory with the following environment variables:
+Create a `.env` file in the `server/` directory with the following variables:
 
 ```env
 TBA_TOKEN=your_tba_api_token
@@ -79,7 +79,7 @@ Fantasy FRC uses `make run` for running the app. The Makefile includes options t
 
 ```bash
 # Build and run the application
-make
+make run-verbose
 ```
 
 ## Deployment
