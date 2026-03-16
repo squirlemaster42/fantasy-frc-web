@@ -25,12 +25,12 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
                         <div class="grid grid-cols-2 gap-4 border-b border-slate-600 pb-4 mb-4 flex-shrink-0">
                             <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center text-center">
                                 <span class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Status</span>
-                                <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold">{ string(draft.Status) }</div>
+                                <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold whitespace-nowrap">{ string(draft.Status) }</div>
                             </div>
                             <div class="bg-slate-700 p-4 rounded-xl flex flex-col items-center text-center">
                                 <span class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Next Pick</span>
                                 if draft.NextPick.User.Username != "" {
-                                    <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold">{draft.NextPick.User.Username}</div>
+                                    <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold whitespace-nowrap">{draft.NextPick.User.Username}</div>
                                 } else {
                                     <div class="badge badge-ghost bg-slate-600 text-slate-400 rounded-full text-xs px-3 py-1 font-medium">
                                         N/A
@@ -43,7 +43,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
                             <div class="flex flex-wrap gap-2">
                                 for _, player := range draft.Players {
                                     if !player.Pending {
-                                        <div class="badge badge-primary bg-blue-600 text-white text-xs rounded-full px-2 py-1">{ player.User.Username }</div>
+                                        <div class="badge badge-primary bg-blue-600 text-white text-xs rounded-full px-2 py-1 whitespace-nowrap">{ player.User.Username }</div>
                                     }
                                 }
                             </div>
@@ -53,7 +53,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
                             <div class="flex flex-wrap gap-2">
                                 for _, player := range draft.Players {
                                     if player.Pending {
-                                        <div class="badge badge-secondary bg-slate-600 text-slate-300 text-xs rounded-full px-2 py-1">{ player.User.Username }</div>
+                                        <div class="badge badge-secondary bg-slate-600 text-slate-300 text-xs rounded-full px-2 py-1 whitespace-nowrap">{ player.User.Username }</div>
                                     }
                                 }
                             </div>
