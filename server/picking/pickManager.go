@@ -38,7 +38,51 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
 	}
 }
 
+// TODO Make sure that all GetCurrentPick calls are going through this
+func (p *PickManager) GetCurrentPick(draftId int) (model.Pick, error) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	return model.GetCurrentPick(p.database, draftId)
+}
+
+func (p *PickManager) UndoLastPick() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	// Get the current pick
+	currentPick, err := model.GetCurrentPick(p.database, p.draftId)
+	if currentPick.Id == 0 || err != nil {
+		return errors.New("no current pick found for this draft")
+	}
+
+	// Get the previous pick
+	previousPick, err := model.GetPreviousPick(p.database, p.draftId, currentPick.Id)
+	if err != nil {
+		return errors.New("cannot undo pick: this is the first pick of the draft")
+	}
+
+	// Delete the current pick
+	err = model.DeletePick(p.database, currentPick.Id)
+	if err != nil {
+		log.ErrorNoContext("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
+		return errors.New("failed to delete current pick")
+	}
+
+	// Set the expiration time to 3 hours from now
+	newExpirationTime := time.Now().Add(3 * time.Hour)
+
+	// Reset the previous pick (null out pick and pickTime, and set new expiration)
+	err = model.ResetPick(p.database, previousPick.Id, newExpirationTime)
+	if err != nil {
+		log.ErrorNoContext("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
+		return errors.New("failed to reset previous pick")
+	}
+	return nil
+}
+
 func (p *PickManager) SkipCurrentPick() error {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	curPick, err := model.GetCurrentPick(p.database, p.draftId)
 	if err != nil {
 		return err

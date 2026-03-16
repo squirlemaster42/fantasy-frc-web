@@ -128,7 +128,6 @@ type DraftManager struct {
 	drafts          map[int]*Draft
 	loadLocks       sync.Map
 	transitionLocks sync.Map
-	pickLocks       sync.Map
 	database        *sql.DB
 	tbaHandler      *tbaHandler.TbaHandler
 	states          map[model.DraftState]*state
@@ -239,47 +238,21 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 }
 
 func (dm *DraftManager) UndoLastPick(draftId int) error {
-	pickLock := dm.getPickLock(draftId)
-	pickLock.Lock()
-	defer pickLock.Unlock()
-
-	// Get the current pick
-	currentPick, err := model.GetCurrentPick(dm.database, draftId)
-	if currentPick.Id == 0 || err != nil {
-		return errors.New("no current pick found for this draft")
-	}
-
-	// Get the previous pick
-	previousPick, err := model.GetPreviousPick(dm.database, draftId, currentPick.Id)
+	draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
-		return errors.New("cannot undo pick: this is the first pick of the draft")
+		return err
 	}
-
-	// Delete the current pick
-	err = model.DeletePick(dm.database, currentPick.Id)
-	if err != nil {
-		log.ErrorNoContext("Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
-		return errors.New("failed to delete current pick")
-	}
-
-	// Set the expiration time to 3 hours from now
-	newExpirationTime := time.Now().Add(3 * time.Hour)
-
-	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = model.ResetPick(dm.database, previousPick.Id, newExpirationTime)
-	if err != nil {
-		log.ErrorNoContext("Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
-		return errors.New("failed to reset previous pick")
-	}
-	return nil
+	return draft.pickManager.SkipCurrentPick()
 }
 
 // TODO Make sure that all GetCurrentPick calls are going through this
 func (dm *DraftManager) GetCurrentPick(draftId int) (model.Pick, error) {
-	pickLock := dm.getPickLock(draftId)
-	pickLock.Lock()
-	defer pickLock.Unlock()
-	return model.GetCurrentPick(dm.database, draftId)
+	draft, err := dm.GetDraft(draftId, false)
+	if err != nil {
+		return model.Pick{}, err
+	}
+
+	return draft.pickManager.GetCurrentPick(draftId)
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
@@ -288,14 +261,9 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		return err
 	}
 
-	pickLock := dm.getPickLock(draftId)
-	pickLock.Lock()
-	defer pickLock.Unlock()
 	pickingComplete, err := draft.pickManager.MakePick(pick)
 	if pickingComplete {
 		log.InfoNoContext("Update status to TEAMS_PLAYING", "Draft Id", draftId)
-		// TODO This transition does not execute because we have the lock above
-		// I should probably just make a pick lock
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)
 
 		if err != nil {
@@ -312,17 +280,6 @@ func (dm *DraftManager) getLoadLock(draftId int) *sync.Mutex {
 	if !ok {
 		mtx := &sync.Mutex{}
 		dm.loadLocks.Store(draftId, mtx)
-		return mtx
-	}
-	return lock.(*sync.Mutex)
-}
-
-func (dm *DraftManager) getPickLock(draftId int) *sync.Mutex {
-	//Get the lock if it exists for the draft, if not register it
-	lock, ok := dm.pickLocks.Load(draftId)
-	if !ok {
-		mtx := &sync.Mutex{}
-		dm.pickLocks.Store(draftId, mtx)
 		return mtx
 	}
 	return lock.(*sync.Mutex)
