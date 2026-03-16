@@ -32,7 +32,9 @@ func NewAvatarStore(tbaHander tbaHandler.TbaHandler) (AvatarStore, error) {
 	ctx := context.Background()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		return AvatarStore{}, nil
+		return AvatarStore{
+			tbaHandler: tbaHander,
+		}, nil
 	}
 	return AvatarStore{
 		client:     rdb,
