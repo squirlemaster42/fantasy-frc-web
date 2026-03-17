@@ -79,14 +79,19 @@ templ TeamScoreReport(teamNumber string, scores map[string]int) {
             <!-- Team Header -->
             <div class="flex items-center gap-3 mb-4">
                 <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center overflow-hidden">
-                    <img 
+                    <img
                         src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
                         class="w-full h-full object-cover"
                         loading="lazy"
                     />
                 </div>
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-100">Team {teamNumber}</h2>
+                    <a
+                        target="_blank"
+                        href={fmt.Sprintf("https://thebluealliance.com/team/%s", teamNumber)}
+                        class="text-2xl font-bold text-slate-100">
+                            Team {teamNumber}
+                    </a>
                     <p class="text-slate-400 text-sm">FRC Competition Scores</p>
                 </div>
             </div>
@@ -163,7 +168,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int) {
                             <div class="text-3xl font-bold text-slate-100">{fmt.Sprintf("%d", scores["Total Score"])}</div>
                         </div>
                         <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
-                            <img 
+                            <img
                                 src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
                                 class="w-full h-full object-cover"
                                 loading="lazy"
