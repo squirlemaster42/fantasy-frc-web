@@ -41,7 +41,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 		})
 	}
 
-	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId)
+	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status)
 	draftView := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
 }

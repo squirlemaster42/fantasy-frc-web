@@ -8,14 +8,22 @@ import (
 	"strings"
 )
 
-templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int) {
+templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int, draftStatus model.DraftState) {
     <div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
         <h2 class="text-2xl font-bold text-slate-100 text-center flex-shrink-0">Draft Scores</h2>
-        <div class="flex flex-col gap-4 max-w-4xl mx-auto w-full" id="draftScoresContainer">
+        if draftStatus != model.TEAMS_PLAYING {
+            <div class="flex justify-center">
+                <div class="bg-amber-500/10 rounded-xl p-4 max-w-md w-full text-center">
+                    <p class="text-amber-400 text-lg">Scores will be available once teams start playing!</p>
+                </div>
+            </div>
+        } else {
+            <div class="flex flex-col gap-4 max-w-4xl mx-auto w-full" id="draftScoresContainer">
             for index, player := range userDraftScore {
                 @DraftScoreReport(player, index+1, draftId)
             }
-        </div>
+            </div>
+        }
     </div>
 }
 
