@@ -9,7 +9,12 @@ Written in Go with templ and HTMX.
    go mod download
    ```
 
-2. **Run database migrations:**
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env  # or manually create .env with required variables
+   ```
+
+3. **Run database migrations:**
    ```bash
    make migrate
    ```
