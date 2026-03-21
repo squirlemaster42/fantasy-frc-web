@@ -12,22 +12,6 @@ Complete development environment setup:
 - Docker development environment
 - IDE configuration and debugging
 
-### [🧪 Testing Strategy](./testing.md) *(Coming Soon)*
-Testing guidelines and best practices:
-- Unit testing patterns
-- Integration testing approach
-- Database testing helpers
-- Test data management
-- Coverage requirements
-
-### [🤝 Contributing Guidelines](./contributing.md) *(Coming Soon)*
-Contribution process and standards:
-- Code style guidelines
-- Pull request process
-- Documentation requirements
-- Testing requirements
-- Code review criteria
-
 ## 🎯 Development Workflow
 
 ### 1. Environment Setup
