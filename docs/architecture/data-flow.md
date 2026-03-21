@@ -26,7 +26,6 @@ graph TD
     
     subgraph "Storage Layer"
         J[PostgreSQL]
-        K[Redis Cache]
     end
     
     subgraph "Output Layer"
@@ -45,11 +44,8 @@ graph TD
     G --> J
     H --> J
     I --> J
-    G --> K
     H --> L
-    I --> K
     J --> M
-    K --> M
     J --> N
 ```
 

@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Fantasy FRC is a web-based fantasy football-style game for FIRST Robotics Competition
+Fantasy FRC is a web-based, fantasy football style game for FIRST Robotics Competition
 (FRC) teams. Created by then students (now alumni) of FRC Team 1699 (the Robocats)
 during the 2018 New England FIRST District Championships, this project automates 
 the entire drafting and scoring process for the Fantasy FRC.
@@ -47,7 +47,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```
 4. Run any additional migration scripts as needed. They can ve found in the database directory. 
 
-**Note**: Database versioning is planned for future releases.
+**Note**: Database versioning will be done in future release.
 
 ## Configuration
 .
