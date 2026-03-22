@@ -54,7 +54,6 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
 Create a `.env` file in the `server/` directory with the following variables:
 
 ```env
-TBA_TOKEN=your_tba_api_token
 DB_PASSWORD=your_db_password
 DB_USERNAME=your_db_username
 DB_IP=your_db_host
