@@ -144,6 +144,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
 			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 		} else {
+			log.InfoNoContext("Draft Complete", "Draft Id", p.draftId)
 			// Set draft to the teams playing state
 			// This isnt entirely correct becuase it doesnt account for skips
 			// But I dont care about that for this year
