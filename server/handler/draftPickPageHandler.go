@@ -86,6 +86,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
+	// TODO we should get the draft through the draft manager
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User is attempting to render pick page for invalid draft", "Draft", draftId, "User Uuid", userUuid)

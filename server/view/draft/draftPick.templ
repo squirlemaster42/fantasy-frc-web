@@ -89,6 +89,13 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
 templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4" id="pickTable" hx-swap="outerHTML">
         for _, player := range draft.Players {
+
+            {{
+                if player.Pending{
+                    continue
+                }
+            }}
+
             <div class="border border-slate-600 rounded-lg">
                 <div class="bg-slate-700 px-3 py-2 rounded-t-lg border-b border-slate-600">
                     <h3 class="text-sm font-semibold text-slate-200 text-center truncate">{player.User.Username}</h3>
