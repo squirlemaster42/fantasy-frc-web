@@ -14,10 +14,10 @@ import (
 )
 
 func (h *Handler) HandleViewInvites(c echo.Context) error {
-	return renderInviteTable(h, c, false, "")
+	return renderInviteTable(h, c, false, "", true)
 }
 
-func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string) error {
+func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
 	assert := assert.CreateAssertWithContext("Render Invite Table")
 
 	userTok, err := c.Cookie("sessionToken")
@@ -29,8 +29,13 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 	invites := model.GetInvites(h.Database, userUuid)
 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
-	inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
-	err = Render(c, inviteView)
+	if includeWrapper {
+		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
+		err = Render(c, inviteView)
+	} else {
+		err = Render(c, inviteIndex)
+	}
+
 	return err
 }
 
@@ -49,16 +54,16 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	invite, err := model.GetInvite(h.Database, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.")
+			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
 		}
 		log.Error(c.Request().Context(), "Failed to get invite", "error", err, "inviteId", inviteId)
-		return renderInviteTable(h, c, true, "An error occurred. Please try again.")
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
 
 	//Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != userUuid {
 		log.Info(c.Request().Context(), "Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
-		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.")
+		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.", false)
 	}
 
 	log.Info(c.Request().Context(), "Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
@@ -71,7 +76,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 		if err := model.CancelOutstandingInvites(h.Database, invite.DraftId); err != nil {
 			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
-		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.")
+		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.", false)
 	}
 
 	draftId, playerId := model.AcceptInvite(h.Database, inviteId)
@@ -83,5 +88,5 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 		}
 	}
 
-	return renderInviteTable(h, c, false, "")
+	return renderInviteTable(h, c, false, "", false)
 }
