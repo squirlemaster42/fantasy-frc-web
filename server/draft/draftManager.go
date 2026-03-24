@@ -303,9 +303,6 @@ func (dm *DraftManager) getTransitionLock(draftId int) *sync.Mutex {
 }
 
 func (dm *DraftManager) SkipCurrentPick(draftId int) error {
-	lock := dm.getTransitionLock(draftId)
-	lock.Lock()
-	defer lock.Unlock()
 	draft, err := dm.GetDraft(draftId, false)
 
 	if err != nil {

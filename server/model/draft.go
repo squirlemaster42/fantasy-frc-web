@@ -82,7 +82,16 @@ type Pick struct {
 }
 
 func (p *Pick) String() string {
-	return fmt.Sprintf("Pick: {\nId: %d\n Player: %d\n Pick: %s\n PickTime: %s\n}", p.Id, p.Player, p.Pick.String, p.PickTime.Time.String())
+	pickStr := "NULL"
+	if p.Pick.Valid {
+		pickStr = p.Pick.String
+	}
+	pickTimeStr := "NULL"
+	if p.PickTime.Valid {
+		pickTimeStr = p.PickTime.Time.String()
+	}
+	return fmt.Sprintf("Pick: {\nId: %d\n Player: %d\n Pick: %s\n PickTime: %s\n Skipped: %t\n AvailableTime: %s\n ExpirationTime: %s\n Score: %d\n}",
+		p.Id, p.Player, pickStr, pickTimeStr, p.Skipped, p.AvailableTime.String(), p.ExpirationTime.String(), p.Score)
 }
 
 type DraftInvite struct {
@@ -515,7 +524,8 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
                 Picks.player,
                 Picks.pick,
                 Picks.pickTime,
-                Picks.ExpirationTime
+                Picks.ExpirationTime,
+				Picks.Skipped
               From Picks
               Where Picks.player = $1
               Order By Picks.PickTime Asc;`
@@ -541,7 +551,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime, &pick.Skipped)
 
 		if err != nil {
 			log.WarnNoContext("Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
