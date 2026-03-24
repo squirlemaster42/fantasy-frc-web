@@ -85,15 +85,6 @@ make run-verbose
 
 For production deployment to Linux servers, see [deploy/README.md](deploy/README.md).
 
-Quick deployment:
-```bash
-cd server
-make build-linux          # Build static binary
-cd ../deploy/ansible
-# Configure inventory.ini and vars/vault.yml
-ansible-playbook -i inventory.ini playbook.yml --ask-vault-pass
-```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
