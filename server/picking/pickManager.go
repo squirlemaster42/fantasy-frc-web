@@ -105,22 +105,18 @@ func (p *PickManager) SkipCurrentPick() error {
 // TODO Deal with error on all callers
 // Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
-	// TODO There is a bug on the last pick when watching the page with
-	// websockets that causes a new row to show up after pick 64 is made
-
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	pickingComplete := false
 
 	var err error
-	valid := false
 	if !pick.Pick.Valid {
 		err = errors.New("no team entered")
 	}
 
 	if err == nil {
-		valid, err = model.ValidPick(p.database, p.tbaHandler, pick.Pick.String, p.draftId)
+		_, err = model.ValidPick(p.database, p.tbaHandler, pick.Pick.String, p.draftId)
 	}
 
 	if err == nil {
@@ -152,19 +148,16 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 		}
 	}
 
-	for _, listener := range p.listeners {
-		(*listener).ReceivePickEvent(PickEvent{
-			Pick:    pick,
-			Success: valid,
-			Err:     err,
-			DraftId: p.draftId,
-		})
-	}
-
 	return pickingComplete, err
 }
 
 func (p *PickManager) AddListener(listener PickListener) {
 	log.InfoNoContext("Added pick listener", "Listener", listener)
 	p.listeners = append(p.listeners, &listener)
+}
+
+func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
+	for _, listener := range p.listeners {
+		(*listener).ReceivePickEvent(pickEvent)
+	}
 }

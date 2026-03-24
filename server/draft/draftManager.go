@@ -276,6 +276,14 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 			log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		}
 	}
+
+	draft.pickManager.NotifyListeners(picking.PickEvent{
+		Pick:    pick,
+		Success: err == nil,
+		Err:     err,
+		DraftId: draftId,
+	})
+
 	return err
 }
 

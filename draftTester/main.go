@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Wait for draft start time to hit and make sure draft goes into picking
-	waitUntilDraftState(owner, draft.Id, "Picking", 100*time.Second)
+	waitUntilDraftState(owner, draft.Id, "Picking", 300*time.Second)
 
 	slog.Info("Starting to make picks")
 
