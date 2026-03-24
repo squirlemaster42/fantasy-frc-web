@@ -24,7 +24,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div class="flex-1">
                             <input
-                                disabled?={!isOwner || draft.Status != model.FILLING}
+                                disabled?={!isOwner}
                                 name="draftName"
                                 placeholder="Draft Name"
                                 value={draft.DisplayName}
@@ -41,7 +41,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
                         <textarea
-                            disabled?={!isOwner || draft.Status != model.FILLING}
+                            disabled?={!isOwner}
                             name="description"
                             placeholder="Enter draft description..."
                             class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
@@ -122,7 +122,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-2">Time Between Picks (seconds)</label>
                             <input
-                                disabled?={!isOwner || draft.Status != model.FILLING}
+                                disabled?={!isOwner}
                                 name="interval"
                                 value={fmt.Sprintf("%d", draft.Interval)}
                                 type="range"
@@ -137,7 +137,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                             <label class="block text-xs font-medium text-slate-300 mb-2">Start Time</label>
                             <div class="relative">
                                 <input
-                                    disabled?={!isOwner || draft.Status != model.FILLING}
+                                    disabled?={!isOwner}
                                     name="startTime"
                                     value={draft.StartTime.Format("2006-01-02T15:04:05")}
                                     type="datetime-local"
@@ -154,7 +154,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                             <label class="block text-xs font-medium text-slate-300 mb-2">End Time</label>
                             <div class="relative">
                                 <input
-                                    disabled?={!isOwner || draft.Status != model.FILLING}
+                                    disabled?={!isOwner}
                                     name="endTime"
                                     value={draft.EndTime.Format("2006-01-02T15:04:05")}
                                     type="datetime-local"
@@ -170,7 +170,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     </div>
                     <div class="mt-4 pt-4 border-t border-slate-600">
                         <button
-                            disabled?={!isOwner || draft.Status != model.FILLING}
+                            disabled?={!isOwner}
                             type="submit"
                             class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm"
                         >
@@ -203,7 +203,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                             <div class="text-rose-400 font-medium">Save Draft First</div>
                             <div class="text-slate-500 text-sm mt-1">Save your draft to start inviting players</div>
                         </div>
-                    } else if draft.Status  != model.FILLING {
+                    } else if draft.Status != model.FILLING {
                         <div class="text-center py-8">
                             <div class="text-slate-400 mb-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-slate-500">

@@ -48,7 +48,10 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	assert.NoError(err, "Failed to get session cookie")
 
 	intInterval, err := strconv.Atoi(interval)
-	assert.NoError(err, "Failed to parse interval")
+
+	if err != nil {
+		return c.String(http.StatusBadRequest, fmt.Sprintf("Interval must be a number, was %s", interval))
+	}
 
 	layout := "2006-01-02T15:04:05"
 	parsedStartTime, err := time.Parse(layout, startTime)
