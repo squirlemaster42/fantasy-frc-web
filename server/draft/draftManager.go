@@ -262,6 +262,12 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 	}
 
 	pickingComplete, err := draft.pickManager.MakePick(pick)
+
+	if err != nil {
+		log.InfoNoContext("Failed to make pick", "Pick", pick.Pick.String, "Pick Id", pick.Id, "Player", pick.Player, "Error", err)
+		return err
+	}
+
 	if pickingComplete {
 		log.InfoNoContext("Update status to TEAMS_PLAYING", "Draft Id", draftId)
 		err = dm.ExecuteDraftStateTransition(draft.draftId, model.TEAMS_PLAYING)

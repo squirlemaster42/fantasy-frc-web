@@ -31,7 +31,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 		return err
 	}
 
-	return h.renderPickPage(c, draftId, userUuid, nil)
+	return h.renderPickPage(c, draftId, userUuid, nil, true)
 }
 
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
@@ -82,10 +82,11 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", err)
 	}
 
-	return h.renderPickPage(c, draftId, userUuid, pickError)
+	return h.renderPickPage(c, draftId, userUuid, pickError, false)
 }
 
-func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error) error {
+func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
+	// TODO we should get the draft through the draft manager
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User is attempting to render pick page for invalid draft", "Draft", draftId, "User Uuid", userUuid)
@@ -108,10 +109,16 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 		IsSkipping:    isSkipping,
 		SkipUrl:       skipUrl,
 	}
+
 	pickPageIndex := draft.DraftPickIndex(pickPageModel)
-	username := model.GetUsername(h.Database, userUuid)
-	pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
-	err = Render(c, pickPageView)
+	if includeWrapper {
+		username := model.GetUsername(h.Database, userUuid)
+		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
+		err = Render(c, pickPageView)
+	} else {
+		err = Render(c, pickPageIndex)
+	}
+
 	return err
 }
 
