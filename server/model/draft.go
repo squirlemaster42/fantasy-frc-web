@@ -1456,7 +1456,7 @@ func GetDraftsToStart(database *sql.DB, cutoffDate time.Time) ([]int, error) {
     Select
         Id
     From Drafts d
-    Where d.StartTime > $1
+    Where d.StartTime < $1
     And d.Status = $2
     `
 	stmt, err := database.Prepare(query)

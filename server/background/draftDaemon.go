@@ -48,7 +48,7 @@ func (d *DraftDaemon) Run() {
 		log.DebugNoContext("Starting iteration of the Draft Daemon")
 		err := d.checkForDraftsToStart()
 		if err != nil {
-			log.ErrorNoContext("Failde to start draft", "Error", err)
+			log.ErrorNoContext("Failed to start draft", "Error", err)
 		}
 		d.checkForPicksToSkip()
 
@@ -67,6 +67,8 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 
 	if len(draftIds) > 0 {
 		log.DebugNoContext("Found drafts to start")
+	} else {
+		log.DebugNoContext("Found no drafts to start")
 	}
 
 	if err != nil {
