@@ -19,6 +19,7 @@ type OneOfMatchScoreBreakdown struct {
     MatchScoreBreakdown2022
     MatchScoreBreakdown2023
     MatchScoreBreakdown2024
-    */
     MatchScoreBreakdown2025
+    */
+    MatchScoreBreakdown2026
 }

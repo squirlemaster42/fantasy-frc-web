@@ -33,7 +33,7 @@ func TestMatchListReq(t *testing.T) {
         t.Fatalf("Match Key Incorrect")
     }
 
-    if (firstMatch.ScoreBreakdown.Blue.TeleopPoints == 0) {
+    if (firstMatch.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
         t.Fatalf("Score is not set")
     }
 }
@@ -53,7 +53,7 @@ func TestMatchReq(t *testing.T) {
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
     match := handler.MakeMatchReq("2024isde1_qm36")
-    if (match.ScoreBreakdown.Blue.TeleopPoints == 0) {
+    if (match.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
     }
 }
