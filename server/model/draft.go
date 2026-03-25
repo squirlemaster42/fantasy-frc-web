@@ -1315,7 +1315,7 @@ func DeletePick(database *sql.DB, pickId int) error {
 }
 
 func ResetPick(database *sql.DB, pickId int, expirationTime time.Time) error {
-	query := `Update Picks Set Pick = Null, PickTime = Null, ExpirationTime = $1 Where Id = $2`
+	query := `Update Picks Set Pick = Null, PickTime = Null, Skipped = false, ExpirationTime = $1 Where Id = $2`
 
 	assert := assert.CreateAssertWithContext("Reset Pick")
 	assert.AddContext("Pick Id", pickId)

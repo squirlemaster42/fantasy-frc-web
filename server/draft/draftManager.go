@@ -242,7 +242,7 @@ func (dm *DraftManager) UndoLastPick(draftId int) error {
 	if err != nil {
 		return err
 	}
-	return draft.pickManager.SkipCurrentPick()
+	return draft.pickManager.UndoLastPick()
 }
 
 // TODO Make sure that all GetCurrentPick calls are going through this
