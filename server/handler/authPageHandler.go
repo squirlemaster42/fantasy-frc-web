@@ -66,8 +66,8 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 
 	log.Warn(c.Request().Context(), "Invalid login attempt for user", "Username", username)
-	login := login.LoginIndex(false, "You have entered an invalid username or password")
-	err = RenderError(c, http.StatusUnauthorized, login)
+	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password")
+	err = Render(c, loginIndex)
 	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
 
 	return err
