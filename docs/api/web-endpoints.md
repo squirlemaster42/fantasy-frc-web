@@ -390,4 +390,4 @@ assert.AddContext("Key", value)
 
 ---
 
-*This documentation covers all HTTP endpoints in the Fantasy FRC Web application. For WebSocket API details, see [WebSocket API](./websocket-api.md).*
+*This documentation covers most HTTP endpoints in the Fantasy FRC Web application. For WebSocket API details, see [WebSocket API](./websocket-api.md).*
