@@ -181,28 +181,26 @@ templ AdminPickCard(draft model.DraftModel) {
 }
 
 templ AdminMessage(message string, isSuccess bool) {
-	<div id="adminMessage" class="p-4 rounded-lg mb-4">
-		if isSuccess {
-			<div class="flex items-center gap-2 text-green-400">
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-				</svg>
-				<span>{ message }</span>
-			</div>
-		} else {
-			<div class="flex items-center gap-2 text-red-400">
-				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-				</svg>
-				<span>{ message }</span>
-			</div>
-		}
-	</div>
+	if isSuccess {
+		<div class="flex items-center gap-3 p-4 bg-green-500/20 rounded-xl text-green-400">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+			</svg>
+			<span class="text-base font-medium">{ message }</span>
+		</div>
+	} else {
+		<div class="flex items-center gap-3 p-4 bg-red-500/20 rounded-xl text-red-400">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+			</svg>
+			<span class="text-base font-medium">{ message }</span>
+		</div>
+	}
 }
 
 templ DraftAdmin(page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
 	@view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
-		<div id="adminMessage"></div>
+		<div id="adminMessage" class="max-w-4xl mx-auto w-full mt-4"></div>
 		@cmp
 	}
 }
