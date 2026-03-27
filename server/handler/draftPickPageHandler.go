@@ -59,7 +59,10 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 
 	//Make the pick
-	draftPlayer := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	draftPlayer, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+    if err != nil {
+        return err
+    }
 	currPick, err := model.GetCurrentPick(h.Database, draftId)
 	if err != nil {
 		return err
@@ -96,7 +99,10 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 	isOwner := draftModel.Owner.UserUuid == userUuid
-	draftPlayerId := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+    if err != nil {
+        return err
+    }
 	isSkipping := model.ShoudSkipPick(h.Database, draftPlayerId)
 	log.Info(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
@@ -187,12 +193,18 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftIdStr := c.Param("id")
 	draftId, err := strconv.Atoi(draftIdStr)
-	draftPlayerId := model.GetDraftPlayerId(h.Database, draftId, userUuid)
 
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
 		return err
 	}
+
+	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get draft player", "User uuid", userUuid, "Draft Id String", draftIdStr, "Error", err)
+		return err
+	}
+
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {

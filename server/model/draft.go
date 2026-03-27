@@ -796,7 +796,7 @@ func GetPicks(database *sql.DB, draft int) ([]Pick, error) {
 	return picks, nil
 }
 
-func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
+func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) (int, error) {
 	query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
 
 	assert := assert.CreateAssertWithContext("Get Draft Player Id")
@@ -812,10 +812,12 @@ func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) int {
 
 	var draftPlayerId int
 	err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
-	// TODO This should not cause the program to crash
-	assert.NoError(err, "Failed to get draft player")
 
-	return draftPlayerId
+    if err != nil {
+        return -1, errors.Join(fmt.Errorf("failed to get draft player for user %s in draft %d", userUuid.String(), draftId), err)
+    }
+
+	return draftPlayerId, nil
 }
 
 func GetDraftPlayerUser(database *sql.DB, draftPlayerId int) (User, error) {
@@ -980,7 +982,9 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 	}
 
 	for i, player := range awaitingAssignment {
-		draftPlayerId := GetDraftPlayerId(database, draftId, player.User.UserUuid)
+		draftPlayerId, err := GetDraftPlayerId(database, draftId, player.User.UserUuid)
+        // TODO We need to handle this error better
+        assert.NoError(err, "Could not find draft player")
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
