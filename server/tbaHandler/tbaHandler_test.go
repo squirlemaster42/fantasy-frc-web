@@ -26,10 +26,10 @@ func TestMatchListReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    matches := handler.MakeMatchListReq("frc1690", "2024isde1")
+    matches := handler.MakeMatchListReq("frc254", "2026casnv")
     assert.True(t, len(matches) > 0, "No matches were found")
     firstMatch := matches[0]
-    if (firstMatch.EventKey != "2024isde1") {
+    if (firstMatch.EventKey != "2026casnv") {
         t.Fatalf("Match Key Incorrect")
     }
 
@@ -52,7 +52,7 @@ func TestMatchReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    match := handler.MakeMatchReq("2024isde1_qm36")
+    match := handler.MakeMatchReq("2026casnv_qm24")
     if (match.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
     }

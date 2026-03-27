@@ -74,32 +74,32 @@ func getQualMatchScore(match swagger.Match) (int, int) {
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.EnergizedAchieved {
 		redScore += 1
-		log.DebugNoContext("Red Auto Bonus Achieved", "Score", redScore)
+		log.DebugNoContext("Red Energized Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.SuperchargedAchieved {
 		redScore += 1
-		log.DebugNoContext("Red Barge Bonus Achieved", "Score", redScore)
+		log.DebugNoContext("Red Supercharded Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.TraversalAchieved {
-		redScore += 1
-		log.DebugNoContext("Red Coral Bonus Achieved", "Score", redScore)
+		redScore += 2
+		log.DebugNoContext("Red Traversal Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.EnergizedAchieved {
 		blueScore += 1
-		log.DebugNoContext("Blue Auto Bonus Achieved", "Score", blueScore)
+		log.DebugNoContext("Blue Energized Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.SuperchargedAchieved {
 		blueScore += 1
-		log.DebugNoContext("Blue Barge Bonus Achieved", "Score", blueScore)
+		log.DebugNoContext("Blue Supercharged Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.TraversalAchieved {
-		blueScore += 1
-		log.DebugNoContext("Blue Coral Bonus Achieved", "Score", blueScore)
+		blueScore += 2
+		log.DebugNoContext("Blue Traversal Bonus Achieved", "Score", blueScore)
 	}
 
 	return redScore, blueScore
