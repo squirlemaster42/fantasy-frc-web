@@ -12,15 +12,15 @@ import (
 
 func Events() []string {
 	return []string{
-		"2025arc",
-		"2025cur",
-		"2025dal",
-		"2025gal",
-		"2025hop",
-		"2025joh",
-		"2025mil",
-		"2025new",
-		"2025cmptx",
+		"2026arc",
+		"2026cur",
+		"2026dal",
+		"2026gal",
+		"2026hop",
+		"2026joh",
+		"2026mil",
+		"2026new",
+		"2026cmptx",
 	}
 }
 
@@ -162,7 +162,7 @@ func GetPickExpirationTime(t time.Time) time.Time {
 }
 
 func Einstein() string {
-	return "2025cmptx"
+	return "2026cmptx"
 }
 
 // Return true if matchA comes before matchB
