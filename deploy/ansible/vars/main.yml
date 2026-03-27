@@ -17,6 +17,14 @@ sentry_dsn: "{{ vault_sentry_dsn | default('') }}"
 # Session secret
 session_secret: "{{ vault_session_secret }}"
 
+# Redis
+redis_url: "redis://localhost:6379/0"
+
+# Database connection pool
+db_max_conns: 25
+db_max_idle_conns: 10
+db_conn_max_lifetime_minutes: 5
+
 # Build paths (relative to playbook location or absolute)
 local_binary_path: "../../server/server"
 local_migrations_path: "../migrations"

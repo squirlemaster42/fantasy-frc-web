@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"server/log"
 	"server/tbaHandler"
 	"strconv"
@@ -12,25 +13,31 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// TODO I think that there will be too much variance in the avatars requested for this
-// to be a reasonable LRU cache and we should always just go to redis.
-// Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
 	client     *redis.Client
 	tbaHandler tbaHandler.TbaHandler
 }
 
 func NewAvatarStore(tbaHander tbaHandler.TbaHandler) (AvatarStore, error) {
-	// TODO Set options from env file
-	// TODO We should not cache the avatars on the default db
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
-		Protocol: 2,
-	})
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379/0"
+	}
+
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		log.WarnNoContext("Failed to parse REDIS_URL, using defaults", "URL", redisURL, "Error", err)
+		opt = &redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+			Protocol: 2,
+		}
+	}
+
+	rdb := redis.NewClient(opt)
 	ctx := context.Background()
-	_, err := rdb.Ping(ctx).Result()
+	_, err = rdb.Ping(ctx).Result()
 	if err != nil {
 		return AvatarStore{
 			tbaHandler: tbaHander,

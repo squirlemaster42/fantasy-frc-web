@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io"
 	"os"
+	"os/signal"
 	"server/assert"
 	"server/background"
 	"server/cache"
@@ -15,6 +17,8 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
+	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -37,7 +41,7 @@ func main() {
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbUsername := os.Getenv("DB_USERNAME")
-	sentryDNS := os.Getenv("SENTRY_DNS")
+	sentryDSN := os.Getenv("SENTRY_DSN")
 	dbIp := os.Getenv("DB_IP")
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
@@ -48,7 +52,6 @@ func main() {
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
 	draftManager := draft.NewDraftManager(tbaHandler, database)
-	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(database, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
@@ -65,10 +68,12 @@ func main() {
 		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	scorer := scorer.NewScorer(tbaHandler, database)
 	if !*skipScoring {
 		log.InfoNoContext("Started Scorer")
-		scorer.RunScorer()
+		scorer.RunScorer(ctx)
 	}
 
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
@@ -82,7 +87,6 @@ func main() {
 		AvatarStore:  &avatarStore,
 	}
 
-	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		log.WarnNoContext("Unable to open tba webhook secret file", "Error", err)
@@ -95,5 +99,31 @@ func main() {
 		}
 	}
 
-	CreateServer(serverPort, handler, sentryDNS)
+	app := CreateServer(serverPort, handler, sentryDSN)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	log.InfoNoContext("Received shutdown signal", "Signal", sig)
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	draftDaemon.Stop()
+
+	cancel()
+
+	if err := app.Shutdown(shutdownCtx); err != nil {
+		log.ErrorNoContext("Server shutdown error", "Error", err)
+	}
+
+	if err := avatarStore.Close(); err != nil {
+		log.WarnNoContext("Failed to close Redis connection", "Error", err)
+	}
+
+	if err := database.Close(); err != nil {
+		log.WarnNoContext("Failed to close database connection", "Error", err)
+	}
+
+	log.InfoNoContext("-------- Fantasy FRC stopped --------")
 }

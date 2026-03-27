@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"server/assert"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -15,16 +14,14 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
-func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
+func CreateServer(serverPort string, h handler.Handler, sentryDSN string) *echo.Echo {
 	log.InfoNoContext("Starting Server")
-	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
-	// To initialize Sentry's handler, you need to initialize Sentry itself beforehand
 	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              sentryDNS,
+		Dsn:              sentryDSN,
 		EnableLogs:       true,
 		TracesSampleRate: 1.0,
 	}); err != nil {
@@ -52,7 +49,6 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 		Repanic: true,
 	}))
 
-	//Setup Routes
 	app.GET("/", h.HandleViewLanding)
 	app.GET("/login", h.HandleViewLogin)
 	app.POST("/login", h.HandleLoginPost)
@@ -91,6 +87,11 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	admin.GET("/console", h.HandleAdminConsoleGet)
 	admin.POST("/processCommand", h.HandleRunCommand)
 
-	err := app.Start(":" + serverPort)
-	assert.NoError(err, "Failed to start server")
+	go func() {
+		if err := app.Start(":" + serverPort); err != nil && err != http.ErrServerClosed {
+			log.ErrorNoContext("Server failed", "Error", err)
+		}
+	}()
+
+	return app
 }

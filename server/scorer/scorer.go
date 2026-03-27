@@ -1,6 +1,7 @@
 package scorer
 
 import (
+	"context"
 	"database/sql"
 	"server/assert"
 	"server/log"
@@ -253,25 +254,12 @@ func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance)
 	return scores
 }
 
-func (s *Scorer) RunScorer() {
-	//This function will run on its own routine
-	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
-	//We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
-	//We then score each match that this team has played and has not already been scored
-	//We choose the matches to score from the picks table
-	//Periodically we will want to rescore everything to ensure that we account for replays
-	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
-	//In this iteration we also update the valid teams
-
-	go s.scoringRunner()
+func (s *Scorer) RunScorer(ctx context.Context) {
+	go s.scoringRunner(ctx)
 }
 
 func (s *Scorer) AddMatchToScore(match swagger.Match) {
 	s.queue.PushMatch(match)
-}
-
-func (s *Scorer) getNextMatchToScore() swagger.Match {
-	return s.queue.PopMatch()
 }
 
 func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
@@ -285,7 +273,7 @@ func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
 	}
 }
 
-func (s *Scorer) scoringRunner() {
+func (s *Scorer) scoringRunner(ctx context.Context) {
 	for _, event := range utils.Events() {
 		for _, match := range s.tbaHandler.MakeEventMatchKeysRequest(event) {
 			s.AddMatchToScore(swagger.Match{
@@ -303,9 +291,20 @@ func (s *Scorer) scoringRunner() {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			log.InfoNoContext("Scorer shutting down")
+			return
+		default:
+		}
+
 		log.DebugNoContext("Starting scoring iteration")
 
-		match := s.getNextMatchToScore()
+		match, ok := s.queue.PopMatchWithContext(ctx)
+		if !ok {
+			log.InfoNoContext("Scorer shutting down")
+			return
+		}
 
 		log.DebugNoContext("Checking if we need to get match data", "Match", match)
 		if match.MatchNumber == 0 {

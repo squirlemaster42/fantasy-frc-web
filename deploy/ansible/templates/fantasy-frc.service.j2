@@ -15,6 +15,11 @@ EnvironmentFile=/opt/fantasy-frc/config/.env
 # Binary path
 ExecStart=/opt/fantasy-frc/bin/server
 
+# Graceful shutdown
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
 # Logging
 StandardOutput=journal
 StandardError=journal

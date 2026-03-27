@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"server/assert"
 	"server/log"
@@ -281,6 +282,8 @@ func getMatchLevel(matchKey string) string {
 }
 
 func GetWebhookFilePath() string {
-	// TODO we need a better way to store this information
+	if path := os.Getenv("TBA_WEBHOOK_SECRET_FILE"); path != "" {
+		return path
+	}
 	return "./webhookSecret.txt"
 }
