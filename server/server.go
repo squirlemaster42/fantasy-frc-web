@@ -46,7 +46,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	)
 
 	app.Use(echomiddleware.Gzip())
-	app.Use(echomiddleware.Recover())
+	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(sentryecho.New(sentryecho.Options{
 		Repanic: true,
