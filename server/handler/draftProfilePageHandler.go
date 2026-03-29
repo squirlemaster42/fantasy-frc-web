@@ -246,12 +246,12 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	//TODO Need to check that all players have accepted the draft
 
-	//TODO What should we show to the user when this happens?
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
 	err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 	}
 
+	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
 	return nil
 }
