@@ -15,3 +15,7 @@ func NewBus() *DiscordWebhookBus {
 func (d *DiscordWebhookBus) PostPreMatchNotification() error {
 	return nil
 }
+
+func (d *DiscordWebhookBus) PostPickNotification() error {
+	return nil
+}
