@@ -383,7 +383,8 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         StartTime,
         EndTime,
         extract('epoch' from Interval)::int As Interval,
-        OwnerUserUuid
+        OwnerUserUuid,
+		DiscordWebhook
     From Drafts Where Id = $1;`
 	stmt, err := database.Prepare(query)
 	if err != nil {
@@ -394,7 +395,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
 		}
 	}()
-	draftModel := DraftModel{
+	draftModel := DraftModel {
 		Id: draftId,
 	}
 	var ownerId uuid.UUID
@@ -406,6 +407,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		&draftModel.EndTime,
 		&draftModel.Interval,
 		&ownerId,
+		&draftModel.DiscordWebhook,
 	)
 	if err != nil {
 		log.WarnNoContext("Failed to load draft", "Draft Id", draftId)
@@ -567,7 +569,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 }
 
 func UpdateDraft(database *sql.DB, draft *DraftModel) error {
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = &6 Where Id = $7;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)

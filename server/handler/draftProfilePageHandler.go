@@ -30,6 +30,8 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
+
+	// TODO I think this should go through the draft manager
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
