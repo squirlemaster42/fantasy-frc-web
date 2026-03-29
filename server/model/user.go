@@ -12,9 +12,10 @@ import (
 )
 
 type User struct {
-	UserUuid uuid.UUID
-	Username string
-	Password string
+	UserUuid  uuid.UUID
+	Username  string
+	Password  string
+	DiscordId string
 }
 
 func (u *User) String() string {
@@ -92,6 +93,38 @@ func GetUsername(database *sql.DB, userUuid uuid.UUID) string {
 	err = stmt.QueryRow(userUuid).Scan(&username)
 	assert.NoError(err, "Failed to get user")
 	return username
+}
+
+func GetDiscordId(database *sql.DB, userUuid uuid.UUID) string {
+	query := `Select Coalesce(discordId, '') From Users Where UserUuid = $1;`
+	assert := assert.CreateAssertWithContext("Get Discord Id")
+	assert.AddContext("User Id", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("GetDiscordId: Failed to close statement", "error", err)
+		}
+	}()
+	var discordId string
+	err = stmt.QueryRow(userUuid).Scan(&discordId)
+	assert.NoError(err, "Failed to get discord id")
+	return discordId
+}
+
+func UpdateDiscordId(database *sql.DB, userUuid uuid.UUID, discordId string) {
+	query := `Update Users Set discordId = $1 Where UserUuid = $2;`
+	assert := assert.CreateAssertWithContext("Update Discord Id")
+	assert.AddContext("User Id", userUuid)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("UpdateDiscordId: Failed to close statement", "error", err)
+		}
+	}()
+	_, err = stmt.Exec(discordId, userUuid)
+	assert.NoError(err, "Failed to update discord id")
 }
 
 // All crypto should happen before this since this just communicates with the DB
