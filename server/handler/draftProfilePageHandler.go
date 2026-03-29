@@ -68,6 +68,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	interval := c.FormValue("interval")
 	startTime := c.FormValue("startTime")
 	endTime := c.FormValue("endTime")
+	discordWebhook := c.FormValue("discordWebhook")
 
 	sessionToken, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get session cookie")
@@ -107,6 +108,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		Interval:    intInterval,
 		StartTime:   parsedStartTime,
 		EndTime:     parsedEndTime,
+		DiscordWebhook: discordWebhook,
 	}
 
 	err = h.DraftManager.UpdateDraft(draftModel)

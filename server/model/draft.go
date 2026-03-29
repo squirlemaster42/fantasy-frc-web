@@ -31,6 +31,7 @@ type DraftModel struct {
 	Interval    int //Number of seconds to pick
 	StartTime   time.Time
 	EndTime     time.Time
+	DiscordWebhook string
 	Owner       User
 	Status      DraftState
 	Players     []DraftPlayer
@@ -566,7 +567,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 }
 
 func UpdateDraft(database *sql.DB, draft *DraftModel) error {
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5 Where Id = $6;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = &6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
@@ -580,7 +581,7 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 			log.WarnNoContext("UpdateDraft: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
+	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.DiscordWebhook, draft.Id)
 	return err
 }
 
