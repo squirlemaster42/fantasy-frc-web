@@ -37,7 +37,7 @@ func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
 	return &watcher
 }
 
-func (pn *PickNotifier) UnregiserWatcher(watcher *Watcher) {
+func (pn *PickNotifier) UnregisterWatcher(watcher *Watcher) {
 	for key, watchers := range pn.Watchers {
 		index := -1
 		for i, w := range watchers {
@@ -59,7 +59,7 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 	return w[:len(w)-1]
 }
 
-func (pn *PickNotifier) RecievePickEvent(pickEvent PickEvent) {
+func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) {
 	log.InfoNoContext("Received Pick Event", "Pick Id", pickEvent.Pick.Id)
 	for _, watcher := range pn.Watchers[pickEvent.DraftId] {
 		watcher.NotifierQueue <- true

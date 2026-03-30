@@ -813,9 +813,9 @@ func GetDraftPlayerId(database *sql.DB, draftId int, userUuid uuid.UUID) (int, e
 	var draftPlayerId int
 	err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
 
-    if err != nil {
-        return -1, errors.Join(fmt.Errorf("failed to get draft player for user %s in draft %d", userUuid.String(), draftId), err)
-    }
+	if err != nil {
+		return -1, errors.Join(fmt.Errorf("failed to get draft player for user %s in draft %d", userUuid.String(), draftId), err)
+	}
 
 	return draftPlayerId, nil
 }
@@ -983,8 +983,8 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 
 	for i, player := range awaitingAssignment {
 		draftPlayerId, err := GetDraftPlayerId(database, draftId, player.User.UserUuid)
-        // TODO We need to handle this error better
-        assert.NoError(err, "Could not find draft player")
+		// TODO We need to handle this error better
+		assert.NoError(err, "Could not find draft player")
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
@@ -1134,8 +1134,8 @@ func StartDraft(database *sql.DB, draftId int) {
 	assert.NoError(err, "Failed to update draft status")
 }
 
-func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
-	assert := assert.CreateAssertWithContext("Shoud Skip Pick")
+func ShouldSkipPick(database *sql.DB, draftPlayer int) bool {
+	assert := assert.CreateAssertWithContext("Should Skip Pick")
 	assert.AddContext("Draft Player", draftPlayer)
 
 	query := `SELECT
@@ -1147,18 +1147,18 @@ func ShoudSkipPick(database *sql.DB, draftPlayer int) bool {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("ShoudSkipPick: Failed to close statement", "error", err)
+			log.WarnNoContext("ShouldSkipPick: Failed to close statement", "error", err)
 		}
 	}()
-	var shoudSkip bool
-	err = stmt.QueryRow(draftPlayer).Scan(&shoudSkip)
+	var shouldSkip bool
+	err = stmt.QueryRow(draftPlayer).Scan(&shouldSkip)
 
 	if err != nil {
 		log.WarnNoContext("Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
 		return false
 	}
 
-	return shoudSkip
+	return shouldSkip
 }
 
 func MarkShouldSkipPick(database *sql.DB, draftPlayer int, shouldSkip bool) error {

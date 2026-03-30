@@ -91,7 +91,7 @@ func main() {
 		if err != nil {
 			log.WarnNoContext("Failed to read tba webhook file body", "Error", err)
 		} else {
-			handler.TbaWekhookSecret = string(body)
+			handler.TbaWebhookSecret = string(body)
 		}
 	}
 

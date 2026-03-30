@@ -60,9 +60,9 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
 	//Make the pick
 	draftPlayer, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 	currPick, err := model.GetCurrentPick(h.Database, draftId)
 	if err != nil {
 		return err
@@ -100,10 +100,10 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 	isOwner := draftModel.Owner.UserUuid == userUuid
 	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
-    if err != nil {
-        return err
-    }
-	isSkipping := model.ShoudSkipPick(h.Database, draftPlayerId)
+	if err != nil {
+		return err
+	}
+	isSkipping := model.ShouldSkipPick(h.Database, draftPlayerId)
 	log.Info(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
 	pickPageModel := draft.PickPage{
@@ -161,7 +161,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			}
 		}()
 		//TODO Figure out how to unregister the listener
-		//defer h.Notifier.UnregiserWatcher(watcher)
+		//defer h.Notifier.UnregisterWatcher(watcher)
 		for {
 			msg := <-wsl.messageQueue
 			log.Info(c.Request().Context(), "Writing pick event to client", "Event", msg)
@@ -204,7 +204,6 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 		log.Error(c.Request().Context(), "Failed to get draft player", "User uuid", userUuid, "Draft Id String", draftIdStr, "Error", err)
 		return err
 	}
-
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {

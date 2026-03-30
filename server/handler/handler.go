@@ -15,6 +15,6 @@ type Handler struct {
 	DraftManager     *draft.DraftManager
 	DraftDaemon      *background.DraftDaemon
 	Scorer           *scorer.Scorer
-    AvatarStore 	 *cache.AvatarStore
-	TbaWekhookSecret string
+	AvatarStore      *cache.AvatarStore
+	TbaWebhookSecret string
 }

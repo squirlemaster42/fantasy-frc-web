@@ -47,7 +47,7 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	}
 
 	messageMac := c.Request().Header.Get("X-TBA-HMAC")
-	valid := validMAC(body, []byte(messageMac), []byte(h.TbaWekhookSecret))
+	valid := validMAC(body, []byte(messageMac), []byte(h.TbaWebhookSecret))
 
 	if !valid {
 		log.Warn(c.Request().Context(), "Webhook event authentication failed", "Message", string(body))
@@ -81,7 +81,7 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	return nil
 }
 
-type MatchScoreNofification struct {
+type MatchScoreNotification struct {
 	EventKey  string        `json:"event_key"`
 	MatchKey  string        `json:"match_key"`
 	TeamKey   string        `json:"team_key"`
@@ -91,7 +91,7 @@ type MatchScoreNofification struct {
 
 func (h *Handler) HandleMatchScoreEvent(messageData json.RawMessage) {
 	log.InfoNoContext("Received match score event", "Message", messageData)
-	var scoreNotification MatchScoreNofification
+	var scoreNotification MatchScoreNotification
 	err := json.Unmarshal(messageData, &scoreNotification)
 	if err != nil {
 		log.WarnNoContext("Failed to decode match score notification", "Error", err, "Message", messageData)
@@ -133,7 +133,7 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 	log.InfoNoContext("Received upcoming match event", "Message", messageData)
 }
 
-type MatchVideoNofification struct {
+type MatchVideoNotification struct {
 	EventKey  string        `json:"event_key"`
 	MatchKey  string        `json:"match_key"`
 	TeamKey   string        `json:"team_key"`
@@ -210,12 +210,12 @@ func (h *Handler) HandleVerificationEvent(messageData json.RawMessage) {
 		return
 	}
 
-	h.TbaWekhookSecret = event.VerificationKey
+	h.TbaWebhookSecret = event.VerificationKey
 
 	// Only create the file if it doesn't already exist
 	_, err = os.Stat(utils.GetWebhookFilePath())
 	if os.IsNotExist(err) {
-		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaWekhookSecret), 0644)
+		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaWebhookSecret), 0644)
 		if err != nil {
 			log.WarnNoContext("Failed to write tba webhook file body", "Error", err)
 		}
