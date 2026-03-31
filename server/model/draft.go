@@ -382,7 +382,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         EndTime,
         extract('epoch' from Interval)::int As Interval,
         OwnerUserUuid,
-		DiscordWebhook
+		COALSECE(DiscordWebhook, "")
     From Drafts Where Id = $1;`
 	stmt, err := database.Prepare(query)
 	if err != nil {

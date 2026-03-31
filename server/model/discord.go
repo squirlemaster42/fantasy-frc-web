@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"server/assert"
 	"server/log"
 )
@@ -25,13 +26,17 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (string, error) {
 		}
 	}()
 
-	var discordId string
+	var discordId sql.NullString
 	err = stmt.QueryRow(draftPlayerId).Scan(&discordId)
 	if err != nil {
 		return "", err
 	}
 
-	return discordId, nil
+	if !discordId.Valid {
+		return "", fmt.Errorf("Draft player with id %d does not have discord id set", draftPlayerId)
+	}
+
+	return discordId.String, nil
 
 }
 
@@ -53,11 +58,16 @@ func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {
 		}
 	}()
 
-	var webhook string
+	var webhook sql.NullString
 	err = stmt.QueryRow(draftId).Scan(&webhook)
 	if err != nil {
 		return "", err
 	}
 
-	return webhook, nil
+	if !webhook.Valid {
+		return "", fmt.Errorf("Draft with id %d does not have discord webhook set", draftId)
+	}
+
+
+	return webhook.String, nil
 }
