@@ -31,6 +31,7 @@ type DraftModel struct {
 	Interval    int //Number of seconds to pick
 	StartTime   time.Time
 	EndTime     time.Time
+	DiscordWebhook string
 	Owner       User
 	Status      DraftState
 	Players     []DraftPlayer
@@ -324,9 +325,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
 	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
 	stmt, err := database.Prepare(query)
-	if err != nil {
-		return -1, err
-	}
+	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)
@@ -382,7 +381,8 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         StartTime,
         EndTime,
         extract('epoch' from Interval)::int As Interval,
-        OwnerUserUuid
+        OwnerUserUuid,
+		DiscordWebhook
     From Drafts Where Id = $1;`
 	stmt, err := database.Prepare(query)
 	if err != nil {
@@ -393,7 +393,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
 		}
 	}()
-	draftModel := DraftModel{
+	draftModel := DraftModel {
 		Id: draftId,
 	}
 	var ownerId uuid.UUID
@@ -405,6 +405,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		&draftModel.EndTime,
 		&draftModel.Interval,
 		&ownerId,
+		&draftModel.DiscordWebhook,
 	)
 	if err != nil {
 		log.WarnNoContext("Failed to load draft", "Draft Id", draftId)
@@ -566,7 +567,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 }
 
 func UpdateDraft(database *sql.DB, draft *DraftModel) error {
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5 Where Id = $6;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
@@ -580,7 +581,7 @@ func UpdateDraft(database *sql.DB, draft *DraftModel) error {
 			log.WarnNoContext("UpdateDraft: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Id)
+	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.DiscordWebhook, draft.Id)
 	return err
 }
 

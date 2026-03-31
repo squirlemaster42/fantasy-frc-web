@@ -86,6 +86,8 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	protected.POST("/acceptInvite", h.HandleAcceptInvite)
 	protected.POST("/draft/:id/skipPickToggle", h.HandleSkipPickToggle)
 	protected.GET("/team/:id/avatar", h.GetTeamAvatar)
+	protected.GET("/userProfile", h.HandleViewUserProfile)
+	protected.POST("/userProfile", h.HandleUpdateUserProfile)
 
 	admin := protected.Group("/admin", auth.CheckAdmin)
 	admin.GET("/console", h.HandleAdminConsoleGet)
