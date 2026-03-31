@@ -170,11 +170,13 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         if isOwner && draft.Id != 0 && draft.Id != -1 {
                             <div>
                                 <label class="block text-xs font-medium text-slate-300 mb-2">Discord Webhook</label>
+                                <input autocomplete="username" style="display:none" tabindex="-1" aria-hidden="true" />
                                 <input
                                     disabled?={!isOwner}
                                     name="discordWebhook"
                                     value={draft.DiscordWebhook}
                                     type="password"
+                                    autocomplete="new-password"
                                     placeholder="Enter Discord webhook URL..."
                                     class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                                 />
