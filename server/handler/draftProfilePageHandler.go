@@ -30,6 +30,8 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
+
+	// TODO I think this should go through the draft manager
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
@@ -68,6 +70,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	interval := c.FormValue("interval")
 	startTime := c.FormValue("startTime")
 	endTime := c.FormValue("endTime")
+	discordWebhook := c.FormValue("discordWebhook")
 
 	sessionToken, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get session cookie")
@@ -107,6 +110,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		Interval:    intInterval,
 		StartTime:   parsedStartTime,
 		EndTime:     parsedEndTime,
+		DiscordWebhook: discordWebhook,
 	}
 
 	err = h.DraftManager.UpdateDraft(draftModel)
