@@ -408,7 +408,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 		&draftModel.DiscordWebhook,
 	)
 	if err != nil {
-		log.WarnNoContext("Failed to load draft", "Draft Id", draftId)
+		log.WarnNoContext("Failed to load draft", "Draft Id", draftId, "Error", err)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
 
