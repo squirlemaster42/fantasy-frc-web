@@ -325,9 +325,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) (int, error) {
 	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
 	stmt, err := database.Prepare(query)
-	if err != nil {
-		return -1, err
-	}
+	assert.NoError(err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)

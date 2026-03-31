@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"server/assert"
+	"server/discord"
 	"server/log"
 	"server/model"
 	"server/picking"
@@ -14,12 +15,13 @@ import (
 	"time"
 )
 
-func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *DraftManager {
+func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, discordBus *discord.DiscordWebhookBus) *DraftManager {
 	draftManager := &DraftManager{
-		drafts:     map[int]*Draft{},
-		database:   database,
+		drafts: map[int]*Draft{},
+		database: database,
 		tbaHandler: tbaHandler,
-		states:     setupStates(database),
+		states: setupStates(database),
+		discordBus: discordBus,
 	}
 
 	log.InfoNoContext("Draft Manager Started")
@@ -125,12 +127,13 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
 
 type DraftManager struct {
 	//TODO this map should be thread safe
-	drafts          map[int]*Draft
-	loadLocks       sync.Map
+	drafts map[int]*Draft
+	loadLocks sync.Map
 	transitionLocks sync.Map
-	database        *sql.DB
-	tbaHandler      *tbaHandler.TbaHandler
-	states          map[model.DraftState]*state
+	database *sql.DB
+	tbaHandler *tbaHandler.TbaHandler
+	states map[model.DraftState]*state
+	discordBus *discord.DiscordWebhookBus
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
@@ -156,10 +159,10 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		draftModel, err := model.GetDraft(dm.database, draftId)
 
 		//TODO we should probably check if we need to do this in the reload path
-		draft := Draft{
-			draftId:     draftId,
-			pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler),
-			Model:       &draftModel,
+		draft := Draft {
+			draftId: draftId,
+			pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
+			Model: &draftModel,
 		}
 		dm.drafts[draftId] = &draft
 		lock.Unlock()

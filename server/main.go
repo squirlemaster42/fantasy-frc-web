@@ -8,6 +8,7 @@ import (
 	"server/background"
 	"server/cache"
 	"server/database"
+	"server/discord"
 	"server/draft"
 	"server/handler"
 	"server/log"
@@ -47,7 +48,8 @@ func main() {
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
-	draftManager := draft.NewDraftManager(tbaHandler, database)
+	discordBus := discord.NewBus()
+	draftManager := draft.NewDraftManager(tbaHandler, database, discordBus)
 	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(database, draftManager)
 	err = draftDaemon.Start()
