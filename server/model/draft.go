@@ -382,12 +382,14 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
         EndTime,
         extract('epoch' from Interval)::int As Interval,
         OwnerUserUuid,
-		COALSECE(DiscordWebhook, "")
+		COALESCE(DiscordWebhook, '')
     From Drafts Where Id = $1;`
+
+	assert := assert.CreateAssertWithContext("Get Draft")
+	assert.AddContext("Draft Id", draftId)
+
 	stmt, err := database.Prepare(query)
-	if err != nil {
-		return DraftModel{}, err
-	}
+	assert.NoError(err, "Failed to prepare draft statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
@@ -443,9 +445,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
                     ORDER BY PLAYERORDER;`
 
 	playerStmt, err := database.Prepare(playerQuery)
-	if err != nil {
-		return DraftModel{}, err
-	}
+	assert.NoError(err, "Failed to prepare player statement")
 	defer func() {
 		if err := playerStmt.Close(); err != nil {
 			log.WarnNoContext("GetDraft: Failed to close statement", "error", err)
