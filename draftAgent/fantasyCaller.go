@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/net/html"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -25,7 +26,7 @@ type User struct {
 	Client   http.Client
 	Uuid     string
 	IsOwner  bool
-	Persona DrafterPersona `json:"DrafterPersona"`
+	Persona  DrafterPersona `json:"DrafterPersona"`
 }
 
 type Draft struct {
@@ -105,7 +106,7 @@ func loadValidTeams() []int {
 	var validTeams []int
 
 	scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
+	for scanner.Scan() {
 		line := scanner.Text()
 		teamNum, err := strconv.Atoi(line)
 		if err != nil {
@@ -113,11 +114,11 @@ func loadValidTeams() []int {
 		}
 
 		validTeams = append(validTeams, teamNum)
-    }
+	}
 	return validTeams
 }
 
-func isPickingPlayer (user *User, draftId int) bool {
+func isPickingPlayer(user *User, draftId int) bool {
 	slog.Info("Getting picking player", "Draft Id", draftId, "User", user.Username)
 
 	resp, err := user.Client.Get(fmt.Sprintf("%s/u/draft/%d/pick", target, draftId))
@@ -143,20 +144,169 @@ func isPickingPlayer (user *User, draftId int) bool {
 }
 
 type CurrentPicks struct {
-	PlayerName string `json:"playerName"`
-	Picks string `json:"picks"`
+	PlayerName string   `json:"playerName"`
+	Picks      []string `json:"picks"`
 }
 
-func getCurrentDraftPicks(user *User) ([]CurrentPicks, error) {
-	return nil, nil
-}
-
-// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
-func getRandomTeamId(validPicks []int) int {
-	if rand.IntN(5) != 1 {
-		return validPicks[rand.IntN(len(validPicks))]
+func getCurrentDraftPicks(user *User, draftId int) ([]CurrentPicks, error) {
+	resp, err := user.Client.Get(fmt.Sprintf("%s/u/draft/%d/pick", target, draftId))
+	if err != nil {
+		return nil, err
 	}
-	return rand.IntN(10000)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseCurrentDraftPicks(string(body)), nil
+}
+
+func parseCurrentDraftPicks(htmlContent string) []CurrentPicks {
+	doc, err := html.Parse(strings.NewReader(htmlContent))
+	if err != nil {
+		return nil
+	}
+
+	pickTable := findNodeById(doc, "pickTable")
+	if pickTable == nil {
+		return nil
+	}
+
+	var allPicks []CurrentPicks
+	cards := findNodesByClass(pickTable, "border", "border-slate-600", "rounded-lg")
+	for _, card := range cards {
+		nameNode := findNodeByTagAndClass(card, "h3", "text-sm", "font-semibold", "text-slate-200", "text-center", "truncate")
+		if nameNode == nil {
+			continue
+		}
+		playerName := extractText(nameNode)
+
+		picksDiv := findNodeByClass(card, "p-3", "space-y-2", "bg-slate-800/50", "rounded-b-lg")
+		if picksDiv == nil {
+			continue
+		}
+
+		var picks []string
+		for n := picksDiv.FirstChild; n != nil; n = n.NextSibling {
+			if n.Type != html.ElementNode {
+				continue
+			}
+
+			class := getAttribute(n, "class")
+			if class == "" {
+				continue
+			}
+
+			if containsAll(class, "bg-blue-600") {
+				picks = append(picks, extractText(n))
+			} else if containsAll(class, "bg-red-600") {
+				picks = append(picks, "Skipped")
+			} else if containsAll(class, "border", "border-slate-600") {
+				text := extractText(n)
+				if text == "--" {
+					picks = append(picks, "")
+				}
+			}
+		}
+
+		allPicks = append(allPicks, CurrentPicks{
+			PlayerName: playerName,
+			Picks:      picks,
+		})
+	}
+
+	return allPicks
+}
+
+func findNodeById(n *html.Node, id string) *html.Node {
+	if n.Type == html.ElementNode {
+		for _, attr := range n.Attr {
+			if attr.Key == "id" && attr.Val == id {
+				return n
+			}
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if found := findNodeById(c, id); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func findNodesByClass(n *html.Node, classParts ...string) []*html.Node {
+	var results []*html.Node
+	if n.Type == html.ElementNode {
+		class := getAttribute(n, "class")
+		if class != "" && containsAll(class, classParts...) {
+			results = append(results, n)
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		results = append(results, findNodesByClass(c, classParts...)...)
+	}
+	return results
+}
+
+func findNodeByClass(n *html.Node, classParts ...string) *html.Node {
+	if n.Type == html.ElementNode {
+		class := getAttribute(n, "class")
+		if class != "" && containsAll(class, classParts...) {
+			return n
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if found := findNodeByClass(c, classParts...); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func findNodeByTagAndClass(n *html.Node, tag string, classParts ...string) *html.Node {
+	if n.Type == html.ElementNode && n.Data == tag {
+		class := getAttribute(n, "class")
+		if class != "" && containsAll(class, classParts...) {
+			return n
+		}
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if found := findNodeByTagAndClass(c, tag, classParts...); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func getAttribute(n *html.Node, key string) string {
+	for _, attr := range n.Attr {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+	return ""
+}
+
+func extractText(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	var sb strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		sb.WriteString(extractText(c))
+	}
+	return sb.String()
+}
+
+func containsAll(s string, parts ...string) bool {
+	for _, part := range parts {
+		if !strings.Contains(s, part) {
+			return false
+		}
+	}
+	return true
 }
 
 // True if pick was made successfully

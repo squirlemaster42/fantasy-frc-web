@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
 	"os/exec"
+	"strconv"
 )
 
 const  (
@@ -26,6 +28,8 @@ func main() {
 	owner, draft := initDraft(users)
 
 	// Have play make picks in a random order. Some picks being valid and some being invalid
+	sameSession := false
+	additionalPrompt := ""
 	for getCurrentDraftStatus(owner, draft.Id) != "Teams Playing" {
 		var pickingPlayer *User
 		for _, player := range users {
@@ -40,27 +44,42 @@ func main() {
 			panic("failed to find picking player")
 		}
 
-		pick := 0
-		slog.Info("Got picking player", "Username", pick)
+		nextPick, err := requestNextDraftPick(pickingPlayer, draft.Id, sameSession, additionalPrompt)
+		if err != nil {
+			additionalPrompt = "Make sure your pick is only a single team number and contains no additional reasoning"
+			continue
+		}
 
-		makePickRequest(draft.Id, pickingPlayer, 0)
-		slog.Info("Picking round made", "Team", pick)
+		slog.Info("Got picking player", "Username", pickingPlayer.Username, "Pick", nextPick)
+
+		makePickRequest(draft.Id, pickingPlayer, nextPick)
+		slog.Info("Picking round made", "Team", nextPick)
 	}
 }
 
-func requestNextDraftPick(pickingPlayer *User, sameSession bool) (int, error) {
+func requestNextDraftPick(pickingPlayer *User, draftId int, sameSession bool, additionalPrompt string) (int, error) {
 	var flags []string
 	if sameSession {
 		flags = append(flags, "-c")
 	}
 
-	// TODO Get current picks
+	currentPicks, err := getCurrentDraftPicks(pickingPlayer, draftId)
+	if err != nil {
+		return -1, nil
+	}
+
+	json, err := json.Marshal(currentPicks)
+	if err != nil {
+		return -1, err
+	}
+
 	prompt := fmt.Sprintf(
-		"%s %s Your name is %s. The current picks in the draft for each player are %s.",
+		"%s %s Your name is %s. The current picks in the draft for each player are %s. %s",
 		SystemPrompt,
 		pickingPlayer.Persona.PersonaPrompt,
 		pickingPlayer.Username,
-		"",
+		json,
+		additionalPrompt,
 	)
 
 	resp, err := callOpencode(prompt, flags...)
@@ -69,7 +88,7 @@ func requestNextDraftPick(pickingPlayer *User, sameSession bool) (int, error) {
 	}
 	fmt.Println(resp)
 
-	return 0, nil
+	return strconv.Atoi(resp)
 }
 
 func callOpencode(prompt string, flags ...string) (string, error) {
