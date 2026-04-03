@@ -42,6 +42,7 @@ func main() {
 	dbIp := os.Getenv("DB_IP")
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
+	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	log.InfoNoContext("Extracted Env Vars")
 	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 	log.InfoNoContext("Registered Database Connection")
@@ -93,9 +94,10 @@ func main() {
 		if err != nil {
 			log.WarnNoContext("Failed to read tba webhook file body", "Error", err)
 		} else {
-			handler.TbaWebhookSecret = string(body)
+			handler.TbaVerificationCode = string(body)
 		}
 	}
+	handler.TbaWebhookSecret = tbaWebhookSecret
 
 	CreateServer(serverPort, handler, sentryDNS)
 }

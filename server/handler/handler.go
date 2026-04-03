@@ -17,4 +17,5 @@ type Handler struct {
 	Scorer           *scorer.Scorer
 	AvatarStore      *cache.AvatarStore
 	TbaWebhookSecret string
+	TbaVerificationCode string
 }

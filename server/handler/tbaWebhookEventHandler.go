@@ -210,12 +210,12 @@ func (h *Handler) HandleVerificationEvent(messageData json.RawMessage) {
 		return
 	}
 
-	h.TbaWebhookSecret = event.VerificationKey
+	h.TbaVerificationCode = event.VerificationKey
 
 	// Only create the file if it doesn't already exist
 	_, err = os.Stat(utils.GetWebhookFilePath())
 	if os.IsNotExist(err) {
-		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaWebhookSecret), 0644)
+		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaVerificationCode), 0644)
 		if err != nil {
 			log.WarnNoContext("Failed to write tba webhook file body", "Error", err)
 		}
