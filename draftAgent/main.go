@@ -46,16 +46,29 @@ func main() {
 		makePickRequest(draft.Id, pickingPlayer, 0)
 		slog.Info("Picking round made", "Team", pick)
 	}
-
-	resp, err := callOpencode(SystemPrompt)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println(resp)
 }
 
-func requestNextDraftPick() (int, error) {
+func requestNextDraftPick(pickingPlayer *User, sameSession bool) (int, error) {
+	var flags []string
+	if sameSession {
+		flags = append(flags, "-c")
+	}
+
+	// TODO Get current picks
+	prompt := fmt.Sprintf(
+		"%s %s Your name is %s. The current picks in the draft for each player are %s.",
+		SystemPrompt,
+		pickingPlayer.Persona.PersonaPrompt,
+		pickingPlayer.Username,
+		"",
+	)
+
+	resp, err := callOpencode(prompt, flags...)
+	if err != nil {
+		return -1, err
+	}
+	fmt.Println(resp)
+
 	return 0, nil
 }
 

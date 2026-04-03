@@ -142,6 +142,15 @@ func isPickingPlayer (user *User, draftId int) bool {
 	return strings.Contains(string(body), `name="pickInput"`)
 }
 
+type CurrentPicks struct {
+	PlayerName string `json:"playerName"`
+	Picks string `json:"picks"`
+}
+
+func getCurrentDraftPicks(user *User) ([]CurrentPicks, error) {
+	return nil, nil
+}
+
 // TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
 func getRandomTeamId(validPicks []int) int {
 	if rand.IntN(5) != 1 {
