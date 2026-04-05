@@ -76,6 +76,7 @@ Fantasy FRC uses `make run` for running the app. The Makefile includes options t
 
 ### Build and Run
 
+Running for development with vebose logging and live UI updates:
 ```bash
 # Build and run the application
 make run-verbose
