@@ -138,8 +138,6 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	cookie.HttpOnly = true
 	cookie.Secure = true
 	c.SetCookie(cookie)
-	err = c.Redirect(http.StatusSeeOther, "/u/home")
-	assert.NoErrorCF(err, "Failed to redirect on successful registration")
-
+	c.Response().Header().Set("HX-Redirect", "/u/home")
 	return nil
 }

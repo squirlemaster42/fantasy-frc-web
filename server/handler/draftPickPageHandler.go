@@ -101,12 +101,13 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	isOwner := draftModel.Owner.UserUuid == userUuid
 	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
 	if err != nil {
-		return err
+		log.Warn(c.Request().Context(), "Attempting to get draft player", "Draft", draftId, "User Uuid", userUuid, "Error", err)
+		draftPlayerId = -1
 	}
 	isSkipping := model.ShouldSkipPick(h.Database, draftPlayerId)
 	log.Info(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
-	pickPageModel := draft.PickPage{
+	pickPageModel := draft.PickPage {
 		Draft:         draftModel,
 		PickUrl:       pickUrl,
 		NotifierUrl:   notifierUrl,
