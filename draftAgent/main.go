@@ -68,7 +68,7 @@ func main() {
 		pickMade, errMsg := makePickRequest(draft.Id, pickingPlayer, nextPick)
 		if !pickMade {
 			slog.Error("Pick failed", "Error", errMsg)
-			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s", errMsg)
+			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST World Championship.", errMsg)
 			continue
 		}
 		slog.Info("Picking round made", "Team", nextPick)
