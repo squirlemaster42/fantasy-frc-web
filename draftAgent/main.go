@@ -8,14 +8,15 @@ import (
 	"log/slog"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
-const  (
+const (
 	SystemPrompt = `Respond with a single team number. Do not respond with anything else. Do not give an explanation for your pick, just give the team number.`
 )
 
 type DrafterPersona struct {
-	Model string `json:"Model"`
+	Model         string `json:"Model"`
 	PersonaPrompt string `json:"PersonaPrompt"`
 }
 
@@ -25,7 +26,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	owner, draft := initDraft(users)
+	draft := Draft {
+		Id: 2,
+	}
+
+	var owner *User
+	for _, user := range users {
+		if user.Username == "AgentEight" {
+			owner = user
+		}
+	}
+
+	//owner, draft := initDraft(users)
+	slog.Info("Created draft", "Id", draft.Id)
 
 	// Have play make picks in a random order. Some picks being valid and some being invalid
 	sameSession := false
@@ -36,7 +49,6 @@ func main() {
 			if isPickingPlayer(player, draft.Id) {
 				pickingPlayer = player
 				break
-
 			}
 		}
 
@@ -46,14 +58,22 @@ func main() {
 
 		nextPick, err := requestNextDraftPick(pickingPlayer, draft.Id, sameSession, additionalPrompt)
 		if err != nil {
+			slog.Info("Opencode pick was not a number", "Pick", nextPick, "Error", err)
 			additionalPrompt = "Make sure your pick is only a single team number and contains no additional reasoning"
 			continue
 		}
 
 		slog.Info("Got picking player", "Username", pickingPlayer.Username, "Pick", nextPick)
 
-		makePickRequest(draft.Id, pickingPlayer, nextPick)
+		pickMade, errMsg := makePickRequest(draft.Id, pickingPlayer, nextPick)
+		if !pickMade {
+			slog.Error("Pick failed", "Error", errMsg)
+			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s", errMsg)
+			continue
+		}
 		slog.Info("Picking round made", "Team", nextPick)
+		sameSession = false
+		additionalPrompt = ""
 	}
 }
 
@@ -82,13 +102,16 @@ func requestNextDraftPick(pickingPlayer *User, draftId int, sameSession bool, ad
 		additionalPrompt,
 	)
 
+	slog.Info("Prompting opencode for a pick", "Promot", prompt)
+
 	resp, err := callOpencode(prompt, flags...)
 	if err != nil {
 		return -1, err
 	}
-	fmt.Println(resp)
+	slog.Info("Got next pick from opencode", "Pick Response", resp)
 
-	return strconv.Atoi(resp)
+
+	return strconv.Atoi(strings.TrimSpace(resp))
 }
 
 func callOpencode(prompt string, flags ...string) (string, error) {

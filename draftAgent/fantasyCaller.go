@@ -34,7 +34,7 @@ type Draft struct {
 }
 
 const (
-	target = "http://localhost:7331"
+	target = "https://fantasy-frc.cfh.sh"
 )
 
 func loadUserConfig(path string) (string, error) {
@@ -203,11 +203,6 @@ func parseCurrentDraftPicks(htmlContent string) []CurrentPicks {
 				picks = append(picks, extractText(n))
 			} else if containsAll(class, "bg-red-600") {
 				picks = append(picks, "Skipped")
-			} else if containsAll(class, "border", "border-slate-600") {
-				text := extractText(n)
-				if text == "--" {
-					picks = append(picks, "")
-				}
 			}
 		}
 
@@ -309,8 +304,8 @@ func containsAll(s string, parts ...string) bool {
 	return true
 }
 
-// True if pick was made successfully
-func makePickRequest(draftId int, user *User, team int) bool {
+// Returns (success, errorMessage) - errorMessage is empty if pick was made successfully
+func makePickRequest(draftId int, user *User, team int) (bool, string) {
 	slog.Info("Make Pick", "Draft Id", draftId, "User", user.Username, "Team", team)
 	form := url.Values{}
 	form.Add("pickInput", strconv.Itoa(team))
@@ -334,7 +329,22 @@ func makePickRequest(draftId int, user *User, team int) bool {
 	}
 	defer resp.Body.Close()
 
-	return !strings.Contains(string(body), "id=\"pickError\"")
+	bodyStr := string(body)
+	hasError := strings.Contains(bodyStr, "id=\"pickError\"")
+
+	if hasError {
+		doc, err := html.Parse(strings.NewReader(bodyStr))
+		if err != nil {
+			return false, ""
+		}
+		errorDiv := findNodeById(doc, "pickError")
+		if errorDiv != nil {
+			return false, extractText(errorDiv)
+		}
+		return false, ""
+	}
+
+	return true, ""
 }
 
 func selectRandomPlayer(users map[string]*User) *User {
