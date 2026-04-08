@@ -82,9 +82,9 @@ type MatchTeamScore struct {
 }
 
 // GetQualificationReturns individual qualification match scores for a team
-func GetQualificationMatches(database *sql.DB, tbaId string) []MatchTeamScore {
+func GetMatchScores(database *sql.DB, tbaId string) []MatchTeamScore {
 	query := `
-		Select 
+		Select
 			mt.Match_tbaId,
 			mt.Alliance,
 			Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End As Score,
@@ -92,8 +92,6 @@ func GetQualificationMatches(database *sql.DB, tbaId string) []MatchTeamScore {
 		From Matches_Teams mt
 		Inner Join Matches m On mt.Match_tbaId = m.tbaId
 		Where mt.Team_TbaId = $1
-		And mt.Match_tbaId Like '%_qm%'
-		And mt.Isdqed = false
 		Order By mt.Match_tbaId`
 
 	assert := assert.CreateAssertWithContext("Get Qualification Matches")
@@ -102,18 +100,18 @@ func GetQualificationMatches(database *sql.DB, tbaId string) []MatchTeamScore {
 	assert.NoError(err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("GetQualificationMatches: Failed to close statement", "error", err)
+			log.WarnNoContext("GetMatchScores: Failed to close statement", "error", err)
 		}
 	}()
 
 	rows, err := stmt.Query(tbaId)
 	if err != nil {
-		log.ErrorNoContext("Failed to get qualification matches for team", "Team", tbaId, "Error", err)
+		log.ErrorNoContext("Failed to get match scores for team", "Team", tbaId, "Error", err)
 		return nil
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.WarnNoContext("GetQualificationMatches: Failed to close rows", "error", err)
+			log.WarnNoContext("GetMatchScores: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -122,14 +120,14 @@ func GetQualificationMatches(database *sql.DB, tbaId string) []MatchTeamScore {
 		var match MatchTeamScore
 		err := rows.Scan(&match.MatchTbaId, &match.Alliance, &match.Score, &match.IsDqed)
 		if err != nil {
-			log.WarnNoContext("Failed to scan qualification match", "Team", tbaId, "Error", err)
+			log.WarnNoContext("Failed to scan match scores", "Team", tbaId, "Error", err)
 			return nil
 		}
 		matches = append(matches, match)
 	}
 
 	if err = rows.Err(); err != nil {
-		log.ErrorNoContext("Error iterating qualification matches", "Team", tbaId, "Error", err)
+		log.ErrorNoContext("Error iterating matches scores", "Team", tbaId, "Error", err)
 		return nil
 	}
 

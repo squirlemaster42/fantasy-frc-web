@@ -30,7 +30,7 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
 	scores := model.GetScore(h.Database, "frc"+teamNumber)
 
 	// Get qualification matches
-	qualificationMatches := model.GetQualificationMatches(h.Database, "frc"+teamNumber)
+	qualificationMatches := model.GetMatchScores(h.Database, "frc"+teamNumber)
 
 	team := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
 	return Render(c, team)

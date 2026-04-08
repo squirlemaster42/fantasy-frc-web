@@ -97,21 +97,34 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                 </div>
             </div>
 
-            <!-- Qualification Matches Section -->
+            <!-- Matches Section -->
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-slate-100 mb-4">Qualification Matches</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     for _, match := range qualificationMatches {
-                    <div class="card bg-slate-800 shadow-lg rounded-xl border border-slate-700">
-                        <div class="card-body p-4">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Qualification {match.MatchTbaId}</div>
-                                    <div class="text-2xl font-bold text-slate-100">{match.Score}</div>
+                        if match.IsDqed {
+                            <div class="card bg-red-800 shadow-lg rounded-xl border border-slate-700">
+                                <div class="card-body p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Qualification {match.MatchTbaId}</div>
+                                            <div class="text-2xl font-bold text-slate-100">{match.Score}</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        } else {
+                            <div class="card bg-slate-800 shadow-lg rounded-xl border border-slate-700">
+                                <div class="card-body p-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide">Qualification {match.MatchTbaId}</div>
+                                            <div class="text-2xl font-bold text-slate-100">{match.Score}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
                     }
                 </div>
             </div>
