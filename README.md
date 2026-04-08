@@ -27,7 +27,7 @@ the entire drafting and scoring process for the Fantasy FRC.
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.24+. Current testing against Go 1.24.
+Fantasy FRC is built using Go 1.25+. Current testing against Go 1.25.
 
 ### Install Templ
 
