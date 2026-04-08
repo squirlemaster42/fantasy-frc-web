@@ -73,6 +73,69 @@ func UpdateTeamAllianceScore(database *sql.DB, tbaId string, allianceScore int16
 	assert.NoError(err, "Failed to associate team")
 }
 
+// MatchTeamScore represents a team's score in a specific match
+type MatchTeamScore struct {
+	MatchTbaId string
+	Alliance   string // "Red" or "Blue"
+	Score      int
+	IsDqed     bool
+}
+
+// GetQualificationReturns individual qualification match scores for a team
+func GetQualificationMatches(database *sql.DB, tbaId string) []MatchTeamScore {
+	query := `
+		Select 
+			mt.Match_tbaId,
+			mt.Alliance,
+			Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End As Score,
+			mt.Isdqed
+		From Matches_Teams mt
+		Inner Join Matches m On mt.Match_tbaId = m.tbaId
+		Where mt.Team_TbaId = $1
+		And mt.Match_tbaId Like '%_qm%'
+		And mt.Isdqed = false
+		Order By mt.Match_tbaId`
+
+	assert := assert.CreateAssertWithContext("Get Qualification Matches")
+	assert.AddContext("TbaId", tbaId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("GetQualificationMatches: Failed to close statement", "error", err)
+		}
+	}()
+
+	rows, err := stmt.Query(tbaId)
+	if err != nil {
+		log.ErrorNoContext("Failed to get qualification matches for team", "Team", tbaId, "Error", err)
+		return nil
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.WarnNoContext("GetQualificationMatches: Failed to close rows", "error", err)
+		}
+	}()
+
+	var matches []MatchTeamScore
+	for rows.Next() {
+		var match MatchTeamScore
+		err := rows.Scan(&match.MatchTbaId, &match.Alliance, &match.Score, &match.IsDqed)
+		if err != nil {
+			log.WarnNoContext("Failed to scan qualification match", "Team", tbaId, "Error", err)
+			return nil
+		}
+		matches = append(matches, match)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.ErrorNoContext("Error iterating qualification matches", "Team", tbaId, "Error", err)
+		return nil
+	}
+
+	return matches
+}
+
 func ValidPick(database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
 	if tbaId == "" {
 		return false, errors.New("no team entered")

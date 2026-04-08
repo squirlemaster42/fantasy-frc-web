@@ -70,7 +70,7 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 
 	scores := model.GetScore(h.Database, "frc"+teamNumber)
 
-	teamScoreReport := team.TeamScoreReport(teamNumber, scores)
+	teamScoreReport := team.TeamScoreReport(teamNumber, scores, []model.MatchTeamScore{})
 	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, isOwner)
 	return Render(c, draftTeamScore)
 }
