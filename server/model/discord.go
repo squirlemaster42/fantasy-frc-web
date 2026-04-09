@@ -11,7 +11,7 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (string, error) {
 	query := `
 		Select
 			u.DiscordId
-		From DraftPlayers
+		From DraftPlayers dp
 		Inner Join Users u On u.UserUUID = dp.UserUUID
 		Where dp.Id = $1
 	`
