@@ -12,6 +12,13 @@ import (
 
 func Events() []string {
 	return []string{
+        "2026cascmp",
+        "2026cancmp",
+	}
+}
+
+func EventsChamps() []string {
+	return []string{
 		"2026arc",
 		"2026cur",
 		"2026dal",
@@ -22,6 +29,10 @@ func Events() []string {
 		"2026new",
 		"2026cmptx",
 	}
+}
+
+func Einstein() string {
+	return "2026cmptx"
 }
 
 func GetUpdateUrl(draftId int) string {
@@ -159,10 +170,6 @@ func GetPickExpirationTime(t time.Time) time.Time {
 	} else {
 		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(PICK_TIME)
 	}
-}
-
-func Einstein() string {
-	return "2026cmptx"
 }
 
 // Return true if matchA comes before matchB
