@@ -43,7 +43,7 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (string, error) {
 func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {
 	query := `
 		Select
-			d.DiscordWebhook,
+			d.DiscordWebhook
 		From Drafts d
 		Where d.Id = $1
 	`
