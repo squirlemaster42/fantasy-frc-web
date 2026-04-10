@@ -62,13 +62,23 @@ type DraftPlayer struct {
 }
 
 func (d *DraftPlayer) String() string {
+	var stringBuilder strings.Builder
+	for i, p := range d.Picks {
+		stringBuilder.WriteString("\nPick - ")
+		stringBuilder.WriteString(strconv.Itoa(i))
+		stringBuilder.WriteString(" {\n")
+		stringBuilder.WriteString(p.String())
+		stringBuilder.WriteString(" \n}")
+	}
+
 	var playerOrderStr string
 	if d.PlayerOrder.Valid {
 		playerOrderStr = fmt.Sprintf("%d", d.PlayerOrder.Int16)
 	} else {
 		playerOrderStr = "NULL"
 	}
-	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n}", d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending)
+	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n Picks: %s\n}",
+		d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending, stringBuilder.String())
 }
 
 type Pick struct {
@@ -532,7 +542,7 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 				Picks.Skipped
               From Picks
               Where Picks.player = $1
-              Order By Picks.PickTime Asc;`
+              Order By Picks.AvailableTime Asc;`
 
 	assert := assert.CreateAssertWithContext("Get Picks")
 	assert.AddContext("Draft Player Id", draftPlayerId)
