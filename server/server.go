@@ -46,7 +46,6 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 		cacheControlMiddleware,
 	)
 
-	app.Use(echomiddleware.Gzip())
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(sentryecho.New(sentryecho.Options{
@@ -55,18 +54,19 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 	app.Use(middleware.MetricsMiddleware())
 
 	//Setup Routes
-	app.GET("/", h.HandleViewLanding)
-	app.GET("/login", h.HandleViewLogin)
-	app.POST("/login", h.HandleLoginPost)
-	app.GET("/register", h.HandleViewRegister)
-	app.POST("/register", h.HandlerRegisterPost)
-	app.POST("/logout", h.HandleLogoutPost)
-	app.POST("/tbaWebhook", h.ConsumeTbaWebhook)
+	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
+	app.GET("/login", h.HandleViewLogin, echomiddleware.Gzip())
+	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip())
+	app.GET("/register", h.HandleViewRegister, echomiddleware.Gzip())
+	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip())
+	app.POST("/logout", h.HandleLogoutPost, echomiddleware.Gzip())
+	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
 
 	protected := app.Group("/u", auth.Authenticate)
+	protected.Use(echomiddleware.Gzip())
 	protected.GET("/home", h.HandleViewHome)
 	protected.GET("/createDraft", h.HandleViewCreateDraft)
 	protected.POST("/createDraft", h.HandleCreateDraftPost)
