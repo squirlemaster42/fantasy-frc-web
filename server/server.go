@@ -66,6 +66,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
+	app.GET("/logs", h.StreamLogsHandler, metricAuth.MetricsAuthMiddleware())
 
 	protected := app.Group("/u", auth.Authenticate)
 	protected.Use(echomiddleware.Gzip())
