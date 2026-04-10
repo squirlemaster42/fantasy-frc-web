@@ -56,10 +56,13 @@ func main() {
 			panic("failed to find picking player")
 		}
 
+		slog.Info("Starting pick round", "Picking player", pickingPlayer.Username, "Continue", sameSession)
+
 		nextPick, err := requestNextDraftPick(pickingPlayer, draft.Id, sameSession, additionalPrompt)
 		if err != nil {
 			slog.Info("Opencode pick was not a number", "Pick", nextPick, "Error", err)
 			additionalPrompt = "Make sure your pick is only a single team number and contains no additional reasoning"
+			sameSession = true
 			continue
 		}
 
@@ -68,7 +71,8 @@ func main() {
 		pickMade, errMsg := makePickRequest(draft.Id, pickingPlayer, nextPick)
 		if !pickMade {
 			slog.Error("Pick failed", "Error", errMsg)
-			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST World Championship.", errMsg)
+			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST California District Championship. You can use The Blue Alliance website to figure out what teams are at the event.", errMsg)
+			sameSession = true
 			continue
 		}
 		slog.Info("Picking round made", "Team", nextPick)
@@ -102,7 +106,7 @@ func requestNextDraftPick(pickingPlayer *User, draftId int, sameSession bool, ad
 		additionalPrompt,
 	)
 
-	slog.Info("Prompting opencode for a pick", "Promot", prompt)
+	slog.Info("Prompting opencode for a pick", "Prompt", prompt)
 
 	resp, err := callOpencode(prompt, flags...)
 	if err != nil {

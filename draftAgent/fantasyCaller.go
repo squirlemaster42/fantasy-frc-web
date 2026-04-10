@@ -26,7 +26,7 @@ type User struct {
 	Client   http.Client
 	Uuid     string
 	IsOwner  bool
-	Persona  DrafterPersona `json:"DrafterPersona"`
+	Persona  DrafterPersona `json:"DraftPersona"`
 }
 
 type Draft struct {
@@ -62,7 +62,7 @@ func initUsers(configPath string) ([]*User, error) {
 	}
 
 	for i, user := range users {
-		users[i] = createUser(user.Username, user.Password)
+		users[i] = createUser(user.Username, user.Password, user.Persona)
 	}
 	populateAuthToks(users)
 
@@ -528,7 +528,7 @@ func getInviteId(body string) (int, bool) {
 	return id, true
 }
 
-func createUser(username string, password string) *User {
+func createUser(username string, password string, persona DrafterPersona) *User {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		panic(err)
@@ -539,6 +539,7 @@ func createUser(username string, password string) *User {
 		Client: http.Client{
 			Jar: jar,
 		},
+		Persona: persona,
 	}
 }
 
