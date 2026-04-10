@@ -149,6 +149,7 @@ if fromProtected {
         <div class="md:hidden">
             <button
                 id="mobile-menu-btn"
+                aria-label="Open menu"
                 class="text-slate-300 hover:text-white p-2"
                 onclick="
                     document.getElementById('mobile-menu').classList.toggle('hidden');
@@ -169,6 +170,7 @@ if fromProtected {
         <div id="mobile-menu" class="hidden md:hidden fixed inset-0 top-16 bg-slate-900 border-t border-slate-700 z-40 overflow-y-auto">
             <div class="flex justify-end px-4 py-2">
                 <button
+                    aria-label="Close menu"
                     onclick="
                         document.getElementById('mobile-menu').classList.toggle('hidden');
                         document.getElementById('menu-icon').classList.toggle('hidden');
