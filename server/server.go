@@ -32,6 +32,8 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 		log.ErrorNoContext("Sentry initialize failed", "Error", err)
 	}
 
+	middleware.InitMetrics()
+
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
