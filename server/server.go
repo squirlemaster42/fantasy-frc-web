@@ -13,9 +13,10 @@ import (
 	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
+func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metricSecret string) {
 	log.InfoNoContext("Starting Server")
 	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
@@ -51,6 +52,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	app.Use(sentryecho.New(sentryecho.Options{
 		Repanic: true,
 	}))
+	app.Use(middleware.MetricsMiddleware())
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding)
@@ -60,6 +62,9 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string) {
 	app.POST("/register", h.HandlerRegisterPost)
 	app.POST("/logout", h.HandleLogoutPost)
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook)
+
+	metricAuth := authentication.NewMetricAuth(metricSecret)
+	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
 
 	protected := app.Group("/u", auth.Authenticate)
 	protected.GET("/home", h.HandleViewHome)

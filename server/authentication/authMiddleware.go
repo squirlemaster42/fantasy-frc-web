@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"server/log"
 	"server/model"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -100,5 +101,39 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		return next(c)
+	}
+}
+
+type MetricAuth struct {
+	secret string
+}
+
+func NewMetricAuth(secret string) *MetricAuth {
+	if secret == "" {
+		panic("usage: METRIC_SECRET environment variable not set")
+	}
+
+	return &MetricAuth{
+		secret: secret,
+	}
+}
+
+func (m *MetricAuth) MetricsAuthMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			auth := c.Request().Header.Get("Authorization")
+
+			if auth == "" {
+				return c.NoContent(http.StatusUnauthorized)
+			}
+
+			// Expect: "Bearer <token>"
+			parts := strings.SplitN(auth, " ", 2)
+			if len(parts) != 2 || parts[0] != "Bearer" || parts[1] != m.secret {
+				return c.NoContent(http.StatusForbidden)
+			}
+
+			return next(c)
+		}
 	}
 }

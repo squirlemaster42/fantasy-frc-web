@@ -43,6 +43,7 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
+	metricSecret := os.Getenv("METRIC_SECRET")
 	log.InfoNoContext("Extracted Env Vars")
 	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 	log.InfoNoContext("Registered Database Connection")
@@ -99,5 +100,5 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	CreateServer(serverPort, handler, sentryDNS)
+	CreateServer(serverPort, handler, sentryDNS, metricSecret)
 }
