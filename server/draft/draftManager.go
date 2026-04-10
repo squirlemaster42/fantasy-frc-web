@@ -17,10 +17,10 @@ import (
 
 func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, discordBus *discord.DiscordWebhookBus) *DraftManager {
 	draftManager := &DraftManager{
-		drafts: map[int]*Draft{},
-		database: database,
+		drafts:     map[int]*Draft{},
+		database:   database,
 		tbaHandler: tbaHandler,
-		states: setupStates(database),
+		states:     setupStates(database),
 		discordBus: discordBus,
 	}
 
@@ -127,13 +127,13 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
 
 type DraftManager struct {
 	//TODO this map should be thread safe
-	drafts map[int]*Draft
-	loadLocks sync.Map
+	drafts          map[int]*Draft
+	loadLocks       sync.Map
 	transitionLocks sync.Map
-	database *sql.DB
-	tbaHandler *tbaHandler.TbaHandler
-	states map[model.DraftState]*state
-	discordBus *discord.DiscordWebhookBus
+	database        *sql.DB
+	tbaHandler      *tbaHandler.TbaHandler
+	states          map[model.DraftState]*state
+	discordBus      *discord.DiscordWebhookBus
 }
 
 func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
@@ -147,8 +147,19 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 	} else if reload {
 		log.DebugNoContext("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
+		log.DebugNoContext("GetDraft reload: acquired loadLock", "Draft Id", draftId)
 		draftModel, err := model.GetDraft(dm.database, draftId)
-		draft.Model = &draftModel
+		log.DebugNoContext("GetDraft reload: model.GetDraft returned", "Requested Draft Id", draftId, "Returned", draftModel.Id, "Error", err)
+		if draft != nil {
+			draft.Model = &draftModel
+		} else {
+			draft := Draft{
+				draftId:     draftId,
+				pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
+				Model:       &draftModel,
+			}
+			dm.drafts[draftId] = &draft
+		}
 		lock.Unlock()
 		log.DebugNoContext("Reloaded Draft", "Draft Id", draftId)
 		return *draft, err
@@ -159,10 +170,10 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		draftModel, err := model.GetDraft(dm.database, draftId)
 
 		//TODO we should probably check if we need to do this in the reload path
-		draft := Draft {
-			draftId: draftId,
+		draft := Draft{
+			draftId:     draftId,
 			pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
-			Model: &draftModel,
+			Model:       &draftModel,
 		}
 		dm.drafts[draftId] = &draft
 		lock.Unlock()
@@ -338,18 +349,25 @@ func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListen
 }
 
 func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
+	log.InfoNoContext("UpdateDraft: acquiring locks", "Draft Id", draftModel.Id)
 	loadLock := dm.getLoadLock(draftModel.Id)
 	transitionLock := dm.getTransitionLock(draftModel.Id)
 	loadLock.Lock()
+	log.InfoNoContext("UpdateDraft: acquired loadLock", "Draft Id", draftModel.Id)
 	transitionLock.Lock()
-	defer loadLock.Unlock()
+	log.InfoNoContext("UpdateDraft: acquired transitionLock", "Draft Id", draftModel.Id)
 	defer transitionLock.Unlock()
+	log.InfoNoContext("UpdateDraft: calling model.UpdateDraft", "Draft Id", draftModel.Id)
 	err := model.UpdateDraft(dm.database, &draftModel)
+	log.InfoNoContext("UpdateDraft: model.UpdateDraft returned", "Draft Id", draftModel.Id, "Error", err)
+	loadLock.Unlock()
 	if err != nil {
 		log.WarnNoContext("Failed to update draft", "Error", err)
 		return err
 	}
+	log.InfoNoContext("UpdateDraft: calling GetDraft with reload", "Draft Id", draftModel.Id)
 	_, err = dm.GetDraft(draftModel.Id, true)
+	log.InfoNoContext("UpdateDraft: GetDraft returned", "Draft Id", draftModel.Id, "Error", err)
 	return err
 }
 
