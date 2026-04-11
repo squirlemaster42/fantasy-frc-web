@@ -1405,7 +1405,8 @@ func GetDraftScore(database *sql.DB, draftId int) []DraftPlayer {
     From Picks p
     Inner Join DraftPlayers dp On p.Player = dp.Id
     Inner Join Users u On u.UserUuid = dp.UserUuid
-    Where dp.DraftId = $1;`
+    Where dp.DraftId = $1
+	and p.Pick Is Not Null;`
 
 	stmt, err := database.Prepare(query)
 	assert.NoError(err, "Failed to prepare query")
