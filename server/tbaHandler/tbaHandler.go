@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"server/assert"
 	"server/log"
+	"server/metrics"
 	"server/swagger"
 	"time"
 )
@@ -103,14 +104,20 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 	if err == nil {
 		log.DebugNoContext("Found cached data", "Url", url, "Etag", etag)
 		req.Header.Add("If-None-Match", etag)
+		metrics.RecordTbaCacheHit("hit")
 	} else {
 		log.WarnNoContext("Did not find cached tba data", "Url", url, "Error", err)
+		metrics.RecordTbaCacheHit("miss")
 	}
 
 	req.Header.Add("X-TBA-Auth-Key", t.tbaToken)
+	start := time.Now()
 	resp, err := t.client.Do(req)
+	duration := time.Since(start)
+
 	if err != nil {
 		log.ErrorNoContext("Failed to run tba request", "Error", err)
+		metrics.RecordTbaRequest(url, 0, duration)
 		return nil
 	}
 
@@ -125,11 +132,16 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 	switch resp.StatusCode {
 	case http.StatusNotModified:
 		log.DebugNoContext("Got not modified from tba, using cache data", "Url", url)
+		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
+		metrics.RecordTbaCacheHit("not_modified")
 		return body
 	case http.StatusNotFound:
+		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
 		return nil
 	default:
 		log.DebugNoContext("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
+		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
+		metrics.RecordTbaCacheHit("miss")
 	}
 
 	body, err = io.ReadAll(resp.Body)

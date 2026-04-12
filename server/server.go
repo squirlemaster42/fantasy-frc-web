@@ -7,6 +7,7 @@ import (
 	"server/authentication"
 	"server/handler"
 	"server/log"
+	"server/metrics"
 	"server/middleware"
 
 	"github.com/getsentry/sentry-go"
@@ -32,7 +33,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 		log.ErrorNoContext("Sentry initialize failed", "Error", err)
 	}
 
-	middleware.InitMetrics()
+	metrics.InitAllMetrics()
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -53,7 +54,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 	app.Use(sentryecho.New(sentryecho.Options{
 		Repanic: true,
 	}))
-	app.Use(middleware.MetricsMiddleware())
+	app.Use(metrics.MetricsMiddleware())
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
