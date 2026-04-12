@@ -2,7 +2,7 @@
 
 Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FRC server.
 
-> Last updated: 2026-01-21
+> Last updated: 2026-04-12
 
 ---
 
@@ -60,16 +60,19 @@ Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FR
 ### Architecture
 
 **System Overview (`architecture/system-overview.md`)**
+- [x] Created placeholder file
 - [ ] Add detailed component descriptions
 - [ ] Add deployment diagrams
 - [ ] Add scaling considerations
 
 **Data Flow (`architecture/data-flow.md`)**
+- [x] Created placeholder file
 - [ ] Add detailed data transformation examples
 - [ ] Add performance benchmarks
 - [ ] Add security audit procedures
 
 **Component Interactions (`architecture/component-interactions.md`)**
+- [x] Created placeholder file
 - [ ] Add detailed interaction diagrams
 - [ ] Add error handling flows
 - [ ] Add performance metrics
@@ -77,6 +80,7 @@ Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FR
 ### Database
 
 **Schema (`database/schema.md`)**
+- [x] Created placeholder file
 - [ ] Add query optimization guide
 - [ ] Add backup procedures
 - [ ] Add monitoring queries
@@ -84,11 +88,13 @@ Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FR
 ### Business Logic
 
 **Scoring (`business-logic/scoring.md`)**
+- [x] Created placeholder file
 - [ ] Add historical scoring examples
 - [ ] Add edge case handling details
 - [ ] Add performance optimization notes
 
 **Draft States (`business-logic/draft-states.md`)**
+- [x] Created placeholder file
 - [ ] Add detailed timing configuration examples
 - [ ] Add WebSocket message formats
 - [ ] Add administrative command documentation
@@ -96,6 +102,7 @@ Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FR
 ### Development
 
 **Setup (`development/setup.md`)**
+- [x] Created placeholder file
 - [ ] Add troubleshooting guide
 - [ ] Add performance profiling setup
 - [ ] Add CI/CD integration instructions
@@ -169,4 +176,4 @@ Example:
 
 ---
 
-*This document is maintained by the development team. Last sync: 2026-01-21*
+*This document is maintained by the development team. Last sync: 2026-04-12*
