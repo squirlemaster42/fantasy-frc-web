@@ -37,8 +37,8 @@ func (t *TbaHandler) checkCache(url string) ([]byte, string, error) {
 	assert := assert.CreateAssertWithContext("Check Tba Cache")
 	assert.AddContext("Url", url)
 
-	//Dont check the cache if we dont have a database
-	//This is probably because we are running a unit test
+	// Dont check the cache if we dont have a database
+	// This is probably because we are running a unit test
 	if t.database == nil {
 		return nil, "", nil
 	}
@@ -68,8 +68,8 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 	assert.AddContext("Url", url)
 	assert.AddContext("Etag", etag)
 
-	//Dont cache the data if we dont have a database
-	//This is probably because we are running a unit test
+	// Dont cache the data if we dont have a database
+	// This is probably because we are running a unit test
 	if t.database == nil {
 		return
 	}
@@ -89,8 +89,11 @@ func (t *TbaHandler) cacheData(url string, etag string, body []byte) {
 	}
 }
 
-func (t *TbaHandler) makeRequest(url string) []byte {
-	log.DebugNoContext("Making TBA request", "Url", url)
+// makeRequest makes a request to The Blue Alliance API.
+// url: The full URL to request
+// endpoint: The endpoint template for metrics (e.g., "/team/{team}/event/{event}/matches")
+func (t *TbaHandler) makeRequest(url string, endpoint string) []byte {
+	log.DebugNoContext("Making TBA request", "Url", url, "Endpoint", endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -117,7 +120,7 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 
 	if err != nil {
 		log.ErrorNoContext("Failed to run tba request", "Error", err)
-		metrics.RecordTbaRequest(url, 0, duration)
+		metrics.RecordTbaRequest(endpoint, 0, duration)
 		return nil
 	}
 
@@ -132,15 +135,15 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 	switch resp.StatusCode {
 	case http.StatusNotModified:
 		log.DebugNoContext("Got not modified from tba, using cache data", "Url", url)
-		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
+		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		metrics.RecordTbaCacheHit("not_modified")
 		return body
 	case http.StatusNotFound:
-		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
+		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		return nil
 	default:
 		log.DebugNoContext("Request to Tba returned", "Url", url, "Status", resp.StatusCode)
-		metrics.RecordTbaRequest(url, resp.StatusCode, duration)
+		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		metrics.RecordTbaCacheHit("miss")
 	}
 
@@ -155,10 +158,11 @@ func (t *TbaHandler) makeRequest(url string) []byte {
 	return body
 }
 
-// Make functions to make tba requests
+// MakeMatchListReq requests the list of matches for a team at an event from The Blue Alliance.
 func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.Match {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
-	jsonData := t.makeRequest(url)
+	endpoint := "/team/{team}/event/{event}/matches"
+	jsonData := t.makeRequest(url, endpoint)
 	var matches []swagger.Match
 	err := json.Unmarshal(jsonData, &matches)
 
@@ -170,10 +174,12 @@ func (t *TbaHandler) MakeMatchListReq(teamId string, eventId string) []swagger.M
 	return matches
 }
 
+// MakeEventListReq requests the list of events for a team from The Blue Alliance.
 func (t *TbaHandler) MakeEventListReq(teamId string) []string {
 	url := BASE_URL + "team/" + teamId + "/events/2026/keys"
+	endpoint := "/team/{team}/events/{year}/keys"
 	var events []string
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &events)
 
 	if err != nil {
@@ -184,10 +190,12 @@ func (t *TbaHandler) MakeEventListReq(teamId string) []string {
 	return events
 }
 
+// MakeMatchReq requests a single match from The Blue Alliance.
 func (t *TbaHandler) MakeMatchReq(matchId string) swagger.Match {
 	url := BASE_URL + "match/" + matchId
+	endpoint := "/match/{match}"
 	var match swagger.Match
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &match)
 
 	if err != nil {
@@ -198,10 +206,12 @@ func (t *TbaHandler) MakeMatchReq(matchId string) swagger.Match {
 	return match
 }
 
+// MakeMatchKeysRequest requests the match keys for a team at an event from The Blue Alliance.
 func (t *TbaHandler) MakeMatchKeysRequest(teamId string, eventId string) []string {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
+	endpoint := "/team/{team}/event/{event}/matches/keys"
 	var keys []string
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
@@ -212,10 +222,12 @@ func (t *TbaHandler) MakeMatchKeysRequest(teamId string, eventId string) []strin
 	return keys
 }
 
+// MakeEventMatchKeysRequest requests the match keys for an event from The Blue Alliance.
 func (t *TbaHandler) MakeEventMatchKeysRequest(eventId string) []string {
 	url := BASE_URL + "event/" + eventId + "/matches/keys"
+	endpoint := "/event/{event}/matches/keys"
 	var keys []string
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
@@ -226,10 +238,12 @@ func (t *TbaHandler) MakeEventMatchKeysRequest(eventId string) []string {
 	return keys
 }
 
+// MakeMatchKeysYearRequest requests the match keys for a team in a specific year from The Blue Alliance.
 func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
 	url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
+	endpoint := "/team/{team}/matches/{year}/keys"
 	var matches []string
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &matches)
 
 	if err != nil {
@@ -240,10 +254,12 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(teamId string) []string {
 	return matches
 }
 
+// MakeTeamEventStatusRequest requests the team event status from The Blue Alliance.
 func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) swagger.TeamEventStatus {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
+	endpoint := "/team/{team}/event/{event}/status"
 	var event swagger.TeamEventStatus
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &event)
 
 	if err != nil {
@@ -254,10 +270,12 @@ func (t *TbaHandler) MakeTeamEventStatusRequest(teamId string, eventId string) s
 	return event
 }
 
+// MakeTeamsAtEventRequest requests the teams at an event from The Blue Alliance.
 func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
 	url := BASE_URL + "event/" + eventId + "/teams/simple"
+	endpoint := "/event/{event}/teams/simple"
 	var teams []swagger.Team
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &teams)
 
 	if err != nil {
@@ -268,10 +286,12 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(eventId string) []swagger.Team {
 	return teams
 }
 
+// MakeEliminationAllianceRequest requests the elimination alliances for an event from The Blue Alliance.
 func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.EliminationAlliance {
 	url := BASE_URL + "event/" + eventId + "/alliances"
+	endpoint := "/event/{event}/alliances"
 	var alliances []swagger.EliminationAlliance
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &alliances)
 
 	if err != nil {
@@ -282,18 +302,18 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(eventId string) []swagger.El
 	return alliances
 }
 
+// MakeTeamAvatarRequest requests the team avatar/media from The Blue Alliance.
 func (t *TbaHandler) MakeTeamAvatarRequest(teamId string) (string, error) {
 	url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
+	endpoint := "/team/{team}/media/{year}"
 	var media []swagger.TeamMedia
-	jsonData := t.makeRequest(url)
+	jsonData := t.makeRequest(url, endpoint)
 	err := json.Unmarshal(jsonData, &media)
 
 	if err != nil {
 		return "", err
 	}
 
-	// The avatar seems to be the first value in the array
-	// so this loop should usually only run once
 	for _, m := range media {
 		if m.Type == "avatar" {
 			return m.Details.Base64Image, nil

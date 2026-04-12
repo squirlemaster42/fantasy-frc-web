@@ -1,14 +1,15 @@
 package metrics
 
 import (
-	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// TBA metrics for monitoring The Blue Alliance API requests.
 var (
+	// tbaRequestCount tracks total TBA API requests by endpoint and status code.
 	tbaRequestCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "tba_requests_total",
@@ -16,6 +17,7 @@ var (
 		},
 		[]string{"endpoint", "status"},
 	)
+	// tbaRequestDuration tracks TBA API request duration by endpoint.
 	tbaRequestDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "tba_request_duration_seconds",
@@ -24,6 +26,7 @@ var (
 		},
 		[]string{"endpoint"},
 	)
+	// tbaCacheHits tracks TBA cache hits and misses.
 	tbaCacheHits = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "tba_cache_hits_total",
@@ -31,13 +34,12 @@ var (
 		},
 		[]string{"result"},
 	)
-	tbaEndpointPattern = regexp.MustCompile(`/api/v3/(.+)`)
 )
 
-func RecordTbaRequest(url string, status int, duration time.Duration) {
-	endpoint := "unknown"
-	if matches := tbaEndpointPattern.FindStringSubmatch(url); len(matches) > 1 {
-		endpoint = matches[1]
+// RecordTbaRequest records a TBA API request's endpoint, status code, and duration.
+func RecordTbaRequest(endpoint string, status int, duration time.Duration) {
+	if endpoint == "" {
+		endpoint = "unknown"
 	}
 
 	tbaRequestCount.WithLabelValues(
@@ -48,6 +50,8 @@ func RecordTbaRequest(url string, status int, duration time.Duration) {
 	tbaRequestDuration.WithLabelValues(endpoint).Observe(duration.Seconds())
 }
 
+// RecordTbaCacheHit records a TBA cache hit or miss.
+// result should be "hit", "miss", or "not_modified".
 func RecordTbaCacheHit(result string) {
 	tbaCacheHits.WithLabelValues(result).Inc()
 }
