@@ -209,10 +209,14 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	log.InfoNoContext("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
 	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
 
-	lock := dm.getTransitionLock(draftId)
-	lock.Lock()
-	defer lock.Unlock()
-	log.DebugNoContext("Aquired transition lock", "Draft Id", draftId)
+	loadLock := dm.getLoadLock(draftId)
+	transitionLock := dm.getTransitionLock(draftId)
+	loadLock.Lock()
+	log.DebugNoContext("ExecuteDraftStateTransition: acquired loadLock", "Draft Id", draftId)
+	transitionLock.Lock()
+	log.DebugNoContext("ExecuteDraftStateTransition: acquired transitionLock", "Draft Id", draftId)
+	defer transitionLock.Unlock()
+	defer loadLock.Unlock()
 
 	draft, err := dm.GetDraft(draftId, false)
 	log.DebugNoContext("Loaded draft to execute transition", "Draft Id", draftId)
