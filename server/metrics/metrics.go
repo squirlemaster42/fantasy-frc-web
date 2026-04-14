@@ -1,11 +1,17 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"database/sql"
 
-func InitAllMetrics() {
+	"github.com/prometheus/client_golang/prometheus"
+	prometheuscollectors "github.com/prometheus/client_golang/prometheus/collectors"
+)
+
+func InitMetrics(database *sql.DB) {
 	prometheus.MustRegister(httpRequestCount)
 	prometheus.MustRegister(httpRequestDuration)
 	prometheus.MustRegister(tbaRequestCount)
 	prometheus.MustRegister(tbaRequestDuration)
 	prometheus.MustRegister(tbaCacheHits)
+	prometheus.MustRegister(prometheuscollectors.NewDBStatsCollector(database, "postgres"))
 }
