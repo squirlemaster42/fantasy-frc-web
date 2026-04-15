@@ -1,6 +1,6 @@
 ## Fantasy FRC Server
 
-Written in Go with templ and HTMX.
+Written in Go with Templ and HTMX.
 
 ## Setup
 
