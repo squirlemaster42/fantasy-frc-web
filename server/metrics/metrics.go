@@ -14,4 +14,6 @@ func InitMetrics(database *sql.DB) {
 	prometheus.MustRegister(tbaRequestDuration)
 	prometheus.MustRegister(tbaCacheHits)
 	prometheus.MustRegister(prometheuscollectors.NewDBStatsCollector(database, "postgres"))
+
+	InitDBQueryStats(database)
 }
