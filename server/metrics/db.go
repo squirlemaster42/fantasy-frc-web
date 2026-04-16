@@ -1,9 +1,7 @@
 package metrics
 
 import (
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"os"
 	"strconv"
 	"time"
@@ -116,7 +114,10 @@ func collectQueryStats(db *sql.DB) {
 				continue
 			}
 
-			queryID := makeQueryID(queryText)
+			queryID := queryText
+			if len(queryID) > 100 {
+				queryID = queryID[:100] + "..."
+			}
 
 			dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)
 			dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
@@ -124,9 +125,4 @@ func collectQueryStats(db *sql.DB) {
 		}
 		rows.Close()
 	}
-}
-
-func makeQueryID(query string) string {
-	hash := sha256.Sum256([]byte(query))
-	return hex.EncodeToString(hash[:8])
 }
