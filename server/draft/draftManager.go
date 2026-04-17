@@ -216,12 +216,12 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	transitionLock.Lock()
 	log.DebugNoContext("ExecuteDraftStateTransition: acquired transitionLock", "Draft Id", draftId)
 	defer transitionLock.Unlock()
-	defer loadLock.Unlock()
 
 	draft, err := dm.GetDraft(draftId, false)
 	log.DebugNoContext("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
 		log.WarnNoContext("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
+		loadLock.Unlock()
 		return err
 	}
 	assert.AddContext("Draft Id", draft.draftId)
@@ -235,6 +235,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	transition, transitionFound := state.transitions[requestedState]
 	if !transitionFound {
 		log.ErrorNoContext("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
+		loadLock.Unlock()
 		return &invalidStateTransitionError{
 			currentState:   draft.Model.Status,
 			requestedState: requestedState,
@@ -245,10 +246,12 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	err = transition.executeTransition(draft)
 	if err != nil {
 		log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		loadLock.Unlock()
 		return err
 	}
 	log.InfoNoContext("Executed draft state transition", "Draft Id", draftId)
 
+	loadLock.Unlock()
 	draft, err = dm.GetDraft(draftId, true)
 	log.DebugNoContext("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
 

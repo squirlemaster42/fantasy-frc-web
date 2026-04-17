@@ -105,7 +105,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 		draftPlayerId = -1
 	}
 	isSkipping := model.ShouldSkipPick(h.Database, draftPlayerId)
-	log.Info(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
+	log.Debug(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
 	fmt.Println(draftModel.String())
 
