@@ -21,7 +21,7 @@ import (
 
 func (h *Handler) ServePickPage(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Server Pick Page")
-	log.Info(c.Request().Context(), "Serving pick page", "Ip", c.RealIP())
+	log.Debug(c.Request().Context(), "Serving pick page", "Ip", c.RealIP())
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(err, "Failed to get user token")
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
@@ -44,7 +44,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	assert.NoError(err, "Failed to get user token")
 	draftIdStr := c.Param("id")
 	pick := "frc" + c.FormValue("pickInput")
-	log.Info(c.Request().Context(), "Attempting to pick team", "Team", pick)
+	log.Debug(c.Request().Context(), "Attempting to pick team", "Team", pick)
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
@@ -109,7 +109,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	fmt.Println(draftModel.String())
 
-	pickPageModel := draft.PickPage {
+	pickPageModel := draft.PickPage{
 		Draft:         draftModel,
 		PickUrl:       pickUrl,
 		NotifierUrl:   notifierUrl,
