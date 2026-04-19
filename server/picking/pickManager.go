@@ -169,10 +169,12 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 				DiscordId:             nextPickDiscordId,
 				Webhook:               draftWebhook,
 			}
-			err = p.discordBus.PostPickNotification(event)
-			if err != nil {
-				log.WarnNoContext("Failed to post discord webhook", "Error", err)
-			}
+			go func() {
+				err = p.discordBus.PostPickNotification(event)
+				if err != nil {
+					log.WarnNoContext("Failed to post discord webhook", "Error", err)
+				}
+			}()
 		} else {
 			log.InfoNoContext("Draft Complete", "Draft Id", p.draftId)
 			// Set draft to the teams playing state
