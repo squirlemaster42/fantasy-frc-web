@@ -74,7 +74,8 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		Status:      model.FILLING,
 	}
 
-	log.Info(c.Request().Context(), "Created Draft for user", "Draft", draftModel.String(), "User", username)
+	log.Debug(c.Request().Context(), "Created Draft for user", "User", username)
+	log.Debug(c.Request().Context(), "Created Draft for user", "Draft", draftModel.String(), "User", username)
 
 	draftId, err := model.CreateDraft(h.Database, &draftModel)
 	if err != nil {

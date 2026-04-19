@@ -13,18 +13,18 @@ import (
 )
 
 type PickManager struct {
-	draftId int
-	lock sync.Mutex
-	listeners []*PickListener
-	database *sql.DB
+	draftId    int
+	lock       sync.Mutex
+	listeners  []*PickListener
+	database   *sql.DB
 	tbaHandler *tbaHandler.TbaHandler
 	discordBus *discord.DiscordWebhookBus
 }
 
 type PickEvent struct {
 	Success bool
-	Err error
-	Pick model.Pick
+	Err     error
+	Pick    model.Pick
 	DraftId int
 }
 
@@ -34,8 +34,8 @@ type PickListener interface {
 
 func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus) *PickManager {
 	return &PickManager{
-		draftId: draftId,
-		database: database,
+		draftId:    draftId,
+		database:   database,
 		tbaHandler: tbaHandler,
 		discordBus: discordBus,
 	}
@@ -85,23 +85,28 @@ func (p *PickManager) UndoLastPick() error {
 
 func (p *PickManager) SkipCurrentPick() error {
 	p.lock.Lock()
-	defer p.lock.Unlock()
 	curPick, err := model.GetCurrentPick(p.database, p.draftId)
 	if err != nil {
+		p.lock.Unlock()
 		return err
 	}
 	nextPickPlayer := model.NextPick(p.database, p.draftId)
 	model.SkipPick(p.database, curPick.Id)
 	model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-	for _, listener := range p.listeners {
-		(*listener).ReceivePickEvent(PickEvent{
-			Pick:    model.Pick{},
-			Success: true,
-			Err:     nil,
-			DraftId: p.draftId,
-		})
+	event := PickEvent{
+		Pick:    model.Pick{},
+		Success: true,
+		Err:     nil,
+		DraftId: p.draftId,
 	}
+	p.lock.Unlock()
+
+	go func() {
+		for _, listener := range p.listeners {
+			(*listener).ReceivePickEvent(event)
+		}
+	}()
 	return nil
 }
 
@@ -158,11 +163,11 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 				log.WarnNoContext("Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
 			}
 
-			event := discord.NextPickDiscordEvent {
-				PreviousPickedTeam: pick.Pick.String,
+			event := discord.NextPickDiscordEvent{
+				PreviousPickedTeam:    pick.Pick.String,
 				PreviousPickDiscordId: currPickDiscordId,
-				DiscordId: nextPickDiscordId,
-				Webhook: draftWebhook,
+				DiscordId:             nextPickDiscordId,
+				Webhook:               draftWebhook,
 			}
 			err = p.discordBus.PostPickNotification(event)
 			if err != nil {

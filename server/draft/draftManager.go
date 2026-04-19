@@ -298,7 +298,7 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		}
 	}
 
-	draft.pickManager.NotifyListeners(picking.PickEvent{
+	go draft.pickManager.NotifyListeners(picking.PickEvent{
 		Pick:    pick,
 		Success: err == nil,
 		Err:     err,
