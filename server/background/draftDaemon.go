@@ -78,13 +78,11 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 	for _, draftId := range draftIds {
 		assert := assert.CreateAssertWithContext("Check For Drafts To Start")
 		assert.AddContext("Draft Id", draftId)
-		_, err := d.draftManager.GetDraft(draftId, false)
+		draft, err := d.draftManager.GetDraft(draftId, false)
 		if err != nil {
 			log.WarnNoContext("Failed to load draft", "Draft Id", draftId, "Error", err)
 			continue
 		}
-		draft, err := d.draftManager.GetDraft(draftId, false)
-		assert.NoError(err, "Failed to load draft")
 		assert.AddContext("Draft Status", draft.GetStatus())
 		assert.RunAssert(draft.GetStatus() == model.WAITING_TO_START, "Invalid draft status to transition to picking")
 		err = d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)

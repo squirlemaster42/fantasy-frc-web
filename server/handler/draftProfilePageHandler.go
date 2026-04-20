@@ -105,11 +105,11 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		Owner: model.User{
 			UserUuid: userUuid,
 		},
-		DisplayName: draftName,
-		Description: description,
-		Interval:    intInterval,
-		StartTime:   parsedStartTime,
-		EndTime:     parsedEndTime,
+		DisplayName:    draftName,
+		Description:    description,
+		Interval:       intInterval,
+		StartTime:      parsedStartTime,
+		EndTime:        parsedEndTime,
 		DiscordWebhook: discordWebhook,
 	}
 
@@ -129,7 +129,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
 	assert.NoErrorCF(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	log.Info(c.Request().Context(), "Got request to search users")
+	log.Debug(c.Request().Context(), "Got request to search users")
 
 	users, err := model.SearchUsers(h.Database, searchInput, draftId)
 	if err != nil {
@@ -186,7 +186,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	assert.NoError(err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
-	log.Info(c.Request().Context(), "Got request to search users")
+	log.Debug(c.Request().Context(), "Got request to search users")
 
 	users, err := model.SearchUsers(h.Database, searchInput, draftId)
 

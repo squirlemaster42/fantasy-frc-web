@@ -2,15 +2,16 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -19,8 +20,8 @@ import (
 )
 
 type User struct {
-	Username string
-	Password string
+	Username string `json:"Username"`
+	Password string `json:"Password"`
 	Client   http.Client
 	Uuid     string
 	IsOwner  bool
@@ -31,46 +32,17 @@ type Draft struct {
 }
 
 const (
-	target = "http://localhost:7331"
+	target = "https://fantasy-frc.cfh.sh"
 )
 
 func main() {
 	// Map Username to user struct
-	users := make(map[string]*User)
-
-	//Build map of usernames and passwords
-	users["UserOne"] = createUser("UserOne")
-	users["UserTwo"] = createUser("UserTwo")
-	users["UserThree"] = createUser("UserThree")
-	users["UserFour"] = createUser("UserFour")
-	users["UserFive"] = createUser("UserFive")
-	users["UserSix"] = createUser("UserSix")
-	users["UserSeven"] = createUser("UserSeven")
-	users["UserEight"] = createUser("UserEight")
-	populateAuthToks(users)
-
-	//Choose a user and create a draft
-	keys := reflect.ValueOf(users).MapKeys()
-	owner := users[keys[rand.IntN(len(keys))].String()]
-	owner.IsOwner = true
-	draft := createDraft(owner)
-	invitePlayersToDraft(owner, users, draft)
-	for _, user := range users {
-		acceptInvite(user)
+	users, err := initUsers("./userConfig.json")
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	//Start Draft
-	startDraft(owner, draft.Id)
-
-	//Check that draft is in the correct status
-	currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
-	if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
-		slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
-		panic("draft status is not correct")
-	}
-
-	// Wait for draft start time to hit and make sure draft goes into picking
-	waitUntilDraftState(owner, draft.Id, "Picking", 300*time.Second)
+	owner, draft := initDraft(users)
 
 	slog.Info("Starting to make picks")
 
@@ -113,8 +85,68 @@ func main() {
 	// Make sure the draft goes to teams playing status
 }
 
+func initDraft(users []*User) (*User, Draft) {
+	//Choose a user and create a draft
+	owner := users[rand.IntN(len(users))]
+	owner.IsOwner = true
+	draft := createDraft(owner)
+	invitePlayersToDraft(owner, users, draft)
+	for _, user := range users {
+		acceptInvite(user)
+	}
+
+	//Start Draft
+	startDraft(owner, draft.Id)
+
+	//Check that draft is in the correct status
+	currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
+	if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
+		slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
+		panic("draft status is not correct")
+	}
+
+	// Wait for draft start time to hit and make sure draft goes into picking
+	waitUntilDraftState(owner, draft.Id, "Picking", 300*time.Second)
+	return owner, draft
+}
+
+func initUsers(configPath string) ([]*User, error) {
+	// Map Username to user struct
+
+	userJSON, err := loadUserConfig(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	users, err := parseUsers(userJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, user := range users {
+		users[i] = createUser(user.Username, user.Password )
+	}
+	populateAuthToks(users)
+
+	slog.Info("Starting to make picks")
+
+	// Make sure the draft goes to teams playing status
+	return users, nil
+}
+
+func loadUserConfig(path string) (string, error) {
+	file, err := os.ReadFile(path)
+	return string(file), err
+}
+
+func parseUsers(userJSON string) ([]*User, error) {
+	var users []*User
+	err := json.Unmarshal([]byte(userJSON), &users)
+	return users, err
+}
+
 func loadValidTeams() []int {
-	file, err := os.Open("./frc-worlds-2025.csv")
+	file, err := os.Open("./frc-worlds-2026.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -195,9 +227,8 @@ func makePickRequest(draftId int, user *User, team int) bool {
 	return !strings.Contains(string(body), "id=\"pickError\"")
 }
 
-func selectRandomPlayer(users map[string]*User) *User {
-	keys := reflect.ValueOf(users).MapKeys()
-	return users[keys[rand.IntN(len(keys))].String()]
+func selectRandomPlayer(users []*User) *User {
+	return users[rand.IntN(len(users))]
 }
 
 // This will block until the draft is in the desired state or the timeout is hit. Timeout is in milliseconds
@@ -376,14 +407,14 @@ func getInviteId(body string) (int, bool) {
 	return id, true
 }
 
-func createUser(username string) *User {
+func createUser(username string, password string) *User {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		panic(err)
 	}
 	return &User{
 		Username: username,
-		Password: username,
+		Password: password,
 		Client: http.Client{
 			Jar: jar,
 		},
@@ -454,7 +485,7 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 	return uuid
 }
 
-func invitePlayersToDraft(owner *User, users map[string]*User, draft Draft) {
+func invitePlayersToDraft(owner *User, users []*User, draft Draft) {
 	for _, user := range users {
 		if user.Username == owner.Username {
 			continue
@@ -528,7 +559,7 @@ func createDraft(user *User) Draft {
 	}
 }
 
-func populateAuthToks(users map[string]*User) {
+func populateAuthToks(users []*User) {
 	for _, user := range users {
 		slog.Info("Making login request", "User", user.Username)
 		form := url.Values{}

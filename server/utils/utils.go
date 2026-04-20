@@ -12,13 +12,6 @@ import (
 
 func Events() []string {
 	return []string{
-        "2026cascmp",
-        "2026cancmp",
-	}
-}
-
-func EventsChamps() []string {
-	return []string{
 		"2026arc",
 		"2026cur",
 		"2026dal",

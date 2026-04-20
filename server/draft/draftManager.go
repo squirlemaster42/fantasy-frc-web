@@ -209,15 +209,19 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	log.InfoNoContext("Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
 	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
 
-	lock := dm.getTransitionLock(draftId)
-	lock.Lock()
-	defer lock.Unlock()
-	log.DebugNoContext("Aquired transition lock", "Draft Id", draftId)
+	loadLock := dm.getLoadLock(draftId)
+	transitionLock := dm.getTransitionLock(draftId)
+	loadLock.Lock()
+	log.DebugNoContext("ExecuteDraftStateTransition: acquired loadLock", "Draft Id", draftId)
+	transitionLock.Lock()
+	log.DebugNoContext("ExecuteDraftStateTransition: acquired transitionLock", "Draft Id", draftId)
+	defer transitionLock.Unlock()
 
 	draft, err := dm.GetDraft(draftId, false)
 	log.DebugNoContext("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
 		log.WarnNoContext("Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
+		loadLock.Unlock()
 		return err
 	}
 	assert.AddContext("Draft Id", draft.draftId)
@@ -231,6 +235,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	transition, transitionFound := state.transitions[requestedState]
 	if !transitionFound {
 		log.ErrorNoContext("Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
+		loadLock.Unlock()
 		return &invalidStateTransitionError{
 			currentState:   draft.Model.Status,
 			requestedState: requestedState,
@@ -241,10 +246,12 @@ func (dm *DraftManager) ExecuteDraftStateTransition(draftId int, requestedState 
 	err = transition.executeTransition(draft)
 	if err != nil {
 		log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		loadLock.Unlock()
 		return err
 	}
 	log.InfoNoContext("Executed draft state transition", "Draft Id", draftId)
 
+	loadLock.Unlock()
 	draft, err = dm.GetDraft(draftId, true)
 	log.DebugNoContext("Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
 
@@ -291,7 +298,7 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		}
 	}
 
-	draft.pickManager.NotifyListeners(picking.PickEvent{
+	go draft.pickManager.NotifyListeners(picking.PickEvent{
 		Pick:    pick,
 		Success: err == nil,
 		Err:     err,

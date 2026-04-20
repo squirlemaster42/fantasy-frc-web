@@ -33,7 +33,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 		log.ErrorNoContext("Sentry initialize failed", "Error", err)
 	}
 
-	metrics.InitAllMetrics()
+	metrics.InitMetrics(h.Database)
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
