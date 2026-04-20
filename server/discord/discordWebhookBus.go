@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"server/log"
+	"time"
 )
 
 type DiscordWebhookBus struct {
@@ -26,10 +26,9 @@ type AllowedMentions struct {
 
 type PreMatchDiscordEvent struct {
 	EventName     string
-	PredictedTime int64
-	// event per draft, map of users with teams, webhook url etc from tba handler
-	IdsToTeams map[string][]string
-	Webhook    string
+	PredictedTime time.Time
+	IdsToTeams    map[string][]string
+	Webhook       string
 }
 
 type NextPickDiscordEvent struct {
@@ -46,21 +45,20 @@ func NewBus() *DiscordWebhookBus {
 }
 
 func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
-	log.InfoNoContext("Posting pre match notification in discord bus webhook")
 	var message string
-	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at %d\n", event.EventName, event.PredictedTime)
+	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
 
-	var discordIds []string
 	for discordId, teamIds := range event.IdsToTeams {
-		message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamIds)
-		discordIds = append(discordIds, discordId)
+		for _, teamId := range teamIds {
+			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamId)
+		}
 	}
 
 	webhook := DiscordWebhook{
 		Username: "Match Notifier",
 		Content:  message,
 		AllowedMentions: AllowedMentions{
-			Users: discordIds,
+			Parse: []string{"users"},
 		},
 	}
 
@@ -88,7 +86,6 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 		return fmt.Errorf("Discord webhook was not successful: %s", string(body))
 	}
 
-	log.InfoNoContext("Successfully posted pre match notification in discord bus webhook")
 	return nil
 }
 

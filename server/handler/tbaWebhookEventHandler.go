@@ -14,6 +14,7 @@ import (
 	"server/swagger"
 	"server/utils"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -193,7 +194,7 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 		if _, exists := draftMap[draftId]; !exists {
 			draftMap[draftId] = &discord.PreMatchDiscordEvent{
 				EventName:     tbaEvent.EventName,
-				PredictedTime: tbaEvent.PredictedTime,
+				PredictedTime: time.Unix(tbaEvent.PredictedTime, 0),
 				Webhook:       webhook,
 				IdsToTeams:    make(map[string][]string),
 			}
