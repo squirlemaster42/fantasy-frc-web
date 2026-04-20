@@ -576,7 +576,6 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	}
 
 	return picks
-
 }
 
 func UpdateDraft(database *sql.DB, draft *DraftModel) error {

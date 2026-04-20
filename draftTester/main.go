@@ -32,12 +32,13 @@ type Draft struct {
 }
 
 const (
-	target = "https://fantasy-frc.cfh.sh"
+	// target = "https://fantasy-frc.cfh.sh"
+	target = "http://localhost:7331"
 )
 
 func main() {
 	// Map Username to user struct
-	users, err := initUsers("./userConfig.json")
+	users, err := initUsers("./localUserConfig.json")
 	if err != nil {
 		log.Fatal(err)
 	}

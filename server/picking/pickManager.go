@@ -193,7 +193,11 @@ func (p *PickManager) AddListener(listener PickListener) {
 }
 
 func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
+	log.DebugNoContext("Started notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 	for _, listener := range p.listeners {
+		log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 		(*listener).ReceivePickEvent(pickEvent)
+		log.DebugNoContext("Notified pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 	}
+	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
 }
