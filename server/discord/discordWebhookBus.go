@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"server/log"
 )
 
 type DiscordWebhookBus struct {
@@ -45,6 +46,7 @@ func NewBus() *DiscordWebhookBus {
 }
 
 func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
+	log.InfoNoContext("Posting pre match notification in discord bus webhook")
 	var message string
 	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at %d\n", event.EventName, event.PredictedTime)
 
@@ -86,6 +88,7 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 		return fmt.Errorf("Discord webhook was not successful: %s", string(body))
 	}
 
+	log.InfoNoContext("Successfully posted pre match notification in discord bus webhook")
 	return nil
 }
 

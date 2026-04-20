@@ -200,9 +200,12 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 		}
 
 		// Username by default but use discord id if found
-		userKey := username
+		var userKey string
 		if discordId != nil && *discordId != "" {
 			userKey = fmt.Sprintf("<@%s>", *discordId)
+		} else {
+			log.WarnNoContext("No discord id for user", "User", username)
+			continue
 		}
 
 		// add user with that pick to that draft
@@ -211,7 +214,15 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 
 	// Send each event to the Discord Bus
 	for _, event := range draftMap {
-		h.DiscordBus.PostPreMatchNotification(*event)
+		if len(event.IdsToTeams) == 0 {
+			continue
+		}
+
+		log.InfoNoContext("Posting pre match notification webhook")
+		err := h.DiscordBus.PostPreMatchNotification(*event)
+		if err != nil {
+			log.ErrorNoContext("Failed to post pre match notification webhook", "Error", err)
+		}
 	}
 }
 
