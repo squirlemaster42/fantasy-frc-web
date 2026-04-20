@@ -42,7 +42,7 @@ Create Table UserSessions (
     sessionToken bytea NOT NULL,
     expirationTime TIMESTAMP NOT NULL);
 
-Create Unique Index idx_user_username On Us
+Create Unique Index idx_user_username On Users(username);
 
 ALTER TABLE Drafts Add Status varchar;
 
