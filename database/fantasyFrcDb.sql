@@ -42,7 +42,11 @@ Create Table UserSessions (
     sessionToken bytea NOT NULL,
     expirationTime TIMESTAMP NOT NULL);
 
-Create Unique Index idx_user_username On Users(username);
+Create Unique Index idx_user_username On Us
+
+teams := tbaEvent.TeamKeys
+
+h.Database.ers(username);
 
 ALTER TABLE Drafts Add Status varchar;
 

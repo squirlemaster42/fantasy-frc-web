@@ -13,8 +13,8 @@ type DiscordWebhookBus struct {
 }
 
 type DiscordWebhook struct {
-	Username string `json:"username"`
-	Content string `json:"content"`
+	Username        string          `json:"username"`
+	Content         string          `json:"content"`
 	AllowedMentions AllowedMentions `json:"allowed_mentions"`
 }
 
@@ -23,25 +23,74 @@ type AllowedMentions struct {
 	Parse []string `json:"parse,omitempty"`
 }
 
+type PreMatchDiscordEvent struct {
+	EventName     string
+	PredictedTime int64
+	// event per draft, map of users with teams, webhook url etc from tba handler
+	IdsToTeams map[string][]string
+	Webhook    string
+}
+
 type NextPickDiscordEvent struct {
-	PreviousPickedTeam string
+	PreviousPickedTeam    string
 	PreviousPickDiscordId string
-	DiscordId string
-	Webhook string
+	DiscordId             string
+	Webhook               string
 }
 
 func NewBus() *DiscordWebhookBus {
-	return &DiscordWebhookBus {
+	return &DiscordWebhookBus{
 		client: &http.Client{},
 	}
 }
 
-func (d *DiscordWebhookBus) PostPreMatchNotification() error {
+func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
+	var message string
+	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at %d\n", event.EventName, event.PredictedTime)
+
+	var discordIds []string
+	for discordId, teamIds := range event.IdsToTeams {
+		message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamIds)
+		discordIds = append(discordIds, discordId)
+	}
+
+	webhook := DiscordWebhook{
+		Username: "Match Notifier",
+		Content:  message,
+		AllowedMentions: AllowedMentions{
+			Users: discordIds,
+		},
+	}
+
+	jsonData, err := json.Marshal(webhook)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := d.client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Discord webhook was not successful: %s", string(body))
+	}
+
 	return nil
 }
 
 func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
-	webhook := DiscordWebhook {
+	webhook := DiscordWebhook{
 		Username: "Pick Notifier",
 		Content: fmt.Sprintf(
 			"<@%s> has picked %s. <@%s> it is your pick.",
@@ -49,8 +98,8 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 			event.PreviousPickedTeam,
 			event.DiscordId,
 		),
-		AllowedMentions: AllowedMentions {
-			Users: []string {
+		AllowedMentions: AllowedMentions{
+			Users: []string{
 				event.DiscordId,
 			},
 		},

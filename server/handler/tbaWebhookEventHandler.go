@@ -1,15 +1,19 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"server/discord"
 	"server/log"
 	"server/swagger"
 	"server/utils"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -124,13 +128,91 @@ type UpcomingMatchEvent struct {
 	TeamKey       string          `json:"team_key"`
 	EventName     string          `json:"event_name"`
 	TeamKeys      []string        `json:"team_keys"`
-	SchedulesTime int64           `json:"scheduled_time"`
+	ScheduledTime int64           `json:"scheduled_time"`
 	PredictedTime int64           `json:"predicted_time"`
 	Webcast       swagger.Webcast `json:"webcast"`
 }
 
 func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
-	log.InfoNoContext("Received upcoming match event", "Message", messageData)
+	var tbaEvent UpcomingMatchEvent
+	if err := json.Unmarshal(messageData, &tbaEvent); err != nil {
+		log.WarnNoContext("Failed to decode upcoming match event data", "Error", err)
+		return
+	}
+
+	if len(tbaEvent.TeamKeys) == 0 {
+		return
+	}
+
+	placeholders := make([]string, len(tbaEvent.TeamKeys))
+	args := make([]interface{}, len(tbaEvent.TeamKeys))
+	for i, key := range tbaEvent.TeamKeys {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = key
+	}
+
+	query := fmt.Sprintf(`
+        SELECT 
+            d.Id,
+            d.DiscordWebhook,
+            d.DisplayName,
+            u.username,
+            u.DiscordId, 
+            p.pick
+        FROM 
+            Drafts d
+        JOIN DraftPlayers dp ON d.Id = dp.draftId
+        JOIN Users u ON dp.UserUuid = u.UserUuid
+        JOIN Picks p ON dp.Id = p.player
+        WHERE 
+            p.pick IN (%s)
+            AND d.DiscordWebhook IS NOT NULL;
+    `, strings.Join(placeholders, ","))
+
+	rows, err := h.Database.Query(query, args...)
+	if err != nil {
+		log.Error(context.Background(), "Query failed", "Error", err)
+		return
+	}
+	defer rows.Close()
+
+	// map of drafts to events
+	draftMap := make(map[int]*discord.PreMatchDiscordEvent)
+
+	for rows.Next() {
+		// info for draft, either use if already parsed or create based on first user in that draft
+		var draftId int
+		var webhook, draftName, username, pick string
+		var discordId *string
+
+		if err := rows.Scan(&draftId, &webhook, &draftName, &username, &discordId, &pick); err != nil {
+			continue
+		}
+
+		// init the event for this draft if it doesn't exist
+		if _, exists := draftMap[draftId]; !exists {
+			draftMap[draftId] = &discord.PreMatchDiscordEvent{
+				EventName:     tbaEvent.EventName,
+				PredictedTime: tbaEvent.PredictedTime,
+				Webhook:       webhook,
+				IdsToTeams:    make(map[string][]string),
+			}
+		}
+
+		// Username by default but use discord id if found
+		userKey := username
+		if discordId != nil && *discordId != "" {
+			userKey = fmt.Sprintf("<@%s>", *discordId)
+		}
+
+		// add user with that pick to that draft
+		draftMap[draftId].IdsToTeams[userKey] = append(draftMap[draftId].IdsToTeams[userKey], pick)
+	}
+
+	// Send each event to the Discord Bus
+	for _, event := range draftMap {
+		h.DiscordBus.PostPreMatchNotification(*event)
+	}
 }
 
 type MatchVideoNotification struct {
