@@ -44,10 +44,6 @@ Create Table UserSessions (
 
 Create Unique Index idx_user_username On Us
 
-teams := tbaEvent.TeamKeys
-
-h.Database.ers(username);
-
 ALTER TABLE Drafts Add Status varchar;
 
 CREATE TABLE DraftReaders(
