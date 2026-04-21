@@ -49,6 +49,13 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 		cacheControlMiddleware,
 	)
 
+	app.Add(
+		http.MethodGet,
+		"/img/*",
+		echo.StaticDirectoryHandler(assets.Img(), false),
+		cacheControlMiddleware,
+	)
+
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(sentryecho.New(sentryecho.Options{
