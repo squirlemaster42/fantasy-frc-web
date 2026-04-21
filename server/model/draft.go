@@ -185,7 +185,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
     Left Join Users dpUsers On DraftPlayers.UserUuid = dpUsers.UserUuid
     Left Join Users diUsers On DraftInvites.InvitedUserUuid = diUsers.UserUuid
     Left Join Users owners On Drafts.OwnerUserUuid = owners.UserUuid
-    Where DraftPlayers.UserUuid = $2 Or DraftInvites.InvitedUserUuid = $2;`
+    Where DraftPlayers.UserUuid = $2 Or DraftInvites.InvitedUserUuid = $2 Or dpUsers.IsAdmin = true Or diUsers.IsAdmin = true;`
 
 	stmt, err := database.Prepare(query)
 	if err != nil {
