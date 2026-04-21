@@ -310,7 +310,7 @@ func SearchUsers(database *sql.DB, searchString string, draftId int) ([]User, er
                 )`
 
 	if searchString != "" {
-		query += " And Username Like CONCAT('%', CAST($2 As VARCHAR), '%');"
+		query += " And Username ILike CONCAT('%', CAST($2 As VARCHAR), '%');"
 	} else {
 		query += ";"
 	}
