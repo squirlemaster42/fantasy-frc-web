@@ -15,7 +15,6 @@ import (
 	"server/swagger"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -57,16 +56,16 @@ func main() {
 	slog.Info("Extracted Env Vars")
 	database := RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 
-	var waitGroup sync.WaitGroup
 	secret := os.Getenv("TBA_WEBHOOK_SECRET")
 	targetUrl := "http://localhost:8080/tbaWebhook"
 	validTeams := getValidTeams(database)
 	for range 1000 {
-		waitGroup.Add(1)
-		makeAndSendFuzzyMatch(targetUrl, secret, validTeams, &waitGroup)
+		match := createFuzzyMatch(validTeams)
+		sendUpcomingMatch(match, targetUrl, secret)
+		sendMatchScore(match, targetUrl, secret)
+		// discord ratelimits, this could be shorter if necessary but 1 second works
 		time.Sleep(time.Second)
 	}
-	waitGroup.Wait()
 }
 
 type WebhookMessage struct {
@@ -74,34 +73,13 @@ type WebhookMessage struct {
 	MessageData json.RawMessage `json:"message_data"`
 }
 
-func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string, waitGroup *sync.WaitGroup) {
-	slog.Info("Starting to send fuzzy match")
-	defer waitGroup.Done()
-	fuzzyMatch := createFuzzyMatch(validTeams)
-	upcomingMessageData := UpcomingMatchEvent{
-		EventKey:      fuzzyMatch.EventKey,
-		MatchKey:      fuzzyMatch.Key,
-		TeamKey:       fuzzyMatch.Alliances.Red.TeamKeys[0],
-		EventName:     fuzzyMatch.EventKey,
-		TeamKeys:      append(fuzzyMatch.Alliances.Red.TeamKeys, fuzzyMatch.Alliances.Blue.TeamKeys...),
-		ScheduledTime: fuzzyMatch.ActualTime,
-		PredictedTime: fuzzyMatch.PredictedTime,
-	}
-	upcomingMessageJson, err := json.Marshal(upcomingMessageData)
-	assert.NoErrorCF(err, "Failed to marshal upcoming match message data")
-	upcomingNotification := WebhookMessage{
-		MessageType: "upcoming_match",
-		MessageData: upcomingMessageJson,
-	}
-
-	serializedUpcoming, err := json.Marshal(upcomingNotification)
-	assert.NoErrorCF(err, "Failed to marshal upcoming notification data")
+func sendFuzzyTBAPostRequest(body []byte, targetUrl string, secret string) {
 	mac := hmac.New(sha256.New, []byte(secret))
-	_, err = mac.Write(serializedUpcoming)
-	assert.NoErrorCF(err, "Failed to write upcoming notification data to mac")
+	_, err := mac.Write(body)
+	assert.NoErrorCF(err, "Failed to write data to mac")
 	macToSend := mac.Sum(nil)
 
-	req, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(serializedUpcoming))
+	req, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(body))
 	assert.NoErrorCF(err, "Failed to create post request")
 	slog.Info("Created request")
 	slog.Info("Adding hmac to msg", "HMAC", hex.EncodeToString(macToSend))
@@ -111,19 +89,47 @@ func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string,
 	resp, err := client.Do(req)
 	slog.Info("Made request")
 	assert.NoErrorCF(err, "Failed to make post request")
-	err = resp.Body.Close()
-	assert.NoErrorCF(err, "Failed to close upcoming response body")
 
-	messageData := MatchScoreNofification{
-		EventKey:  fuzzyMatch.EventKey,
-		MatchKey:  fuzzyMatch.Key,
-		TeamKey:   fuzzyMatch.Alliances.Red.TeamKeys[0],
-		EventName: fuzzyMatch.EventKey,
-		Match:     fuzzyMatch,
+	err = resp.Body.Close()
+	assert.NoErrorCF(err, "Failed to close response body")
+}
+
+func sendUpcomingMatch(match swagger.Match, targetUrl string, secret string) {
+	slog.Info("Starting to send upcoming match notification")
+
+	messageData := UpcomingMatchEvent{
+		EventKey:      match.EventKey,
+		MatchKey:      match.Key,
+		TeamKey:       match.Alliances.Red.TeamKeys[0],
+		EventName:     match.EventKey,
+		TeamKeys:      append(match.Alliances.Red.TeamKeys, match.Alliances.Blue.TeamKeys...),
+		ScheduledTime: match.ActualTime,
+		PredictedTime: match.PredictedTime,
+	}
+	messageJson, err := json.Marshal(messageData)
+	assert.NoErrorCF(err, "Failed to marshal upcoming match message data")
+	notification := WebhookMessage{
+		MessageType: "upcoming_match",
+		MessageData: messageJson,
 	}
 
-	var serializedNotification json.RawMessage
-	serializedNotification, err = json.Marshal(messageData)
+	serialized, err := json.Marshal(notification)
+	assert.NoErrorCF(err, "Failed to marshal upcoming match message data")
+	sendFuzzyTBAPostRequest(serialized, targetUrl, secret)
+	slog.Info("Sent upcoming match notification", "MatchKey", match.Key)
+}
+
+func sendMatchScore(match swagger.Match, targetUrl string, secret string) {
+	slog.Info("Starting to send score notification")
+	messageData := MatchScoreNofification{
+		EventKey:  match.EventKey,
+		MatchKey:  match.Key,
+		TeamKey:   match.Alliances.Red.TeamKeys[0],
+		EventName: match.EventKey,
+		Match:     match,
+	}
+
+	serializedNotification, err := json.Marshal(messageData)
 	assert.NoErrorCF(err, "Failed to marshal score message data")
 	scoreNotification := WebhookMessage{
 		MessageType: "match_score",
@@ -132,25 +138,8 @@ func makeAndSendFuzzyMatch(targetUrl string, secret string, validTeams []string,
 
 	serialized, err := json.Marshal(scoreNotification)
 	assert.NoErrorCF(err, "Failed to marshal score notification")
-	mac = hmac.New(sha256.New, []byte(secret))
-	_, err = mac.Write(serialized)
-	assert.NoErrorCF(err, "Failed to write data to mac")
-	macToSend = mac.Sum(nil)
-
-	req, err = http.NewRequest("POST", targetUrl, bytes.NewBuffer(serialized))
-	assert.NoErrorCF(err, "Failed to create post request")
-	slog.Info("Created request")
-	slog.Info("Adding hmac to msg", "HMAC", hex.EncodeToString(macToSend))
-	req.Header.Set("X-TBA-HMAC", hex.EncodeToString(macToSend))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	slog.Info("Made request")
-	assert.NoErrorCF(err, "Failed to make post request")
-	defer func() {
-		err := resp.Body.Close()
-		assert.NoErrorCF(err, "Failed to close score response body")
-	}()
-	slog.Info("Send fuzzy match", "Key", fuzzyMatch.Key)
+	sendFuzzyTBAPostRequest(serialized, targetUrl, secret)
+	slog.Info("Sent match score", "MatchKey", match.Key)
 }
 
 type MatchScoreNofification struct {
