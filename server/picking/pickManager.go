@@ -110,8 +110,6 @@ func (p *PickManager) SkipCurrentPick() error {
 	return nil
 }
 
-// TODO Deal with error on all callers
-// Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -121,6 +119,13 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 	var err error
 	if !pick.Pick.Valid {
 		err = errors.New("no team entered")
+	}
+
+	// Check that we are still trying to make the current pick
+	currentPick, err := model.GetCurrentPick(p.database, p.draftId)
+	if currentPick.Id != pick.Id {
+		log.WarnNoContext("Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", pick.Id)
+		return false, errors.New("attempting to make pick that is not the current pick")
 	}
 
 	if err == nil {
