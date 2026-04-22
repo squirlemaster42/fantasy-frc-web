@@ -85,6 +85,7 @@ func (l *ListDraftsCommand) ProcessCommand(context context.Context, database *sq
 type StartDraftCommand struct{}
 
 func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+	// TODO This should go through the draft manager now
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 

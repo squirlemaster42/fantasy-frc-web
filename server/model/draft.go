@@ -443,7 +443,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
 			                    't' AS ACCEPTED,
-			                    DRAFTPLAYERS.PLAYERORDER,
+			                    COALESCE(DRAFTPLAYERS.PLAYERORDER, -1) As PLAYERORDER,
 			                    DraftPlayers.Id As PlayerId
 		                    FROM USERS
 		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid

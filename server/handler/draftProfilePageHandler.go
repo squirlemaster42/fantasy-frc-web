@@ -234,7 +234,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draft, err := h.DraftManager.GetDraft(draftId, false)
+	draft, err := h.DraftManager.GetDraft(draftId, true)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
@@ -251,6 +251,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	// Check that eight players have accepted the draft
 	numAccepted := 0
+	fmt.Println(draft.Model.String())
 	for _, p := range draft.Model.Players {
 		if !p.Pending {
 			numAccepted++
