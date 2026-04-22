@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type DiscordWebhookBus struct {
@@ -13,8 +14,8 @@ type DiscordWebhookBus struct {
 }
 
 type DiscordWebhook struct {
-	Username string `json:"username"`
-	Content string `json:"content"`
+	Username        string          `json:"username"`
+	Content         string          `json:"content"`
 	AllowedMentions AllowedMentions `json:"allowed_mentions"`
 }
 
@@ -24,14 +25,14 @@ type AllowedMentions struct {
 }
 
 type NextPickDiscordEvent struct {
-	PreviousPickedTeam string
-	PreviousPickDiscordId string
-	DiscordId string
-	Webhook string
+	PreviousPickedTeam     string
+	PreviousPickIdentifier string
+	NextPickIdentifier     string
+	Webhook                string
 }
 
 func NewBus() *DiscordWebhookBus {
-	return &DiscordWebhookBus {
+	return &DiscordWebhookBus{
 		client: &http.Client{},
 	}
 }
@@ -41,18 +42,25 @@ func (d *DiscordWebhookBus) PostPreMatchNotification() error {
 }
 
 func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
-	webhook := DiscordWebhook {
+	var allowedMentions []string
+	nextId, found := strings.CutPrefix(event.NextPickIdentifier, "<@")
+	if found {
+		nextId = strings.Trim(nextId, "<@>")
+		allowedMentions = []string{
+			nextId,
+		}
+	}
+
+	webhook := DiscordWebhook{
 		Username: "Pick Notifier",
 		Content: fmt.Sprintf(
-			"<@%s> has picked %s. <@%s> it is your pick.",
-			event.PreviousPickDiscordId,
-			event.PreviousPickedTeam,
-			event.DiscordId,
+			"%s has picked %s. %s it is your pick.",
+			event.PreviousPickIdentifier,
+			strings.Trim(event.PreviousPickedTeam, "frc"),
+			event.NextPickIdentifier,
 		),
-		AllowedMentions: AllowedMentions {
-			Users: []string {
-				event.DiscordId,
-			},
+		AllowedMentions: AllowedMentions{
+			Users: allowedMentions,
 		},
 	}
 
