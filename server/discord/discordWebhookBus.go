@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -47,22 +48,32 @@ func (d *DiscordWebhookBus) PostPreMatchNotification() error {
 func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
 	previousIdentifier := event.PreviousPickName
 	if event.PreviousPickDiscordId.Valid {
-		previousIdentifier = fmt.Sprintf("<@%s>", event.PreviousPickDiscordId.String)
+		previousPickId := event.PreviousPickDiscordId.String
+		_, err := strconv.ParseUint(previousPickId, 10, 64)
+		if len(previousPickId) >= 17 && err == nil {
+			previousIdentifier = fmt.Sprintf("<@%s>", previousPickId)
+		}
 	}
 
 	var allowedUserMentions []string
 	nextIdentifier := event.NextPickName
 	if event.NextPickDiscordId.Valid {
-		nextIdentifier = fmt.Sprintf("<@%s>", event.NextPickDiscordId.String)
-		allowedUserMentions = []string{
-			event.NextPickDiscordId.String,
+		nextPickId := event.NextPickDiscordId.String
+		_, err := strconv.ParseUint(nextPickId, 10, 64)
+		if len(nextPickId) >= 17 && err == nil {
+			nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)
 		}
+	}
+
+	message := "%s has picked %s. %s it is your pick."
+	if previousIdentifier == nextIdentifier {
+		message = "%s has picked %s, and %s it is your turn again."
 	}
 
 	webhook := DiscordWebhook{
 		Username: "Pick Notifier",
 		Content: fmt.Sprintf(
-			"%s has picked %s. %s it is your pick.",
+			message,
 			previousIdentifier,
 			strings.Trim(event.PreviousPickedTeam, "frc"),
 			nextIdentifier,

@@ -537,6 +537,34 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 	return draftModel, nil
 }
 
+func GetDraftPlayerName(database *sql.DB, draftPlayerId int) (string, error) {
+	query := `
+		Select
+			u.Username
+		From DraftPlayers dp
+		Inner Join Users u On u.UserUUID = dp.UserUUID
+		Where dp.Id = $1
+	`
+
+	assert := assert.CreateAssertWithContext("Get Player Discord Id")
+	assert.AddContext("Draft Player Id", draftPlayerId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare query")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("GetDraftPlayerName: Failed to close statement", "error", err)
+		}
+	}()
+
+	var username string
+	err = stmt.QueryRow(draftPlayerId).Scan(&username)
+	if err != nil {
+		return "", err
+	}
+
+	return username, nil
+}
+
 func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	query := `SELECT
                 Picks.id,
