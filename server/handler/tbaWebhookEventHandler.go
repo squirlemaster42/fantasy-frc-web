@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,9 +10,9 @@ import (
 	"os"
 	"server/discord"
 	"server/log"
+	"server/model"
 	"server/swagger"
 	"server/utils"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -141,88 +140,51 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 		return
 	}
 
-	if len(tbaEvent.TeamKeys) == 0 {
+	if len(tbaEvent.TeamKeys) != 6 {
+		log.WarnNoContext("Upcoming match received without 6 teams", "TeamCount", len(tbaEvent.TeamKeys))
 		return
 	}
 
-	placeholders := make([]string, len(tbaEvent.TeamKeys))
-	args := make([]interface{}, len(tbaEvent.TeamKeys))
-	for i, key := range tbaEvent.TeamKeys {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = key
-	}
+	rows, err := model.GetDraftPickRows(h.Database, tbaEvent.TeamKeys)
 
-	query := fmt.Sprintf(`
-        SELECT 
-            d.Id,
-            d.DiscordWebhook,
-            d.DisplayName,
-            u.username,
-            u.DiscordId, 
-            p.pick
-        FROM 
-            Drafts d
-        JOIN DraftPlayers dp ON d.Id = dp.draftId
-        JOIN Users u ON dp.UserUuid = u.UserUuid
-        JOIN Picks p ON dp.Id = p.player
-        WHERE 
-            p.pick IN (%s)
-            AND d.DiscordWebhook IS NOT NULL;
-    `, strings.Join(placeholders, ","))
-
-	rows, err := h.Database.Query(query, args...)
 	if err != nil {
-		log.Error(context.Background(), "Query failed", "Error", err)
+		log.WarnNoContext("Failed to get picked rows", "Error", err)
 		return
 	}
-	defer rows.Close()
 
 	// map of drafts to events
 	draftMap := make(map[int]*discord.PreMatchDiscordEvent)
 
-	for rows.Next() {
-		// info for draft, either use if already parsed or create based on first user in that draft
-		var draftId int
-		var webhook, draftName, username, pick string
-		var discordId *string
-
-		if err := rows.Scan(&draftId, &webhook, &draftName, &username, &discordId, &pick); err != nil {
-			continue
-		}
-
+	for _, row := range rows {
 		// init the event for this draft if it doesn't exist
-		if _, exists := draftMap[draftId]; !exists {
-			draftMap[draftId] = &discord.PreMatchDiscordEvent{
+		_, exists := draftMap[row.DraftId]
+		if !exists {
+			draftMap[row.DraftId] = &discord.PreMatchDiscordEvent{
 				EventName:     tbaEvent.EventName,
 				PredictedTime: time.Unix(tbaEvent.PredictedTime, 0),
-				Webhook:       webhook,
+				Webhook:       row.Webhook,
 				IdsToTeams:    make(map[string][]string),
 			}
 		}
 
 		// Username by default but use discord id if found
-		var userKey string
-		if discordId != nil && *discordId != "" {
-			userKey = fmt.Sprintf("<@%s>", *discordId)
-		} else {
-			log.WarnNoContext("No discord id for user", "User", username)
-			continue
+		discordId := row.Username
+		if row.DiscordId != "" {
+			discordId = fmt.Sprintf("<@%s>", row.DiscordId)
 		}
 
 		// add user with that pick to that draft
-		draftMap[draftId].IdsToTeams[userKey] = append(draftMap[draftId].IdsToTeams[userKey], pick)
+		draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
 	}
 
 	// Send each event to the Discord Bus
 	for _, event := range draftMap {
-		if len(event.IdsToTeams) == 0 {
-			continue
-		}
-
-		log.InfoNoContext("Posting pre match notification webhook")
-		err := h.DiscordBus.PostPreMatchNotification(*event)
-		if err != nil {
-			log.ErrorNoContext("Failed to post pre match notification webhook", "Error", err)
+		if len(event.IdsToTeams) > 0 {
+			log.InfoNoContext("Posting pre match notification webhook")
+			err := h.DiscordBus.PostPreMatchNotification(*event)
+			if err != nil {
+				log.ErrorNoContext("Failed to post pre match notification webhook", "Error", err)
+			}
 		}
 	}
 }

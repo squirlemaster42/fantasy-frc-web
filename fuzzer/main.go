@@ -63,7 +63,7 @@ func main() {
 		match := createFuzzyMatch(validTeams)
 		sendUpcomingMatch(match, targetUrl, secret)
 		sendMatchScore(match, targetUrl, secret)
-		// discord ratelimits, this could be shorter if necessary but 1 second works
+		// discord rate limits, this could be shorter if necessary but 1 second works
 		time.Sleep(time.Second)
 	}
 }

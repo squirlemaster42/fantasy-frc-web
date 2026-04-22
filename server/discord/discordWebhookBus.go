@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -50,7 +51,8 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 
 	for discordId, teamIds := range event.IdsToTeams {
 		for _, teamId := range teamIds {
-			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamId)
+			teamNumber, _ := strings.CutPrefix(teamId, "frc")
+			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamNumber)
 		}
 	}
 
