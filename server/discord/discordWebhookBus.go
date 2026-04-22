@@ -62,6 +62,9 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		_, err := strconv.ParseUint(nextPickId, 10, 64)
 		if len(nextPickId) >= 17 && err == nil {
 			nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)
+			allowedUserMentions = []string{
+				nextPickId,
+			}
 		}
 	}
 
