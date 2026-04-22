@@ -3,7 +3,6 @@ package picking
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"server/discord"
 	"server/log"
 	"server/model"
@@ -154,44 +153,43 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
 			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-			currPickIdentifier, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
+			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
 			if err != nil {
 				log.WarnNoContext("Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
 			}
 
-			if currPickIdentifier == "" {
-				currPickIdentifier, err = model.GetDraftPlayerName(p.database, currentPick.Player)
-				if err != nil {
-					log.WarnNoContext("Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
-				}
-			} else {
-				currPickIdentifier = fmt.Sprintf("<@%s>", currPickIdentifier)
+			currPickName, err := model.GetDraftPlayerName(p.database, currentPick.Player)
+			if err != nil {
+				log.WarnNoContext("Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
 			}
 
-			nextPickIdentifier, err := model.GetPlayerDiscordId(p.database, nextPickPlayer.Id)
+			nextPickDiscordId, err := model.GetPlayerDiscordId(p.database, nextPickPlayer.Id)
 			if err != nil {
 				log.WarnNoContext("Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
 			}
 
-			if nextPickIdentifier == "" {
-				nextPickIdentifier, err = model.GetDraftPlayerName(p.database, nextPickPlayer.Id)
-				if err != nil {
-					log.WarnNoContext("Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
-				}
-			} else {
-				nextPickIdentifier = fmt.Sprintf("<@%s>", nextPickIdentifier)
+			nextPickName, err := model.GetDraftPlayerName(p.database, nextPickPlayer.Id)
+			if err != nil {
+				log.WarnNoContext("Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
 			}
 
 			draftWebhook, err := model.GetDraftWebhook(p.database, p.draftId)
 			if err != nil {
 				log.WarnNoContext("Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
+				err = nil
 			}
 
 			event := discord.NextPickDiscordEvent{
-				PreviousPickedTeam:     pick.Pick.String,
-				PreviousPickIdentifier: currPickIdentifier,
-				NextPickIdentifier:     nextPickIdentifier,
-				Webhook:                draftWebhook,
+				PreviousPickedTeam:    pick.Pick.String,
+				PreviousPickName:      currPickName,
+				PreviousPickDiscordId: currPickDiscordId,
+				NextPickName:          nextPickName,
+				NextPickDiscordId:     nextPickDiscordId,
+				Webhook:               draftWebhook,
 			}
 			go func() {
 				err = p.discordBus.PostPickNotification(event)

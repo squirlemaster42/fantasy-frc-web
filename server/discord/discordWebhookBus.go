@@ -2,6 +2,7 @@ package discord
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,10 +26,12 @@ type AllowedMentions struct {
 }
 
 type NextPickDiscordEvent struct {
-	PreviousPickedTeam     string
-	PreviousPickIdentifier string
-	NextPickIdentifier     string
-	Webhook                string
+	PreviousPickedTeam    string
+	PreviousPickName      string
+	PreviousPickDiscordId sql.NullString
+	NextPickName          string
+	NextPickDiscordId     sql.NullString
+	Webhook               string
 }
 
 func NewBus() *DiscordWebhookBus {
@@ -42,12 +45,17 @@ func (d *DiscordWebhookBus) PostPreMatchNotification() error {
 }
 
 func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
-	var allowedMentions []string
-	nextId, found := strings.CutPrefix(event.NextPickIdentifier, "<@")
-	if found {
-		nextId = strings.Trim(nextId, "<@>")
-		allowedMentions = []string{
-			nextId,
+	previousIdentifier := event.PreviousPickName
+	if event.PreviousPickDiscordId.Valid {
+		previousIdentifier = fmt.Sprintf("<@%s>", event.PreviousPickDiscordId.String)
+	}
+
+	var allowedUserMentions []string
+	nextIdentifier := event.NextPickName
+	if event.NextPickDiscordId.Valid {
+		nextIdentifier = fmt.Sprintf("<@%s>", event.NextPickDiscordId.String)
+		allowedUserMentions = []string{
+			event.NextPickDiscordId.String,
 		}
 	}
 
@@ -55,12 +63,12 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		Username: "Pick Notifier",
 		Content: fmt.Sprintf(
 			"%s has picked %s. %s it is your pick.",
-			event.PreviousPickIdentifier,
+			previousIdentifier,
 			strings.Trim(event.PreviousPickedTeam, "frc"),
-			event.NextPickIdentifier,
+			nextIdentifier,
 		),
 		AllowedMentions: AllowedMentions{
-			Users: allowedMentions,
+			Users: allowedUserMentions,
 		},
 	}
 
