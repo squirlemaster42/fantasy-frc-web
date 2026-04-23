@@ -49,6 +49,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 	previousIdentifier := event.PreviousPickName
 	if event.PreviousPickDiscordId.Valid {
 		previousPickId := event.PreviousPickDiscordId.String
+		// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
 		_, err := strconv.ParseUint(previousPickId, 10, 64)
 		if len(previousPickId) >= 17 && err == nil {
 			previousIdentifier = fmt.Sprintf("<@%s>", previousPickId)
@@ -59,6 +60,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 	nextIdentifier := event.NextPickName
 	if event.NextPickDiscordId.Valid {
 		nextPickId := event.NextPickDiscordId.String
+		// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
 		_, err := strconv.ParseUint(nextPickId, 10, 64)
 		if len(nextPickId) >= 17 && err == nil {
 			nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)

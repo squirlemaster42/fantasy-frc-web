@@ -159,11 +159,12 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 				err = nil
 			}
 
-			currPickName, err := model.GetDraftPlayerName(p.database, currentPick.Player)
+			currPickUser, err := model.GetDraftPlayerUser(p.database, currentPick.Player)
 			if err != nil {
 				log.WarnNoContext("Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
 				err = nil
 			}
+			currPickName := currPickUser.Username
 
 			nextPickDiscordId, err := model.GetPlayerDiscordId(p.database, nextPickPlayer.Id)
 			if err != nil {
@@ -171,11 +172,12 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 				err = nil
 			}
 
-			nextPickName, err := model.GetDraftPlayerName(p.database, nextPickPlayer.Id)
+			nextPickUser, err := model.GetDraftPlayerUser(p.database, nextPickPlayer.Id)
 			if err != nil {
 				log.WarnNoContext("Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
 				err = nil
 			}
+			nextPickName := nextPickUser.Username
 
 			draftWebhook, err := model.GetDraftWebhook(p.database, p.draftId)
 			if err != nil {
