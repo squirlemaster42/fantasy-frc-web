@@ -84,6 +84,7 @@ func main() {
 		DraftManager: draftManager,
 		Scorer:       scorer,
 		AvatarStore:  &avatarStore,
+		DiscordBus:   discordBus,
 	}
 
 	// Load the tba webhook secret

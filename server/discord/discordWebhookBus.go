@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
+	"time"
+	"strconv"
 )
 
 type DiscordWebhookBus struct {
@@ -26,6 +27,13 @@ type AllowedMentions struct {
 	Parse []string `json:"parse,omitempty"`
 }
 
+type PreMatchDiscordEvent struct {
+	EventName     string
+	PredictedTime time.Time
+	IdsToTeams    map[string][]string
+	Webhook       string
+}
+
 type NextPickDiscordEvent struct {
 	PreviousPickedTeam    string
 	PreviousPickName      string
@@ -41,7 +49,49 @@ func NewBus() *DiscordWebhookBus {
 	}
 }
 
-func (d *DiscordWebhookBus) PostPreMatchNotification() error {
+func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
+	var message string
+	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
+
+	for discordId, teamIds := range event.IdsToTeams {
+		for _, teamId := range teamIds {
+			teamNumber, _ := strings.CutPrefix(teamId, "frc")
+			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamNumber)
+		}
+	}
+
+	webhook := DiscordWebhook{
+		Username: "Match Notifier",
+		Content:  message,
+		AllowedMentions: AllowedMentions{
+			Parse: []string{"users"},
+		},
+	}
+
+	jsonData, err := json.Marshal(webhook)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
+	req.Header.Add("Content-Type", "application/json")
+
+	resp, err := d.client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("Discord webhook was not successful: %s", string(body))
+	}
+
 	return nil
 }
 

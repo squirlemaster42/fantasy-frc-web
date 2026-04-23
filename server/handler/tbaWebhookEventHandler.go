@@ -5,11 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"server/discord"
 	"server/log"
+	"server/model"
 	"server/swagger"
 	"server/utils"
+	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 )
@@ -124,13 +129,72 @@ type UpcomingMatchEvent struct {
 	TeamKey       string          `json:"team_key"`
 	EventName     string          `json:"event_name"`
 	TeamKeys      []string        `json:"team_keys"`
-	SchedulesTime int64           `json:"scheduled_time"`
+	ScheduledTime int64           `json:"scheduled_time"`
 	PredictedTime int64           `json:"predicted_time"`
 	Webcast       swagger.Webcast `json:"webcast"`
 }
 
 func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
-	log.InfoNoContext("Received upcoming match event", "Message", messageData)
+	var tbaEvent UpcomingMatchEvent
+	if err := json.Unmarshal(messageData, &tbaEvent); err != nil {
+		log.WarnNoContext("Failed to decode upcoming match event data", "Error", err)
+		return
+	}
+
+	if len(tbaEvent.TeamKeys) != 6 {
+		log.WarnNoContext("Upcoming match received without 6 teams", "TeamCount", len(tbaEvent.TeamKeys))
+		return
+	}
+
+	rows, err := model.GetDraftPickRows(h.Database, tbaEvent.TeamKeys)
+
+	if err != nil {
+		log.WarnNoContext("Failed to get picked rows", "Error", err)
+		return
+	}
+
+	// map of drafts to events
+	draftMap := make(map[int]*discord.PreMatchDiscordEvent)
+
+	for _, row := range rows {
+		// init the event for this draft if it doesn't exist and the webhook is valid
+		if row.Webhook.Valid {
+			_, exists := draftMap[row.DraftId]
+			if !exists && row.Webhook.Valid {
+				draftMap[row.DraftId] = &discord.PreMatchDiscordEvent{
+					EventName:     tbaEvent.EventName,
+					PredictedTime: time.Unix(tbaEvent.PredictedTime, 0),
+					Webhook:       row.Webhook.String,
+					IdsToTeams:    make(map[string][]string),
+				}
+			}
+
+			// Username by default but use discord id if found
+			discordId := row.Username
+			if row.DiscordId.Valid {
+				// discord IDs must be 17+ characters and all numbers, so this is a quick way to mostly validate
+				// that the id in the database is not just a random string
+				_, err := strconv.ParseUint(row.DiscordId.String, 10, 64)
+				if len(row.DiscordId.String) >= 17 && err == nil {
+					discordId = fmt.Sprintf("<@%s>", row.DiscordId.String)
+				}
+			}
+
+			// add user with that pick to that draft
+			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
+		}
+	}
+
+	// Send each event to the Discord Bus
+	for _, event := range draftMap {
+		if len(event.IdsToTeams) > 0 {
+			log.InfoNoContext("Posting pre match notification webhook")
+			err := h.DiscordBus.PostPreMatchNotification(*event)
+			if err != nil {
+				log.ErrorNoContext("Failed to post pre match notification webhook", "Error", err)
+			}
+		}
+	}
 }
 
 type MatchVideoNotification struct {
