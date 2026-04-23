@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"server/assert"
@@ -233,7 +234,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draft, err := h.DraftManager.GetDraft(draftId, false)
+	draft, err := h.DraftManager.GetDraft(draftId, true)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
@@ -248,12 +249,29 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	//TODO Need to check that all players have accepted the draft
+	// Check that eight players have accepted the draft
+	numAccepted := 0
+	fmt.Println(draft.Model.String())
+	for _, p := range draft.Model.Players {
+		if !p.Pending {
+			numAccepted++
+		}
+	}
+
+	if numAccepted != 8 {
+		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "Draft Id", draftId, "Num Accepted", numAccepted)
+		// TODO Show this error to users
+		return errors.New("draft does not have the correct number of accepted players")
+	}
+
+	// Cancel the invites for players who have not accepted the draft
+	model.CancelOutstandingInvites(h.Database, draftId)
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
 	err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		return err
 	}
 
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))

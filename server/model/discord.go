@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (string, error) {
+func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (sql.NullString, error) {
 	query := `
 		Select
 			u.DiscordId
@@ -31,14 +31,10 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (string, error) {
 	var discordId sql.NullString
 	err = stmt.QueryRow(draftPlayerId).Scan(&discordId)
 	if err != nil {
-		return "", err
+		return sql.NullString{}, err
 	}
 
-	if !discordId.Valid {
-		return "", fmt.Errorf("Draft player with id %d does not have discord id set", draftPlayerId)
-	}
-
-	return discordId.String, nil
+	return discordId, nil
 }
 
 func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {

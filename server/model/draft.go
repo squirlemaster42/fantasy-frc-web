@@ -185,7 +185,10 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
     Left Join Users dpUsers On DraftPlayers.UserUuid = dpUsers.UserUuid
     Left Join Users diUsers On DraftInvites.InvitedUserUuid = diUsers.UserUuid
     Left Join Users owners On Drafts.OwnerUserUuid = owners.UserUuid
-    Where DraftPlayers.UserUuid = $2 Or DraftInvites.InvitedUserUuid = $2;`
+	Left Join Users currUser On currUser.UserUuid = $2
+    Where DraftPlayers.UserUuid = $2
+		Or DraftInvites.InvitedUserUuid = $2
+		Or currUser.IsAdmin = true;`
 
 	stmt, err := database.Prepare(query)
 	if err != nil {
@@ -259,6 +262,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
 			                    't' AS ACCEPTED,
+								'f' AS CANCELED,
 			                    DRAFTPLAYERS.PLAYERORDER,
 			                    DraftPlayers.Id As PlayerId
 		                    FROM USERS
@@ -269,11 +273,12 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
 			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
+								DRAFTINVITES.CANCELED AS CANCELED,
 			                    -1 AS PLAYERORDER,
 			                    -1 As PlayerId
 		                    FROM USERS
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-		                    WHERE DRAFTINVITES.DRAFTID = $1
+		                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(CANCELED, FALSE) = FALSE
 	                    ) U
                     GROUP BY UserUuid, USERNAME
                     ORDER BY MAX(PLAYERORDER);`
@@ -438,7 +443,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
 			                    't' AS ACCEPTED,
-			                    DRAFTPLAYERS.PLAYERORDER,
+			                    COALESCE(DRAFTPLAYERS.PLAYERORDER, -1) As PLAYERORDER,
 			                    DraftPlayers.Id As PlayerId
 		                    FROM USERS
 		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
@@ -452,7 +457,7 @@ func GetDraft(database *sql.DB, draftId int) (DraftModel, error) {
 			                    -1 As PlayerId
 		                    FROM USERS
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-		                    WHERE DRAFTINVITES.DRAFTID = $1
+		                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(DRAFTINVITES.CANCELED, FALSE) = FALSE
 	                    ) U
                     GROUP BY UserUuid, USERNAME
                     ORDER BY PLAYERORDER;`
@@ -576,7 +581,6 @@ func GetDraftPlayerPicks(database *sql.DB, draftPlayerId int) []Pick {
 	}
 
 	return picks
-
 }
 
 func UpdateDraft(database *sql.DB, draft *DraftModel) error {
@@ -671,7 +675,7 @@ func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
 }
 
 func CancelOutstandingInvites(database *sql.DB, draftId int) error {
-	query := `Update DraftInvites Set Canceled = true Where DraftId = $1;`
+	query := `Update DraftInvites Set Canceled = true Where DraftId = $1 and Accepted = false;`
 	assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
 	assert.AddContext("Draft Id", draftId)
 
@@ -990,7 +994,13 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 		log.WarnNoContext("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
 		return
 	}
-	awaitingAssignment := draftModel.Players
+	var awaitingAssignment []DraftPlayer
+	// We only want to randomize the pick order of players who accepted the draft
+	for _, player := range draftModel.Players {
+		if !player.Pending {
+			awaitingAssignment = append(awaitingAssignment, player)
+		}
+	}
 	assert := assert.CreateAssertWithContext("Randomize Pick Order")
 
 	for i := range awaitingAssignment {

@@ -110,8 +110,6 @@ func (p *PickManager) SkipCurrentPick() error {
 	return nil
 }
 
-// TODO Deal with error on all callers
-// Return error if pick is not able to be made
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -121,6 +119,13 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 	var err error
 	if !pick.Pick.Valid {
 		err = errors.New("no team entered")
+	}
+
+	// Check that we are still trying to make the current pick
+	currentPick, err := model.GetCurrentPick(p.database, p.draftId)
+	if currentPick.Id != pick.Id {
+		log.WarnNoContext("Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", pick.Id)
+		return false, errors.New("attempting to make pick that is not the current pick")
 	}
 
 	if err == nil {
@@ -148,25 +153,44 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
 			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, pick.Player)
+			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
 			if err != nil {
 				log.WarnNoContext("Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
 			}
+
+			currPickUser, err := model.GetDraftPlayerUser(p.database, currentPick.Player)
+			if err != nil {
+				log.WarnNoContext("Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
+			}
+			currPickName := currPickUser.Username
 
 			nextPickDiscordId, err := model.GetPlayerDiscordId(p.database, nextPickPlayer.Id)
 			if err != nil {
-				log.WarnNoContext("Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				log.WarnNoContext("Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
 			}
+
+			nextPickUser, err := model.GetDraftPlayerUser(p.database, nextPickPlayer.Id)
+			if err != nil {
+				log.WarnNoContext("Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
+			}
+			nextPickName := nextPickUser.Username
 
 			draftWebhook, err := model.GetDraftWebhook(p.database, p.draftId)
 			if err != nil {
 				log.WarnNoContext("Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
+				err = nil
 			}
 
 			event := discord.NextPickDiscordEvent{
 				PreviousPickedTeam:    pick.Pick.String,
+				PreviousPickName:      currPickName,
 				PreviousPickDiscordId: currPickDiscordId,
-				DiscordId:             nextPickDiscordId,
+				NextPickName:          nextPickName,
+				NextPickDiscordId:     nextPickDiscordId,
 				Webhook:               draftWebhook,
 			}
 			go func() {
@@ -193,7 +217,11 @@ func (p *PickManager) AddListener(listener PickListener) {
 }
 
 func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
+	log.DebugNoContext("Started notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 	for _, listener := range p.listeners {
+		log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 		(*listener).ReceivePickEvent(pickEvent)
+		log.DebugNoContext("Notified pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
 	}
+	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
 }

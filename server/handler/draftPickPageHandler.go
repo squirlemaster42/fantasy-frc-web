@@ -133,7 +133,7 @@ type WebSocketListener struct {
 	messageQueue chan picking.PickEvent
 }
 
-func (w WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
+func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
 	w.messageQueue <- pickEvent
 }
 
@@ -151,7 +151,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		wsl := WebSocketListener{
 			messageQueue: make(chan picking.PickEvent),
 		}
-		h.DraftManager.AddPickListener(draftId, wsl)
+		h.DraftManager.AddPickListener(draftId, &wsl)
 		userTok, err := c.Cookie("sessionToken")
 		assert.NoError(err, "Failed to get user token")
 		userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
