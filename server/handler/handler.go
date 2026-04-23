@@ -20,4 +20,5 @@ type Handler struct {
 	TbaWebhookSecret    string
 	TbaVerificationCode string
 	DiscordBus          *discord.DiscordWebhookBus
+    SecureHttpCookie    bool
 }

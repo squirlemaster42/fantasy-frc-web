@@ -58,9 +58,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		cookie.Name = "sessionToken"
 		cookie.Value = sessionTok
 		cookie.HttpOnly = true
-		//TODO enable secure again
-        // We should put this in the env file and then pass it on the handler
-		//cookie.Secure = true
+		cookie.Secure = h.SecureHttpCookie
 		c.SetCookie(cookie)
 		c.Response().Header().Set("HX-Redirect", "/u/home")
 		return nil

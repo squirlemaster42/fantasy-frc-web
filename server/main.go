@@ -16,6 +16,7 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -44,11 +45,18 @@ func main() {
 	serverPort := os.Getenv("SERVER_PORT")
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	metricSecret := os.Getenv("METRIC_SECRET")
+    secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	log.InfoNoContext("Extracted Env Vars")
 	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 	log.InfoNoContext("Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
+
+    secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
+    if err != nil {
+        log.WarnNoContext("failed to parse secure http cookie env var", "Error", err)
+        secureHttpCookie = true
+    }
 
 	discordBus := discord.NewBus()
 	draftManager := draft.NewDraftManager(tbaHandler, database, discordBus)
@@ -78,13 +86,14 @@ func main() {
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
 	assert.NoError(err, "Failed to create avatar store")
 
-	handler := handler.Handler{
+	handler := handler.Handler {
 		Database:     database,
 		TbaHandler:   *tbaHandler,
 		DraftManager: draftManager,
 		Scorer:       scorer,
 		AvatarStore:  &avatarStore,
 		DiscordBus:   discordBus,
+        SecureHttpCookie: secureHttpCookie,
 	}
 
 	// Load the tba webhook secret
