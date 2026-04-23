@@ -14,7 +14,6 @@ def main():
     event_key = "2026cmptx"
     url = f"https://www.thebluealliance.com/api/v3/event/{event_key}/teams"
 
-    print(f"Debug: API key = '{api_key}'")
     print(f"Debug: URL = {url}")
 
     request = urllib.request.Request(url)
