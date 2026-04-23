@@ -74,14 +74,13 @@ func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {
 
 type DraftPickRow struct {
 	DraftId   int
-	Webhook   string
 	DraftName string
 	Username  string
-	DiscordId string
 	Pick      string
+	DiscordId sql.NullString
+	Webhook   sql.NullString
 }
 
-// TODO: better name?
 func GetDraftPickRows(database *sql.DB, teamKeys []string) ([]DraftPickRow, error) {
 	// set up query params
 	placeholders := make([]string, len(teamKeys))

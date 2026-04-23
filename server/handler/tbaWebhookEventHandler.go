@@ -13,6 +13,7 @@ import (
 	"server/model"
 	"server/swagger"
 	"server/utils"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -156,25 +157,30 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 	draftMap := make(map[int]*discord.PreMatchDiscordEvent)
 
 	for _, row := range rows {
-		// init the event for this draft if it doesn't exist
-		_, exists := draftMap[row.DraftId]
-		if !exists {
-			draftMap[row.DraftId] = &discord.PreMatchDiscordEvent{
-				EventName:     tbaEvent.EventName,
-				PredictedTime: time.Unix(tbaEvent.PredictedTime, 0),
-				Webhook:       row.Webhook,
-				IdsToTeams:    make(map[string][]string),
+		// init the event for this draft if it doesn't exist and the webhook is valid
+		if row.Webhook.Valid {
+			_, exists := draftMap[row.DraftId]
+			if !exists && row.Webhook.Valid {
+				draftMap[row.DraftId] = &discord.PreMatchDiscordEvent{
+					EventName:     tbaEvent.EventName,
+					PredictedTime: time.Unix(tbaEvent.PredictedTime, 0),
+					Webhook:       row.Webhook.String,
+					IdsToTeams:    make(map[string][]string),
+				}
 			}
-		}
 
-		// Username by default but use discord id if found
-		discordId := row.Username
-		if row.DiscordId != "" {
-			discordId = fmt.Sprintf("<@%s>", row.DiscordId)
-		}
+			// Username by default but use discord id if found
+			discordId := row.Username
+			if row.DiscordId.Valid {
+				_, err := strconv.ParseUint(row.DiscordId.String, 10, 64)
+				if len(row.DiscordId.String) >= 17 && err == nil {
+					discordId = fmt.Sprintf("<@%s>", row.DiscordId.String)
+				}
+			}
 
-		// add user with that pick to that draft
-		draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
+			// add user with that pick to that draft
+			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
+		}
 	}
 
 	// Send each event to the Discord Bus
