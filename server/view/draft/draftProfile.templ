@@ -69,7 +69,6 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="playerList">
                         for _, player := range draft.Players {
                             if player.Pending {
-                                //TODO we should make this a component and pass it something so this is nicer...the vibe code made this yucky stuff
                                 <div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
                                     <div class="card-body p-4 text-center">
                                         <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3">

@@ -2,7 +2,7 @@
 
 Comprehensive list of pending tasks, bugs, and technical debt for the Fantasy FRC server.
 
-> Last updated: 2026-04-12
+> Last updated: 2026-04-22
 
 ---
 
