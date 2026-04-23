@@ -153,25 +153,44 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
 			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
 
-			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, pick.Player)
+			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
 			if err != nil {
 				log.WarnNoContext("Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
 			}
+
+			currPickUser, err := model.GetDraftPlayerUser(p.database, currentPick.Player)
+			if err != nil {
+				log.WarnNoContext("Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
+				err = nil
+			}
+			currPickName := currPickUser.Username
 
 			nextPickDiscordId, err := model.GetPlayerDiscordId(p.database, nextPickPlayer.Id)
 			if err != nil {
-				log.WarnNoContext("Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				log.WarnNoContext("Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
 			}
+
+			nextPickUser, err := model.GetDraftPlayerUser(p.database, nextPickPlayer.Id)
+			if err != nil {
+				log.WarnNoContext("Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				err = nil
+			}
+			nextPickName := nextPickUser.Username
 
 			draftWebhook, err := model.GetDraftWebhook(p.database, p.draftId)
 			if err != nil {
 				log.WarnNoContext("Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
+				err = nil
 			}
 
 			event := discord.NextPickDiscordEvent{
 				PreviousPickedTeam:    pick.Pick.String,
+				PreviousPickName:      currPickName,
 				PreviousPickDiscordId: currPickDiscordId,
-				DiscordId:             nextPickDiscordId,
+				NextPickName:          nextPickName,
+				NextPickDiscordId:     nextPickDiscordId,
 				Webhook:               draftWebhook,
 			}
 			go func() {
