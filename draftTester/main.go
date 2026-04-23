@@ -61,9 +61,9 @@ func main() {
 				break
 			}
 		}
-        if pickingPlayer == nil {
-            panic("failed to find picking player")
-        }
+		if pickingPlayer == nil {
+			panic("failed to find picking player")
+		}
 
 		slog.Info("Got picking player", "Username", pickingPlayer.Username)
 		if rand.IntN(10) < 3 {
@@ -125,7 +125,7 @@ func initUsers(configPath string) ([]*User, error) {
 	}
 
 	for i, user := range users {
-		users[i] = createUser(user.Username, user.Password )
+		users[i] = createUser(user.Username, user.Password)
 	}
 	populateAuthToks(users)
 
@@ -155,7 +155,7 @@ func loadValidTeams() []int {
 	var validTeams []int
 
 	scanner := bufio.NewScanner(file)
-    for scanner.Scan() {
+	for scanner.Scan() {
 		line := scanner.Text()
 		teamNum, err := strconv.Atoi(line)
 		if err != nil {
@@ -163,11 +163,11 @@ func loadValidTeams() []int {
 		}
 
 		validTeams = append(validTeams, teamNum)
-    }
+	}
 	return validTeams
 }
 
-func isPickingPlayer (user *User, draftId int) bool {
+func isPickingPlayer(user *User, draftId int) bool {
 	slog.Info("Getting picking player", "Draft Id", draftId, "User", user.Username)
 
 	resp, err := user.Client.Get(fmt.Sprintf("%s/u/draft/%d/pick", target, draftId))
