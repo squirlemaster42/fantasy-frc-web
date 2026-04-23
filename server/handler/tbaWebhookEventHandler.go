@@ -172,6 +172,8 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 			// Username by default but use discord id if found
 			discordId := row.Username
 			if row.DiscordId.Valid {
+				// discord IDs must be 17+ characters and all numbers, so this is a quick way to mostly validate
+				// that the id in the database is not just a random string
 				_, err := strconv.ParseUint(row.DiscordId.String, 10, 64)
 				if len(row.DiscordId.String) >= 17 && err == nil {
 					discordId = fmt.Sprintf("<@%s>", row.DiscordId.String)
