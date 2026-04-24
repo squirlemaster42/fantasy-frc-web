@@ -29,9 +29,18 @@ func main() {
 	verbose := flag.Bool("v", false, "Enable debug logging")
 	flag.Parse()
 
+	logLevel := slog.LevelInfo
 	if *verbose {
-		log.SetLevel(log.LevelDebug)
+		logLevel = slog.LevelDebug
 	}
+
+	logBuffer := log.NewRingBuffer(1000)
+	dualHandler := log.NewDualHandler(logBuffer, logLevel)
+	logger := slog.New(dualHandler)
+	logger = logger.With("service", "fantasy-frc")
+	slog.SetDefault(logger)
+	log.SetBuffer(logBuffer)
+	log.SetDualHandler(dualHandler)
 
 	log.InfoNoContext("-------- Starting Fantasy FRC --------")
 

@@ -1,0 +1,51 @@
+logging:
+  level: info
+
+discovery.relabel "fantasy_frc" {
+  targets = [
+    { "__path__" = "/var/lib/fantasy-frc-monitoring/latest_logs.json" }
+  ]
+}
+
+loki.source.file "fantasy_frc" {
+  targets    = discovery.relabel.fantasy_frc.targets
+  forward_to = [loki.process.fantasy_frc.receiver]
+  
+  relabel_rules {
+    action        = "replace"
+    source_labels = ["__path__"]
+    target_label  = "job"
+    replacement   = "fantasy-frc"
+  }
+}
+
+loki.process "fantasy_frc" {
+  stage.json {
+    expressions = {
+      time    = "time",
+      level   = "level",
+      message = "msg",
+      service = "service",
+    }
+  }
+  
+  stage.labels {
+    values = {
+      level   = "level",
+      service = "service",
+    }
+  }
+  
+  stage.timestamp {
+    source = "time"
+    format = "RFC3339"
+  }
+  
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}

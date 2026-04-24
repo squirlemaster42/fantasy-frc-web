@@ -1,0 +1,10 @@
+[Unit]
+Description=Poll Fantasy FRC logs every 10 seconds
+Requires=fantasy-frc-log-poll.service
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=10s
+
+[Install]
+WantedBy=timers.target
