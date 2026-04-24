@@ -55,7 +55,7 @@ func main() {
 
     secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
     if err != nil {
-        log.WarnNoContext("failed to parse secure http cookie env var", "Error", err)
+        log.WarnNoContext("failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
         secureHttpCookie = true
     }
 

@@ -21,6 +21,7 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 		database: database,
 		interval: interval,
 		running:  false,
+        startLock: &sync.Mutex{},
 	}
 }
 
