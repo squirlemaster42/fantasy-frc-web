@@ -87,7 +87,7 @@ func ParseArgString(argStr string) (map[string]string, error) {
 	return argMap, nil
 }
 
-var PICK_TIME time.Duration = 1 * time.Hour
+var PICK_TIME time.Duration = 3 * time.Hour
 
 type TimeRange struct {
 	startHour int
