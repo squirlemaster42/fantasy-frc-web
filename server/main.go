@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io"
+	"log/slog"
 	"os"
 	"server/assert"
 	"server/background"
@@ -83,6 +84,12 @@ func main() {
 		scorer.RunScorer()
 	}
 
+	cleanupService := background.NewCleanupService(database, 60)
+	err = cleanupService.Start()
+	if err != nil {
+		slog.Error("Failed to start cleanup service", "Error", err)
+	}
+
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
 	assert.NoError(err, "Failed to create avatar store")
 
@@ -105,7 +112,7 @@ func main() {
 		if err != nil {
 			log.WarnNoContext("Failed to read tba webhook file body", "Error", err)
 		} else {
-			handler.TbaVerificationCode = string(body)
+		handler.TbaVerificationCode = string(body)
 		}
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret

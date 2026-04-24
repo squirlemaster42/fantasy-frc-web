@@ -169,7 +169,6 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		lock.Lock()
 		draftModel, err := model.GetDraft(dm.database, draftId)
 
-		//TODO we should probably check if we need to do this in the reload path
 		draft := Draft{
 			draftId:     draftId,
 			pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
@@ -308,7 +307,6 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 	return err
 }
 
-// TODO Can we do something nicer with these two lock functions?
 func (dm *DraftManager) getLoadLock(draftId int) *sync.Mutex {
 	//Get the lock if it exists for the draft, if not register it
 	lock, ok := dm.loadLocks.Load(draftId)

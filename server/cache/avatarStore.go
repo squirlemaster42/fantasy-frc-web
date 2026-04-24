@@ -13,7 +13,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// TODO I think that there will be too much variance in the avatars requested for this
+// I think that there will be too much variance in the avatars requested for this
 // to be a reasonable LRU cache and we should always just go to redis.
 // Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
