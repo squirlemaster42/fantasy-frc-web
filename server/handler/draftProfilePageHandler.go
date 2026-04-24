@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"server/assert"
@@ -258,8 +257,13 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	if numAccepted != 8 {
 		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "Draft Id", draftId, "Num Accepted", numAccepted)
-		// TODO Show this error to users
-		return errors.New("draft does not have the correct number of accepted players")
+		c.Response().Status = http.StatusBadRequest
+		page := draftView.StartDraftButton(
+			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
+			fmt.Sprintf("Draft must have exactly 8 accepted players to start (current: %d)", numAccepted),
+			true,
+		)
+		return Render(c, page)
 	}
 
 	// Cancel the invites for players who have not accepted the draft

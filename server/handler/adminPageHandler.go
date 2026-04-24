@@ -85,7 +85,6 @@ func (l *ListDraftsCommand) ProcessCommand(context context.Context, database *sq
 type StartDraftCommand struct{}
 
 func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	// TODO This should go through the draft manager now
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -110,15 +109,11 @@ func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sq
 		return "Not Enough Players Have Accepted The Draft"
 	}
 
-	//Randomize pick order
-	model.RandomizePickOrder(database, draftId)
-
-	model.StartDraft(database, draftId)
-
-	//Get the next pick and ready up that pick
-	nextPickPlayer := model.NextPick(database, draftId)
-
-	model.MakePickAvailable(database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+	err = draftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
+	if err != nil {
+		log.ErrorNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		return err.Error()
+	}
 
 	// Need to start draft watch dog
 	return "Draft Started"

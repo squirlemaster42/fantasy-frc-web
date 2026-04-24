@@ -100,7 +100,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 			continue
 		}
 
-		curPick, err := model.GetCurrentPick(d.database, draftId)
+		curPick, err := d.draftManager.GetCurrentPick(draftId)
 		if err != nil {
 			continue
 		}

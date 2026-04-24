@@ -41,7 +41,6 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
 	}
 }
 
-// TODO Make sure that all GetCurrentPick calls are going through this
 func (p *PickManager) GetCurrentPick(draftId int) (model.Pick, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -119,6 +118,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 	var err error
 	if !pick.Pick.Valid {
 		err = errors.New("no team entered")
+		return false, err
 	}
 
 	// Check that we are still trying to make the current pick

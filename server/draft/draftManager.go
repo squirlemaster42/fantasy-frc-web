@@ -46,10 +46,13 @@ type ToPickingTransition struct {
 }
 
 func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
-	model.RandomizePickOrder(tpt.database, draft.draftId)
+	err := model.RandomizePickOrder(tpt.database, draft.draftId)
+	if err != nil {
+		return err
+	}
 	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
 	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
-	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+	err = model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
 	if err != nil {
 		log.ErrorNoContext("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
@@ -126,7 +129,6 @@ func setupStates(database *sql.DB) map[model.DraftState]*state {
 }
 
 type DraftManager struct {
-	//TODO this map should be thread safe
 	drafts          map[int]*Draft
 	loadLocks       sync.Map
 	transitionLocks sync.Map
@@ -265,7 +267,6 @@ func (dm *DraftManager) UndoLastPick(draftId int) error {
 	return draft.pickManager.UndoLastPick()
 }
 
-// TODO Make sure that all GetCurrentPick calls are going through this
 func (dm *DraftManager) GetCurrentPick(draftId int) (model.Pick, error) {
 	draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
@@ -384,7 +385,7 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, expirationT
 	defer loadLock.Unlock()
 	defer transitionLock.Unlock()
 
-	currentPick, err := model.GetCurrentPick(dm.database, draftId)
+	currentPick, err := dm.GetCurrentPick(draftId)
 	if currentPick.Id == 0 || err != nil {
 		return errors.New("no current pick found for this draft")
 	}

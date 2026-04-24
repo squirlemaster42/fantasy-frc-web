@@ -988,11 +988,11 @@ func HasBeenPicked(database *sql.DB, draftId int, team string) bool {
 	return numPicked != 0
 }
 
-func RandomizePickOrder(database *sql.DB, draftId int) {
+func RandomizePickOrder(database *sql.DB, draftId int) error {
 	draftModel, err := GetDraft(database, draftId)
 	if err != nil {
 		log.WarnNoContext("Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
-		return
+		return fmt.Errorf("could not load draft %d", draftId)
 	}
 	var awaitingAssignment []DraftPlayer
 	// We only want to randomize the pick order of players who accepted the draft
@@ -1010,8 +1010,9 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 
 	for i, player := range awaitingAssignment {
 		draftPlayerId, err := GetDraftPlayerId(database, draftId, player.User.UserUuid)
-		// TODO We need to handle this error better
-		assert.NoError(err, "Could not find draft player")
+		if err != nil {
+			return fmt.Errorf("could not get draftplayer for user %s in draft %d", player.User.UserUuid.String(), draftId)
+		}
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
 		stmt, err := database.Prepare(query)
 		assert.NoError(err, "Failed to prepare statement")
@@ -1025,6 +1026,8 @@ func RandomizePickOrder(database *sql.DB, draftId int) {
 			log.WarnNoContext("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
 		}
 	}
+
+	return nil
 }
 
 func GetAvailablePickId(database *sql.DB, draftId int) Pick {
@@ -1143,22 +1146,6 @@ func GetDraftPlayerFromDraft(draft DraftModel, draftPlayerId int) DraftPlayer {
 		}
 	}
 	return DraftPlayer{}
-}
-
-func StartDraft(database *sql.DB, draftId int) {
-	query := `Update Drafts Set Status = $1 Where Id = $2;`
-
-	assert := assert.CreateAssertWithContext("Start Draft")
-	assert.AddContext("Draft Id", draftId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to prepare statement")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("StartDraft: Failed to close statement", "error", err)
-		}
-	}()
-	_, err = stmt.Exec(PICKING, draftId)
-	assert.NoError(err, "Failed to update draft status")
 }
 
 func ShouldSkipPick(database *sql.DB, draftPlayer int) bool {

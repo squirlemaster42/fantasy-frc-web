@@ -63,7 +63,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	currPick, err := model.GetCurrentPick(h.Database, draftId)
+	currPick, err := h.DraftManager.GetCurrentPick(draftId)
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,6 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 	}
 }
 
-// TODO Are we using any of this? If not we should start
 func (c *CleanupService) Start() error {
 	c.startLock.Lock()
 	defer c.startLock.Unlock()
@@ -35,7 +34,7 @@ func (c *CleanupService) Start() error {
 	log.InfoNoContext("Started cleanup service")
 	go func() {
 		for c.running {
-			c.CleanExpiredSessionTokens()
+			c.cleanExpiredSessionTokens()
 			time.Sleep(time.Duration(c.interval) * time.Minute)
 		}
 	}()
@@ -52,7 +51,7 @@ func (c *CleanupService) Stop() error {
 	return nil
 }
 
-func (c *CleanupService) CleanExpiredSessionTokens() {
+func (c *CleanupService) cleanExpiredSessionTokens() {
 	log.InfoNoContext("Starting iteration of cleanup service")
 	query := `Delete from UserSessions Where expirationTime < (now()::timestamp + '2 hours');`
 	assert := assert.CreateAssertWithContext("Clean Expired Session Tokens")
