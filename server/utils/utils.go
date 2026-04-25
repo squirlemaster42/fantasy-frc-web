@@ -126,9 +126,9 @@ var ALLOWED_TIMES = map[time.Weekday]TimeRange{
 	},
 }
 
-func GetPickExpirationTime(t time.Time) time.Time {
+func GetPickExpirationTime(t time.Time, expirationDuration time.Duration) time.Time {
 	log.InfoNoContext("Getting Expiration Time", "Current Time", t)
-	expirationTime := t.Add(PICK_TIME)
+	expirationTime := t.Add(expirationDuration)
 	validTime := ALLOWED_TIMES[expirationTime.Weekday()]
 	nextDay := t.Add(24 * time.Hour)
 
@@ -144,23 +144,23 @@ func GetPickExpirationTime(t time.Time) time.Time {
 		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
 		log.InfoNoContext("Expiration Time not in window and Current Time in Window")
 		nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
-		diff := int(PICK_TIME.Hours()) - (validTime.endHour - t.Hour())
+		diff := int(expirationDuration.Hours()) - (validTime.endHour - t.Hour())
 		expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
 		return expirationTime.Add(time.Duration(diff) * time.Hour)
 	}
 
 	//If the current time is not in the pick window
 	//We need to find the next pick windows and set the expiraton time to
-	//PICK_TIME after the start of that window
+	//expirationDuration after the start of that window
 	//To find the next window we get the window for the current day
 	//If we are before that window we take that one, if not we take the next one
 	log.InfoNoContext("Current Time not in Window")
 	if t.Hour() > validTime.endHour {
 		//If we are after the window move the valid time to the next day
 		validTime = ALLOWED_TIMES[nextDay.Weekday()]
-		return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(PICK_TIME)
+		return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(expirationDuration)
 	} else {
-		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(PICK_TIME)
+		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(expirationDuration)
 	}
 }
 

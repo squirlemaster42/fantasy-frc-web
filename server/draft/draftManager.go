@@ -51,7 +51,7 @@ func (tpt *ToPickingTransition) executeTransition(draft Draft) error {
 		return err
 	}
 	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
-	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME))
 	err = model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
 	if err != nil {
 		log.ErrorNoContext("Failed to update draft status", "Draft Id", draft.draftId, "Error", err)

@@ -91,7 +91,7 @@ func (p *PickManager) SkipCurrentPick() error {
 	}
 	nextPickPlayer := model.NextPick(p.database, p.draftId)
 	model.SkipPick(p.database, curPick.Id)
-	model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+	model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME))
 
 	event := PickEvent{
 		Pick:    model.Pick{},
@@ -151,7 +151,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 		log.InfoNoContext("Checking if we should make another pick available", "Num picks", len(picks))
 		if len(picks) < 64 {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
-			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now()))
+			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME))
 
 			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
 			if err != nil {
