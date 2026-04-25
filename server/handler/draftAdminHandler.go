@@ -117,6 +117,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Invalid duration format. Use format like: 30m, 1h, 2h30m", false))
 	}
 
+	log.Info(c.Request().Context(), "Extending pick", "Extension time", duration)
 	err = h.DraftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)

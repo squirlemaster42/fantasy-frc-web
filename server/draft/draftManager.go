@@ -377,7 +377,7 @@ func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
 	return err
 }
 
-func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, expirationTime time.Duration) error {
+func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention time.Duration) error {
 	loadLock := dm.getLoadLock(draftId)
 	transitionLock := dm.getTransitionLock(draftId)
 	loadLock.Lock()
@@ -390,7 +390,8 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, expirationT
 		return errors.New("no current pick found for this draft")
 	}
 
-	newExpirationTime := time.Now().Add(expirationTime)
+	newExpirationTime := utils.GetPickExpirationTime(currentPick.ExpirationTime, extention)
+	log.InfoNoContext("Setting new pick expiration time", "Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
 
 	err = model.UpdatePickExpirationTime(dm.database, currentPick.Id, newExpirationTime)
 	if err != nil {
