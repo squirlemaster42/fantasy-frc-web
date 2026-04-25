@@ -151,7 +151,8 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 		log.InfoNoContext("Checking if we should make another pick available", "Num picks", len(picks))
 		if len(picks) < 64 {
 			log.InfoNoContext("Making next pick available", "Draft Id", p.draftId)
-			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME))
+			expirationTime := utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME)
+			model.MakePickAvailable(p.database, nextPickPlayer.Id, time.Now(), expirationTime)
 
 			currPickDiscordId, err := model.GetPlayerDiscordId(p.database, currentPick.Player)
 			if err != nil {
@@ -192,6 +193,7 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 				NextPickName:          nextPickName,
 				NextPickDiscordId:     nextPickDiscordId,
 				Webhook:               draftWebhook,
+				ExpirationTime: 	   expirationTime,
 			}
 			go func() {
 				err = p.discordBus.PostPickNotification(event)

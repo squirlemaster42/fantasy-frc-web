@@ -41,6 +41,7 @@ type NextPickDiscordEvent struct {
 	NextPickName          string
 	NextPickDiscordId     sql.NullString
 	Webhook               string
+	ExpirationTime        time.Time
 }
 
 func NewBus() *DiscordWebhookBus {
@@ -120,9 +121,9 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		}
 	}
 
-	message := "%s has picked %s. %s it is your pick."
+	message := "%s has picked %s. %s it is your pick. Your pick expires at %s."
 	if previousIdentifier == nextIdentifier {
-		message = "%s has picked %s, and %s it is your turn again."
+		message = "%s has picked %s, and %s it is your turn again. Your pick expires at %s."
 	}
 
 	webhook := DiscordWebhook{
@@ -132,6 +133,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 			previousIdentifier,
 			strings.Trim(event.PreviousPickedTeam, "frc"),
 			nextIdentifier,
+			event.ExpirationTime.Format(time.RFC1123),
 		),
 		AllowedMentions: AllowedMentions{
 			Users: allowedUserMentions,
