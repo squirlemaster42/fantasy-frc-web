@@ -391,7 +391,7 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention t
 	}
 
 	newExpirationTime := utils.GetPickExpirationTime(currentPick.ExpirationTime, extention)
-	log.InfoNoContext("Setting new pick expiration time", "Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
+	log.InfoNoContext("Setting new pick expiration time", "Current Pick Time", currentPick.ExpirationTime, "New Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
 
 	err = model.UpdatePickExpirationTime(dm.database, currentPick.Id, newExpirationTime)
 	if err != nil {
