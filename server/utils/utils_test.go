@@ -46,6 +46,8 @@ func TestFindNextExpirationTime(t *testing.T) {
     assert.Equal(t, time.Date(2025, time.April, 7, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 6, 22, 0, 0, 0, time.Local), 3 * time.Hour))
     assert.Equal(t, time.Date(2025, time.April, 11, 20, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 14, 0, 0, 0, time.Local), 3 * time.Hour))
     assert.Equal(t, time.Date(2025, time.April, 12, 11, 0, 0, 0, time.Local), GetPickExpirationTime(time.Date(2025, time.April, 11, 23, 0, 0, 0, time.Local), 3 * time.Hour))
+
+    assert.Equal(t, time.Date(2026, time.April, 25, 16, 54, 0, 0, time.Local), GetPickExpirationTime(time.Date(2026, time.April, 25, 14, 54, 0, 0, time.Local), 2 * time.Hour))
 }
 
 func TestCompareMatches(t *testing.T) {
