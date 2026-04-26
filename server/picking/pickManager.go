@@ -13,12 +13,13 @@ import (
 )
 
 type PickManager struct {
-	draftId    int
-	lock       sync.Mutex
-	listeners  []*PickListener
-	database   *sql.DB
-	tbaHandler *tbaHandler.TbaHandler
-	discordBus *discord.DiscordWebhookBus
+	draftId      int
+	pickLock     sync.Mutex
+	listenerLock sync.RWMutex
+	listeners    []PickListener
+	database     *sql.DB
+	tbaHandler   *tbaHandler.TbaHandler
+	discordBus   *discord.DiscordWebhookBus
 }
 
 type PickEvent struct {
@@ -42,14 +43,14 @@ func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHan
 }
 
 func (p *PickManager) GetCurrentPick(draftId int) (model.Pick, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.pickLock.Lock()
+	defer p.pickLock.Unlock()
 	return model.GetCurrentPick(p.database, draftId)
 }
 
 func (p *PickManager) UndoLastPick() error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.pickLock.Lock()
+	defer p.pickLock.Unlock()
 
 	// Get the current pick
 	currentPick, err := model.GetCurrentPick(p.database, p.draftId)
@@ -83,10 +84,10 @@ func (p *PickManager) UndoLastPick() error {
 }
 
 func (p *PickManager) SkipCurrentPick() error {
-	p.lock.Lock()
+	p.pickLock.Lock()
 	curPick, err := model.GetCurrentPick(p.database, p.draftId)
 	if err != nil {
-		p.lock.Unlock()
+		p.pickLock.Unlock()
 		return err
 	}
 	nextPickPlayer := model.NextPick(p.database, p.draftId)
@@ -99,19 +100,15 @@ func (p *PickManager) SkipCurrentPick() error {
 		Err:     nil,
 		DraftId: p.draftId,
 	}
-	p.lock.Unlock()
+	p.pickLock.Unlock()
 
-	go func() {
-		for _, listener := range p.listeners {
-			(*listener).ReceivePickEvent(event)
-		}
-	}()
+	go p.NotifyListeners(event)
 	return nil
 }
 
 func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.pickLock.Lock()
+	defer p.pickLock.Unlock()
 
 	pickingComplete := false
 
@@ -215,15 +212,37 @@ func (p *PickManager) MakePick(pick model.Pick) (bool, error) {
 
 func (p *PickManager) AddListener(listener PickListener) {
 	log.InfoNoContext("Added pick listener", "Listener", listener)
-	p.listeners = append(p.listeners, &listener)
+	p.listenerLock.Lock()
+	p.listeners = append(p.listeners, listener)
+	p.listenerLock.Unlock()
+}
+
+func (p *PickManager) RemoveListener(listener PickListener) {
+	p.listenerLock.Lock()
+	defer p.listenerLock.Unlock()
+
+	for i, l := range p.listeners {
+		if l == listener {
+			p.listeners[i] = p.listeners[len(p.listeners)-1]
+			p.listeners = p.listeners[:len(p.listeners)-1]
+			log.InfoNoContext("Removed pick listener", "Listener", listener)
+			return
+		}
+	}
+	log.WarnNoContext("Failed to remove pick listener, not found", "Listener", listener)
 }
 
 func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
 	log.DebugNoContext("Started notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
-	for _, listener := range p.listeners {
-		log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
-		(*listener).ReceivePickEvent(pickEvent)
-		log.DebugNoContext("Notified pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(p.listeners))
+
+	p.listenerLock.RLock()
+	listenersCopy := make([]PickListener, len(p.listeners))
+	copy(listenersCopy, p.listeners)
+	p.listenerLock.RUnlock()
+
+	for _, listener := range listenersCopy {
+		log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
+		listener.ReceivePickEvent(pickEvent)
 	}
-	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
+	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId)
 }

@@ -134,7 +134,12 @@ type WebSocketListener struct {
 }
 
 func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
-	w.messageQueue <- pickEvent
+	select {
+	case w.messageQueue <- pickEvent:
+		// Sent successfully
+	case <-time.After(5 * time.Second):
+		log.WarnNoContext("Timeout sending pick event to websocket listener", "Listener", w)
+	}
 }
 
 func (h *Handler) PickNotifier(c echo.Context) error {
@@ -149,9 +154,10 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		}
 
 		wsl := WebSocketListener{
-			messageQueue: make(chan picking.PickEvent),
+			messageQueue: make(chan picking.PickEvent, 10),
 		}
 		h.DraftManager.AddPickListener(draftId, &wsl)
+		defer h.DraftManager.RemovePickListener(draftId, &wsl)
 		userTok, err := c.Cookie("sessionToken")
 		assert.NoError(err, "Failed to get user token")
 		userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)

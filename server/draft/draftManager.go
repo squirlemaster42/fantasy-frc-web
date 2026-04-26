@@ -354,6 +354,15 @@ func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListen
 	draft.pickManager.AddListener(listener)
 }
 
+func (dm *DraftManager) RemovePickListener(draftId int, listener picking.PickListener) {
+	draft, err := dm.GetDraft(draftId, false)
+	if err != nil {
+		log.ErrorNoContext("Failed to load draft when removing pick listener", "Error", err)
+		return
+	}
+	draft.pickManager.RemoveListener(listener)
+}
+
 func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
 	log.InfoNoContext("UpdateDraft: acquiring locks", "Draft Id", draftModel.Id)
 	loadLock := dm.getLoadLock(draftModel.Id)
