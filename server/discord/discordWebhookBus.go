@@ -121,9 +121,9 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		}
 	}
 
-	message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%s:f>."
+	message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%d:f>."
 	if previousIdentifier == nextIdentifier {
-		message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%s:f>."
+		message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%d:f>."
 	}
 
 	webhook := DiscordWebhook{
