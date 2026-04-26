@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"weak"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -180,7 +181,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	isOwner := invitingUserUuid == draft.GetOwner().UserUuid
 	if !isOwner {
-		return c.String(http.StatusBadRequest, "You must own the draft to invite a player")
+		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
 
 	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
