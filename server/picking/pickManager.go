@@ -240,9 +240,15 @@ func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
 	copy(listenersCopy, p.listeners)
 	p.listenerLock.RUnlock()
 
+	var wg sync.WaitGroup
 	for _, listener := range listenersCopy {
-		log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
-		listener.ReceivePickEvent(pickEvent)
+		wg.Add(1)
+		go func(l PickListener) {
+			defer wg.Done()
+			log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
+			l.ReceivePickEvent(pickEvent)
+		}(listener)
 	}
+	wg.Wait()
 	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId)
 }
