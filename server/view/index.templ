@@ -36,37 +36,6 @@ templ Index(page string, fromProtected bool, username string, data *types.PageDa
                     </p>
                 </div>
             </footer>
-            <script>
-                function updateCountdowns() {
-                    document.querySelectorAll('[data-expiration-time]').forEach(function(element) {
-                        var expirationTime = new Date(element.getAttribute('data-expiration-time'));
-                        var now = new Date();
-                        var timeRemaining = expirationTime - now;
-
-                        if (timeRemaining <= 0) {
-                            var input = element.querySelector('input[name="pickInput"]');
-                            if (input) { input.placeholder = "Expired"; }
-                            return;
-                        }
-
-                        var hours = Math.floor(timeRemaining / (1000 * 60 * 60));
-                        var minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-                        var seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
-
-                        var timeString = '';
-                        if (hours > 0) { timeString += hours + ':'; }
-                        timeString += String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-
-                        var input = element.querySelector('input[name="pickInput"]');
-                        if (input) { input.placeholder = timeString + " remaining"; }
-                    });
-                }
-
-                if (!window.countdownInterval) {
-                    window.countdownInterval = setInterval(updateCountdowns, 1000);
-                }
-                updateCountdowns();
-            </script>
-        </body>
+         </body>
 	</html>
 }
