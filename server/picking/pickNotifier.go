@@ -2,7 +2,9 @@ package picking
 
 import (
 	"database/sql"
+	"errors"
 	"server/log"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -59,11 +61,18 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 	return w[:len(w)-1]
 }
 
-func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) {
+func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
 	log.InfoNoContext("Received Pick Event", "Pick Id", pickEvent.Pick.Id)
 	for _, watcher := range pn.Watchers[pickEvent.DraftId] {
-		watcher.NotifierQueue <- true
+		select {
+		case watcher.NotifierQueue <- true:
+			// Sent successfully
+		case <-time.After(5 * time.Second):
+			log.WarnNoContext("Timeout sending to watcher", "Watcher Id", watcher.WatcherId)
+			return errors.New("timeout sending to watcher")
+		}
 	}
+	return nil
 }
 
 func (pn *PickNotifier) NotifyWatchers(draftId int) {

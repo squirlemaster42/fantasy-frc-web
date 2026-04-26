@@ -30,7 +30,7 @@ type PickEvent struct {
 }
 
 type PickListener interface {
-	ReceivePickEvent(pickEvent PickEvent)
+	ReceivePickEvent(pickEvent PickEvent) error
 }
 
 func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus) *PickManager {
@@ -246,7 +246,10 @@ func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
 		go func(l PickListener) {
 			defer wg.Done()
 			log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
-			l.ReceivePickEvent(pickEvent)
+			if err := l.ReceivePickEvent(pickEvent); err != nil {
+				log.WarnNoContext("Removing dead listener", "Listener", l, "Error", err)
+				p.RemoveListener(l)
+			}
 		}(listener)
 	}
 	wg.Wait()

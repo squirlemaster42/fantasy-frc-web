@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"server/assert"
@@ -133,12 +134,13 @@ type WebSocketListener struct {
 	messageQueue chan picking.PickEvent
 }
 
-func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
+func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) error {
 	select {
 	case w.messageQueue <- pickEvent:
-		// Sent successfully
+		return nil
 	case <-time.After(5 * time.Second):
 		log.WarnNoContext("Timeout sending pick event to websocket listener", "Listener", w)
+		return errors.New("timeout sending to listener")
 	}
 }
 
