@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 )
 
 type DiscordWebhookBus struct {
@@ -121,9 +121,9 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		}
 	}
 
-	message := "%s has picked %s. %s it is your pick. Your pick expires at %s."
+	message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%s:f>."
 	if previousIdentifier == nextIdentifier {
-		message = "%s has picked %s, and %s it is your turn again. Your pick expires at %s."
+		message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%s:f>."
 	}
 
 	webhook := DiscordWebhook{
@@ -133,7 +133,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 			previousIdentifier,
 			strings.Trim(event.PreviousPickedTeam, "frc"),
 			nextIdentifier,
-			event.ExpirationTime.Format(time.RFC1123),
+			event.ExpirationTime.Unix(),
 		),
 		AllowedMentions: AllowedMentions{
 			Users: allowedUserMentions,
