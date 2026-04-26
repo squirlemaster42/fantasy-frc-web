@@ -178,6 +178,11 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to invite players")
 	}
 
+	isOwner := invitingUserUuid == draft.GetOwner().UserUuid
+	if !isOwner {
+		return c.String(http.StatusBadRequest, "You must own the draft to invite a player")
+	}
+
 	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
@@ -201,8 +206,6 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	players := draftModel.Players
-
-	isOwner := invitingUserUuid == draftModel.Owner.UserUuid
 
 	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
 	err = Render(c, updatedPage)
