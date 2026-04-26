@@ -81,8 +81,13 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 		},
 	}
 
+	if pick == "frc" || !isCurrentPick {
+		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid)
+        pickError := errors.New("you must be the picking player to make a pick")
+        return h.renderPickPage(c, draftId, userUuid, pickError, false)
+	}
 	pickError := h.DraftManager.MakePick(draftId, pickStruct)
-	if pick == "frc" || !isCurrentPick || pickError != nil {
+	if pickError != nil {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", err)
 	}
 
