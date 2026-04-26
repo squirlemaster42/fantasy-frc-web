@@ -145,11 +145,12 @@ func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) {
 func (h *Handler) PickNotifier(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Pick Notifier")
 	websocket.Handler(func(ws *websocket.Conn) {
+		ctx := context.Background()
 		draftIdStr := c.Param("id")
 		draftId, err := strconv.Atoi(draftIdStr)
 
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
+			log.Error(ctx, "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
 			return
 		}
 
@@ -164,17 +165,15 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		defer func() {
 			err = ws.Close()
 			if err != nil {
-				log.Warn(c.Request().Context(), "Failed to close pick notifier web socket", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
+				log.Warn(ctx, "Failed to close pick notifier web socket", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
 			}
 		}()
-		//TODO Figure out how to unregister the listener
-		//defer h.Notifier.UnregisterWatcher(watcher)
 		for {
 			msg := <-wsl.messageQueue
-			log.Info(c.Request().Context(), "Writing pick event to client", "Event", msg)
+			log.Info(ctx, "Writing pick event to client", "Event", msg)
 			draftModel, err := model.GetDraft(h.Database, draftId)
 			if err != nil {
-				log.Warn(c.Request().Context(), "Attempting to notify draft that does not exist", "Draft Id", draftId)
+				log.Warn(ctx, "Attempting to notify draft that does not exist", "Draft Id", draftId)
 				continue
 			}
 
@@ -185,7 +184,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			err = websocket.Message.Send(ws, html.String())
 			if err != nil {
-				log.Warn(c.Request().Context(), "Failed to sent message to websocket")
+				log.Warn(ctx, "Failed to sent message to websocket")
 				break
 			}
 		}
