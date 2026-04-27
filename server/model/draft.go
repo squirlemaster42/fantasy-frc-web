@@ -1001,8 +1001,6 @@ func RandomizePickOrder(database *sql.DB, draftId int) error {
 			awaitingAssignment = append(awaitingAssignment, player)
 		}
 	}
-	assert := assert.CreateAssertWithContext("Randomize Pick Order")
-
 	for i := range awaitingAssignment {
 		j := rand.Intn(i + 1)
 		awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
@@ -1014,14 +1012,7 @@ func RandomizePickOrder(database *sql.DB, draftId int) error {
 			return fmt.Errorf("could not get draftplayer for user %s in draft %d", player.User.UserUuid.String(), draftId)
 		}
 		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
-		stmt, err := database.Prepare(query)
-		assert.NoError(err, "Failed to prepare statement")
-		defer func() {
-			if err := stmt.Close(); err != nil {
-				log.WarnNoContext("RandomizePickOrder: Failed to close statement", "error", err)
-			}
-		}()
-		_, err = stmt.Exec(i, draftPlayerId)
+		_, err = database.Exec(query, i, draftPlayerId)
 		if err != nil {
 			log.WarnNoContext("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
 		}
