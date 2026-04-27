@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type contextKey string
@@ -38,9 +39,22 @@ func GetCorrelationID(ctx context.Context) string {
 }
 
 func LogWithContext(ctx context.Context) *slog.Logger {
-	corrID := GetCorrelationID(ctx)
-	if corrID != "" {
-		return slog.With("correlation_id", corrID)
+	logger := slog.Default()
+	if ctx == nil {
+		return logger
 	}
-	return slog.Default()
+
+	if corrID := GetCorrelationID(ctx); corrID != "" {
+		logger = logger.With("correlation_id", corrID)
+	}
+
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		logger = logger.With(
+			"trace_id", span.SpanContext().TraceID().String(),
+			"span_id", span.SpanContext().SpanID().String(),
+		)
+	}
+
+	return logger
 }

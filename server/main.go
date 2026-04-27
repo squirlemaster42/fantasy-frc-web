@@ -27,7 +27,10 @@ func main() {
 
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
 	verbose := flag.Bool("v", false, "Enable debug logging")
+	logFormat := flag.String("log-format", "json", "Log format: json or text")
 	flag.Parse()
+
+	log.SetupLogger(*logFormat)
 
 	if *verbose {
 		log.SetLevel(log.LevelDebug)
