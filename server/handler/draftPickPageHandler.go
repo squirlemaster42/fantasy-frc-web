@@ -127,9 +127,9 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	if includeWrapper {
 		username := model.GetUsername(h.Database, userUuid)
 		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
-		err = Render(c, pickPageView)
+		err = h.Render(c, pickPageView)
 	} else {
-		err = Render(c, pickPageIndex)
+		err = h.Render(c, pickPageIndex)
 	}
 
 	return err

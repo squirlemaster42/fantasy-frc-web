@@ -29,7 +29,7 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "")
 	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
-	err = Render(c, userProfile)
+	err = h.Render(c, userProfile)
 	assert.NoError(err, "Handle View User Profile Failed To Render")
 	return nil
 }
@@ -58,28 +58,28 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	if currentPassword != "" || newPassword != "" || confirmNewPassword != "" {
 		if currentPassword == "" {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is required to change your password", "")
-			err = Render(c, userProfileIndex)
+			err = h.Render(c, userProfileIndex)
 			assert.NoError(err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if newPassword == "" {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password is required", "")
-			err = Render(c, userProfileIndex)
+			err = h.Render(c, userProfileIndex)
 			assert.NoError(err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if newPassword != confirmNewPassword {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New passwords do not match", "")
-			err = Render(c, userProfileIndex)
+			err = h.Render(c, userProfileIndex)
 			assert.NoError(err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if len(newPassword) < 6 {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password must be at least 6 characters", "")
-			err = Render(c, userProfileIndex)
+			err = h.Render(c, userProfileIndex)
 			assert.NoError(err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
@@ -87,7 +87,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		if !model.ValidateLogin(h.Database, username, currentPassword) {
 			log.Info(c.Request().Context(), "Invalid current password attempt for user", "Username", username)
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is incorrect", "")
-			err = Render(c, userProfileIndex)
+			err = h.Render(c, userProfileIndex)
 			assert.NoError(err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
@@ -98,7 +98,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Updated profile for user", "Username", username)
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "Profile updated successfully")
-	err = Render(c, userProfileIndex)
+	err = h.Render(c, userProfileIndex)
 	assert.NoError(err, "Handle Update User Profile Failed To Render")
 	return nil
 }

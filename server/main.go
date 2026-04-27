@@ -49,6 +49,9 @@ func main() {
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	metricSecret := os.Getenv("METRIC_SECRET")
     secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
+    faroProxySecret := os.Getenv("FARO_PROXY_SECRET")
+    faroAlloyInternalURL := os.Getenv("FARO_ALLOY_INTERNAL_URL")
+    faroAlloyBearerToken := os.Getenv("FARO_ALLOY_BEARER_TOKEN")
 	log.InfoNoContext("Extracted Env Vars")
 	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
 	log.InfoNoContext("Registered Database Connection")
@@ -96,13 +99,16 @@ func main() {
 	assert.NoError(err, "Failed to create avatar store")
 
 	handler := handler.Handler {
-		Database:     database,
-		TbaHandler:   *tbaHandler,
-		DraftManager: draftManager,
-		Scorer:       scorer,
-		AvatarStore:  &avatarStore,
-		DiscordBus:   discordBus,
-        SecureHttpCookie: secureHttpCookie,
+		Database:            database,
+		TbaHandler:          *tbaHandler,
+		DraftManager:        draftManager,
+		Scorer:              scorer,
+		AvatarStore:         &avatarStore,
+		DiscordBus:          discordBus,
+        SecureHttpCookie:    secureHttpCookie,
+        FaroProxySecret:    faroProxySecret,
+        FaroAlloyInternalURL: faroAlloyInternalURL,
+        FaroAlloyBearerToken: faroAlloyBearerToken,
 	}
 
 	// Load the tba webhook secret

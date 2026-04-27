@@ -1,8 +1,10 @@
 package draft
 
-import "server/view"
-import "server/model"
-import "fmt"
+import (
+	"server/view"
+	"server/model"
+	"fmt"
+)
 
 templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
     if hasError {
@@ -78,7 +80,7 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
 }
 
 templ DraftInvite (page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, 0, false) {
         @cmp
     }
 }

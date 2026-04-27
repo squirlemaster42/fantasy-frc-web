@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
@@ -11,14 +10,16 @@ import (
 )
 
 type Handler struct {
-	Database            *sql.DB
-	TbaHandler          tbaHandler.TbaHandler
-	DraftManager        *draft.DraftManager
-	DraftDaemon         *background.DraftDaemon
-	Scorer              *scorer.Scorer
-	AvatarStore         *cache.AvatarStore
-	TbaWebhookSecret    string
-	TbaVerificationCode string
-	DiscordBus          *discord.DiscordWebhookBus
-    SecureHttpCookie    bool
+	Database             *sql.DB
+	TbaHandler           tbaHandler.TbaHandler
+	DraftManager         *draft.DraftManager
+	Scorer               *scorer.Scorer
+	AvatarStore          *cache.AvatarStore
+	TbaWebhookSecret     string
+	TbaVerificationCode  string
+	DiscordBus           *discord.DiscordWebhookBus
+    SecureHttpCookie     bool
+    FaroProxySecret     string
+    FaroAlloyInternalURL string
+    FaroAlloyBearerToken string
 }

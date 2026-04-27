@@ -43,7 +43,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 
 	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status)
 	draftView := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId, isOwner)
-	return Render(c, draftView)
+	return h.Render(c, draftView)
 }
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
@@ -75,5 +75,5 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 
 	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
 	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, isOwner)
-	return Render(c, draftTeamScore)
+	return h.Render(c, draftTeamScore)
 }

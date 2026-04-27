@@ -1,6 +1,9 @@
 package view
 
-	templ Landing() {
+import "server/types"
+
+templ Landing() {
+		{{ faro := types.GetFaroData(ctx) }}
 		<!DOCTYPE html>
 		<html lang="en" data-theme="dark">
 		<head>
@@ -15,6 +18,21 @@ package view
 			<script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
 			<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
 			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<script nonce={ faro.Nonce } src="https://unpkg.com/@grafana/faro-web-sdk@^1/dist/bundle/faro-web-sdk.iife.js"></script>
+			<script nonce={ faro.Nonce } src="https://unpkg.com/@grafana/faro-web-tracing@^1/dist/bundle/faro-web-tracing.iife.js"></script>
+			<script nonce={ faro.Nonce }>
+				(function() {
+					window.GrafanaFaroWebSdk.initializeFaro({
+						url: '/telemetry/faro-collect',
+						app: { name: 'fantasy-frc-web', version: '1.0.0' },
+						instrumentations: [
+							...window.GrafanaFaroWebSdk.getWebInstrumentations({ captureConsole: true }),
+							new window.GrafanaFaroWebTracing.TracingInstrumentation()
+						],
+						customHeaders: { 'X-Faro-Token': '{ faro.Token }' }
+					});
+				})();
+			</script>
 			<style>
 				@keyframes float {
 					0%, 100% { transform: translateY(0px); }

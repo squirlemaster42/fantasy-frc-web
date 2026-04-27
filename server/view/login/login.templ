@@ -111,7 +111,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
 }
 
 templ Login(page string, fromProtected bool, cmp templ.Component) {
-    @view.Index(page, fromProtected, "", nil) {
+    @view.Index(page, fromProtected, "", 0, false) {
         @cmp
     }
 }

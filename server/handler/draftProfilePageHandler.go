@@ -53,7 +53,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
-	return Render(c, draftView)
+	return h.Render(c, draftView)
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
@@ -150,7 +150,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner)
-	err = Render(c, searchResults)
+	err = h.Render(c, searchResults)
 	return err
 }
 
@@ -208,7 +208,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	players := draftModel.Players
 
 	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
-	err = Render(c, updatedPage)
+	err = h.Render(c, updatedPage)
 
 	return err
 }
@@ -231,7 +231,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 			"Draft Id is not a number",
 			false,
 		)
-		return Render(c, page)
+		return h.Render(c, page)
 	}
 
 	draft, err := h.DraftManager.GetDraft(draftId, true)
@@ -239,14 +239,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
-		return Render(c, page)
+		return h.Render(c, page)
 	}
 
 	if draft.GetOwner().UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "Draft Id", draftId, "User", requestingUser)
 		c.Response().Status = http.StatusUnauthorized
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
-		return Render(c, page)
+		return h.Render(c, page)
 	}
 
 	// Check that eight players have accepted the draft
@@ -266,7 +266,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 			fmt.Sprintf("Draft must have exactly 8 accepted players to start (current: %d)", numAccepted),
 			true,
 		)
-		return Render(c, page)
+		return h.Render(c, page)
 	}
 
 	// Cancel the invites for players who have not accepted the draft

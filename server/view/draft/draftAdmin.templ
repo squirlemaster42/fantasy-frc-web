@@ -2,7 +2,6 @@ package draft
 
 import (
 	"server/model"
-	"server/types"
 	"server/view"
 	"fmt"
 )
@@ -199,7 +198,7 @@ templ AdminMessage(message string, isSuccess bool) {
 }
 
 templ DraftAdmin(page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
-	@view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
+	@view.Index(page, fromProtected, username, draftId, isOwner) {
 		<div id="adminMessage" class="max-w-4xl mx-auto w-full mt-4"></div>
 		@cmp
 	}

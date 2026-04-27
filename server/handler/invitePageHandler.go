@@ -31,9 +31,9 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
 	if includeWrapper {
 		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
-		err = Render(c, inviteView)
+		err = h.Render(c, inviteView)
 	} else {
-		err = Render(c, inviteIndex)
+		err = h.Render(c, inviteIndex)
 	}
 
 	return err

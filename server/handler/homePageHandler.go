@@ -53,7 +53,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 
 	homeIndex := view.HomeIndex(&drafts, userUuid)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
-	err = Render(c, home)
+	err = h.Render(c, home)
 	assert.NoError(err, "Handle View Home Failed To Render")
 	log.Info(c.Request().Context(), "Rendered home page for user", "Username", username)
 	return nil
