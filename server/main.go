@@ -40,7 +40,6 @@ func main() {
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbUsername := os.Getenv("DB_USERNAME")
-	sentryDNS := os.Getenv("SENTRY_DNS")
 	dbIp := os.Getenv("DB_IP")
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
@@ -117,5 +116,5 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	CreateServer(serverPort, handler, sentryDNS, metricSecret)
+	CreateServer(serverPort, handler, metricSecret)
 }

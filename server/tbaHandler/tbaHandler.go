@@ -12,6 +12,8 @@ import (
 	"server/metrics"
 	"server/swagger"
 	"time"
+
+	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -28,7 +30,9 @@ func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
 	handler := &TbaHandler{
 		tbaToken: tbaToken,
 		database: database,
-		client:   &http.Client{},
+		client: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 	}
 	return handler
 }
