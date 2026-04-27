@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"server/assert"
 	"server/assets"
@@ -9,29 +10,24 @@ import (
 	"server/log"
 	"server/metrics"
 	"server/middleware"
+	"server/otel"
 
-	"github.com/getsentry/sentry-go"
-	sentryecho "github.com/getsentry/sentry-go/echo"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metricSecret string) {
+func CreateServer(serverPort string, h handler.Handler, metricSecret string) {
 	log.InfoNoContext("Starting Server")
 	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
-	// To initialize Sentry's handler, you need to initialize Sentry itself beforehand
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              sentryDNS,
-		EnableLogs:       true,
-		TracesSampleRate: 1.0,
-	}); err != nil {
-		log.ErrorNoContext("Sentry initialize failed", "Error", err)
-	}
+	// Initialize OpenTelemetry
+	shutdown := otel.InitTracer("fantasy-frc-web")
+	defer shutdown(context.Background())
 
 	metrics.InitMetrics(h.Database)
 
@@ -58,9 +54,7 @@ func CreateServer(serverPort string, h handler.Handler, sentryDNS string, metric
 
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
-	app.Use(sentryecho.New(sentryecho.Options{
-		Repanic: true,
-	}))
+	app.Use(otelecho.Middleware("fantasy-frc-web"))
 	app.Use(metrics.MetricsMiddleware())
 
 	//Setup Routes
