@@ -1,14 +1,10 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
-	"os/signal"
 	"server/assert"
 	"server/background"
 	"server/cache"
@@ -22,8 +18,6 @@ import (
 	"server/tbaHandler"
 	"server/utils"
 	"strconv"
-	"syscall"
-	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -125,31 +119,5 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, metricSecret)
-
-	go func() {
-		err := app.Start(":" + serverPort)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			assert.NoError(err, "Failed to start server")
-		}
-	}()
-
-	// Wait for shutdown signal
-	shutdownChan := make(chan os.Signal, 1)
-	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
-	<-shutdownChan
-
-	log.InfoNoContext("Shutting down gracefully...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := app.Shutdown(ctx); err != nil {
-		log.WarnNoContext("Failed to shutdown server gracefully", "error", err)
-	}
-	if err := otelShutdown(ctx); err != nil {
-		log.WarnNoContext("Failed to shutdown OpenTelemetry tracer", "error", err)
-	}
-	if err := database.Close(); err != nil {
-		log.WarnNoContext("Failed to close database connection", "error", err)
-	}
+	CreateServer(serverPort, handler, metricSecret)
 }
