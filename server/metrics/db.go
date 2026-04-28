@@ -79,50 +79,52 @@ func collectQueryStats(db *sql.DB) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		query := `
-			SELECT 
-				query,
-				calls,
-				mean_exec_time::numeric,
-				total_exec_time::numeric,
-				rows
-			FROM pg_stat_statements
-			WHERE mean_exec_time > $1
-			ORDER BY mean_exec_time DESC
-			LIMIT $2
-		`
+		func() {
+			query := `
+				SELECT 
+					query,
+					calls,
+					mean_exec_time::numeric,
+					total_exec_time::numeric,
+					rows
+				FROM pg_stat_statements
+				WHERE mean_exec_time > $1
+				ORDER BY mean_exec_time DESC
+				LIMIT $2
+			`
 
-		rows, err := db.Query(query, float64(queryThresholdMs)/1000.0, maxQueries)
-		if err != nil {
-			log.WarnNoContext("Failed to query pg_stat_statements", "error", err)
-			continue
-		}
-
-		dbQueryMeanTime.Reset()
-		dbQueryCalls.Reset()
-		dbQueryRows.Reset()
-
-		for rows.Next() {
-			var queryText string
-			var calls int
-			var meanTime, totalTime float64
-			var rowsCount int64
-
-			err := rows.Scan(&queryText, &calls, &meanTime, &totalTime, &rowsCount)
+			rows, err := db.Query(query, float64(queryThresholdMs)/1000.0, maxQueries)
 			if err != nil {
-				log.WarnNoContext("Failed to scan pg_stat_statements row", "error", err)
-				continue
+				log.WarnNoContext("Failed to query pg_stat_statements", "error", err)
+				return
 			}
+			defer rows.Close()
 
-			queryID := queryText
-			if len(queryID) > 100 {
-				queryID = queryID[:100] + "..."
+			dbQueryMeanTime.Reset()
+			dbQueryCalls.Reset()
+			dbQueryRows.Reset()
+
+			for rows.Next() {
+				var queryText string
+				var calls int
+				var meanTime, totalTime float64
+				var rowsCount int64
+
+				err := rows.Scan(&queryText, &calls, &meanTime, &totalTime, &rowsCount)
+				if err != nil {
+					log.WarnNoContext("Failed to scan pg_stat_statements row", "error", err)
+					continue
+				}
+
+				queryID := queryText
+				if len(queryID) > 100 {
+					queryID = queryID[:100] + "..."
+				}
+
+				dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)
+				dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
+				dbQueryRows.WithLabelValues(queryID).Set(float64(rowsCount))
 			}
-
-			dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)
-			dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
-			dbQueryRows.WithLabelValues(queryID).Set(float64(rowsCount))
-		}
-		rows.Close()
+		}()
 	}
 }
