@@ -112,14 +112,15 @@ type DraftInvite struct {
 	InvitedUserUuid    uuid.UUID //User
 	invitingUserUuid   uuid.UUID //User
 	InvitingPlayerName string
+	InvitedPlayerName  string
 	SentTime           time.Time
 	AcceptedTime       time.Time
 	Accepted           bool
 }
 
 func (d *DraftInvite) String() string {
-	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n}",
-		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
+	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n InvitedPlayerName: %s\n}",
+		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName, d.InvitedPlayerName)
 }
 
 func GetDraftsByName(database *sql.DB, searchString string) *[]DraftModel {
@@ -654,7 +655,121 @@ func AcceptInvite(database *sql.DB, inviteId int) (int, uuid.UUID) {
 	return draftId, userUuid
 }
 
-// TODO We should be able to uninvite someone from the draft
+func CancelInvite(database *sql.DB, inviteId int) error {
+	query := `Update DraftInvites Set Canceled = true Where Id = $1;`
+	assert := assert.CreateAssertWithContext("Cancel Invite")
+	assert.AddContext("Invite Id", inviteId)
+
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("CancelInvite: Failed to close statement", "error", err)
+		}
+	}()
+
+	_, err = stmt.Exec(inviteId)
+	if err != nil {
+		return fmt.Errorf("failed to cancel invite %d: %w", inviteId, err)
+	}
+
+	return nil
+}
+
+func UninvitePlayer(database *sql.DB, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	assert := assert.CreateAssertWithContext("Uninvite Player")
+	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("Owner Uuid", ownerUuid)
+	assert.AddContext("Invite Id", inviteId)
+
+	// Verify the requesting user owns the draft
+	ownerQuery := `Select OwnerUserUuid From Drafts Where Id = $1;`
+	ownerStmt, err := database.Prepare(ownerQuery)
+	assert.NoError(err, "Failed to prepare owner statement")
+	defer func() {
+		if err := ownerStmt.Close(); err != nil {
+			log.WarnNoContext("UninvitePlayer: Failed to close owner statement", "error", err)
+		}
+	}()
+
+	var draftOwner uuid.UUID
+	err = ownerStmt.QueryRow(draftId).Scan(&draftOwner)
+	if err != nil {
+		return fmt.Errorf("failed to verify draft ownership: %w", err)
+	}
+
+	if draftOwner != ownerUuid {
+		return fmt.Errorf("user %s is not the owner of draft %d", ownerUuid, draftId)
+	}
+
+	query := `Update DraftInvites Set Canceled = true Where Id = $1 And DraftId = $2;`
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("UninvitePlayer: Failed to close statement", "error", err)
+		}
+	}()
+
+	result, err := stmt.Exec(inviteId, draftId)
+	if err != nil {
+		return fmt.Errorf("failed to uninvite player from draft %d: %w", draftId, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected for uninvite: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("invite %d not found for draft %d", inviteId, draftId)
+	}
+
+	return nil
+}
+
+func GetOutstandingInvitesForDraft(database *sql.DB, draftId int) []DraftInvite {
+	query := `SELECT
+            di.Id,
+            u.username,
+            di.InvitedUserUuid
+        From DraftInvites di
+        Inner Join Users u On di.InvitedUserUuid = u.UserUuid
+        Where di.DraftId = $1
+        And di.Accepted = false
+        And COALESCE(di.Canceled, false) = false;`
+	assert := assert.CreateAssertWithContext("Get Outstanding Invites For Draft")
+	assert.AddContext("Draft Id", draftId)
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("GetOutstandingInvitesForDraft: Failed to close statement", "error", err)
+		}
+	}()
+	rows, err := stmt.Query(draftId)
+	if err != nil {
+		log.ErrorNoContext("Failed to get outstanding invites for draft", "Draft Id", draftId, "Error", err)
+		return nil
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.WarnNoContext("GetOutstandingInvitesForDraft: Failed to close rows", "error", err)
+		}
+	}()
+
+	var invites []DraftInvite
+	for rows.Next() {
+		invite := DraftInvite{}
+		err = rows.Scan(&invite.Id, &invite.InvitedPlayerName, &invite.InvitedUserUuid)
+		if err != nil {
+			log.WarnNoContext("Failed to scan outstanding invite", "Draft Id", draftId, "Error", err)
+			continue
+		}
+		invites = append(invites, invite)
+	}
+	return invites
+}
 
 func AddPlayerToDraft(database *sql.DB, draft int, player uuid.UUID) {
 	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
@@ -704,7 +819,8 @@ func GetInvite(database *sql.DB, inviteId int) (DraftInvite, error) {
         From DraftInvites di
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
-        Where di.Id = $1;`
+        Where di.Id = $1
+        And COALESCE(di.Canceled, false) = false;`
 	stmt, err := database.Prepare(query)
 	if err != nil {
 		log.ErrorNoContext("GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
@@ -738,7 +854,8 @@ func GetInvites(database *sql.DB, userUuid uuid.UUID) []DraftInvite {
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.InvitedUserUuid = $1
-        And di.Accepted = false;`
+        And di.Accepted = false
+        And COALESCE(di.Canceled, false) = false;`
 	assert := assert.CreateAssertWithContext("Get Invites")
 	assert.AddContext("User Uuid", userUuid)
 	stmt, err := database.Prepare(query)

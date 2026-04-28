@@ -51,7 +51,8 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		draftModel.EndTime = time.Now().Add(72 * time.Hour)
 	}
 
-	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
+	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
+	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, outstandingInvites)
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
 }
@@ -206,11 +207,53 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	players := draftModel.Players
+	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
 
-	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
+	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner, outstandingInvites)
 	err = Render(c, updatedPage)
 
 	return err
+}
+
+func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
+	assert := assert.CreateAssertWithContext("Handle Uninvite Player")
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
+
+	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	assert.NoError(err, "Invalid draft id")
+
+	inviteIdStr := c.FormValue("inviteId")
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	assert.NoError(err, "Invalid invite id")
+
+	// Check that the draft is in the correct state
+	draft, err := h.DraftManager.GetDraft(draftId, false)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to load draft", "Draft Id", draftId, "Error", err)
+		return err
+	}
+
+	if draft.GetStatus() != model.FILLING {
+		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to uninvite players")
+	}
+
+	isOwner := requestingUser == draft.GetOwner().UserUuid
+	if !isOwner {
+		return c.String(http.StatusUnauthorized, "You must own the draft to uninvite a player")
+	}
+
+	err = model.UninvitePlayer(h.Database, draftId, requestingUser, inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to uninvite player", "error", err, "draftId", draftId, "inviteId", inviteId)
+		return c.String(http.StatusInternalServerError, "Failed to uninvite player")
+	}
+
+	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
+	pendingList := draftView.PendingInvitesList(outstandingInvites, draftId)
+	return Render(c, pendingList)
 }
 
 func (h *Handler) HandleStartDraft(c echo.Context) error {

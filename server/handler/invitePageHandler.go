@@ -90,3 +90,38 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
 	return renderInviteTable(h, c, false, "", false)
 }
+
+func (h *Handler) HandleDeclineInvite(c echo.Context) error {
+	assert := assert.CreateAssertWithContext("Handle Decline Invite")
+
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
+
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	inviteIdStr := c.FormValue("inviteId")
+	log.Info(c.Request().Context(), "Got request to decline invite", "User", userUuid, "Invite Id", inviteIdStr)
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
+	assert.NoError(err, "Failed to parse invite id")
+	invite, err := model.GetInvite(h.Database, inviteId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
+		}
+		log.Error(c.Request().Context(), "Failed to get invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
+
+	if invite.InvitedUserUuid != userUuid {
+		log.Info(c.Request().Context(), "User attempted to decline invite for another player", "Invited User Uuid", invite.InvitedUserUuid, "Requesting User Uuid", userUuid)
+		return renderInviteTable(h, c, true, "You are not allowed to decline invites for other players.", false)
+	}
+
+	err = model.CancelInvite(h.Database, inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to cancel invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred while declining the invite. Please try again.", false)
+	}
+
+	return renderInviteTable(h, c, false, "", false)
+}
