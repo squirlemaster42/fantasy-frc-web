@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"server/assert"
 	"server/log"
-	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -18,10 +17,6 @@ func RegisterDatabaseConnection(username string, password string, ip string, dbN
 	db, err := sql.Open("postgres", connStr)
 	a.NoError(err, "Could not open database connection")
 	a.NoError(db.Ping(), "Failed to ping database")
-
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(30 * time.Minute)
 
 	return db
 }

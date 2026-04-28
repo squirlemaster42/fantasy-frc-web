@@ -97,7 +97,6 @@ func collectQueryStats(db *sql.DB) {
 			log.WarnNoContext("Failed to query pg_stat_statements", "error", err)
 			continue
 		}
-		defer rows.Close()
 
 		dbQueryMeanTime.Reset()
 		dbQueryCalls.Reset()
@@ -124,5 +123,6 @@ func collectQueryStats(db *sql.DB) {
 			dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
 			dbQueryRows.WithLabelValues(queryID).Set(float64(rowsCount))
 		}
+		rows.Close()
 	}
 }
