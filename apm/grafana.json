@@ -224,7 +224,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "rate(http_request_duration_seconds_sum{route!=\"/draft/:id/pickNotifier\"}[1m]) / rate(http_request_duration_seconds_count{route!=\"/draft/:id/pickNotifier\"}[1m])",
+          "expr": "rate(http_request_duration_seconds_sum{route!=\"/u/draft/:id/pickNotifier\"}[1m]) / rate(http_request_duration_seconds_count{route!=\"/u/draft/:id/pickNotifier\"}[1m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1662,5 +1662,5 @@
   "timezone": "browser",
   "title": "Fantasy FRC",
   "uid": "1939cf41-d7dd-44e3-ab8a-819012dadd12",
-  "version": 32
+  "version": 35
 }
