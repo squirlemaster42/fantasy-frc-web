@@ -8,7 +8,7 @@ import (
 	"server/utils"
 )
 
-templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
+templ DraftProfileIndex (draft model.DraftModel, isOwner bool, pendingInvites []model.DraftInvite) {
     <form
         class="flex flex-col lg:flex-row w-full gap-6 pl-4 pr-8 py-6 overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
         hx-swap="outerHTML"
@@ -228,6 +228,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool) {
                         </div>
                     } else {
                         <div class="space-y-4">
+                            @PendingInvitesList(pendingInvites, draft.Id)
                             <div>
                                 <label class="block text-sm font-medium text-slate-300 mb-2">Search Users</label>
                                 <input
@@ -271,6 +272,41 @@ templ StartDraftButton(submitUrl string, err string, isOwner bool) {
         </svg>
         Start Draft
     </button>
+}
+
+templ PendingInvitesList(invites []model.DraftInvite, draftId int) {
+    <div id="pendingInvitesList" class="space-y-2">
+        if len(invites) == 0 {
+            <div class="text-center py-2 text-slate-400 text-sm">No pending invites</div>
+        } else {
+            <div class="text-xs text-slate-400 mb-2">{ fmt.Sprintf("%d pending invitation(s)", len(invites)) }</div>
+            for _, invite := range invites {
+                <div class="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-300">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                            </svg>
+                        </div>
+                        <span class="text-sm text-slate-100">{ invite.InvitedPlayerName }</span>
+                    </div>
+                    <button
+                        hx-target="#pendingInvitesList"
+                        hx-swap="outerHTML"
+                        name="inviteId"
+                        value={ fmt.Sprintf("%d", invite.Id) }
+                        hx-post={ fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId) }
+                        class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105 flex items-center gap-1"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Uninvite
+                    </button>
+                </div>
+            }
+        }
+    </div>
 }
 
 templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
@@ -353,7 +389,8 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
     </div>
 }
 
-templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool) {
+templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool, pendingInvites []model.DraftInvite) {
     @PlayerList(players)
+    @PendingInvitesList(pendingInvites, draftId)
     @PlayerSearchResults(users, draftId, isOwner)
 }

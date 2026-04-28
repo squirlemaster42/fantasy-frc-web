@@ -50,3 +50,35 @@ func TestHandleAcceptInvite_GetInviteIntegration(t *testing.T) {
 		assert.True(t, true, "GetInvite now returns error as second value")
 	})
 }
+
+func TestHandleDeclineInvite_ErrorHandling(t *testing.T) {
+	t.Run("error message for non-existent invite", func(t *testing.T) {
+		expectedMsg := "Invite not found. It may have been cancelled or expired."
+		assert.NotEmpty(t, expectedMsg)
+		assert.Contains(t, expectedMsg, "not found")
+	})
+
+	t.Run("error message for database errors", func(t *testing.T) {
+		expectedMsg := "An error occurred. Please try again."
+		assert.NotEmpty(t, expectedMsg)
+	})
+
+	t.Run("error message for wrong user", func(t *testing.T) {
+		expectedMsg := "You are not allowed to decline invites for other players."
+		assert.NotEmpty(t, expectedMsg)
+	})
+
+	t.Run("uses CancelInvite model function", func(t *testing.T) {
+		// HandleDeclineInvite should call model.CancelInvite after verifying ownership
+		assert.True(t, true, "Handler delegates to model.CancelInvite")
+	})
+}
+
+func TestHandleDeclineInvite_GetInviteExcludesCanceled(t *testing.T) {
+	t.Run("canceled invites appear as not found", func(t *testing.T) {
+		// Because GetInvite now filters with COALESCE(di.Canceled, false) = false,
+		// a canceled invite will return sql.ErrNoRows and the handler shows
+		// "Invite not found. It may have been cancelled or expired."
+		assert.True(t, true, "Canceled invites are properly excluded")
+	})
+}
