@@ -5,6 +5,7 @@ import (
 	"errors"
 	"server/discord"
 	"server/log"
+	"server/metrics"
 	"server/model"
 	"server/tbaHandler"
 	"server/utils"
@@ -215,6 +216,7 @@ func (p *PickManager) AddListener(listener PickListener) {
 	p.listenerLock.Lock()
 	p.listeners = append(p.listeners, listener)
 	p.listenerLock.Unlock()
+	metrics.IncrementWebSocketListener()
 }
 
 func (p *PickManager) RemoveListener(listener PickListener) {
@@ -226,6 +228,7 @@ func (p *PickManager) RemoveListener(listener PickListener) {
 			p.listeners[i] = p.listeners[len(p.listeners)-1]
 			p.listeners = p.listeners[:len(p.listeners)-1]
 			log.InfoNoContext("Removed pick listener", "Listener", listener)
+			metrics.DecrementWebSocketListener()
 			return
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -95,4 +96,59 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 
 	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
 		"DB connection metrics should be trackable")
+}
+
+func TestRecordUserActivity(t *testing.T) {
+	activeUsersMu.Lock()
+	activeUsers = make(map[string]time.Time)
+	activeUsersMu.Unlock()
+
+	RecordUserActivity("user-1")
+
+	activeUsersMu.RLock()
+	_, ok := activeUsers["user-1"]
+	activeUsersMu.RUnlock()
+
+	assert.True(t, ok, "user should be recorded in active users map")
+}
+
+func TestRecordAuthenticatedRequest(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(authenticatedRequestCount)
+
+	RecordAuthenticatedRequest("GET", "/u/home")
+	RecordAuthenticatedRequest("POST", "/u/createDraft")
+
+	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	handler.ServeHTTP(rec, req)
+
+	output := rec.Body.String()
+	assert.True(t, strings.Contains(output, "authenticated_requests_total"),
+		"authenticated_requests_total metric should be present")
+	assert.True(t, strings.Contains(output, `method="GET"`),
+		"GET method label should be present")
+	assert.True(t, strings.Contains(output, `route="/u/home"`),
+		"/u/home route label should be present")
+}
+
+func TestWebSocketListenerGauge(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(websocketListenerGauge)
+
+	IncrementWebSocketListener()
+	IncrementWebSocketListener()
+	DecrementWebSocketListener()
+
+	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	handler.ServeHTTP(rec, req)
+
+	output := rec.Body.String()
+	assert.True(t, strings.Contains(output, "websocket_listeners_active"),
+		"websocket_listeners_active metric should be present")
+	assert.True(t, strings.Contains(output, " 1"),
+		"gauge value should be 1 after 2 increments and 1 decrement")
 }

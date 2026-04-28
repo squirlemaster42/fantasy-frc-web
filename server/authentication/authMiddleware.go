@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"server/log"
+	"server/metrics"
 	"server/model"
 	"strings"
 
@@ -41,6 +42,8 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 			//If the cookie is valid we let the request through
 			//We should probaly log a message
 			userUuid := model.GetUserBySessionToken(a.database, userTok.Value)
+			metrics.RecordUserActivity(userUuid.String())
+			metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
 			log.InfoNoContext("User has successfully logged in", "User userUuid", userUuid, "Ip", c.RealIP())
 		} else {
 			//If the cookie is not valid then we redirect to the login page
@@ -83,6 +86,8 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 
 		//Check if the cookie is valid
 		userUuid := model.GetUserBySessionToken(a.database, userTok.Value)
+		metrics.RecordUserActivity(userUuid.String())
+		metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
 		isAdmin = model.UserIsAdmin(a.database, userUuid)
 		log.InfoNoContext("User is admin?", "User Id", userUuid, "Is Admin", isAdmin)
 
