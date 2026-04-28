@@ -200,7 +200,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	assert.NoError(err, "Failed to get user token")
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
 		h.DraftManager.RemovePickListener(draftId, &wsl)
