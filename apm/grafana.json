@@ -224,7 +224,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "rate(http_request_duration_seconds_sum[1m]) / rate(http_request_duration_seconds_count[1m])",
+          "expr": "rate(http_request_duration_seconds_sum{route!=\"/draft/:id/pickNotifier\"}[1m]) / rate(http_request_duration_seconds_count{route!=\"/draft/:id/pickNotifier\"}[1m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -412,7 +412,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(tba_cache_hits_total{result=\"hit\"}[1m])) / sum(rate(tba_cache_hits_total[1m]))",
+          "expr": "sum(rate(tba_cache_hits_total{result=\"hit\"}[5m])) / sum(rate(tba_cache_hits_total[5m]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
