@@ -400,11 +400,11 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention t
 	transitionLock := dm.getTransitionLock(draftId)
 	loadLock.Lock()
 	transitionLock.Lock()
-	defer loadLock.Unlock()
 	defer transitionLock.Unlock()
 
 	currentPick, err := dm.GetCurrentPick(draftId)
 	if currentPick.Id == 0 || err != nil {
+		loadLock.Unlock()
 		return errors.New("no current pick found for this draft")
 	}
 
@@ -414,10 +414,14 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention t
 	err = model.UpdatePickExpirationTime(dm.database, currentPick.Id, newExpirationTime)
 	if err != nil {
 		log.ErrorNoContext("Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
+		loadLock.Unlock()
 		return errors.New("failed to update pick expiration time")
 	}
 
-	return nil
+	loadLock.Unlock()
+	_, err = dm.GetDraft(draftId, true)
+
+	return err
 }
 
 func (dm *DraftManager) GetTbaHandler() *tbaHandler.TbaHandler {
