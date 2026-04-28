@@ -363,7 +363,10 @@ func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListen
 func (dm *DraftManager) RemovePickListener(draftId int, listener picking.PickListener) {
 	draft, err := dm.GetDraft(draftId, false)
 	if err != nil {
-		log.ErrorNoContext("Failed to load draft when removing pick listener", "Error", err)
+		log.ErrorNoContext("Failed to load draft when removing pick listener, searching all drafts", "Draft Id", draftId, "Error", err)
+		for _, d := range dm.drafts {
+			d.pickManager.RemoveListener(listener)
+		}
 		return
 	}
 	draft.pickManager.RemoveListener(listener)

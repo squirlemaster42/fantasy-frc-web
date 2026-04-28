@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
-	"golang.org/x/net/websocket"
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
@@ -149,34 +149,77 @@ func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) error 
 	}
 }
 
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
 func (h *Handler) PickNotifier(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Pick Notifier")
-	websocket.Handler(func(ws *websocket.Conn) {
-		ctx := context.Background()
-		draftIdStr := c.Param("id")
-		draftId, err := strconv.Atoi(draftIdStr)
+	ctx := c.Request().Context()
 
-		if err != nil {
-			log.Error(ctx, "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
-			return
-		}
+	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	if err != nil {
+		log.Warn(ctx, "Failed to upgrade websocket connection", "Error", err)
+		return nil
+	}
 
-		wsl := WebSocketListener{
-			messageQueue: make(chan picking.PickEvent, 10),
-		}
-		h.DraftManager.AddPickListener(draftId, &wsl)
-		defer h.DraftManager.RemovePickListener(draftId, &wsl)
-		userTok, err := c.Cookie("sessionToken")
-		assert.NoError(err, "Failed to get user token")
-		userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-		defer func() {
-			err = ws.Close()
-			if err != nil {
-				log.Warn(ctx, "Failed to close pick notifier web socket", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
-			}
-		}()
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		log.Error(ctx, "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
+		conn.Close()
+		return nil
+	}
+
+	wsl := WebSocketListener{
+		messageQueue: make(chan picking.PickEvent, 10),
+	}
+	h.DraftManager.AddPickListener(draftId, &wsl)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		conn.SetPongHandler(func(string) error {
+			conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+			return nil
+		})
 		for {
-			msg := <-wsl.messageQueue
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+					log.Warn(ctx, "Websocket unexpected close", "Draft Id", draftId, "Error", err)
+				}
+				return
+			}
+		}
+	}()
+
+	userTok, err := c.Cookie("sessionToken")
+	assert.NoError(err, "Failed to get user token")
+	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+
+	ticker := time.NewTicker(60 * time.Second)
+	defer func() {
+		ticker.Stop()
+		h.DraftManager.RemovePickListener(draftId, &wsl)
+		conn.Close()
+		<-done
+	}()
+
+	for {
+		select {
+		case <-done:
+			log.Info(ctx, "Client disconnected, closing pick notifier", "Draft Id", draftId, "User Uuid", userUuid)
+			return nil
+		case <-ticker.C:
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+				log.Warn(ctx, "Failed to write ping message", "Draft Id", draftId, "Error", err)
+				return nil
+			}
+		case msg := <-wsl.messageQueue:
 			log.Info(ctx, "Writing pick event to client", "Event", msg)
 			cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
 			if err != nil {
@@ -190,14 +233,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			err = pickPage.Render(context.Background(), &html)
 			assert.NoError(err, "Failed to render picks for notifier")
 
-			err = websocket.Message.Send(ws, html.String())
+			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
 			if err != nil {
-				log.Warn(ctx, "Failed to sent message to websocket")
-				break
+				log.Warn(ctx, "Failed to send message to websocket", "Draft Id", draftId, "Error", err)
+				return nil
 			}
 		}
-	}).ServeHTTP(c.Response(), c.Request())
-	return nil
+	}
 }
 
 func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
