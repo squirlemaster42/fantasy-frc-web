@@ -95,11 +95,11 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
-	// TODO we should get the draft through the draft manager
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User is attempting to render pick page for invalid draft", "Draft", draftId, "User Uuid", userUuid)
 	}
+	draftModel := *cachedDraft.Model
 	pickUrl := fmt.Sprintf("/u/draft/%d/makePick", draftId)
 	notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
@@ -178,11 +178,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		for {
 			msg := <-wsl.messageQueue
 			log.Info(ctx, "Writing pick event to client", "Event", msg)
-			draftModel, err := model.GetDraft(h.Database, draftId)
+			cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
 			if err != nil {
 				log.Warn(ctx, "Attempting to notify draft that does not exist", "Draft Id", draftId)
 				continue
 			}
+			draftModel := *cachedDraft.Model
 
 			var html strings.Builder
 			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)

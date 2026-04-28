@@ -211,6 +211,46 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 		}
 	}()
 	var drafts []DraftModel
+
+	playerQuery := `SELECT
+	                    UserUuid,
+	                    USERNAME,
+	                    BOOL_OR(ACCEPTED) AS ACCEPTED
+                    FROM (
+	                    SELECT
+		                    USERS.UserUuid AS UserUuid,
+		                    USERS.USERNAME,
+		                    't' AS ACCEPTED,
+							'f' AS CANCELED,
+		                    DRAFTPLAYERS.PLAYERORDER,
+		                    DraftPlayers.Id As PlayerId
+	                    FROM USERS
+	                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
+	                    WHERE DRAFTPLAYERS.DRAFTID = $1
+	                    UNION
+	                    SELECT
+		                    USERS.UserUuid AS UserUuid,
+		                    USERS.USERNAME,
+		                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
+							DRAFTINVITES.CANCELED AS CANCELED,
+		                    -1 AS PLAYERORDER,
+		                    -1 As PlayerId
+	                    FROM USERS
+	                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
+	                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(CANCELED, FALSE) = FALSE
+                    ) U
+                    GROUP BY UserUuid, USERNAME
+                    ORDER BY MAX(PLAYERORDER);`
+
+	assert := assert.CreateAssertWithContext("GetDraftsForUser")
+	playerStmt, err := database.Prepare(playerQuery)
+	assert.NoError(err, "Failed to prepare player statement")
+	defer func() {
+		if err := playerStmt.Close(); err != nil {
+			log.WarnNoContext("GetDraftsForUser: Failed to close statement", "error", err)
+		}
+	}()
+
 	for rows.Next() {
 		var draftId int
 		var displayName string
@@ -253,54 +293,10 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 			}
 		}
 
-		playerQuery := `SELECT
-	                    UserUuid,
-	                    USERNAME,
-	                    BOOL_OR(ACCEPTED) AS ACCEPTED
-                    FROM (
-		                    SELECT
-			                    USERS.UserUuid AS UserUuid,
-			                    USERS.USERNAME,
-			                    't' AS ACCEPTED,
-								'f' AS CANCELED,
-			                    DRAFTPLAYERS.PLAYERORDER,
-			                    DraftPlayers.Id As PlayerId
-		                    FROM USERS
-		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
-		                    WHERE DRAFTPLAYERS.DRAFTID = $1
-		                    UNION
-		                    SELECT
-			                    USERS.UserUuid AS UserUuid,
-			                    USERS.USERNAME,
-			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
-								DRAFTINVITES.CANCELED AS CANCELED,
-			                    -1 AS PLAYERORDER,
-			                    -1 As PlayerId
-		                    FROM USERS
-		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-		                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(CANCELED, FALSE) = FALSE
-	                    ) U
-                    GROUP BY UserUuid, USERNAME
-                    ORDER BY MAX(PLAYERORDER);`
-
-		playerStmt, err := database.Prepare(playerQuery)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err := playerStmt.Close(); err != nil {
-				log.WarnNoContext("GetDraftsForUser: Failed to close statement", "error", err)
-			}
-		}()
 		playerRows, err := playerStmt.Query(draftId)
 		if err != nil {
 			return nil, err
 		}
-		defer func() {
-			if err := playerRows.Close(); err != nil {
-				log.WarnNoContext("GetDraftsForUser: Failed to close rows", "error", err)
-			}
-		}()
 
 		for playerRows.Next() {
 			var userUuid uuid.UUID
@@ -309,6 +305,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 
 			err = playerRows.Scan(&userUuid, &username, &accepted)
 			if err != nil {
+				playerRows.Close()
 				return nil, err
 			}
 			draftPlayer := DraftPlayer{
@@ -321,6 +318,7 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 
 			draftModel.Players = append(draftModel.Players, draftPlayer)
 		}
+		playerRows.Close()
 
 		drafts = append(drafts, draftModel)
 	}
@@ -1008,19 +1006,20 @@ func RandomizePickOrder(database *sql.DB, draftId int) error {
 		awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
 	}
 
+	query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
+	stmt, err := database.Prepare(query)
+	assert.NoError(err, "Failed to prepare statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.WarnNoContext("RandomizePickOrder: Failed to close statement", "error", err)
+		}
+	}()
+
 	for i, player := range awaitingAssignment {
 		draftPlayerId, err := GetDraftPlayerId(database, draftId, player.User.UserUuid)
 		if err != nil {
 			return fmt.Errorf("could not get draftplayer for user %s in draft %d", player.User.UserUuid.String(), draftId)
 		}
-		query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
-		stmt, err := database.Prepare(query)
-		assert.NoError(err, "Failed to prepare statement")
-		defer func() {
-			if err := stmt.Close(); err != nil {
-				log.WarnNoContext("RandomizePickOrder: Failed to close statement", "error", err)
-			}
-		}()
 		_, err = stmt.Exec(i, draftPlayerId)
 		if err != nil {
 			log.WarnNoContext("Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)

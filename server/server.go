@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"server/assert"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -18,16 +17,14 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, metricSecret string) {
+func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*echo.Echo, func(context.Context) error) {
 	log.InfoNoContext("Starting Server")
-	assert := assert.CreateAssertWithContext("Create Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
-	defer shutdown(context.Background())
 
 	metrics.InitMetrics(h.Database)
 
@@ -102,6 +99,5 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) {
 	admin.GET("/console", h.HandleAdminConsoleGet)
 	admin.POST("/processCommand", h.HandleRunCommand)
 
-	err := app.Start(":" + serverPort)
-	assert.NoError(err, "Failed to start server")
+	return app, shutdown
 }

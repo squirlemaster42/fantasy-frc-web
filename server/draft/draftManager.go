@@ -296,6 +296,9 @@ func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
 		if err != nil {
 			log.WarnNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		}
+	} else {
+		// Reload the cached draft model so PickNotifier gets fresh data
+		_, _ = dm.GetDraft(draftId, true)
 	}
 
 	go draft.pickManager.NotifyListeners(picking.PickEvent{
@@ -342,6 +345,9 @@ func (dm *DraftManager) SkipCurrentPick(draftId int) error {
 	if err != nil {
 		return err
 	}
+
+	// Reload the cached draft model so PickNotifier gets fresh data
+	_, _ = dm.GetDraft(draftId, true)
 	return nil
 }
 
