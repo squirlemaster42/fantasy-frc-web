@@ -29,6 +29,126 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 5,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.1",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "avg_over_time(up[7d]) * 100",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime % (7d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "afiovub6ke5mob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 18,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.1",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "websocket_listeners_active",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Live Draft Viewers",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "afiovub6ke5mob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "palette-classic"
           },
           "custom": {
@@ -84,7 +204,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 4
       },
       "id": 5,
       "options": {
@@ -176,7 +296,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 13
       },
       "id": 3,
       "options": {
@@ -272,7 +392,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 22
       },
       "id": 7,
       "options": {
@@ -364,7 +484,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 22
       },
       "id": 8,
       "options": {
@@ -453,10 +573,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 24,
+        "h": 9,
+        "w": 12,
         "x": 0,
-        "y": 26
+        "y": 30
       },
       "id": 6,
       "options": {
@@ -545,10 +665,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 34
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 30
       },
       "id": 2,
       "options": {
@@ -647,9 +767,9 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 24,
+        "w": 12,
         "x": 0,
-        "y": 44
+        "y": 39
       },
       "id": 1,
       "options": {
@@ -764,10 +884,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 53
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 39
       },
       "id": 4,
       "options": {
@@ -859,7 +979,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 61
+        "y": 48
       },
       "id": 9,
       "options": {
@@ -947,7 +1067,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 61
+        "y": 48
       },
       "id": 10,
       "options": {
@@ -1035,7 +1155,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 56
       },
       "id": 11,
       "options": {
@@ -1123,7 +1243,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 69
+        "y": 56
       },
       "id": 12,
       "options": {
@@ -1201,14 +1321,6 @@
             "steps": [
               {
                 "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 0.1
-              },
-              {
-                "color": "red",
-                "value": 0.5
               }
             ]
           }
@@ -1217,11 +1329,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
-        "y": 77
+        "y": 64
       },
-      "id": 13,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [],
@@ -1239,13 +1351,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(10, db_query_mean_time_seconds and rate(db_query_calls_total[10m]) > 0)",
+          "expr": "topk(10, rate(db_query_calls_total[10m]) > 0 and db_query_mean_time_seconds)",
           "legendFormat": "{{query}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Top 10 Slowest DB Queries (Last 10m)",
+      "title": "Top 10 Most Frequent DB Queries (Last 10m)",
       "type": "timeseries"
     },
     {
@@ -1297,6 +1409,14 @@
             "steps": [
               {
                 "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 0.5
               }
             ]
           }
@@ -1305,11 +1425,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 85
+        "w": 12,
+        "x": 12,
+        "y": 64
       },
-      "id": 14,
+      "id": 13,
       "options": {
         "legend": {
           "calcs": [],
@@ -1327,68 +1447,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(10, rate(db_query_calls_total[10m]) > 0 and db_query_mean_time_seconds)",
+          "expr": "topk(10, db_query_mean_time_seconds and rate(db_query_calls_total[10m]) > 0)",
           "legendFormat": "{{query}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Top 10 Most Frequent DB Queries (Last 10m)",
+      "title": "Top 10 Slowest DB Queries (Last 10m)",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "afiovub6ke5mob"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "decimals": 5,
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 93
-      },
-      "id": 15,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.1",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "avg_over_time(up[7d]) * 100",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Uptime % (7d)",
-      "type": "stat"
     },
     {
       "datasource": {
@@ -1447,9 +1513,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
-        "y": 97
+        "y": 72
       },
       "id": 16,
       "options": {
@@ -1549,9 +1615,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 105
+        "w": 12,
+        "x": 12,
+        "y": 72
       },
       "id": 17,
       "options": {
@@ -1579,58 +1645,6 @@
       ],
       "title": "Authenticated Requests by Route",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "afiovub6ke5mob"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 113
-      },
-      "id": 18,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.0.1",
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "websocket_listeners_active",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Live Draft Viewers",
-      "type": "stat"
     }
   ],
   "preload": false,
@@ -1648,5 +1662,5 @@
   "timezone": "browser",
   "title": "Fantasy FRC",
   "uid": "1939cf41-d7dd-44e3-ab8a-819012dadd12",
-  "version": 17
+  "version": 32
 }
