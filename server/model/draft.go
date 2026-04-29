@@ -188,7 +188,8 @@ func GetDraftsForUser(database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error
 	Left Join Users currUser On currUser.UserUuid = $2
     Where DraftPlayers.UserUuid = $2
 		Or DraftInvites.InvitedUserUuid = $2
-		Or currUser.IsAdmin = true;`
+		Or currUser.IsAdmin = true
+    Order By Drafts.Id Asc;`
 
 	stmt, err := database.Prepare(query)
 	if err != nil {
