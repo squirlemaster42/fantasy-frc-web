@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -27,17 +28,17 @@ func main() {
 	}
 
 	draft := Draft {
-		Id: 2,
+		Id: 36,
 	}
 
 	var owner *User
 	for _, user := range users {
-		if user.Username == "AgentEight" {
+		if user.Username == "AgentOne" {
 			owner = user
 		}
 	}
 
-	//owner, draft := initDraft(users)
+	// owner, draft := initDraft(users)
 	slog.Info("Created draft", "Id", draft.Id)
 
 	// Have play make picks in a random order. Some picks being valid and some being invalid
@@ -53,8 +54,11 @@ func main() {
 		}
 
 		if pickingPlayer == nil {
-			panic("failed to find picking player")
+			slog.Warn("failed to find picking player")
+			time.Sleep(2 * time.Minute)
+			continue
 		}
+		slog.Info("Picking Player", "PLayer", pickingPlayer.Username)
 
 		slog.Info("Starting pick round", "Picking player", pickingPlayer.Username, "Continue", sameSession)
 
@@ -71,7 +75,7 @@ func main() {
 		pickMade, errMsg := makePickRequest(draft.Id, pickingPlayer, nextPick)
 		if !pickMade {
 			slog.Error("Pick failed", "Error", errMsg)
-			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST California District Championship. You can use The Blue Alliance website to figure out what teams are at the event.", errMsg)
+			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST World Championship. You can use The Blue Alliance website to figure out what teams are at the event.", errMsg)
 			sameSession = true
 			continue
 		}

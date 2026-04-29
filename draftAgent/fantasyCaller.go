@@ -140,7 +140,7 @@ func isPickingPlayer(user *User, draftId int) bool {
 	}
 	defer resp.Body.Close()
 
-	return strings.Contains(string(body), `name="pickInput"`)
+	return strings.Contains(string(body), `name="pickInput"`) && !strings.Contains(string(body), `disabled name="pickInput"`)
 }
 
 type CurrentPicks struct {
