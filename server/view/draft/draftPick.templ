@@ -2,7 +2,6 @@ package draft
 
 import (
 	"server/model"
-	"server/types"
 	"server/view"
 	"strings"
 )
@@ -81,7 +80,7 @@ templ DraftPickIndex (pickPageModel PickPage) {
 }
 
 templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
-    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
+    @view.Index(page, fromProtected, username, draftId, isOwner) {
         @cmp
     }
 }

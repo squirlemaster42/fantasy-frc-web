@@ -168,7 +168,7 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 }
 
 templ UserProfile(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, 0, false) {
         @cmp
     }
 }

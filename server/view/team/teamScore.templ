@@ -1,8 +1,10 @@
 package team
 
-import "server/view"
-import "fmt"
-import "server/model"
+import (
+	"server/view"
+	"fmt"
+	"server/model"
+)
 
 templ TeamScoreIndex() {
     <div class="bg-slate-900 p-6 flex flex-col h-full">
@@ -69,7 +71,7 @@ templ TeamScoreIndex() {
 }
 
 templ TeamPick(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, 0, false) {
         @cmp
     }
 }

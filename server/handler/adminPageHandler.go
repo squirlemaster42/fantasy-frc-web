@@ -329,7 +329,7 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 
 	adminConsoleIndex := admin.AdminConsoleIndex(username)
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
-	return Render(c, adminConsole)
+	return h.Render(c, adminConsole)
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
@@ -347,18 +347,18 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 
 	if len(cmd) < 1 {
 		noCommandResponse := admin.RenderCommand(username, commandString, "")
-		return Render(c, noCommandResponse)
+		return h.Render(c, noCommandResponse)
 	}
 
 	command, ok := commands[cmd]
 	if !ok {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
-		return Render(c, response)
+		return h.Render(c, response)
 	}
 	result := command.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
 
 	assert.AddContext("Command", commandString)
 
 	response := admin.RenderCommand(username, commandString, result)
-	return Render(c, response)
+	return h.Render(c, response)
 }

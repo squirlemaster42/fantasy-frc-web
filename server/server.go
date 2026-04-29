@@ -53,6 +53,7 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 	app.Use(middleware.CorrelationID())
 	app.Use(otelecho.Middleware("fantasy-frc-web"))
 	app.Use(metrics.MetricsMiddleware())
+	app.Use(middleware.CSPNonce())
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
@@ -62,6 +63,7 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip())
 	app.POST("/logout", h.HandleLogoutPost, echomiddleware.Gzip())
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
+	app.POST("/telemetry/faro-collect", h.HandleFaroProxy, echomiddleware.BodyLimit("1M"))
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())

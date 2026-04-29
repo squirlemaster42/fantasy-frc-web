@@ -30,7 +30,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 
 	draftCreateIndex := draft.DraftProfileIndex(draftModel, true)
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
-	err = Render(c, draftCreate)
+	err = h.Render(c, draftCreate)
 	assert.NoError(err, "Handle View Draft Create Failed To Render")
 	return nil
 }

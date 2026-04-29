@@ -5,7 +5,8 @@ import (
 	"server/view/partials"
 )
 
-templ Index(page string, fromProtected bool, username string, data *types.PageData) {
+templ Index(page string, fromProtected bool, username string, draftId int, isOwner bool) {
+    {{ faro := types.GetFaroData(ctx) }}
     <!DOCTYPE html>
 	<html lang="en" data-theme="dark">
         <head>
@@ -20,11 +21,26 @@ templ Index(page string, fromProtected bool, username string, data *types.PageDa
 			<script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
             <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
 			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<script nonce={ faro.Nonce } src="https://unpkg.com/@grafana/faro-web-sdk@^1/dist/bundle/faro-web-sdk.iife.js"></script>
+			<script nonce={ faro.Nonce } src="https://unpkg.com/@grafana/faro-web-tracing@^1/dist/bundle/faro-web-tracing.iife.js"></script>
+			<script nonce={ faro.Nonce }>
+				(function() {
+					window.GrafanaFaroWebSdk.initializeFaro({
+						url: '/telemetry/faro-collect',
+						app: { name: 'fantasy-frc-web', version: '1.0.0' },
+						instrumentations: [
+							...window.GrafanaFaroWebSdk.getWebInstrumentations({ captureConsole: true }),
+							new window.GrafanaFaroWebTracing.TracingInstrumentation()
+						],
+						customHeaders: { 'X-Faro-Token': '{ faro.Token }' }
+					});
+				})();
+			</script>
         </head>
         <body class="simple-transition flex flex-col h-screen bg-slate-900" hx-boost="true">
-            <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
+            <script nonce={ faro.Nonce } src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
             <header>
-                @partials.Navbar(fromProtected, username, page, data)
+                @partials.Navbar(fromProtected, username, page, draftId, isOwner)
             </header>
             <main class="flex-1 overflow-auto pt-16">
                 {children...}

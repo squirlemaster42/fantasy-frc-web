@@ -45,7 +45,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 
 	adminIndex := draftView.DraftAdminIndex(draftModel)
 	draftAdmin := draftView.DraftAdmin(" | Draft Admin", true, username, adminIndex, draftId, isOwner)
-	return Render(c, draftAdmin)
+	return h.Render(c, draftAdmin)
 }
 
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
@@ -59,25 +59,25 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
+		return h.Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Draft not found", false))
+		return h.Render(c, draftView.AdminMessage("Draft not found", false))
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		return Render(c, draftView.AdminMessage("Permission denied", false))
+		return h.Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
 	err = h.DraftManager.SkipCurrentPick(draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to skip pick", "Draft Id", draftId, "Error", err)
-		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to skip pick: %s", err.Error()), false))
+		return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to skip pick: %s", err.Error()), false))
 	}
 
-	return Render(c, draftView.AdminMessage("Pick skipped successfully", true))
+	return h.Render(c, draftView.AdminMessage("Pick skipped successfully", true))
 }
 
 func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
@@ -91,16 +91,16 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
+		return h.Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Draft not found", false))
+		return h.Render(c, draftView.AdminMessage("Draft not found", false))
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		return Render(c, draftView.AdminMessage("Permission denied", false))
+		return h.Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
 	durationStr := c.QueryParam("duration")
@@ -109,22 +109,22 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	}
 
 	if durationStr == "" {
-		return Render(c, draftView.AdminMessage("Duration is required", false))
+		return h.Render(c, draftView.AdminMessage("Duration is required", false))
 	}
 
 	duration, err := time.ParseDuration(durationStr)
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Invalid duration format. Use format like: 30m, 1h, 2h30m", false))
+		return h.Render(c, draftView.AdminMessage("Invalid duration format. Use format like: 30m, 1h, 2h30m", false))
 	}
 
 	log.Info(c.Request().Context(), "Extending pick", "Extension time", duration)
 	err = h.DraftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)
-		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to extend time: %s", err.Error()), false))
+		return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to extend time: %s", err.Error()), false))
 	}
 
-	return Render(c, draftView.AdminMessage(fmt.Sprintf("Pick time extended by %s", durationStr), true))
+	return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Pick time extended by %s", durationStr), true))
 }
 
 func (h *Handler) HandleAdminMakePick(c echo.Context) error {
@@ -138,28 +138,28 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
+		return h.Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Draft not found", false))
+		return h.Render(c, draftView.AdminMessage("Draft not found", false))
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		return Render(c, draftView.AdminMessage("Permission denied", false))
+		return h.Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
 	teamStr := c.FormValue("teamNumber")
 	if teamStr == "" {
-		return Render(c, draftView.AdminMessage("Team number is required", false))
+		return h.Render(c, draftView.AdminMessage("Team number is required", false))
 	}
 
 	tbaId := "frc" + teamStr
 
 	currentPick, err := h.DraftManager.GetCurrentPick(draftId)
 	if currentPick.Id == 0 || err != nil {
-		return Render(c, draftView.AdminMessage("No current pick found for this draft", false))
+		return h.Render(c, draftView.AdminMessage("No current pick found for this draft", false))
 	}
 
 	pick := model.Pick{
@@ -172,10 +172,10 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	err = h.DraftManager.MakePick(draftId, pick)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to make admin pick", "Draft Id", draftId, "Team", teamStr, "Error", err)
-		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to make pick: %s", err.Error()), false))
+		return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to make pick: %s", err.Error()), false))
 	}
 
-	return Render(c, draftView.AdminMessage(fmt.Sprintf("Successfully picked team %s", teamStr), true))
+	return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Successfully picked team %s", teamStr), true))
 }
 
 func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
@@ -189,23 +189,23 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
+		return h.Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
 	draftModel, err := model.GetDraft(h.Database, draftId)
 	if err != nil {
-		return Render(c, draftView.AdminMessage("Draft not found", false))
+		return h.Render(c, draftView.AdminMessage("Draft not found", false))
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		return Render(c, draftView.AdminMessage("Permission denied", false))
+		return h.Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
 	err = h.DraftManager.UndoLastPick(draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to undo pick", "Draft Id", draftId, "Error", err)
-		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to undo pick: %s", err.Error()), false))
+		return h.Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to undo pick: %s", err.Error()), false))
 	}
 
-	return Render(c, draftView.AdminMessage("Pick undone successfully", true))
+	return h.Render(c, draftView.AdminMessage("Pick undone successfully", true))
 }
