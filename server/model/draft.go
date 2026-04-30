@@ -1100,7 +1100,7 @@ func NextPick(database *sql.DB, draftId int) DraftPlayer {
 				direction = 1
 			}
 		}
-		if len(picks) % 8 == 0 { //TODO Change to number of picks in draft
+		if len(picks)%len(draft.Players) == 0 {
 			direction = 0
 		}
 		assert.AddContext("Last Player Id", lastPlayer.Id)
