@@ -19,5 +19,6 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return err
 	}
 
+	c.Response().Header().Set("Cache-Control", "private, max-age=604800")
 	return c.Blob(http.StatusOK, "image/png", avatar)
 }
