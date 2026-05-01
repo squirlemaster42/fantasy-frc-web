@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"server/discord"
 	"server/log"
@@ -24,12 +25,15 @@ type TbaWebsocketEvent struct {
 	MessageData json.RawMessage `json:"message_data"`
 }
 
-func validMAC(message []byte, messageMAC []byte, key []byte) bool {
+func validMAC(message []byte, messageMAC string, key []byte) bool {
+	messageMACBytes, err := hex.DecodeString(messageMAC)
+	if err != nil {
+		return false
+	}
 	mac := hmac.New(sha256.New, key)
 	mac.Write(message)
 	expectedMAC := mac.Sum(nil)
-	log.InfoNoContext("Validating HMAC", "HMAC", messageMAC, "Expected HMAC", hex.EncodeToString(expectedMAC))
-	return hmac.Equal(messageMAC, []byte(hex.EncodeToString(expectedMAC)))
+	return hmac.Equal(messageMACBytes, expectedMAC)
 }
 
 func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
@@ -52,25 +56,25 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	}
 
 	messageMac := c.Request().Header.Get("X-TBA-HMAC")
-	valid := validMAC(body, []byte(messageMac), []byte(h.TbaWebhookSecret))
+	valid := validMAC(body, messageMac, []byte(h.TbaWebhookSecret))
 
 	if !valid {
 		log.Warn(c.Request().Context(), "Webhook event authentication failed", "Message", string(body))
-		return nil
+		return c.NoContent(http.StatusOK)
 	}
 
 	log.Info(c.Request().Context(), "Routing event", "Message Type", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		h.HandleUpcomingMatchEvent(event.MessageData)
+		go h.HandleUpcomingMatchEvent(event.MessageData)
 	case "match_score":
-		h.HandleMatchScoreEvent(event.MessageData)
+		go h.HandleMatchScoreEvent(event.MessageData)
 	case "match_video":
 		h.HandleMatchVideoEvent(event.MessageData)
 	case "starting_comp_level":
 		h.HandleCompLevelStartingEvent(event.MessageData)
 	case "alliance_selection":
-		h.HandleAllianceSelectionEvent(event.MessageData)
+		go h.HandleAllianceSelectionEvent(event.MessageData)
 	case "awards_posted":
 		h.HandleAwardsPostedEvent(event.MessageData)
 	case "schedule_updated":
@@ -83,7 +87,7 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 		log.WarnNoContext("Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
 	}
 
-	return nil
+	return c.NoContent(http.StatusOK)
 }
 
 type MatchScoreNotification struct {
