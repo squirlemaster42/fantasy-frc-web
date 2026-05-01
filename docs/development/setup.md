@@ -9,7 +9,7 @@ This guide covers setting up a complete development environment for Fantasy FRC,
 ## 📋 Prerequisites
 
 ### Required Software
-- **Go**: Version 1.24+ with toolchain go1.24.0
+- **Go**: Version 1.26.2 with toolchain go1.26.2
 - **PostgreSQL**: Version 14+
 - **Templ**: Template engine for Go
 - **Make**: Build tool
@@ -25,14 +25,17 @@ cd fantasy-frc-web
 
 ### 2. Install Dependencies
 ```bash
+# Navigate to server directory
+cd server
+
 # Install Go dependencies
 go mod download
 
-# Install Templ (if not already installed)
-go install github.com/a-h/templ/cmd/templ@latest
+# Install Templ tool (as specified in go.mod)
+go get -tool github.com/a-h/templ/cmd/templ
 
 # Verify installation
-templ version
+go tool templ version
 go version
 ```
 
@@ -58,8 +61,8 @@ psql -d fantasy_frc -f database/optInSkip.sql
 # Create development environment file
 cp server/.env.example server/.env
 
-# Edit with your configuration
-nano server/.env
+# Edit with your preferred editor
+vim server/.env  # or nano, code, etc.
 ```
 
 Add your development configuration:
@@ -69,14 +72,19 @@ DB_USERNAME=dev_user
 DB_IP=localhost
 DB_NAME=fantasy_frc
 SERVER_PORT=8080
-SESSION_SECRET=dev_session_secret_minimum_32_characters_longer_is_better
 TBA_TOKEN=your_tba_dev_token
+TBA_WEBHOOK_SECRET=your_webhook_secret
+METRIC_SECRET=your_metric_secret
+SECURE_HTTP_COOKIE=false
 ```
 
 ### 5. Build and Run
 ```bash
-# Build and run the application
-make
+# Navigate to server directory
+cd server
+
+# Run development server with hot reload and verbose logging
+make run-verbose
 ```
 
 ## 🔌 Development Workflow
@@ -100,19 +108,38 @@ fantasy-frc-web/
 │   └── assets/          # Static assets
 ├── database/            # Database schema and migrations
 ├── docs/               # Documentation
+├── draftAgent/         # AI draft automation tool
 ├── draftTester/         # Testing tools
 ├── fuzzer/             # Fuzzing tools
-└── Makefile            # Build configuration
+└── deploy/             # Deployment scripts and Ansible playbooks
 ```
 
 ### Build Commands
 ```bash
-# Standard build and run
-make
+# Navigate to server directory first
+cd server
+
+# Run development server with hot reload
+make run-verbose
+
+# Watch CSS only
+make watch-css
+
+# Generate templ files
+make generate
+
+# Production build
+make build
+
+# Build for Linux deployment
+make build-linux
 ```
 
 ### Testing
 ```bash
+# Navigate to server directory first
+cd server
+
 # Run all tests
 go test ./...
 
@@ -172,8 +199,8 @@ lsof -i :8080
 # Kill process
 kill -9 <PID>
 
-# Or use different port
-SERVER_PORT=8081 make
+# Or use different port (from server directory)
+cd server && SERVER_PORT=8081 make run-verbose
 ```
 
 **Solution**: Change port or stop conflicting service
@@ -216,11 +243,12 @@ git checkout -b feature/new-feature
 # Make changes
 # ... develop feature ...
 
-# Run tests
+# Run tests (from server directory)
+cd server
 go test ./...
 
 # Build and test locally
-make
+make run-verbose
 
 # Commit changes
 git add .
@@ -247,5 +275,7 @@ go test -cover ./...
 - [ ] Build completes successfully
 
 ---
+
+*Last updated: 2026-05-01*
 
 *TODO: Add troubleshooting guide, performance profiling setup, and CI/CD integration instructions*

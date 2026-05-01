@@ -2,6 +2,8 @@
 
 Written in Go with Templ and HTMX.
 
+For detailed development guidelines, build commands, and code style, see the project [`AGENTS.md`](../AGENTS.md).
+
 ## Setup
 
 1. **Install dependencies:**
@@ -63,6 +65,24 @@ make prod
 **Install binary to deploy location:**
 ```bash
 make install
+```
+
+## Testing
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests for a specific package
+go test ./model
+go test ./scorer
+go test ./utils
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests with race detection
+go test -race ./...
 ```
 
 ## Notes

@@ -228,4 +228,6 @@ Ties are broken by draft position (earlier pick wins) in most leagues.
 
 ---
 
+*Last updated: 2026-05-01*
+
 *Ready to draft? [Learn how teams score points next!](./scoring-explained.md)*

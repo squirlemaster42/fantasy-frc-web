@@ -30,7 +30,7 @@ deploy/
 
 ### Local Machine
 - Ansible 2.12+
-- Go 1.24+ (for building)
+- Go 1.26.2+ (for building)
 - Make
 
 ### Target Server
@@ -146,6 +146,8 @@ sudo -u postgres psql -d fantasyfrc
 ```
 
 ### Redis connection issues
+Redis is optional and only used for avatar caching. If unavailable, avatars are fetched directly from The Blue Alliance API.
+
 ```bash
 redis-cli ping
 ```

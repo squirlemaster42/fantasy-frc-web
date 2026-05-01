@@ -130,11 +130,11 @@ All routes under `/u` require a valid session token cookie.
   - `draftName`: Draft display name
   - `description`: Draft description
   - `interval`: Pick time limit in seconds
-  - `startTime`: Draft start time (RFC3339 format)
-  - `endTime`: Draft end time (RFC3339 format)
+  - `startTime`: Draft start time (`YYYY-MM-DDTHH:MM:SS` format)
+  - `endTime`: Draft end time (`YYYY-MM-DDTHH:MM:SS` format)
 - **Validation Rules**:
   - Draft name required
-  - Time parsing with RFC3339 format validation
+  - Time parsing with HTML datetime-local format (`2006-01-02T15:04:05`)
   - Interval must convert to valid integer
 - **Response**: HX-Redirect to `/u/draft/{id}/profile`
 - **Error Handling**: Displays form validation errors with preserved input
@@ -151,8 +151,16 @@ All routes under `/u` require a valid session token cookie.
 #### POST `/u/draft/:id/updateDraft`
 - **Purpose**: Updates draft configuration
 - **URL Parameters**: `id` - Draft ID (integer)
-- **Form Data**: Same as creation form
-- **Validation Rules**: Same as creation + ownership verification
+- **Form Data**:
+  - `draftName`: Draft display name
+  - `description`: Draft description
+  - `interval`: Pick time limit in seconds
+  - `startTime`: Draft start time (`YYYY-MM-DDTHH:MM:SS` format)
+  - `endTime`: Draft end time (`YYYY-MM-DDTHH:MM:SS` format)
+  - `discordWebhook`: Optional Discord webhook URL for draft notifications
+- **Validation Rules**:
+  - Same as creation + ownership verification
+  - Time parsing with HTML datetime-local format (`2006-01-02T15:04:05`)
 - **Access Control**: Draft owner only
 - **Response**: HX-Redirect to `/u/draft/{id}/profile`
 - **Security**: Silent failure if user is not draft owner
@@ -164,6 +172,11 @@ All routes under `/u` require a valid session token cookie.
 - **Validation**:
   - Draft must be in FILLING state
   - User must be draft owner
+  - Draft must have exactly 8 accepted players
+- **Actions**:
+  - Cancels all outstanding pending invitations
+  - Randomizes player pick order
+  - Transitions draft to WAITING_TO_START
 - **State Transition**: FILLING → WAITING_TO_START
 
 ### Player Management
@@ -282,15 +295,81 @@ All routes under `/u` require a valid session token cookie.
   - `command`: Admin command to execute
 - **Available Commands**:
   - `ping` - Test system connectivity
+  - `populateTeams` - Populate database with teams from configured events
   - `listdraft -s <search>` - List drafts with optional search filter
   - `startdraft -id <draftId>` - Force start a specific draft
   - `skippick -id <draftId>` - Force skip current pick in draft
+  - `viewWebhookKey -id <draftId>` - View Discord webhook key for a draft
+  - `modifypicktime -id <draftId> -time <duration>` - Modify remaining time for current pick
+  - `adminpick -id <draftId> -team <teamNumber>` - Force a team pick as admin
+  - `renamedraft -id <draftId> -name <newName>` - Rename a draft
+  - `undopick -id <draftId>` - Undo the most recent pick in a draft
 - **Validation Rules**:
   - Command must be in allowed list
   - Draft ID validation for draft-specific commands
 - **Access Control**: Admin users only
 - **Response**: Command output and results
 - **Security**: All admin actions logged with user context
+
+### Draft Admin Routes (/u/draft/:id/admin/* - Authentication + Admin Required)
+
+These routes provide administrative controls for individual drafts.
+
+#### GET `/u/draft/:id/admin`
+- **Purpose**: Serves draft admin interface
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Response**: HTML template with draft administration tools
+- **Access Control**: Admin users only
+
+#### POST `/u/draft/:id/admin/skipPick`
+- **Purpose**: Force skip the current pick in a draft
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Response**: Updated draft pick page
+- **Access Control**: Admin users only
+
+#### POST `/u/draft/:id/admin/extendTime`
+- **Purpose**: Extend the remaining time for the current pick
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Response**: Updated timer display
+- **Access Control**: Admin users only
+
+#### POST `/u/draft/:id/admin/makePick`
+- **Purpose**: Force a team pick on behalf of the current player
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Form Data**: Team selection
+- **Response**: Updated draft pick page
+- **Access Control**: Admin users only
+
+#### POST `/u/draft/:id/admin/undoPick`
+- **Purpose**: Undo the most recent pick in a draft
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Response**: Updated draft pick page
+- **Access Control**: Admin users only
+
+### Team Routes
+
+#### GET `/u/draft/:id/team/:teamNumber`
+- **Purpose**: View detailed information about a specific team within a draft context
+- **URL Parameters**:
+  - `id` - Draft ID (integer)
+  - `teamNumber` - FRC team number
+- **Response**: HTML template with team details and statistics
+
+#### GET `/u/team/:id/avatar`
+- **Purpose**: Serves team avatar image
+- **URL Parameters**: `id` - FRC team number
+- **Response**: Image data (cached from The Blue Alliance API)
+- **Caching**: Avatars cached in Redis (if available) for 4 weeks
+
+### User Profile Routes
+
+#### GET `/u/userProfile`
+- **Purpose**: Serves user profile page
+- **Response**: HTML template with current user information
+
+#### POST `/u/userProfile`
+- **Purpose**: Updates user profile settings
+- **Response**: Updated profile page or redirect
 
 ## WebSocket Endpoints
 
@@ -390,4 +469,6 @@ assert.AddContext("Key", value)
 
 ---
 
-*This documentation covers most HTTP endpoints in the Fantasy FRC Web application. For WebSocket API details, see [WebSocket API](./websocket-api.md).*
+*Last updated: 2026-05-01*
+
+*This documentation covers HTTP endpoints in the Fantasy FRC Web application. For WebSocket API details, see [WebSocket API](./websocket-api.md).*

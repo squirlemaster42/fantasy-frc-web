@@ -131,17 +131,13 @@ The final championship featuring:
 
 ## 🎮 Real-Life Scoring Examples
 
-### 2025 Game-Specific Bonuses
+### Current Season Game-Specific Bonuses
 *(Note: These change yearly with FRC game rules)*
 
-**Auto Bonus** (+1 point):
-- Team achieves autonomous period objectives
-
-**Barge Bonus** (+1 point):  
-- Team completes barge-related scoring
-
-**Coral Bonus** (+1 point):
-- Team successfully places coral pieces
+Examples from recent seasons include:
+- **Auto Bonus** (+1 point): Team achieves autonomous period objectives
+- **Barge Bonus** (+1 point): Team completes barge-related scoring
+- **Coral Bonus** (+1 point): Team successfully places coral pieces
 
 **Example Match with All Bonuses:**
 - Team wins match = 3 points
@@ -242,5 +238,7 @@ No, teams only compete within their championship division, but all teams' points
 Teams that don't qualify for championships earn 0 points in all categories.
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Now that you understand scoring, [learn some winning strategies!](./strategy-tips.md)*

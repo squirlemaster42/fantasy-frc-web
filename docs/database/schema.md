@@ -140,7 +140,7 @@ erDiagram
 | `blueScore` | smallint | DEFAULT 0 | Blue alliance score |
 
 **Notes**:
-- `tbaId` format: `{event}_{level}_{match}` (e.g., "2025cur_qm1")
+- `tbaId` format: `{event}_{level}_{match}` (e.g., "{year}cur_qm1")
 - Scores calculated by scoring algorithm
 - `played` indicates match has results
 
@@ -359,5 +359,7 @@ graph TD
 - **Session Cache**: Fast authentication lookups
 
 ---
+
+*Last updated: 2026-05-01*
 
 *TODO: Add query optimization guide, backup procedures, and monitoring queries*
