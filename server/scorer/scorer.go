@@ -335,6 +335,7 @@ func (s *Scorer) scoringRunner() {
 
 func (s *Scorer) ScoreAllianceSelection(event string) {
 	alliances := s.tbaHandler.MakeEliminationAllianceRequest(event)
+	log.InfoNoContext("Made alliance selection request", "Alliance length", len(alliances))
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
