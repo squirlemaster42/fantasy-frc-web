@@ -338,7 +338,7 @@ func (s *Scorer) ScoreAllianceSelection(event string) {
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
-			log.DebugNoContext("Update alliance score for team", "Team", team, "Score", score)
+			log.InfoNoContext("Update alliance score for team", "Team", team, "Score", score)
 			model.UpdateTeamAllianceScore(s.database, team, score)
 		}
 	}
