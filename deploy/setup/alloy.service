@@ -1,0 +1,11 @@
+[Unit]
+Description=Grafana Alloy
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/alloy run /opt/alloy/alloy.hcl
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

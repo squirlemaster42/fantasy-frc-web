@@ -75,6 +75,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Logout Post")
 	userTok, err := c.Cookie("sessionToken")
+	// TODO we cannot crash if we dont have an auth token
 	assert.NoError(err, "Failed to get user token")
 	model.UnRegisterSession(h.Database, userTok.Value)
 	cookie := new(http.Cookie)
