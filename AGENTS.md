@@ -51,6 +51,33 @@ go mod tidy
 go mod verify
 ```
 
+### Database Migrations
+
+Migrations are managed with [goose](https://github.com/pressly/goose) in the `database/` directory.
+
+```bash
+# Install goose CLI
+go install github.com/pressly/goose/v3/cmd/goose@latest
+
+# Create a new migration
+cd database && make create name=description_here
+
+# Run pending migrations locally
+cd database && make up
+
+# Check migration status
+cd database && make status
+
+# Rollback one migration
+cd database && make down
+
+# Test full up/down cycle in Docker
+cd database && make test
+```
+
+Migrations are **not** tied to the server application. They run manually or as a K8s Job.
+See `database/README.md` for full details.
+
 ## Code Style Guidelines
 
 ### General Conventions
