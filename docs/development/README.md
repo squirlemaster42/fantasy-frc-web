@@ -133,7 +133,7 @@ docker build -t fantasy-frc:latest .
 1. **Clone Repository**: `git clone https://github.com/your-org/fantasy-frc-web.git`
 2. **Install Dependencies**: `go mod download && make setup`
 3. **Setup Database**: Follow database setup instructions
-4. **Configure Environment**: Copy and edit `.env` file
+4. **Configure Environment**: Copy and edit `server/.env` file
 5. **Run Application**: `make` and visit http://localhost:8080
 6. **Run Tests**: `go test ./...` to verify setup
 

@@ -27,7 +27,7 @@ the entire drafting and scoring process for the Fantasy FRC.
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.25+. Current testing against Go 1.25.
+Fantasy FRC is built using Go 1.24+. Current testing against Go 1.24.
 
 ### Install Templ
 
@@ -45,7 +45,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```bash
    psql -d fantasy_frc -f database/fantasyFrcDb.sql
    ```
-4. Run any additional migration scripts as needed. They can ve found in the database directory. 
+4. Run any additional migration scripts as needed. They can be found in the database directory. 
 
 **Note**: Database versioning will be done in future release.
 
@@ -58,25 +58,30 @@ DB_PASSWORD=your_db_password
 DB_USERNAME=your_db_username
 DB_IP=your_db_host
 DB_NAME=fantasy_frc
-SESSION_SECRET=your_session_secret
 SERVER_PORT=8080
+TBA_TOKEN=your_tba_token
+TBA_WEBHOOK_SECRET=your_webhook_secret
+METRIC_SECRET=your_metric_secret
+SECURE_HTTP_COOKIE=false
 ```
 
-- `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
 - `DB_*`: Database connection details
-- `SESSION_SECRET`: Random string for session encryption
-- `SERVER_PORT`: Override port for the web server
+- `SERVER_PORT`: Port for the web server
+- `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
+- `TBA_WEBHOOK_SECRET`: Secret for validating TBA webhook requests
+- `METRIC_SECRET`: Secret for accessing metrics endpoints
+- `SECURE_HTTP_COOKIE`: Set to `false` for development, `true` for production (defaults to `true`)
 
 ## Building and Running
 
-Fantasy FRC uses `make run` for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
+Fantasy FRC uses `make` (run from the `server/` directory) for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
 - `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
 ### Build and Run
 
-Running for development with vebose logging and live UI updates:
+Running for development with verbose logging and live UI updates:
 ```bash
 # Build and run the application
 make run-verbose

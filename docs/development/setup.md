@@ -29,7 +29,7 @@ cd fantasy-frc-web
 go mod download
 
 # Install Templ (if not already installed)
-go install github.com/a-h/templ/cmd/templ@latest
+go get -tool github.com/a-h/templ/cmd/templ
 
 # Verify installation
 templ version
@@ -69,8 +69,10 @@ DB_USERNAME=dev_user
 DB_IP=localhost
 DB_NAME=fantasy_frc
 SERVER_PORT=8080
-SESSION_SECRET=dev_session_secret_minimum_32_characters_longer_is_better
 TBA_TOKEN=your_tba_dev_token
+TBA_WEBHOOK_SECRET=your_webhook_secret
+METRIC_SECRET=your_metric_secret
+SECURE_HTTP_COOKIE=false
 ```
 
 ### 5. Build and Run

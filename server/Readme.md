@@ -14,6 +14,8 @@ Written in Go with Templ and HTMX.
    cp .env.example .env  # or manually create .env with required variables
    ```
 
+   Required variables: `DB_PASSWORD`, `DB_USERNAME`, `DB_IP`, `DB_NAME`, `SERVER_PORT`, `TBA_TOKEN`, `TBA_WEBHOOK_SECRET`, `METRIC_SECRET`, `SECURE_HTTP_COOKIE`
+
 3. **Run database migrations:**
    ```bash
    make migrate
