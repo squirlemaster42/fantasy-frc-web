@@ -18,7 +18,7 @@ Visual representations of database structure:
 - Schema evolution timeline
 - Data flow and query patterns
 
-### [🔄 Migrations](./migrations.md) *(Coming Soon)*
+### [🔄 Migrations](./migrations.md)
 Database versioning and upgrade procedures:
 - Migration scripts and execution order
 - Data transformation procedures
@@ -52,7 +52,7 @@ Database versioning and upgrade procedures:
 - [Architecture Overview](../architecture/system-overview.md) - System design
 - [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
 - [WebSocket API](../api/websocket-api.md) - Real-time notifications
-- [Deployment](../deployment/configuration.md) - Database setup
+- [Deployment](../../deploy/README.md) - Database setup
 
 ## 🛠️ Database Operations
 
@@ -75,5 +75,7 @@ Database versioning and upgrade procedures:
 - **Data Encryption**: Password hashing with bcrypt
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Database documentation focuses on data structure, relationships, and management procedures that ensure reliable and performant data storage.*

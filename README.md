@@ -1,12 +1,12 @@
 # Fantasy FRC Web
 
-[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.26+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Fantasy FRC is a web-based, fantasy football style game for FIRST Robotics Competition
-(FRC) teams. Created by then students (now alumni) of FRC Team 1699 (the Robocats)
-during the 2018 New England FIRST District Championships, this project automates 
-the entire drafting and scoring process for the Fantasy FRC.
+(FRC) teams. Created by students (now alumni) of FRC Team 1699 (the Robocats)
+during the 2018 New England FIRST District Championships, this project automates
+the entire drafting and scoring process for Fantasy FRC.
 
 ## Table of Contents
 
@@ -20,14 +20,14 @@ the entire drafting and scoring process for the Fantasy FRC.
 
 ### Prerequisites
 
-- [Go](https://go.dev/doc/install) 1.24+
+- [Go](https://go.dev/doc/install) 1.26+
 - [Templ](https://templ.guide/quick-start/installation/)
 - [PostgreSQL](https://www.postgresql.org/download/)
 - [Make](https://www.gnu.org/software/make/)
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.24+. Current testing against Go 1.24.
+Fantasy FRC is built using Go 1.26+. Current testing against Go 1.26.2.
 
 ### Install Templ
 
@@ -50,7 +50,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
 **Note**: Database versioning will be done in future release.
 
 ## Configuration
-.
+
 Create a `.env` file in the `server/` directory with the following variables:
 
 ```env
@@ -66,30 +66,52 @@ SECURE_HTTP_COOKIE=false
 ```
 
 - `DB_*`: Database connection details
-- `SERVER_PORT`: Port for the web server
-- `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
+- `SERVER_PORT`: Port for the web server (default: 3000)
 - `TBA_WEBHOOK_SECRET`: Secret for validating TBA webhook requests
-- `METRIC_SECRET`: Secret for accessing metrics endpoints
-- `SECURE_HTTP_COOKIE`: Set to `false` for development, `true` for production (defaults to `true`)
+- `METRIC_SECRET`: Secret for metrics endpoint authentication (required)
+- `SECURE_HTTP_COOKIE`: Set to `false` for development, `true` for production (default: `true`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint (optional)
+- `OTEL_RESOURCE_ATTRIBUTES`: OpenTelemetry resource attributes (optional)
 
 ## Building and Running
 
 Fantasy FRC uses `make` (run from the `server/` directory) for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
-- `populateTeams=true`: Populates the database with teams from configured events on startup (to be deprecated, will be automated)
 
 ### Build and Run
 
 Running for development with verbose logging and live UI updates:
 ```bash
-# Build and run the application
+# Navigate to server directory
+cd server
+
+# Run development server with hot reload
 make run-verbose
+```
+
+Other useful commands:
+```bash
+# Build CSS only
+make watch-css
+
+# Generate templ files
+make generate
+
+# Production build
+make build
+
+# Build for Linux deployment
+make build-linux
 ```
 
 ## Deployment
 
 For production deployment to Linux servers, see [deploy/README.md](deploy/README.md).
+
+## Optional Dependencies
+
+- **Redis**: Used for caching team avatars. If not available, avatars are fetched directly from The Blue Alliance API.
 
 ## License
 

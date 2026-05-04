@@ -36,7 +36,7 @@ Visual representations of draft lifecycle:
 - Snake draft pattern visualization
 - Time management system
 
-### [✅ Pick Validation](./pick-validation.md) *(Coming Soon)*
+### [✅ Pick Validation](./pick-validation.md)
 Rules governing valid team selections:
 - Team eligibility requirements
 - Event participation validation
@@ -58,9 +58,9 @@ Rules governing valid team selections:
 - **Auto-skip**: Automatic progression on expired picks
 
 ### Player Experience
-- **8 Players**: Standard draft size -- May be configurable in the cuture
-- **8 Teams**: Each player drafts 8 teams -- May be configurable in the cuture
-- **64 Total Picks**: Complete draft coverage -- May be configurable in the cuture
+- **8 Players**: Standard draft size -- May be configurable in the future
+- **8 Teams**: Each player drafts 8 teams -- May be configurable in the future
+- **64 Total Picks**: Complete draft coverage -- May be configurable in the future
 - **Live Rankings**: Real-time score updates
 
 ## 🔗 Related Documentation
@@ -85,5 +85,7 @@ Rules governing valid team selections:
 - **Database**: Persistent storage for scores and drafts
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Business logic documentation focuses on the rules and algorithms that make Fantasy FRC engaging and fair for all participants.*

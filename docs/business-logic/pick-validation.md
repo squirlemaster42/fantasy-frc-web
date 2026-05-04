@@ -31,7 +31,7 @@ Invalid team: Team frc99999 does not exist in The Blue Alliance database
 
 **Validation Process**:
 - Check team event registration against configured events
-- Valid events: Archimedes, Curie, Daly, Galileo, Hopper, Johnson, Milstein, Newton, Einstein
+- Valid events: Championship division events (e.g., Archimedes, Curie, Daly, Galileo, Hopper, Johnson, Milstein, Newton) plus Einstein
 - Verify team is registered for at least one active event
 
 **Error Handling**:
@@ -215,30 +215,36 @@ flowchart TD
 
 ## Error Response Format
 
-### Validation Error Response
+### Validation Error Display
 
-```json
-{
-    "error": {
-        "code": "PICK_VALIDATION_FAILED",
-        "message": "Detailed error description",
-        "field": "teamNumber",
-        "value": "frc99999"
-    }
-}
+The application uses **server-rendered HTML** (not JSON) for pick validation errors. When a pick fails validation, the server re-renders the draft pick page and displays the error as an HTML fragment:
+
+```html
+<div id="pickError" class="bg-red-900/20 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-6 text-center">
+    <div class="flex items-center justify-center gap-2">
+        <!-- Error message text -->
+        Team already picked
+    </div>
+</div>
 ```
 
-### Error Codes
+Errors are returned via standard HTMX form submission responses, so they appear inline without page reloads.
 
-| Code | Description |
-|------|-------------|
-| `INVALID_FORMAT` | Team number format is invalid |
-| `TEAM_NOT_FOUND` | Team does not exist in TBA |
-| `TEAM_NOT_ELIGIBLE` | Team not in configured events |
-| `TEAM_ALREADY_PICKED` | Team already selected |
-| `NOT_CURRENT_PLAYER` | Not the player's turn |
-| `PICK_EXPIRED` | Pick time has expired |
-| `INVALID_DRAFT_STATE` | Draft not in PICKING state |
+### Common Error Scenarios
+
+| Scenario | Error Message | Cause |
+|----------|---------------|-------|
+| Empty input | `no team entered` | Form submitted without a team number |
+| Not current player | `you must be the picking player to make a pick` | User is not the active picker for this draft |
+| Stale pick | `attempting to make pick that is not the current pick` | Pick ID mismatch (race condition or outdated page) |
+| Duplicate team | `team already picked` | Team was already selected by another player in this draft |
+| Team not at event | `team not at event` | Team is not registered for any configured championship events |
+| Draft not in PICKING state | Silent redirect | Draft is in FILLING, WAITING_TO_START, or another non-picking state |
+| Pick expired | Auto-skip triggered | Pick timer expired before a selection was made |
+
+### Note on Team Existence
+
+The system does not explicitly verify whether a team exists in The Blue Alliance database. Instead, it checks whether the team appears in the configured event's team list. If a team number is not found in any active event, the validation fails with a "team not at event" message.
 
 ## Security Considerations
 
@@ -337,5 +343,7 @@ correctstate -id <draftId> -state <stateName>
 - Emergency draft completion
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Pick validation ensures fair and consistent draft operations across all Fantasy FRC leagues.*
