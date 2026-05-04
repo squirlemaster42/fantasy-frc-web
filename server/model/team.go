@@ -8,6 +8,7 @@ import (
 	"server/log"
 	"server/tbaHandler"
 	"server/utils"
+	"sort"
 )
 
 type Team struct {
@@ -130,6 +131,10 @@ func GetMatchScores(database *sql.DB, tbaId string) []MatchTeamScore {
 		log.ErrorNoContext("Error iterating matches scores", "Team", tbaId, "Error", err)
 		return nil
 	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		return utils.CompareMatchOrder(matches[i].MatchTbaId, matches[j].MatchTbaId)
+	})
 
 	return matches
 }

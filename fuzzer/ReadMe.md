@@ -1,6 +1,6 @@
 # Draft Fuzzer
 
-[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.26+-blue.svg)](https://golang.org)
 
 A fuzzing tool for Fantasy FRC Web that generates randomized match JSON data. Used to test webhook functionality, match scoring accuracy, and system performance under load.
 
@@ -14,7 +14,7 @@ A fuzzing tool for Fantasy FRC Web that generates randomized match JSON data. Us
 
 ### Prerequisites
 
-- [Go](https://go.dev/doc/install) 1.24+
+- [Go](https://go.dev/doc/install) 1.26+
 
 ### Build
 

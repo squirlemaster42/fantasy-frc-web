@@ -37,7 +37,7 @@ Complete development environment setup:
 ## 🔧 Development Tools
 
 ### Required Software
-- **Go 1.24+**: Main programming language
+- **Go 1.26.2**: Main programming language
 - **PostgreSQL 12+**: Database server
 - **Templ**: Template engine for HTML
 - **Git**: Version control system
@@ -81,12 +81,18 @@ Complete development environment setup:
 
 ### Development Build
 ```bash
-# Standard development build
-make
+# Navigate to server directory
+cd server
+
+# Run development server with hot reload
+make run-verbose
 ```
 
 ### Testing Build
 ```bash
+# Navigate to server directory
+cd server
+
 # Run all tests
 go test ./...
 
@@ -99,11 +105,14 @@ go test -race ./...
 
 ### Production Build
 ```bash
-# Build for production
-GOOS=linux GOARCH=amd64 go build -o fantasy-frc-linux ./server
+# Navigate to server directory
+cd server
 
-# Build Docker image
-docker build -t fantasy-frc:latest .
+# Build for production
+make build
+
+# Build for Linux deployment
+make build-linux
 ```
 
 ## 📊 Development Metrics
@@ -126,16 +135,16 @@ docker build -t fantasy-frc:latest .
 - [Database Schema](../database/schema.md) - Data structure
 - [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
 - [WebSocket API](../api/websocket-api.md) - Real-time notifications
-- [Deployment Guide](../deployment/configuration.md) - Environment setup
+- [Deployment Guide](../../deploy/README.md) - Environment setup
 
 ## 🚀 Quick Start
 
 1. **Clone Repository**: `git clone https://github.com/your-org/fantasy-frc-web.git`
-2. **Install Dependencies**: `go mod download && make setup`
-3. **Setup Database**: Follow database setup instructions
-4. **Configure Environment**: Copy and edit `.env` file
-5. **Run Application**: `make` and visit http://localhost:8080
-6. **Run Tests**: `go test ./...` to verify setup
+2. **Install Dependencies**: `cd server && go mod download`
+3. **Setup Database**: Follow database setup instructions in [Setup Guide](./setup.md)
+4. **Configure Environment**: `cp server/.env.example server/.env` and edit with your values
+5. **Run Application**: `cd server && make run-verbose` and visit http://localhost:3000
+6. **Run Tests**: `cd server && go test ./...` to verify setup
 
 ## 🤝 Contribution Types
 
@@ -168,5 +177,7 @@ docker build -t fantasy-frc:latest .
 - Optimize performance
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Development documentation focuses on enabling efficient, high-quality contribution to the Fantasy FRC project.*

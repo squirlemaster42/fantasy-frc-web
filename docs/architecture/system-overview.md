@@ -8,7 +8,6 @@ High-level architecture of the Fantasy FRC web application.
 graph TB
     subgraph "Client Layer"
         A[Web Browser]
-        B[Mobile App]
     end
     
     subgraph "Application Layer"
@@ -26,7 +25,7 @@ graph TB
     
     subgraph "Data Layer"
         J[PostgreSQL Database]
-        K[Redis Cache]
+        K[Redis Cache (Optional)]
     end
     
     subgraph "External Services"
@@ -35,7 +34,6 @@ graph TB
     end
     
     A --> C
-    B --> C
     C --> D
     D --> E
     E --> F
@@ -112,11 +110,13 @@ sequenceDiagram
 |-----------|------------|---------|
 | Web Framework | Echo v4 | HTTP server and routing |
 | Database | PostgreSQL | Primary data storage |
-| Caching | Redis | Session storage and caching |
+| Caching | Redis | Optional avatar caching |
 | Frontend | Templ + HTMX | Server-rendered UI |
 | Real-time | WebSocket | Live updates |
 | External API | The Blue Alliance | FRC data source |
 
 ---
+
+*Last updated: 2026-05-01*
 
 *TODO: Add detailed component descriptions, deployment diagrams, and scaling considerations*

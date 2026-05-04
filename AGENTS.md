@@ -82,7 +82,7 @@ See `database/README.md` for full details.
 
 ### General Conventions
 
-- **Go Version**: Go 1.24.0 with toolchain go1.24.0
+- **Go Version**: Go 1.26.2 with toolchain go1.26.2
 - **Logging**: Use custom logging with context
 - **Error Handling**: Use custom `assert` package for context-aware error handling
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions

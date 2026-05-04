@@ -118,4 +118,6 @@ sequenceDiagram
 
 ---
 
+*Last updated: 2026-05-01*
+
 *TODO: Add detailed interaction diagrams, error handling flows, and performance metrics*
