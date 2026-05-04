@@ -14,7 +14,7 @@ deploy/
 │   │   └── vault.yml.example  # Template for encrypted secrets
 │   └── templates/
 │       ├── fantasy-frc.service.j2  # Systemd service unit
-│       └── .env.j2                 # Environment file template
+│       └── .env.j2                 # Environment file template (see vars/main.yml for variables)
 ├── migrations/                 # Database migration scripts
 │   ├── 001_initial.up.sql     # Initial schema (from fantasyFrcDb.sql)
 │   ├── 002_uuid.up.sql        # UUID migration (from changeUserIdToGuid.sql)
@@ -88,7 +88,7 @@ Edit `deploy/ansible/vars/main.yml` for non-secret configuration:
 | `vault_db_password` | PostgreSQL password |
 | `vault_tba_token` | The Blue Alliance API token |
 | `vault_tba_webhook_secret` | TBA webhook secret |
-| `vault_session_secret` | Session encryption secret |
+| `vault_metric_secret` | Metrics endpoint secret |
 | `vault_sentry_dsn` | Sentry DSN (optional) |
 
 ## Database Migrations

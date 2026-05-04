@@ -31,7 +31,7 @@ cd server
 # Install Go dependencies
 go mod download
 
-# Install Templ tool (as specified in go.mod)
+# Install Templ (if not already installed)
 go get -tool github.com/a-h/templ/cmd/templ
 
 # Verify installation

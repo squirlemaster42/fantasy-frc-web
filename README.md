@@ -62,9 +62,9 @@ SERVER_PORT=8080
 TBA_TOKEN=your_tba_token
 TBA_WEBHOOK_SECRET=your_webhook_secret
 METRIC_SECRET=your_metric_secret
+SECURE_HTTP_COOKIE=false
 ```
 
-- `TBA_TOKEN`: Your API token from [The Blue Alliance](https://www.thebluealliance.com/account)
 - `DB_*`: Database connection details
 - `SERVER_PORT`: Port for the web server (default: 3000)
 - `TBA_WEBHOOK_SECRET`: Secret for validating TBA webhook requests
@@ -75,7 +75,7 @@ METRIC_SECRET=your_metric_secret
 
 ## Building and Running
 
-The Makefile is located in the `server/` directory and includes options to disable certain features during testing:
+Fantasy FRC uses `make` (run from the `server/` directory) for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
 
 - `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
 
