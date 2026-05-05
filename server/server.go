@@ -66,6 +66,10 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 	metricAuth := authentication.NewMetricAuth(metricSecret)
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
 
+	app.GET("/healthz", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
 	protected := app.Group("/u", auth.Authenticate)
 	protected.Use(echomiddleware.Gzip())
 	protected.GET("/home", h.HandleViewHome)

@@ -45,7 +45,9 @@ func main() {
 	log.InfoNoContext("-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
-	assert.NoError(err, "Failed to load env vars")
+	if err != nil {
+		log.InfoNoContext("No .env file loaded, using environment variables")
+	}
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbUsername := os.Getenv("DB_USERNAME")
