@@ -32,14 +32,34 @@ make create name=add_user_preferences
 
 This creates a new `.sql` file in `migrations/` with `-- +goose Up` and `-- +goose Down` stubs.
 
+### Environment Variables
+
+Migration commands require `DB_USERNAME`, `DB_PASSWORD`, `DB_IP`, and `DB_NAME`.
+
+If you have a `.env` file in this directory, load it before running `make`:
+
+```bash
+cd database
+set -a && source .env && set +a
+make up
+```
+
+Or export them manually:
+
+```bash
+export DB_USERNAME=...
+export DB_PASSWORD=...
+export DB_IP=...
+export DB_NAME=...
+make up
+```
+
 ### Run migrations locally
 
 ```bash
 cd database
 make up
 ```
-
-Requires `DB_USERNAME`, `DB_PASSWORD`, `DB_IP`, and `DB_NAME` environment variables.
 
 ### Check migration status
 

@@ -21,6 +21,8 @@ DB_PORT="5433"
 CONTAINER_NAME="fantasy-frc-postgres-test"
 MIGRATIONS_DIR="$(dirname "$0")/migrations"
 
+export PGPASSWORD="${DB_PASS}"
+
 echo "Starting PostgreSQL container on port ${DB_PORT}..."
 docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
 docker run -d \
@@ -40,7 +42,7 @@ for i in {1..15}; do
     sleep 1
 done
 
-DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:${DB_PORT}/${DB_NAME}?sslmode=disable"
+DB_URL="postgresql://${DB_USER}@localhost:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 echo ""
 echo "Running UP migrations..."
