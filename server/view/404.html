@@ -11,10 +11,8 @@
     <link rel="shortcut icon" href="/img/gopher-svgrepo-com.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/css/styles.css">
     <title>Todo List | Page Not Found</title>
-    <script src="https://unpkg.com/htmx.org@1.9.9"
-        integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX"
-        crossorigin="anonymous"></script>
-    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <script src="/js/htmx.min.js"></script>
+    <script defer src="/js/app.js"></script>
 </head>
 
 <body class="sample-transition" hx-boost="true">
@@ -28,8 +26,7 @@
                     Page not found
                 </h2>
             </div>
-            <p class="text-xs text-center md:text-sm text-gray-400"
-                _="on load put the location of the window into loc then put `The page '${loc}' doesn't exists` into me">
+            <p id="not-found-msg" class="text-xs text-center md:text-sm text-gray-400">
                 This page doesn't exists
             </p>
 

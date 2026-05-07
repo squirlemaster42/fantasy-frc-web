@@ -1,0 +1,41 @@
+package partials
+
+templ HtmxButton(url string, target string, swap string, confirmMsg string, disabled bool, classes string, loadingText string, btnName string, btnValue string) {
+    <button
+        hx-post={url}
+        if target != "" {
+            hx-target={target}
+        }
+        if swap != "" {
+            hx-swap={swap}
+        }
+        if confirmMsg != "" {
+            hx-confirm={confirmMsg}
+        }
+        if btnName != "" {
+            name={btnName}
+        }
+        if btnValue != "" {
+            value={btnValue}
+        }
+        disabled?={disabled}
+        hx-disabled-elt="this"
+        class={classes}
+        hx-on::before-request="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.add('hidden');if(l)l.classList.remove('hidden')"
+        hx-on::after-request="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.remove('hidden');if(l)l.classList.add('hidden')"
+        hx-on::response-error="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.remove('hidden');if(l)l.classList.add('hidden')"
+    >
+        <span class="htmx-btn-content flex items-center justify-center gap-2">
+            { children... }
+        </span>
+        <span class="htmx-btn-loading hidden flex items-center justify-center gap-2">
+            <svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            if loadingText != "" {
+                <span>{ loadingText }</span>
+            }
+        </span>
+    </button>
+}

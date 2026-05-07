@@ -104,19 +104,22 @@ if fromProtected {
                             <span class="text-slate-300 hover:text-blue-400 font-medium">{ username }</span>
                         </a>
                     </div>
-                        <button
-                            hx-swap="transition:true"
-                            hx-post="/logout"
-                            hx-confirm="Are you sure you want to log out?"
-                            hx-target="body"
-                            hx-push-url="true"
-                            class="hidden md:flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
-                        >
+                        @HtmxButton(
+                            "/logout",
+                            "body",
+                            "transition:true",
+                            "Are you sure you want to log out?",
+                            false,
+                            "hidden md:flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium",
+                            "",
+                            "",
+                            "",
+                        ) {
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                             </svg>
                             Logout
-                        </button>
+                        }
                     } else {
                         <div class="flex items-center space-x-2">
                             <a
@@ -145,44 +148,34 @@ if fromProtected {
             </div>
         </div>
 
-        <!-- Mobile Menu Button -->
-        <div class="md:hidden">
+        <!-- Mobile Menu -->
+        <div class="md:hidden" x-data="{ open: false }">
             <button
                 id="mobile-menu-btn"
-                aria-label="Open menu"
+                aria-label="Toggle menu"
                 class="text-slate-300 hover:text-white p-2"
-                onclick="
-                    document.getElementById('mobile-menu').classList.toggle('hidden');
-                    document.getElementById('menu-icon').classList.toggle('hidden');
-                    document.getElementById('close-icon').classList.toggle('hidden');
-                "
+                @click="open = !open"
             >
-                <svg id="menu-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                 </svg>
-                <svg id="close-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 hidden">
+                <svg x-show="open" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
             </button>
-        </div>
 
-<!-- Mobile Menu -->
-        <div id="mobile-menu" class="hidden md:hidden fixed inset-0 top-16 bg-slate-900 border-t border-slate-700 z-40 overflow-y-auto">
-            <div class="flex justify-end px-4 py-2">
-                <button
-                    aria-label="Close menu"
-                    onclick="
-                        document.getElementById('mobile-menu').classList.toggle('hidden');
-                        document.getElementById('menu-icon').classList.toggle('hidden');
-                        document.getElementById('close-icon').classList.toggle('hidden');
-                    "
-                    class="text-slate-300 hover:text-white p-2"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+            <div x-show="open" x-cloak class="md:hidden fixed inset-0 top-16 bg-slate-900 border-t border-slate-700 z-40 overflow-y-auto">
+                <div class="flex justify-end px-4 py-2">
+                    <button
+                        aria-label="Close menu"
+                        @click="open = false"
+                        class="text-slate-300 hover:text-white p-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             <div class="px-4 pb-4 space-y-2">
                 if fromProtected {
                     <a href="/u/userProfile" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium">
@@ -236,21 +229,25 @@ if fromProtected {
                         </a>
                     }
                     <div class="border-t border-slate-700 my-2"></div>
-                    <button
-                        hx-swap="transition:true"
-                        hx-post="/logout"
-                        hx-confirm="Are you sure you want to log out?"
-                        hx-target="body"
-                        hx-push-url="true"
-                        class="flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
-                    >
+                    @HtmxButton(
+                        "/logout",
+                        "body",
+                        "transition:true",
+                        "Are you sure you want to log out?",
+                        false,
+                        "flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium",
+                        "",
+                        "",
+                        "",
+                    ) {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                         </svg>
                         Logout
-                    </button>
+                    }
                 }
             </div>
         </div>
+    </div>
     </nav>
 }

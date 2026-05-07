@@ -49,6 +49,13 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 		cacheControlMiddleware,
 	)
 
+	app.Add(
+		http.MethodGet,
+		"/js/*",
+		echo.StaticDirectoryHandler(assets.JS(), false),
+		cacheControlMiddleware,
+	)
+
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(otelecho.Middleware("fantasy-frc-web"))

@@ -12,9 +12,10 @@ package view
 			<link rel="icon" type="image/svg+xml" href="/img/favicon.svg"/>
 			<link rel="stylesheet" href="/css/styles.css"/>
 			<title>Fantasy FRC - Build Your Ultimate Robotics Team!</title>
-			<script src="https://unpkg.com/htmx.org@1.9.9" integrity="sha384-QFjmbokDn2DjBjq+fM+8LUIVrAgqcNW2s0PjAxHETgRn9l4fvX31ZxDxvwQnyMOX" crossorigin="anonymous"></script>
-			<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/ws.js"></script>
-			<script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+			<script src="/js/htmx.min.js"></script>
+			<script src="/js/ws.js"></script>
+			<script defer src="/js/alpine.min.js"></script>
+			<script defer src="/js/app.js"></script>
 			<style>
 				@keyframes float {
 					0%, 100% { transform: translateY(0px); }
@@ -64,7 +65,6 @@ package view
 			</style>
 		</head>
 		<body class="bg-base-100 text-base-content simple-transition" hx-boost="true">
-			<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
 			<div class="min-h-screen bg-base-100">
 
 				<!-- Enhanced Hero Section -->

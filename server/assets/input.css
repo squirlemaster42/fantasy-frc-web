@@ -9,6 +9,10 @@ body {
     font-family: "Kanit", sans-serif;
 }
 
+[x-cloak] {
+    display: none !important;
+}
+
 /* Enhanced Landing Page Animations */
 @keyframes fade-in {
     from {

@@ -4,6 +4,7 @@ import (
 	"server/model"
 	"server/types"
 	"server/view"
+	"server/view/partials"
 	"fmt"
 )
 
@@ -62,32 +63,41 @@ templ QuickActionsCard(draft model.DraftModel) {
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-slate-100 mb-4">Quick Actions</h2>
 			<div class="grid grid-cols-2 gap-4">
-				<button
-					hx-post={fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id)}
-					hx-target="#adminMessage"
-					hx-swap="innerHTML"
-					class="flex flex-col items-center gap-2 p-4 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
-				>
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-amber-400">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
-					</svg>
-					<span class="text-slate-100 font-medium">Skip Pick</span>
-					<span class="text-slate-400 text-xs">Skip current player</span>
-				</button>
+			@partials.HtmxButton(
+				fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id),
+				"#adminMessage",
+				"innerHTML",
+				"",
+				false,
+				"flex flex-col items-center gap-2 p-4 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200",
+				"",
+				"",
+				"",
+			) {
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-amber-400">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
+				</svg>
+				<span class="text-slate-100 font-medium">Skip Pick</span>
+				<span class="text-slate-400 text-xs">Skip current player</span>
+			}
 
-				<button
-					hx-post={fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id)}
-					hx-target="#adminMessage"
-					hx-swap="innerHTML"
-					hx-confirm="Are you sure you want to undo the last pick?"
-					class="flex flex-col items-center gap-2 p-4 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200"
-				>
-					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-red-400">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
-					</svg>
-					<span class="text-slate-100 font-medium">Undo Pick</span>
-					<span class="text-slate-400 text-xs">Revert last pick</span>
-				</button>
+			@partials.HtmxButton(
+				fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id),
+				"#adminMessage",
+				"innerHTML",
+				"Are you sure you want to undo the last pick?",
+				false,
+				"flex flex-col items-center gap-2 p-4 bg-slate-700 hover:bg-slate-600 rounded-xl transition-all duration-200",
+				"",
+				"",
+				"",
+			) {
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-red-400">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+				</svg>
+				<span class="text-slate-100 font-medium">Undo Pick</span>
+				<span class="text-slate-400 text-xs">Revert last pick</span>
+			}
 			</div>
 		</div>
 	</div>
@@ -99,30 +109,45 @@ templ ExtendTimeCard(draft model.DraftModel) {
 			<h2 class="text-lg font-bold text-slate-100 mb-4">Extend Pick Time</h2>
 			<div class="space-y-4">
 				<div class="flex flex-wrap gap-2">
-					<button
-						hx-post={fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id)}
-						hx-target="#adminMessage"
-						hx-swap="innerHTML"
-						class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium"
-					>
-						+30 min
-					</button>
-					<button
-						hx-post={fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id)}
-						hx-target="#adminMessage"
-						hx-swap="innerHTML"
-						class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium"
-					>
-						+1 hour
-					</button>
-					<button
-						hx-post={fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id)}
-						hx-target="#adminMessage"
-						hx-swap="innerHTML"
-						class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium"
-					>
-						+2 hours
-					</button>
+				@partials.HtmxButton(
+					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id),
+					"#adminMessage",
+					"innerHTML",
+					"",
+					false,
+					"px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium",
+					"",
+					"",
+					"",
+				) {
+					+30 min
+				}
+				@partials.HtmxButton(
+					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id),
+					"#adminMessage",
+					"innerHTML",
+					"",
+					false,
+					"px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium",
+					"",
+					"",
+					"",
+				) {
+					+1 hour
+				}
+				@partials.HtmxButton(
+					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id),
+					"#adminMessage",
+					"innerHTML",
+					"",
+					false,
+					"px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 rounded-lg transition-all duration-200 font-medium",
+					"",
+					"",
+					"",
+				) {
+					+2 hours
+				}
 				</div>
 				<form
 					hx-post={fmt.Sprintf("/u/draft/%d/admin/extendTime", draft.Id)}
@@ -136,12 +161,22 @@ templ ExtendTimeCard(draft model.DraftModel) {
 						placeholder="Custom (e.g., 45m, 1h30m)"
 						class="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
+				<div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
 					<button
 						type="submit"
+						hx-disabled-elt="this"
 						class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all duration-200 font-medium"
 					>
-						Extend
+						<span x-show="!loading">Extend</span>
+						<span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+							<svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Extending...
+						</span>
 					</button>
+				</div>
 				</form>
 			</div>
 		</div>
@@ -167,12 +202,20 @@ templ AdminPickCard(draft model.DraftModel) {
 						class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
-				<div class="flex items-end">
+				<div class="flex items-end" x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
 					<button
 						type="submit"
+						hx-disabled-elt="this"
 						class="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-all duration-200 font-medium"
 					>
-						Make Pick
+						<span x-show="!loading">Make Pick</span>
+						<span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+							<svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Picking...
+						</span>
 					</button>
 				</div>
 			</form>

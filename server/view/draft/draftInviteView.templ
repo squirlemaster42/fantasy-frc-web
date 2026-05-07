@@ -2,6 +2,7 @@ package draft
 
 import "server/view"
 import "server/model"
+import "server/view/partials"
 import "fmt"
 
 templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
@@ -42,32 +43,38 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
                             </div>
 
                             <div class="flex gap-3">
-                                <button
-                                    hx-target="#pendingTable"
-                                    hx-swap="outerHTML"
-                                    name="inviteId"
-                                    value={ fmt.Sprintf("%d", invite.Id) }
-                                    hx-post="/u/acceptInvite"
-                                    class="btn btn-primary bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2"
-                                >
+                                @partials.HtmxButton(
+                                    "/u/acceptInvite",
+                                    "#pendingTable",
+                                    "outerHTML",
+                                    "",
+                                    false,
+                                    "btn btn-primary bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2",
+                                    "",
+                                    "inviteId",
+                                    fmt.Sprintf("%d", invite.Id),
+                                ) {
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                     </svg>
                                     Accept
-                                </button>
-                                <button
-                                    hx-target="#pendingTable"
-                                    hx-swap="outerHTML"
-                                    name="inviteId"
-                                    value={ fmt.Sprintf("%d", invite.Id) }
-                                    hx-post="/u/declineInvite"
-                                    class="btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2"
-                                >
+                                }
+                                @partials.HtmxButton(
+                                    "/u/declineInvite",
+                                    "#pendingTable",
+                                    "outerHTML",
+                                    "",
+                                    false,
+                                    "btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2",
+                                    "",
+                                    "inviteId",
+                                    fmt.Sprintf("%d", invite.Id),
+                                ) {
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                     Decline
-                                </button>
+                                }
                             </div>
                         </div>
                     </div>
