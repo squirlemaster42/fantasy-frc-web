@@ -1,493 +1,182 @@
 package view
 
-	templ Landing() {
-		<!DOCTYPE html>
-		<html lang="en" data-theme="dark">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<meta name="description" content="Join Fantasy FRC: Draft elite FIRST Robotics Competition teams, strategize like a champion, and dominate the leaderboard. Experience robotics without the workshop!"/>
-			<meta name="google" content="notranslate"/>
-			<link rel="icon" type="image/svg+xml" href="/img/favicon.svg"/>
-			<link rel="stylesheet" href="/css/styles.css"/>
-			<title>Fantasy FRC - Build Your Ultimate Robotics Team!</title>
-			<script src="/js/htmx.min.js"></script>
-			<script src="/js/ws.js"></script>
-			<script defer src="/js/alpine.min.js"></script>
-			<script defer src="/js/app.js"></script>
-			<style>
-				@keyframes float {
-					0%, 100% { transform: translateY(0px); }
-					50% { transform: translateY(-20px); }
-				}
-				@keyframes pulse-glow {
-					0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
-					50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); }
-				}
-				@keyframes slide-in-up {
-					from { opacity: 0; transform: translateY(30px); }
-					to { opacity: 1; transform: translateY(0); }
-				}
-				@keyframes circuit-pattern {
-					0% { background-position: 0 0; }
-					100% { background-position: 100px 100px; }
-				}
-				.float-animation { animation: float 6s ease-in-out infinite; }
-				.pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-				.slide-in-up { animation: slide-in-up 0.8s ease-out forwards; }
-				.circuit-bg {
-					background-image:
-						linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-						linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
-					background-size: 50px 50px;
-					animation: circuit-pattern 20s linear infinite;
-				}
+templ Landing() {
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<meta name="description" content="Fantasy FRC — Draft real FIRST Robotics Competition teams and compete with friends."/>
+		<meta name="google" content="notranslate"/>
+		<link rel="icon" type="image/svg+xml" href="/img/favicon.svg"/>
+		<link rel="stylesheet" href="/css/styles.css"/>
+		<title>Fantasy FRC</title>
+		<script src="/js/htmx.min.js"></script>
+		<script src="/js/ws.js"></script>
+		<script defer src="/js/alpine.min.js"></script>
+		<script defer src="/js/app.js"></script>
+		<style>
+			.hero-gradient {
+				background:
+					radial-gradient(ellipse 60% 40% at 70% 50%, rgba(59, 130, 246, 0.08), transparent),
+					radial-gradient(ellipse 50% 30% at 20% 80%, rgba(139, 92, 246, 0.06), transparent),
+					linear-gradient(160deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%);
+			}
+			.text-gradient {
+				background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+			.card-glow {
+				box-shadow:
+					0 0 0 1px rgba(59, 130, 246, 0.1),
+					0 20px 50px -10px rgba(59, 130, 246, 0.15),
+					0 0 80px -20px rgba(139, 92, 246, 0.1);
+			}
+			@media (prefers-reduced-motion: reduce) {
 				.hero-gradient {
-					background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #312e81 100%);
+					background: #0f172a;
 				}
-				.card-hover {
-					transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-				}
-				.card-hover:hover {
-					transform: translateY(-8px) scale(1.02);
-					box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
-				}
-				.text-gradient {
-					background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
-					-webkit-background-clip: text;
-					-webkit-text-fill-color: transparent;
-					background-clip: text;
-				}
-				.stats-counter {
-					transition: all 0.5s ease-out;
-				}
-			</style>
-		</head>
-		<body class="bg-base-100 text-base-content simple-transition" hx-boost="true">
-			<div class="min-h-screen bg-base-100">
-
-				<!-- Enhanced Hero Section -->
-				<div class="hero min-h-screen hero-gradient circuit-bg relative overflow-hidden">
-					<!-- Animated Background Elements -->
-					<div class="absolute inset-0 overflow-hidden">
-						<div class="absolute top-20 left-10 w-32 h-32 bg-blue-500/10 rounded-full blur-xl float-animation"></div>
-						<div class="absolute top-40 right-20 w-48 h-48 bg-purple-500/10 rounded-full blur-2xl float-animation" style="animation-delay: 2s;"></div>
-						<div class="absolute bottom-20 left-1/4 w-40 h-40 bg-pink-500/10 rounded-full blur-xl float-animation" style="animation-delay: 4s;"></div>
-					</div>
-
-					<div class="hero-content flex-col lg:flex-row-reverse max-w-7xl relative z-10 px-4">
-						<!-- Enhanced Robot Image Section -->
-						<div class="lg:w-1/2 flex justify-center items-center">
-							<div class="relative">
-								<div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur-2xl opacity-30 pulse-glow"></div>
-								<div class="relative bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700">
-									<svg class="w-full h-64 lg:h-80 text-blue-400" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-										<!-- Robot Illustration -->
-										<rect x="150" y="50" width="100" height="80" rx="10" fill="currentColor" opacity="0.8"/>
-										<circle cx="175" cy="80" r="8" fill="#fff"/>
-										<circle cx="225" cy="80" r="8" fill="#fff"/>
-										<rect x="170" y="100" width="60" height="10" rx="5" fill="#fff" opacity="0.6"/>
-										<rect x="120" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
-										<rect x="240" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
-										<rect x="160" y="130" width="80" height="40" rx="5" fill="currentColor" opacity="0.7"/>
-										<text x="200" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">FRC</text>
-										<!-- Circuit Lines -->
-										<path d="M50 150 L150 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
-										<path d="M250 150 L350 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
-										<circle cx="50" cy="150" r="4" fill="currentColor"/>
-										<circle cx="350" cy="150" r="4" fill="currentColor"/>
-									</svg>
-									<div class="text-center mt-4">
-										<div class="text-sm text-slate-400">State-of-the-Art Robotics</div>
-										<div class="text-xs text-slate-500 mt-1">Experience the Future of Competition</div>
-									</div>
-								</div>
-							</div>
+			}
+		</style>
+	</head>
+	<body class="bg-slate-900 text-slate-100" hx-boost="true">
+		<!-- Sticky Nav -->
+		<nav class="fixed top-0 w-full z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-700">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex justify-between items-center h-16">
+					<a href="/" class="flex items-center gap-3 text-slate-100 hover:text-blue-400 transition-colors duration-200 font-bold text-xl">
+						<div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-white">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+							</svg>
 						</div>
-
-						<!-- Enhanced Hero Content -->
-						<div class="text-center lg:text-left lg:w-1/2 lg:pr-12">
-							<div class="slide-in-up">
-								<h1 class="text-5xl lg:text-7xl font-extrabold mb-6">
-									<span class="text-gradient">Fantasy FRC</span>
-								</h1>
-								<h2 class="text-2xl lg:text-3xl font-bold text-slate-200 mb-4">
-									Your Gateway to Robotics Glory
-								</h2>
-								<p class="text-lg lg:text-xl text-slate-300 mb-8 leading-relaxed">
-									Draft elite FIRST Robotics Competition teams, strategize like a professional, and dominate the global leaderboards. Experience the thrill of cutting-edge robotics competition—no wrenches required.
-								</p>
-								<div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-									<a href="/register" class="btn btn-primary btn-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-0 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2">
-										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-										</svg>
-										Start Your Fantasy Journey
-									</a>
-									<a href="#how-it-works" class="btn btn-outline btn-lg border-2 border-slate-400 hover:border-slate-300 text-slate-200 hover:text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
-										Learn More
-									</a>
-								</div>
-								<div class="mt-6 flex items-center gap-4 text-sm text-slate-400">
-									<div class="flex items-center gap-1">
-										<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-										</svg>
-										Free to Play
-									</div>
-									<div class="flex items-center gap-1">
-										<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-										</svg>
-										No Experience Needed
-									</div>
-								</div>
-							</div>
-						</div>
+						Fantasy FRC
+					</a>
+					<div class="flex items-center gap-3">
+						<a href="/login" class="px-4 py-2 text-slate-300 hover:text-white font-medium transition-colors duration-200">
+							Log In
+						</a>
+						<a href="/register" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105">
+							Sign Up
+						</a>
 					</div>
 				</div>
-
-				<!-- How It Works Section -->
-				<div id="how-it-works" class="py-20 bg-gradient-to-b from-slate-900 to-slate-800">
-					<div class="max-w-7xl mx-auto px-4">
-						<div class="text-center mb-16">
-							<h2 class="text-4xl lg:text-5xl font-bold text-white mb-4">
-								How Fantasy FRC Works
-							</h2>
-							<p class="text-xl text-slate-300 max-w-3xl mx-auto">
-								Get started in minutes and join the ultimate robotics strategy game
-							</p>
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-							<!-- Step 1 -->
-							<div class="text-center group">
-								<div class="relative mb-6 inline-block">
-									<div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto transform transition-all duration-300 group-hover:scale-110">
-										<span class="text-2xl font-bold text-white">1</span>
-									</div>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Create Account</h3>
-								<p class="text-slate-400">Sign up in seconds with just a username and password. No personal information required.</p>
-							</div>
-
-							<!-- Step 2 -->
-							<div class="text-center group">
-								<div class="relative mb-6 inline-block">
-									<div class="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto transform transition-all duration-300 group-hover:scale-110">
-										<span class="text-2xl font-bold text-white">2</span>
-									</div>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Join or Create Draft</h3>
-								<p class="text-slate-400">Browse public drafts or create your own private league with friends.</p>
-							</div>
-
-							<!-- Step 3 -->
-							<div class="text-center group">
-								<div class="relative mb-6 inline-block">
-									<div class="w-20 h-20 bg-gradient-to-r from-pink-500 to-red-500 rounded-full flex items-center justify-center mx-auto transform transition-all duration-300 group-hover:scale-110">
-										<span class="text-2xl font-bold text-white">3</span>
-									</div>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Draft Your Teams</h3>
-								<p class="text-slate-400">Select real FRC teams based on their performance history and rankings.</p>
-							</div>
-
-							<!-- Step 4 -->
-							<div class="text-center group">
-								<div class="relative mb-6 inline-block">
-									<div class="w-20 h-20 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto transform transition-all duration-300 group-hover:scale-110">
-										<span class="text-2xl font-bold text-white">4</span>
-									</div>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Compete & Win</h3>
-								<p class="text-slate-400">Watch your teams compete in real matches and climb the leaderboards!</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- What is Fantasy FRC - Enhanced -->
-				<div class="py-20 bg-slate-800">
-					<div class="max-w-7xl mx-auto px-4">
-						<div class="text-center mb-16">
-							<h2 class="text-4xl lg:text-5xl font-bold text-white mb-4">
-								What is Fantasy FRC?
-							</h2>
-							<p class="text-xl text-slate-300 max-w-4xl mx-auto">
-								The ultimate fusion of fantasy sports and cutting-edge robotics innovation. Draft real FRC teams, watch them compete, and dominate the leaderboards.
-							</p>
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-							<!-- Team Spirit Card -->
-							<div class="card bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden card-hover">
-								<div class="h-48 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center">
-									<svg class="w-24 h-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-									</svg>
-								</div>
-								<div class="card-body p-6">
-									<h3 class="card-title text-2xl font-bold text-blue-400 mb-3">Team Spirit</h3>
-									<p class="text-slate-300">Experience the camaraderie and passion of FRC teams as they work together to achieve greatness.</p>
-								</div>
-							</div>
-
-							<!-- Competition Card -->
-							<div class="card bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden card-hover">
-								<div class="h-48 bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-									<svg class="w-24 h-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-									</svg>
-								</div>
-								<div class="card-body p-6">
-									<h3 class="card-title text-2xl font-bold text-purple-400 mb-3">Intense Competition</h3>
-									<p class="text-slate-300">Watch robots clash in epic battles of strategy, skill, and innovation in high-stakes tournaments.</p>
-								</div>
-							</div>
-
-							<!-- Innovation Card -->
-							<div class="card bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden card-hover">
-								<div class="h-48 bg-gradient-to-br from-pink-600 to-pink-800 flex items-center justify-center">
-									<svg class="w-24 h-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-									</svg>
-								</div>
-								<div class="card-body p-6">
-									<h3 class="card-title text-2xl font-bold text-pink-400 mb-3">Cutting-Edge Innovation</h3>
-									<p class="text-slate-300">Explore groundbreaking game designs and witness the future of robotics engineering.</p>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Why Play - Enhanced -->
-				<div class="py-20 bg-gradient-to-b from-slate-800 to-slate-900">
-					<div class="max-w-7xl mx-auto px-4">
-						<div class="text-center mb-16">
-							<h2 class="text-4xl lg:text-5xl font-bold text-white mb-4">
-								Why Choose Fantasy FRC?
-							</h2>
-							<p class="text-xl text-slate-300 max-w-3xl mx-auto">
-								Discover the perfect blend of strategy, competition, and robotics innovation
-							</p>
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-							<!-- Robotics Without Mess -->
-							<div class="card bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 card-hover group">
-								<div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-									<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-									</svg>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Robotics Without the Mess</h3>
-								<p class="text-slate-400">Experience cutting-edge robotics competition from anywhere. No tools, no deadlines—just pure strategic excitement.</p>
-							</div>
-
-							<!-- Compete and Conquer -->
-							<div class="card bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 card-hover group">
-								<div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-									<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-									</svg>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Compete and Conquer</h3>
-								<p class="text-slate-400">Join thousands of players worldwide. Climb global leaderboards, form alliances, and prove your strategic mastery.</p>
-							</div>
-
-							<!-- Strategy and Analytics -->
-							<div class="card bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 card-hover group">
-								<div class="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-									<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-									</svg>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Master Strategy</h3>
-								<p class="text-slate-400">Draft, trade, and manage your dream team. Analyze performance data and make game-changing decisions that lead to victory.</p>
-							</div>
-
-							<!-- Support STEM -->
-							<div class="card bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-2xl p-6 card-hover group">
-								<div class="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-									<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
-									</svg>
-								</div>
-								<h3 class="text-xl font-bold text-white mb-3">Support STEM Innovation</h3>
-								<p class="text-slate-400">Every play supports the next generation of engineers and innovators. You're not just playing—you're inspiring the future.</p>
-							</div>
-						</div>
-
-						<div class="mt-12 text-center">
-							<p class="text-xl text-slate-300 max-w-4xl mx-auto">
-								Whether you're a robotics fanatic, a sports enthusiast, or strategic thinker, Fantasy FRC offers endless excitement and bragging rights!
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<!-- Social Proof Section -->
-				<div class="py-20 bg-slate-900">
-					<div class="max-w-7xl mx-auto px-4">
-						<div class="text-center mb-16">
-							<h2 class="text-4xl lg:text-5xl font-bold text-white mb-4">
-								Join Thousands of Players
-							</h2>
-							<p class="text-xl text-slate-300">See what our community has to say</p>
-						</div>
-
-						<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-							<!-- Testimonial 1 -->
-							<div class="card bg-slate-800 border border-slate-700 rounded-2xl p-6">
-								<div class="flex items-center mb-4">
-									<div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-										<span class="text-white font-bold">JD</span>
-									</div>
-									<div class="ml-4">
-										<h4 class="text-white font-bold">John Doe</h4>
-										<p class="text-slate-400 text-sm">FRC Mentor</p>
-									</div>
-								</div>
-								<p class="text-slate-300">"Fantasy FRC brings the excitement of robotics competition to everyone. I can follow my favorite teams and compete with friends!"</p>
-								<div class="flex mt-4">
-									<span class="text-yellow-400">★★★★★</span>
-								</div>
-							</div>
-
-							<!-- Testimonial 2 -->
-							<div class="card bg-slate-800 border border-slate-700 rounded-2xl p-6">
-								<div class="flex items-center mb-4">
-									<div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-										<span class="text-white font-bold">SM</span>
-									</div>
-									<div class="ml-4">
-										<h4 class="text-white font-bold">Sarah Miller</h4>
-										<p class="text-slate-400 text-sm">Student</p>
-									</div>
-								</div>
-								<p class="text-slate-300">"As someone who can't build robots, this lets me experience the strategy and competition. It's addictive!"</p>
-								<div class="flex mt-4">
-									<span class="text-yellow-400">★★★★★</span>
-								</div>
-							</div>
-
-							<!-- Testimonial 3 -->
-							<div class="card bg-slate-800 border border-slate-700 rounded-2xl p-6">
-								<div class="flex items-center mb-4">
-									<div class="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-										<span class="text-white font-bold">MC</span>
-									</div>
-									<div class="ml-4">
-										<h4 class="text-white font-bold">Mike Chen</h4>
-										<p class="text-slate-400 text-sm">Team Captain</p>
-									</div>
-								</div>
-								<p class="text-slate-300">"The perfect way to stay engaged with FRC year-round. I love tracking team performance and competing with other fans!"</p>
-								<div class="flex mt-4">
-									<span class="text-yellow-400">★★★★★</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Enhanced Call to Action -->
-				<div class="py-20 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
-					<div class="absolute inset-0 bg-black opacity-20"></div>
-					<div class="absolute inset-0">
-						<div class="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-						<div class="absolute bottom-10 right-10 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-					</div>
-					<div class="max-w-4xl mx-auto text-center relative z-10 px-4">
-						<h2 class="text-4xl lg:text-6xl font-bold text-white mb-6">
-							Ready to Dominate the Competition?
-						</h2>
-						<p class="text-xl lg:text-2xl text-white/90 mb-8 max-w-3xl mx-auto">
-							Dive into the excitement and start building your robotic empire today. Join thousands of players in the ultimate strategy game!
-						</p>
-						<div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-							<a href="/register" class="btn btn-primary btn-lg bg-white text-purple-600 hover:bg-gray-100 border-0 font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2">
-								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/>
-								</svg>
-								Join Fantasy FRC Now
-							</a>
-							<div class="text-white">
-								Already playing?
-								<a href="/login" class="text-white font-bold underline hover:no-underline ml-1">
-									Log in here
-								</a>
-							</div>
-						</div>
-						<div class="mt-8 flex flex-wrap justify-center gap-6 text-white/80 text-sm">
-							<div class="flex items-center gap-2">
-								<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-								</svg>
-								100% Free to Play
-							</div>
-							<div class="flex items-center gap-2">
-								<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-								</svg>
-								No Credit Card Required
-							</div>
-							<div class="flex items-center gap-2">
-								<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-								</svg>
-								Join in Seconds
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Footer -->
-				<footer class="bg-slate-900 border-t border-slate-700 py-6">
-					<div class="max-w-7xl mx-auto px-4 text-center">
-						<p class="text-sm text-slate-400">
-							Powered by <a href="https://www.thebluealliance.com" class="text-blue-400 hover:text-blue-300 transition-colors duration-200 font-medium">The Blue Alliance</a>
-						</p>
-					</div>
-				</footer>
 			</div>
+		</nav>
 
-			<!-- Interactive JavaScript -->
-			<script>
-				document.addEventListener('DOMContentLoaded', () => {
-					// Smooth scroll for anchor links
-					document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-						anchor.addEventListener('click', function (e) {
-							e.preventDefault();
-							const target = document.querySelector(this.getAttribute('href'));
-							if (target) {
-								target.scrollIntoView({
-									behavior: 'smooth',
-									block: 'start'
-								});
-							}
-						});
-					});
+		<!-- Hero -->
+		<div class="min-h-screen flex items-center justify-center relative hero-gradient overflow-hidden pt-16">
+			<div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/50 pointer-events-none"></div>
 
-					// Add scroll animations to cards
-					const cardObserver = new IntersectionObserver((entries) => {
-						entries.forEach((entry, index) => {
-							if (entry.isIntersecting) {
-								setTimeout(() => {
-									entry.target.classList.add('slide-in-up');
-								}, index * 100);
-							}
-						});
-					}, { threshold: 0.1 });
+			<div class="flex flex-col lg:flex-row-reverse items-center max-w-7xl mx-auto w-full relative z-10 px-4 py-12">
+				<div class="lg:w-1/2 flex justify-center items-center mb-12 lg:mb-0">
+					<div class="relative">
+						<div class="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl opacity-40"></div>
+						<div class="relative bg-slate-800/60 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 card-glow">
+							<svg class="w-full h-64 lg:h-80 text-blue-400" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+								<rect x="150" y="50" width="100" height="80" rx="10" fill="currentColor" opacity="0.8"/>
+								<circle cx="175" cy="80" r="8" fill="#fff"/>
+								<circle cx="225" cy="80" r="8" fill="#fff"/>
+								<rect x="170" y="100" width="60" height="10" rx="5" fill="#fff" opacity="0.6"/>
+								<rect x="120" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
+								<rect x="240" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
+								<rect x="160" y="130" width="80" height="40" rx="5" fill="currentColor" opacity="0.7"/>
+								<text x="200" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">FRC</text>
+								<path d="M50 150 L150 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+								<path d="M250 150 L350 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
+								<circle cx="50" cy="150" r="4" fill="currentColor"/>
+								<circle cx="350" cy="150" r="4" fill="currentColor"/>
+							</svg>
+						</div>
+					</div>
+				</div>
 
-					document.querySelectorAll('.card-hover').forEach(card => {
-						cardObserver.observe(card);
-					});
-				});
-			</script>
-		</body>
+				<div class="text-center lg:text-left lg:w-1/2 lg:pr-12">
+					<h1 class="text-5xl lg:text-7xl font-extrabold mb-6">
+						<span class="text-gradient">Fantasy FRC</span>
+					</h1>
+					<p class="text-xl text-slate-300 mb-8 leading-relaxed max-w-xl">
+						Draft real FIRST Robotics Competition teams. Compete with friends. Track live match scores. No wrenches required.
+					</p>
+					<div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+						<a href="/register" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/>
+							</svg>
+							Create Free Account
+						</a>
+						<a href="/login" class="border-2 border-slate-400 hover:border-slate-300 text-slate-200 hover:text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 flex items-center justify-center">
+							Log In
+						</a>
+					</div>
+					<div class="mt-6 flex items-center gap-6 text-sm text-slate-400 justify-center lg:justify-start">
+						<span class="flex items-center gap-1">
+							<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+							Free forever
+						</span>
+						<span class="flex items-center gap-1">
+							<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+							No email required
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- How It Works -->
+		<div class="py-20 bg-slate-900">
+			<div class="max-w-5xl mx-auto px-4">
+				<div class="text-center mb-16">
+					<h2 class="text-3xl lg:text-4xl font-bold text-white mb-4">How It Works</h2>
+					<p class="text-lg text-slate-400">Three steps to start competing</p>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+					<div class="text-center">
+						<div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
+						<h3 class="text-xl font-bold text-white mb-2">Create a Draft</h3>
+						<p class="text-slate-400">Set up a private league and invite up to 7 friends.</p>
+					</div>
+					<div class="text-center">
+						<div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
+						<h3 class="text-xl font-bold text-white mb-2">Draft Teams</h3>
+						<p class="text-slate-400">Pick real FRC teams. Snake draft, 8 rounds.</p>
+					</div>
+					<div class="text-center">
+						<div class="w-16 h-16 bg-pink-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
+						<h3 class="text-xl font-bold text-white mb-2">Score Points</h3>
+						<p class="text-slate-400">Teams earn points from real competition matches.</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer CTA -->
+		<div class="py-20 bg-slate-800 border-t border-slate-700">
+			<div class="max-w-3xl mx-auto px-4 text-center">
+				<h2 class="text-3xl lg:text-4xl font-bold text-white mb-4">Ready to draft?</h2>
+				<p class="text-lg text-slate-400 mb-8">Join a league or create your own. It takes 30 seconds.</p>
+				<div class="flex flex-col sm:flex-row gap-4 justify-center">
+					<a href="/register" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
+						Get Started
+					</a>
+					<a href="/login" class="border-2 border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
+						Log In
+					</a>
+				</div>
+			</div>
+		</div>
+
+		<!-- Footer -->
+		<footer class="bg-slate-900 border-t border-slate-700 py-6">
+			<div class="max-w-7xl mx-auto px-4 text-center">
+				<p class="text-sm text-slate-500">
+					Powered by <a href="https://www.thebluealliance.com" class="text-blue-400 hover:text-blue-300 transition-colors">The Blue Alliance</a>
+				</p>
+			</div>
+		</footer>
+	</body>
 	</html>
 }

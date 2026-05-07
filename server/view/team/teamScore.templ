@@ -94,6 +94,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                 <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center overflow-hidden">
                     <img
                         src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
+                        alt={fmt.Sprintf("Team %s avatar", teamNumber)}
                         class="w-full h-full object-cover"
                         loading="lazy"
                     />
@@ -215,6 +216,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                         <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
                             <img
                                 src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
+                                alt={fmt.Sprintf("Team %s avatar", teamNumber)}
                                 class="w-full h-full object-cover"
                                 loading="lazy"
                             />

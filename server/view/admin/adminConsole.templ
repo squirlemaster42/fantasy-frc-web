@@ -6,12 +6,13 @@ import "fmt"
 templ AdminConsoleIndex(username string) {
 <div class="w-full h-full p-4">
     <div class="terminal p-6 rounded-lg shadow-lg h-full overflow-auto">
-        <div id="output" class="space-y-2 mb-4">
+        <div id="output" class="space-y-2 mb-4" aria-live="polite" aria-atomic="false">
                 <!-- Previous command outputs will be appended here -->
         </div>
         <div class="flex items-center">
             <span class="text-green-400">{fmt.Sprintf("%s@webapp~$", username)}</span>
             <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
+                aria-label="Command input"
                 hx-on::after-request="document.getElementById('commandInput').value = ''"
                 hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend"/>
         </div>
@@ -27,7 +28,7 @@ templ AdminConsole(page string, fromProtected bool, username string, cmp templ.C
 
 templ RenderCommand(username string, command string, response string) {
     <p>
-        <span class="text-green-398">{fmt.Sprintf("%s@webapp~$", username)}</span>
+        <span class="text-green-400">{fmt.Sprintf("%s@webapp~$", username)}</span>
         <span class="text-gray-50">{command}</span>
     </p>
     if len(response) > 0 {
