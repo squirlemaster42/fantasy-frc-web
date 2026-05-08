@@ -1,6 +1,7 @@
 package background
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"server/assert"
@@ -32,10 +33,10 @@ func (c *CleanupService) Start() error {
 		return errors.New("clean up service already running")
 	}
 	c.running = true
-	log.InfoNoContext("Started cleanup service")
+	log.Info(context.Background(), "Started cleanup service")
 	go func() {
 		for c.running {
-			c.cleanExpiredSessionTokens()
+			c.cleanExpiredSessionTokens(context.TODO())
 			time.Sleep(time.Duration(c.interval) * time.Minute)
 		}
 	}()
@@ -52,18 +53,18 @@ func (c *CleanupService) Stop() error {
 	return nil
 }
 
-func (c *CleanupService) cleanExpiredSessionTokens() {
-	log.InfoNoContext("Starting iteration of cleanup service")
+func (c *CleanupService) cleanExpiredSessionTokens(context context.Context) {
+	log.Info(context, "Starting iteration of cleanup service")
 	query := `Delete from UserSessions Where expirationTime < (now()::timestamp + '2 hours');`
 	assert := assert.CreateAssertWithContext("Clean Expired Session Tokens")
 	stmt, err := c.database.Prepare(query)
-	assert.NoError(err, "Failed to prepare statement")
+	assert.NoError(context, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("CleanExpiredSessionTokens: Failed to close statement", "error", err)
+			log.Warn(context, "CleanExpiredSessionTokens: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.Exec()
-	assert.NoError(err, "Failed To Cleanup Session Tokens")
-	log.InfoNoContext("Finished iteration of cleanup service")
+	assert.NoError(context, err, "Failed To Cleanup Session Tokens")
+	log.Info(context, "Finished iteration of cleanup service")
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
@@ -9,7 +10,7 @@ import (
 	"strings"
 )
 
-func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (sql.NullString, error) {
+func GetPlayerDiscordId(context context.Context, database *sql.DB, draftPlayerId int) (sql.NullString, error) {
 	query := `
 		Select
 			u.DiscordId
@@ -21,10 +22,10 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (sql.NullString, er
 	assert := assert.CreateAssertWithContext("Get Player Discord Id")
 	assert.AddContext("Draft Player Id", draftPlayerId)
 	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to prepare query")
+	assert.NoError(context, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)
+			log.Warn(context, "CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -37,7 +38,7 @@ func GetPlayerDiscordId(database *sql.DB, draftPlayerId int) (sql.NullString, er
 	return discordId, nil
 }
 
-func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {
+func GetDraftWebhook(context context.Context, database *sql.DB, draftId int) (string, error) {
 	query := `
 		Select
 			d.DiscordWebhook
@@ -48,10 +49,10 @@ func GetDraftWebhook(database *sql.DB, draftId int) (string, error) {
 	assert := assert.CreateAssertWithContext("Get Next Pick Discord Event")
 	assert.AddContext("Draft Id", draftId)
 	stmt, err := database.Prepare(query)
-	assert.NoError(err, "Failed to prepare query")
+	assert.NoError(context, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.WarnNoContext("CreateDraft: Failed to close statement", "error", err)
+			log.Warn(context, "CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -87,19 +88,19 @@ func GetDraftPickRows(database *sql.DB, teamKeys []string) ([]DraftPickRow, erro
 	}
 	// query
 	query := fmt.Sprintf(`
-        SELECT 
+        SELECT
             d.id,
             d.discordwebhook,
             d.displayname,
             u.username,
-            u.discordid, 
+            u.discordid,
             p.pick
-        FROM 
+        FROM
             Drafts d
         JOIN DraftPlayers dp ON d.id = dp.draftid
         JOIN Users u ON dp.useruuid = u.useruuid
         JOIN Picks p ON dp.id = p.player
-        WHERE 
+        WHERE
             p.pick IN (%s)
             AND d.discordwebhook IS NOT NULL;
     `, strings.Join(placeholders, ","))

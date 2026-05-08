@@ -23,13 +23,14 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 		}
 		return echo.ErrUnauthorized
 	}
+
 	//Check if the cookie is valid
-	isValid := model.ValidateSessionToken(h.Database, userTok.Value)
+	isValid := model.ValidateSessionToken(c.Request().Context(), h.Database, userTok.Value)
 
 	if isValid {
 		//If the cookie is valid we let the request through
 		//We should probaly log a message
-		model.GetUserBySessionToken(h.Database, userTok.Value)
+		model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	} else {
 		//If the cookie is not valid then we redirect to the login page
 		log.Warn(c.Request().Context(), "Failed login", "Ip", c.RealIP())
@@ -40,11 +41,11 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	log.Info(c.Request().Context(), "Loading drafts for user", "Username", username)
-	drafts, err := model.GetDraftsForUser(h.Database, userUuid)
+	drafts, err := model.GetDraftsForUser(c.Request().Context(), h.Database, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load drafts")
@@ -54,7 +55,8 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	homeIndex := view.HomeIndex(&drafts, userUuid)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
 	err = Render(c, home)
-	assert.NoError(err, "Handle View Home Failed To Render")
+	// TODO should we crash here
+	assert.NoError(c.Request().Context(), err, "Handle View Home Failed To Render")
 	log.Info(c.Request().Context(), "Rendered home page for user", "Username", username)
 	return nil
 }

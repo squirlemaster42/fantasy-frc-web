@@ -24,8 +24,8 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Server Pick Page")
 	log.Debug(c.Request().Context(), "Serving pick page", "Ip", c.RealIP())
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse draft id string", "Draft Id String", c.Param("id"), "Error", err)
@@ -42,16 +42,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	//Get the player, draft id and the pick
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 	draftIdStr := c.Param("id")
 	pick := "frc" + c.FormValue("pickInput")
 	log.Debug(c.Request().Context(), "Attempting to pick team", "Team", pick)
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
-	assert.NoError(err, "Invalid draft id") //Make sure that the pick is valid
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Invalid draft id") //Make sure that the pick is valid
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to make pick in invalid draft", "Draft Id", draftId, "User Uuid", userUuid)
 		return err
@@ -60,7 +61,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 
 	//Make the pick
-	draftPlayer, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	draftPlayer, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
 	if err != nil {
 		return err
 	}
@@ -105,12 +106,12 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 	isOwner := draftModel.Owner.UserUuid == userUuid
-	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	draftPlayerId, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "Draft", draftId, "User Uuid", userUuid, "Error", err)
 		draftPlayerId = -1
 	}
-	isSkipping := model.ShouldSkipPick(h.Database, draftPlayerId)
+	isSkipping := model.ShouldSkipPick(c.Request().Context(), h.Database, draftPlayerId)
 	log.Debug(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
 	pickPageModel := draft.PickPage{
@@ -125,7 +126,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	pickPageIndex := draft.DraftPickIndex(pickPageModel)
 	if includeWrapper {
-		username := model.GetUsername(h.Database, userUuid)
+		username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
 		err = Render(c, pickPageView)
 	} else {
@@ -144,7 +145,7 @@ func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) error 
 	case w.messageQueue <- pickEvent:
 		return nil
 	case <-time.After(5 * time.Second):
-		log.WarnNoContext("Timeout sending pick event to websocket listener", "Listener", w)
+		log.Warn(context.TODO(), "Timeout sending pick event to websocket listener", "Listener", w)
 		return errors.New("timeout sending to listener")
 	}
 }
@@ -197,8 +198,8 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	}()
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
@@ -231,7 +232,8 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			var html strings.Builder
 			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
 			err = pickPage.Render(context.Background(), &html)
-			assert.NoError(err, "Failed to render picks for notifier")
+			// TODO I dont think we should crash here but maybe its okay depending on the conditions the render fails
+			assert.NoError(c.Request().Context(), err, "Failed to render picks for notifier")
 
 			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
@@ -246,8 +248,8 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Skip Page Toggle")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftIdStr := c.Param("id")
 	draftId, err := strconv.Atoi(draftIdStr)
 
@@ -256,7 +258,7 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 		return err
 	}
 
-	draftPlayerId, err := model.GetDraftPlayerId(h.Database, draftId, userUuid)
+	draftPlayerId, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft player", "User uuid", userUuid, "Draft Id String", draftIdStr, "Error", err)
 		return err
@@ -275,5 +277,5 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	shouldSkip := strings.Contains(string(body), "skipping")
 	log.Info(c.Request().Context(), "Marking should skip", "Should Skip", shouldSkip, "Draft Player Id", draftPlayerId)
 
-	return model.MarkShouldSkipPick(h.Database, draftPlayerId, shouldSkip)
+	return model.MarkShouldSkipPick(c.Request().Context(), h.Database, draftPlayerId, shouldSkip)
 }

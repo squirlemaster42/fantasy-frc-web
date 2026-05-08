@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"testing"
@@ -167,7 +168,7 @@ func TestGetInvite_FunctionSignature(t *testing.T) {
 
 	// Function should accept database and invite ID
 	// and return both the invite and an error
-	type getInviteFunc func(*sql.DB, int) (DraftInvite, error)
+	type getInviteFunc func(context.Context, *sql.DB, int) (DraftInvite, error)
 
 	// This will compile only if GetInvite has the correct signature
 	var _ getInviteFunc = GetInvite

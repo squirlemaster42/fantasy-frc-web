@@ -21,12 +21,12 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 	assert := assert.CreateAssertWithContext("Render Invite Table")
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
-	invites := model.GetInvites(h.Database, userUuid)
+	invites := model.GetInvites(c.Request().Context(), h.Database, userUuid)
 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
 	if includeWrapper {
@@ -43,15 +43,17 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Accept Invite")
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	inviteIdStr := c.FormValue("inviteId")
 	log.Info(c.Request().Context(), "Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
 	inviteId, err := strconv.Atoi(inviteIdStr)
-	assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
-	assert.NoError(err, "Failed to parse invite id")
-	invite, err := model.GetInvite(h.Database, inviteId)
+	// TODO we should not crash here
+	assert.RunAssert(c.Request().Context(), inviteId != 0, "Invite Id Should Never Be 0")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse invite id")
+	invite, err := model.GetInvite(c.Request().Context(), h.Database, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
@@ -71,19 +73,19 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	// If more than 8 players are invites then we cancel the other outstanding invites
 	// Maybe we need an active bool
 	// Check that accepting this invite will not lead to more than eight players being in the draft
-	numPlayers := model.GetNumPlayersInInvitedDraft(h.Database, inviteId)
+	numPlayers := model.GetNumPlayersInInvitedDraft(c.Request().Context(), h.Database, inviteId)
 	if numPlayers >= 8 {
-		if err := model.CancelOutstandingInvites(h.Database, invite.DraftId); err != nil {
+		if err := model.CancelOutstandingInvites(c.Request().Context(), h.Database, invite.DraftId); err != nil {
 			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.", false)
 	}
 
-	draftId, playerId := model.AcceptInvite(h.Database, inviteId)
-	model.AddPlayerToDraft(h.Database, draftId, playerId)
+	draftId, playerId := model.AcceptInvite(c.Request().Context(), h.Database, inviteId)
+	model.AddPlayerToDraft(c.Request().Context(), h.Database, draftId, playerId)
 
 	if numPlayers >= 7 {
-		if err := model.CancelOutstandingInvites(h.Database, invite.DraftId); err != nil {
+		if err := model.CancelOutstandingInvites(c.Request().Context(), h.Database, invite.DraftId); err != nil {
 			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 	}

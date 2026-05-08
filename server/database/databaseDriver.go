@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"server/assert"
 	"server/log"
@@ -9,15 +10,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func RegisterDatabaseConnection(username string, password string, ip string, dbName string) *sql.DB {
-	log.InfoNoContext("Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
+func RegisterDatabaseConnection(context context.Context, username string, password string, ip string, dbName string) *sql.DB {
+	log.Info(context, "Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
 	connStr := createConnectionString(username, password, ip, dbName)
 
 	a := assert.CreateAssertWithContext("Register DB")
 
 	db, err := sql.Open("postgres", connStr)
-	a.NoError(err, "Could not open database connection")
-	a.NoError(db.Ping(), "Failed to ping database")
+	a.NoError(context, err, "Could not open database connection")
+	a.NoError(context, db.Ping(), "Failed to ping database")
 
 	db.SetMaxOpenConns(90)
 	db.SetMaxIdleConns(25)

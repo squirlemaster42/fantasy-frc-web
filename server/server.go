@@ -18,7 +18,7 @@ import (
 )
 
 func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*echo.Echo, func(context.Context) error) {
-	log.InfoNoContext("Starting Server")
+	log.Info(context.Background(), "Starting Server")
 	auth := authentication.NewAuth(h.Database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()

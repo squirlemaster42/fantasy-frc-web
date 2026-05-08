@@ -1,13 +1,15 @@
 package metrics
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"server/log"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -47,7 +49,7 @@ func getEnvAsInt(key string, defaultVal int) int {
 	}
 	intVal, err := strconv.Atoi(val)
 	if err != nil {
-		log.WarnNoContext("Invalid env var, using default", "key", key, "value", val, "error", err)
+		log.Warn(context.Background(), "Invalid env var, using default", "key", key, "value", val, "error", err)
 		return defaultVal
 	}
 	return intVal
@@ -60,7 +62,7 @@ func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
 	}
 	d, err := time.ParseDuration(val)
 	if err != nil {
-		log.WarnNoContext("Invalid env var, using default", "key", key, "value", val, "error", err)
+		log.Warn(context.Background(), "Invalid env var, using default", "key", key, "value", val, "error", err)
 		return defaultVal
 	}
 	return d
@@ -69,7 +71,7 @@ func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
 func InitDBQueryStats(db *sql.DB) {
 	prometheus.MustRegister(dbQueryMeanTime, dbQueryCalls, dbQueryRows)
 
-	log.InfoNoContext("Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
+	log.Info(context.TODO(), "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
 
 	go collectQueryStats(db)
 }
@@ -79,13 +81,13 @@ func collectQueryStats(db *sql.DB) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		collectQueryStatsIteration(db)
+		collectQueryStatsIteration(context.TODO(), db)
 	}
 }
 
-func collectQueryStatsIteration(db *sql.DB) {
+func collectQueryStatsIteration(context context.Context, db *sql.DB) {
 	query := `
-		SELECT 
+		SELECT
 			query,
 			calls,
 			mean_exec_time::numeric,
@@ -99,7 +101,7 @@ func collectQueryStatsIteration(db *sql.DB) {
 
 	rows, err := db.Query(query, float64(queryThresholdMs)/1000.0, maxQueries)
 	if err != nil {
-		log.WarnNoContext("Failed to query pg_stat_statements", "error", err)
+		log.Warn(context, "Failed to query pg_stat_statements", "error", err)
 		return
 	}
 	defer rows.Close()
@@ -116,7 +118,7 @@ func collectQueryStatsIteration(db *sql.DB) {
 
 		err := rows.Scan(&queryText, &calls, &meanTime, &totalTime, &rowsCount)
 		if err != nil {
-			log.WarnNoContext("Failed to scan pg_stat_statements row", "error", err)
+			log.Warn(context, "Failed to scan pg_stat_statements row", "error", err)
 			continue
 		}
 

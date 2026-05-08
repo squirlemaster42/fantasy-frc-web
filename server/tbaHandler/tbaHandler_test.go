@@ -26,7 +26,7 @@ func TestMatchListReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    matches := handler.MakeMatchListReq("frc254", "2026casnv")
+    matches := handler.MakeMatchListReq(t.Context(), "frc254", "2026casnv")
     assert.True(t, len(matches) > 0, "No matches were found")
     firstMatch := matches[0]
     if (firstMatch.EventKey != "2026casnv") {
@@ -42,7 +42,7 @@ func TestEventListReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    events := handler.MakeEventListReq("frc1690")
+    events := handler.MakeEventListReq(t.Context(), "frc1690")
     if (len(events) == 0) {
         t.Fatalf("No events were found")
     }
@@ -52,7 +52,7 @@ func TestMatchReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    match := handler.MakeMatchReq("2026casnv_qm24")
+    match := handler.MakeMatchReq(t.Context(), "2026casnv_qm24")
     if (match.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
     }
@@ -62,7 +62,7 @@ func TestMatchKeysRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysRequest("frc1690", "2024isde1")
+    keys := handler.MakeMatchKeysRequest(t.Context(), "frc1690", "2024isde1")
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
     }
@@ -72,7 +72,7 @@ func TestMatchKeysYearRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysYearRequest("frc1690")
+    keys := handler.MakeMatchKeysYearRequest(t.Context(), "frc1690")
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
     }
@@ -82,7 +82,7 @@ func TestTeamEventStatusRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    event := handler.MakeTeamEventStatusRequest("frc1690", "2024isde1")
+    event := handler.MakeTeamEventStatusRequest(t.Context(), "frc1690", "2024isde1")
     if (event.LastMatchKey == "") {
         t.Fatalf("There should be a last match")
     }

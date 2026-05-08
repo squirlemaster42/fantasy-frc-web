@@ -20,10 +20,11 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle update Draft Profile")
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	// We validate the cookie in the middleware so we can assert here
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -32,7 +33,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	}
 
 	// TODO I think this should go through the draft manager
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
 		log.Warn(c.Request().Context(), "User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
@@ -62,7 +63,8 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 
-	assert.NoError(err, "Could not parse draftId from params")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Could not parse draftId from params")
 	assert.AddContext("Draft Id", draftId)
 
 	draftName := c.FormValue("draftName")
@@ -73,20 +75,23 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	discordWebhook := c.FormValue("discordWebhook")
 
 	sessionToken, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get session cookie")
+	assert.NoError(c.Request().Context(), err, "Failed to get session cookie")
 
 	intInterval, err := strconv.Atoi(interval)
-	assert.NoError(err, "Failed to parse interval")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse interval")
 
 	layout := "2006-01-02T15:04:05"
 	parsedStartTime, err := time.Parse(layout, startTime)
-	assert.NoError(err, "Failed to parse start time")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse start time")
 	parsedEndTime, err := time.Parse(layout, endTime)
-	assert.NoError(err, "Failed to parse end time")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse end time")
 
-	userUuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, sessionToken.Value)
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "User Uuid", userUuid, "Draft Id", draftId)
 		return nil
@@ -127,25 +132,26 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 func (h *Handler) SearchPlayers(c echo.Context) error {
 	splitSource := strings.Split(c.Request().Header["Hx-Current-Url"][0], "/")
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
-	assert.NoErrorCF(err, "Failed to parse draft Id")
+	// TODO we should not crash here
+	assert.NoErrorCF(c.Request().Context(), err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := model.SearchUsers(h.Database, searchInput, draftId)
+	users, err := model.SearchUsers(c.Request().Context(), h.Database, searchInput, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to search for players in an invalid draft", "Draft Id", draftId, "Error", err)
 		return nil
 	}
 
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoErrorCF(err, "Failed to get user token")
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	assert.NoErrorCF(c.Request().Context(), err, "Failed to get user token")
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
@@ -157,15 +163,17 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Invite Draft Player")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 	draftIdStr := c.Param("id")
-	invitingUserUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
+	invitingUserUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
-	assert.NoError(err, "Invalid draft id")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Invalid draft id")
 	userUuidString := c.FormValue("userUuid")
 	assert.AddContext("User UUID String", userUuidString)
 	userUuid, err := uuid.Parse(userUuidString)
-	assert.NoError(err, "Failed to parse user guid")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse user guid")
 
 	// Check that the draft is in the correct state
 	draft, err := h.DraftManager.GetDraft(draftId, false)
@@ -183,24 +191,25 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
 
-	_, err = model.InvitePlayer(h.Database, draftId, invitingUserUuid, userUuid)
+	_, err = model.InvitePlayer(c.Request().Context(), h.Database, draftId, invitingUserUuid, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
 	}
 
-	assert.NoError(err, "Failed to parse draft Id")
+	// TODO we should not crash here
+	assert.NoError(c.Request().Context(), err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := model.SearchUsers(h.Database, searchInput, draftId)
+	users, err := model.SearchUsers(c.Request().Context(), h.Database, searchInput, draftId)
 
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
 	}
@@ -218,10 +227,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	// Session token should always be here because the middleware should have
 	// checked for it
-	assert.NoError(err, "Failed to get user token.")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
 	log.Info(c.Request().Context(), "Got a request to start a draft", "Draft Id", draftIdStr)
-	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
+	requestingUser := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
@@ -270,10 +279,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	// Cancel the invites for players who have not accepted the draft
-	model.CancelOutstandingInvites(h.Database, draftId)
+	model.CancelOutstandingInvites(c.Request().Context(), h.Database, draftId)
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
-	err = h.DraftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
+	err = h.DraftManager.ExecuteDraftStateTransition(c.Request().Context(), draftId, model.WAITING_TO_START)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err

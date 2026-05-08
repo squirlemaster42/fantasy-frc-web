@@ -41,18 +41,6 @@ func Debug(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Debug(msg, args...)
 }
 
-func InfoNoContext(msg string, args ...any) {
-	slog.Default().Info(msg, args...)
-}
-
-func WarnNoContext(msg string, args ...any) {
-	slog.Default().Warn(msg, args...)
-}
-
-func ErrorNoContext(msg string, args ...any) {
-	slog.Default().Error(msg, args...)
-}
-
 func DebugNoContext(msg string, args ...any) {
 	slog.Default().Debug(msg, args...)
 }

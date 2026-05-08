@@ -12,10 +12,10 @@ import (
 func (h *Handler) HandleTeamScore(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Team Score")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	teamIndex := team.TeamScoreIndex()
 	team := team.TeamPick(" | Team Score", true, username, teamIndex)
@@ -27,10 +27,10 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
 	log.Info(c.Request().Context(), "Getting score for team", "Team Number", teamNumber)
 
 	//Get team score
-	scores := model.GetScore(h.Database, "frc"+teamNumber)
+	scores := model.GetScore(c.Request().Context(), h.Database, "frc"+teamNumber)
 
 	// Get qualification matches
-	qualificationMatches := model.GetMatchScores(h.Database, "frc"+teamNumber)
+	qualificationMatches := model.GetMatchScores(c.Request().Context(), h.Database, "frc"+teamNumber)
 
 	team := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
 	return Render(c, team)

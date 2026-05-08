@@ -46,12 +46,12 @@ func (p *PopulateTeamsCommand) ProcessCommand(context context.Context, database 
 	tbaHandler := draftManager.GetTbaHandler()
 	for _, event := range utils.Events() {
 		log.Debug(context, "Creating teams for event", "Event", event)
-		teams := tbaHandler.MakeTeamsAtEventRequest(event)
+		teams := tbaHandler.MakeTeamsAtEventRequest(context, event)
 		for _, team := range teams {
 			log.Debug(context, "Checking if team is needed", "Team", team.Key, "Event", event)
-			if model.GetTeam(database, team.Key) == nil {
+			if model.GetTeam(context, database, team.Key) == nil {
 				log.Debug(context, "Creating team", "Team", team.Key, "Event", event)
-				model.CreateTeam(database, team.Key, "")
+				model.CreateTeam(context, database, team.Key, "")
 				count++
 			}
 		}
@@ -68,7 +68,7 @@ func (l *ListDraftsCommand) ProcessCommand(context context.Context, database *sq
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
 
-	drafts := model.GetDraftsByName(database, searchString)
+	drafts := model.GetDraftsByName(context, database, searchString)
 
 	var sb strings.Builder
 
@@ -92,7 +92,7 @@ func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sq
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	draft, err := model.GetDraft(database, draftId)
+	draft, err := model.GetDraft(context, database, draftId)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
@@ -109,9 +109,9 @@ func (s *StartDraftCommand) ProcessCommand(context context.Context, database *sq
 		return "Not Enough Players Have Accepted The Draft"
 	}
 
-	err = draftManager.ExecuteDraftStateTransition(draftId, model.WAITING_TO_START)
+	err = draftManager.ExecuteDraftStateTransition(context, draftId, model.WAITING_TO_START)
 	if err != nil {
-		log.ErrorNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		log.Error(context, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err.Error()
 	}
 
@@ -137,7 +137,7 @@ func (s *ViewWebhookKey) ProcessCommand(context context.Context, database *sql.D
 type SkipPickCommand struct{}
 
 func (s *SkipPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	log.InfoNoContext("Calling skip command", "Args", argStr)
+	log.Info(context, "Calling skip command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -156,7 +156,7 @@ func (s *SkipPickCommand) ProcessCommand(context context.Context, database *sql.
 type ModifyPickTimeCommand struct{}
 
 func (m *ModifyPickTimeCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	log.InfoNoContext("Calling modify pick time command", "Args", argStr)
+	log.Info(context, "Calling modify pick time command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -181,7 +181,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(context context.Context, database
 
 	err = draftManager.ModifyCurrentPickExpirationTime(draftId, duration)
 	if err != nil {
-		log.WarnNoContext("Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
+		log.Warn(context, "Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
 		return err.Error()
 	}
 
@@ -191,7 +191,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(context context.Context, database
 type AdminPickCommand struct{}
 
 func (a *AdminPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	log.InfoNoContext("Calling admin pick command", "Args", argStr)
+	log.Info(context, "Calling admin pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -238,7 +238,7 @@ func (a *AdminPickCommand) ProcessCommand(context context.Context, database *sql
 type RenameDraftCommand struct{}
 
 func (r *RenameDraftCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	log.InfoNoContext("Calling rename draft command", "Args", argStr)
+	log.Info(context, "Calling rename draft command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -272,7 +272,7 @@ func (r *RenameDraftCommand) ProcessCommand(context context.Context, database *s
 	// Update the draft
 	err = draftManager.UpdateDraft(*draft.Model)
 	if err != nil {
-		log.ErrorNoContext("Failed to update draft name", "Draft Id", draftId, "Error", err)
+		log.Error(context, "Failed to update draft name", "Draft Id", draftId, "Error", err)
 		return "Failed to update draft name"
 	}
 
@@ -282,7 +282,7 @@ func (r *RenameDraftCommand) ProcessCommand(context context.Context, database *s
 type UndoPickCommand struct{}
 
 func (u *UndoPickCommand) ProcessCommand(context context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
-	log.InfoNoContext("Calling undo pick command", "Args", argStr)
+	log.Info(context, "Calling undo pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -322,10 +322,10 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to render admin console")
 	assert := assert.CreateAssertWithContext("Handle Admin Console Get")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	adminConsoleIndex := admin.AdminConsoleIndex(username)
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
@@ -335,10 +335,10 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 func (h *Handler) HandleRunCommand(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Run Admin Console Command")
 	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")

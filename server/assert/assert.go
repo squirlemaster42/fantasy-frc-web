@@ -1,6 +1,7 @@
 package assert
 
 import (
+	"context"
 	stdlog "log"
 	"runtime"
 	"server/log"
@@ -26,48 +27,48 @@ func (a *assert) RemoveContext(key string) {
 	delete(a.context, key)
 }
 
-func (a *assert) RunAssert(predicate bool, msg string) {
+func (a *assert) RunAssert(context context.Context, predicate bool, msg string) {
 	if !predicate {
-		a.printContext(msg)
+		a.printContext(context, msg)
 	}
 }
 
-func (a *assert) printContext(msg string) {
-	log.ErrorNoContext("assertion failed", "name", a.name)
+func (a *assert) printContext(context context.Context, msg string) {
+	log.Error(context, "assertion failed", "name", a.name)
 	_, file, line, ok := runtime.Caller(2)
 	if ok {
-		log.ErrorNoContext("assertion failed", "line", line, "file", file)
+		log.Error(context, "assertion failed", "line", line, "file", file)
 	}
 	for k, v := range a.context {
-		log.ErrorNoContext("assertion context", "key", k, "value", v)
+		log.Error(context, "assertion context", "key", k, "value", v)
 	}
 	stdlog.Fatal(msg)
 }
 
-func (a *assert) NoError(err error, msg string) {
+func (a *assert) NoError(context context.Context, err error, msg string) {
 	if err != nil {
-		log.ErrorNoContext("NoError#error encountered", "error", err)
-		a.printContext(msg)
+		log.Error(context, "NoError#error encountered", "error", err)
+		a.printContext(context, msg)
 	}
 }
 
-func AssertCF(predicate bool, msg string) {
+func AssertCF(context context.Context, predicate bool, msg string) {
 	if !predicate {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			log.ErrorNoContext("assertion failed", "line", line, "file", file)
+			log.Error(context, "assertion failed", "line", line, "file", file)
 		}
 		stdlog.Fatal(msg)
 	}
 }
 
-func NoErrorCF(err error, msg string) {
+func NoErrorCF(context context.Context, err error, msg string) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			log.ErrorNoContext("assertion failed", "line", line, "file", file)
+			log.Error(context, "assertion failed", "line", line, "file", file)
 		}
-		log.ErrorNoContext("NoError#error encountered", "error", err)
+		log.Error(context, "NoError#error encountered", "error", err)
 		stdlog.Fatal(msg)
 	}
 }

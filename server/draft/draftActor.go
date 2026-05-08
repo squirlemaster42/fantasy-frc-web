@@ -98,7 +98,7 @@ func NewDraftActor(context context.Context, draftId int, database *sql.DB, tbaHa
 		states: setupStates(context, database),
 	}
 
-	draft, err := model.GetDraft(database, draftId)
+	draft, err := model.GetDraft(context, database, draftId)
 	if err != nil {
 		return &DraftActor{}, err
 	}
@@ -119,7 +119,7 @@ type ToStartTransition struct {
 }
 
 func (tst *ToStartTransition) executeTransition(context context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(tst.database, draft.draftId, model.WAITING_TO_START)
+	return model.UpdateDraftStatus(context, tst.database, draft.draftId, model.WAITING_TO_START)
 }
 
 type ToPickingTransition struct {
@@ -127,13 +127,13 @@ type ToPickingTransition struct {
 }
 
 func (tpt *ToPickingTransition) executeTransition(context context.Context, draft Draft) error {
-	err := model.RandomizePickOrder(tpt.database, draft.draftId)
+	err := model.RandomizePickOrder(context, tpt.database, draft.draftId)
 	if err != nil {
 		return err
 	}
-	nextPickPlayer := model.NextPick(tpt.database, draft.draftId)
-	model.MakePickAvailable(tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(time.Now(), utils.PICK_TIME))
-	err = model.UpdateDraftStatus(tpt.database, draft.draftId, model.PICKING)
+	nextPickPlayer := model.NextPick(context, tpt.database, draft.draftId)
+	model.MakePickAvailable(context, tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context, time.Now(), utils.PICK_TIME))
+	err = model.UpdateDraftStatus(context, tpt.database, draft.draftId, model.PICKING)
 	if err != nil {
 		log.Error(context, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
@@ -147,7 +147,7 @@ type ToPlayingTransition struct {
 
 func (tpt *ToPlayingTransition) executeTransition(context context.Context, draft Draft) error {
 	log.Info(context, "Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
-	err := model.UpdateDraftStatus(tpt.database, draft.draftId, model.TEAMS_PLAYING)
+	err := model.UpdateDraftStatus(context, tpt.database, draft.draftId, model.TEAMS_PLAYING)
 	if err != nil {
 		log.Error(context, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 	}
@@ -160,7 +160,7 @@ type ToCompleteTransition struct {
 }
 
 func (tct *ToCompleteTransition) executeTransition(context context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(tct.database, draft.draftId, model.COMPLETE)
+	return model.UpdateDraftStatus(context, tct.database, draft.draftId, model.COMPLETE)
 }
 
 type state struct {

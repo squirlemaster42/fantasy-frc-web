@@ -1,6 +1,7 @@
 package picking
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"server/log"
@@ -48,10 +49,10 @@ func (pn *PickNotifier) UnregisterWatcher(watcher *Watcher) {
 			}
 		}
 		if index >= 0 {
-			log.InfoNoContext("Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
+			log.Info(context.TODO(), "Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
 			pn.Watchers[key] = removeWatcher(watchers, index)
 		} else {
-			log.WarnNoContext("Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
+			log.Warn(context.TODO(), "Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
 		}
 	}
 }
@@ -62,13 +63,13 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 }
 
 func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
-	log.InfoNoContext("Received Pick Event", "Pick Id", pickEvent.Pick.Id)
+	log.Info(context.TODO(), "Received Pick Event", "Pick Id", pickEvent.Pick.Id)
 	for _, watcher := range pn.Watchers[pickEvent.DraftId] {
 		select {
 		case watcher.NotifierQueue <- true:
 			// Sent successfully
 		case <-time.After(5 * time.Second):
-			log.WarnNoContext("Timeout sending to watcher", "Watcher Id", watcher.WatcherId)
+			log.Warn(context.TODO(), "Timeout sending to watcher", "Watcher Id", watcher.WatcherId)
 			return errors.New("timeout sending to watcher")
 		}
 	}
@@ -76,7 +77,7 @@ func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
 }
 
 func (pn *PickNotifier) NotifyWatchers(draftId int) {
-	log.InfoNoContext("Notifying Watchers", "Draft Id", draftId)
+	log.Info(context.TODO(), "Notifying Watchers", "Draft Id", draftId)
 	for _, watcher := range pn.Watchers[draftId] {
 		watcher.NotifierQueue <- true
 	}

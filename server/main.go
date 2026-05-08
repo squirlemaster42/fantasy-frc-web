@@ -42,11 +42,11 @@ func main() {
 		log.SetLevel(log.LevelDebug)
 	}
 
-	log.InfoNoContext("-------- Starting Fantasy FRC --------")
+	log.Info(context.Background(), "-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	if err != nil {
-		log.InfoNoContext("No .env file loaded, using environment variables")
+		log.Info(context.Background(), "No .env file loaded, using environment variables")
 	}
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
@@ -57,15 +57,15 @@ func main() {
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	metricSecret := os.Getenv("METRIC_SECRET")
     secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
-	log.InfoNoContext("Extracted Env Vars")
-	database := database.RegisterDatabaseConnection(dbUsername, dbPassword, dbIp, dbName)
-	log.InfoNoContext("Registered Database Connection")
+	log.Info(context.Background(), "Extracted Env Vars")
+	database := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	log.Info(context.Background(), "Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
     secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
     if err != nil {
-        log.WarnNoContext("failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+        log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
         secureHttpCookie = true
     }
 
@@ -75,22 +75,22 @@ func main() {
 	draftDaemon := background.NewDraftDaemon(database, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
-		log.WarnNoContext("Failed to start draft daemon", "Error", err)
+		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
 		panic("failed to start draft manager")
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts := model.GetDraftsInStatus(database, model.PICKING)
+	drafts := model.GetDraftsInStatus(context.Background(), database, model.PICKING)
 	for _, draftId := range drafts {
 		err = draftDaemon.AddDraft(draftId)
 		if err != nil {
-			log.WarnNoContext("Failed to add draft to manager in init", "Error", err)
+			log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
 		}
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, database)
 	if !*skipScoring {
-		log.InfoNoContext("Started Scorer")
+		log.Info(context.Background(), "Started Scorer")
 		scorer.RunScorer()
 	}
 
@@ -101,7 +101,7 @@ func main() {
 	}
 
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
-	assert.NoError(err, "Failed to create avatar store")
+	assert.NoError(context.Background(), err, "Failed to create avatar store")
 
 	handler := handler.Handler {
 		Database:     database,
@@ -116,11 +116,11 @@ func main() {
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		log.WarnNoContext("Unable to open tba webhook secret file", "Error", err)
+		log.Warn(context.Background(), "Unable to open tba webhook secret file", "Error", err)
 	} else {
 		body, err := io.ReadAll(file)
 		if err != nil {
-			log.WarnNoContext("Failed to read tba webhook file body", "Error", err)
+			log.Warn(context.Background(), "Failed to read tba webhook file body", "Error", err)
 		} else {
 		handler.TbaVerificationCode = string(body)
 		}
@@ -132,7 +132,7 @@ func main() {
 	go func() {
 		err := app.Start(":" + serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			assert.NoError(err, "Failed to start server")
+			assert.NoError(context.Background(), err, "Failed to start server")
 		}
 	}()
 
@@ -141,17 +141,17 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	<-shutdownChan
 
-	log.InfoNoContext("Shutting down gracefully...")
+	log.Info(context.Background(), "Shutting down gracefully...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := app.Shutdown(ctx); err != nil {
-		log.WarnNoContext("Failed to shutdown server gracefully", "error", err)
+		log.Warn(context.Background(), "Failed to shutdown server gracefully", "error", err)
 	}
 	if err := otelShutdown(ctx); err != nil {
-		log.WarnNoContext("Failed to shutdown OpenTelemetry tracer", "error", err)
+		log.Warn(context.Background(), "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
 	if err := database.Close(); err != nil {
-		log.WarnNoContext("Failed to close database connection", "error", err)
+		log.Warn(context.Background(), "Failed to close database connection", "error", err)
 	}
 }

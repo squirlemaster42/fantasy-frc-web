@@ -28,7 +28,7 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		//Grab the cookie from the session
 		userTok, err := c.Cookie("sessionToken")
 		if err != nil {
-			log.WarnNoContext("Failed to get session token when trying to login", "Ip", c.RealIP(), "Error", err)
+			log.Warn(c.Request().Context(), "Failed to get session token when trying to login", "Ip", c.RealIP(), "Error", err)
 			err := c.Redirect(http.StatusSeeOther, "/login")
 			if err != nil {
 				return err
@@ -36,18 +36,18 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.ErrUnauthorized
 		}
 		//Check if the cookie is valid
-		isValid := model.ValidateSessionToken(a.database, userTok.Value)
+		isValid := model.ValidateSessionToken(c.Request().Context(), a.database, userTok.Value)
 
 		if isValid {
 			//If the cookie is valid we let the request through
 			//We should probaly log a message
-			userUuid := model.GetUserBySessionToken(a.database, userTok.Value)
+			userUuid := model.GetUserBySessionToken(c.Request().Context(), a.database, userTok.Value)
 			metrics.RecordUserActivity(userUuid.String())
 			metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
-			log.InfoNoContext("User has successfully logged in", "User userUuid", userUuid, "Ip", c.RealIP())
+			log.Info(c.Request().Context(), "User has successfully logged in", "User userUuid", userUuid, "Ip", c.RealIP())
 		} else {
 			//If the cookie is not valid then we redirect to the login page
-			log.WarnNoContext("Invalid login request", "Ip", c.RealIP())
+			log.Warn(c.Request().Context(), "Invalid login request", "Ip", c.RealIP())
 			err := c.Redirect(http.StatusSeeOther, "/login")
 			if err != nil {
 				return err
@@ -76,7 +76,7 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 		//Grab the cookie from the session
 		userTok, err := c.Cookie("sessionToken")
 		if err != nil {
-			log.WarnNoContext("Could not get session token from request trying to reach admin page", "Ip", c.RealIP())
+			log.Warn(c.Request().Context(), "Could not get session token from request trying to reach admin page", "Ip", c.RealIP())
 			err := c.Redirect(http.StatusSeeOther, "/u/home")
 			if err != nil {
 				return err
@@ -85,19 +85,19 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		//Check if the cookie is valid
-		userUuid := model.GetUserBySessionToken(a.database, userTok.Value)
+		userUuid := model.GetUserBySessionToken(c.Request().Context(), a.database, userTok.Value)
 		metrics.RecordUserActivity(userUuid.String())
 		metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
-		isAdmin = model.UserIsAdmin(a.database, userUuid)
-		log.InfoNoContext("User is admin?", "User Id", userUuid, "Is Admin", isAdmin)
+		isAdmin = model.UserIsAdmin(c.Request().Context(), a.database, userUuid)
+		log.Info(c.Request().Context(), "User is admin?", "User Id", userUuid, "Is Admin", isAdmin)
 
 		if isAdmin {
 			//If the cookie is valid we let the request through
 			//We should probaly log a message
-			log.InfoNoContext("User from ip has accessed the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
+			log.Info(c.Request().Context(), "User from ip has accessed the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
 		} else {
 			//If the cookie is not valid then we redirect to the login page
-			log.InfoNoContext("User from ip did not have access to the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
+			log.Info(c.Request().Context(), "User from ip did not have access to the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
 			err := c.Redirect(http.StatusSeeOther, "/u/home")
 			if err != nil {
 				return err

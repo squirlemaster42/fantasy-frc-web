@@ -2,6 +2,7 @@ package discord
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -72,13 +73,13 @@ func (d *DiscordWebhookBus) worker() {
 	for {
 		select {
 		case event := <-d.preMatchCh:
-			d.sendPreMatchNotification(event)
+			d.sendPreMatchNotification(context.TODO(), event)
 		case <-d.stopCh:
 			// Drain remaining events before stopping.
 			for {
 				select {
 				case event := <-d.preMatchCh:
-					d.sendPreMatchNotification(event)
+					d.sendPreMatchNotification(context.TODO(), event)
 				default:
 					return
 				}
@@ -96,7 +97,7 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 	}
 }
 
-func (d *DiscordWebhookBus) sendPreMatchNotification(event PreMatchDiscordEvent) {
+func (d *DiscordWebhookBus) sendPreMatchNotification(context context.Context, event PreMatchDiscordEvent) {
 	var message string
 	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
 
@@ -117,20 +118,20 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(event PreMatchDiscordEvent)
 
 	jsonData, err := json.Marshal(webhook)
 	if err != nil {
-		log.WarnNoContext("Failed to marshal discord pre-match webhook", "Error", err)
+		log.Warn(context, "Failed to marshal discord pre-match webhook", "Error", err)
 		return
 	}
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.WarnNoContext("Failed to create discord pre-match webhook request", "Error", err)
+		log.Warn(context, "Failed to create discord pre-match webhook request", "Error", err)
 		return
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		log.WarnNoContext("Failed to post discord pre-match webhook", "Error", err)
+		log.Warn(context, "Failed to post discord pre-match webhook", "Error", err)
 		return
 	}
 
@@ -139,10 +140,10 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(event PreMatchDiscordEvent)
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.WarnNoContext("Failed to read discord error response body", "Error", err)
+			log.Warn(context, "Failed to read discord error response body", "Error", err)
 			return
 		}
-		log.WarnNoContext("Discord pre-match webhook was not successful", "Status", resp.StatusCode, "Body", string(body))
+		log.Warn(context, "Discord pre-match webhook was not successful", "Status", resp.StatusCode, "Body", string(body))
 	}
 }
 

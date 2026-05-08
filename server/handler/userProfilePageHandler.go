@@ -23,14 +23,15 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
-	discordId := model.GetDiscordId(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	discordId := model.GetDiscordId(c.Request().Context(), h.Database, userUuid)
 
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "")
 	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
 	err = Render(c, userProfile)
-	assert.NoError(err, "Handle View User Profile Failed To Render")
+	// TODO should we crash here?
+	assert.NoError(c.Request().Context(), err, "Handle View User Profile Failed To Render")
 	return nil
 }
 
@@ -43,8 +44,8 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	discordId := c.FormValue("discordId")
 	currentPassword := c.FormValue("currentPassword")
@@ -52,53 +53,59 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	confirmNewPassword := c.FormValue("confirmNewPassword")
 
 	// Update discord ID
-	model.UpdateDiscordId(h.Database, userUuid, discordId)
+	model.UpdateDiscordId(c.Request().Context(), h.Database, userUuid, discordId)
 
 	// Handle password change if any password field is filled
 	if currentPassword != "" || newPassword != "" || confirmNewPassword != "" {
 		if currentPassword == "" {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is required to change your password", "")
 			err = Render(c, userProfileIndex)
-			assert.NoError(err, "Handle Update User Profile Failed To Render")
+			// TODO should we crash here
+			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if newPassword == "" {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password is required", "")
 			err = Render(c, userProfileIndex)
-			assert.NoError(err, "Handle Update User Profile Failed To Render")
+			// TODO should we crash here
+			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if newPassword != confirmNewPassword {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New passwords do not match", "")
 			err = Render(c, userProfileIndex)
-			assert.NoError(err, "Handle Update User Profile Failed To Render")
+			// TODO should we crash here
+			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		if len(newPassword) < 6 {
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password must be at least 6 characters", "")
 			err = Render(c, userProfileIndex)
-			assert.NoError(err, "Handle Update User Profile Failed To Render")
+			// TODO should we crash here
+			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
-		if !model.ValidateLogin(h.Database, username, currentPassword) {
+		if !model.ValidateLogin(c.Request().Context(), h.Database, username, currentPassword) {
 			log.Info(c.Request().Context(), "Invalid current password attempt for user", "Username", username)
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is incorrect", "")
 			err = Render(c, userProfileIndex)
-			assert.NoError(err, "Handle Update User Profile Failed To Render")
+			// TODO should we crash here
+			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 			return nil
 		}
 
 		log.Info(c.Request().Context(), "Updating password for user", "Username", username)
-		model.UpdatePassword(h.Database, username, newPassword)
+		model.UpdatePassword(c.Request().Context(), h.Database, username, newPassword)
 	}
 
 	log.Info(c.Request().Context(), "Updated profile for user", "Username", username)
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "Profile updated successfully")
 	err = Render(c, userProfileIndex)
-	assert.NoError(err, "Handle Update User Profile Failed To Render")
+	// TODO should we crash here
+	assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
 	return nil
 }

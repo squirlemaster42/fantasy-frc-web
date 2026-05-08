@@ -12,6 +12,7 @@ func (h *Handler) HandleViewLanding(c echo.Context) error {
 
 	landing := view.Landing()
 	err := Render(c, landing)
-	assert.NoError(err, "Handle View Landing Failed To Render")
+	// TODO should we crash here
+	assert.NoError(c.Request().Context(), err, "Handle View Landing Failed To Render")
 	return nil
 }

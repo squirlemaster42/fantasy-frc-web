@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto"
 	"database/sql"
 	"testing"
@@ -32,7 +33,7 @@ func NewTestHelper(t *testing.T) *TestHelper {
 func (th *TestHelper) Close() {
 	err := th.DB.Close()
 	if err != nil {
-		log.WarnNoContext("Failde to close db connection", "Error", err)
+		log.Warn(context.TODO(), "Failed to close db connection", "Error", err)
 	}
 }
 

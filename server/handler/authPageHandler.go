@@ -17,7 +17,7 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 	loginIndex := login.LoginIndex(false, "")
 	login := login.Login(" | Login", false, loginIndex)
 	err := Render(c, login)
-	assert.NoErrorCF(err, "Handle View Login Failed To Render")
+	assert.NoErrorCF(c.Request().Context(), err, "Handle View Login Failed To Render")
 	return nil
 }
 
@@ -41,18 +41,18 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	//We then want to pass a session token as a cookie
 	//And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
 	//We wont validate the password if the user does not exist
-	taken, err := model.UsernameTaken(h.Database, username)
+	taken, err := model.UsernameTaken(c.Request().Context(), h.Database, username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
-	valid := taken && model.ValidateLogin(h.Database, username, password)
+	valid := taken && model.ValidateLogin(c.Request().Context(), h.Database, username, password)
 	if valid {
 		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
-		userUuid := model.GetUserUuidByUsername(h.Database, username)
+		userUuid := model.GetUserUuidByUsername(c.Request().Context(), h.Database, username)
 		sessionTok := generateSessionToken()
-		model.RegisterSession(h.Database, userUuid, sessionTok)
+		model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok)
 
 		cookie := new(http.Cookie)
 		cookie.Name = "sessionToken"
@@ -67,7 +67,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	log.Warn(c.Request().Context(), "Invalid login attempt for user", "Username", username)
 	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password")
 	err = Render(c, loginIndex)
-	assert.NoErrorCF(err, "Failed To Render Login Page With Error")
+	assert.NoErrorCF(c.Request().Context(), err, "Failed To Render Login Page With Error")
 
 	return err
 }
@@ -76,8 +76,8 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Logout Post")
 	userTok, err := c.Cookie("sessionToken")
 	// TODO we cannot crash if we dont have an auth token
-	assert.NoError(err, "Failed to get user token")
-	model.UnRegisterSession(h.Database, userTok.Value)
+	assert.NoError(c.Request().Context(), err, "Failed to get user token")
+	model.UnRegisterSession(c.Request().Context(), h.Database, userTok.Value)
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
 	cookie.Value = ""
@@ -92,7 +92,7 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 	registerIndex := login.RegisterIndex(false, "")
 	register := login.Register(" | Register", false, registerIndex)
 	err := Render(c, register)
-	assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+	assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 	var err error
 
-	taken, err := model.UsernameTaken(h.Database, username)
+	taken, err := model.UsernameTaken(c.Request().Context(), h.Database, username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
@@ -113,7 +113,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 		register := login.RegisterIndex(false, "Username Taken")
 		err = Render(c, register)
-		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
 
 		return nil
 	}
@@ -123,15 +123,15 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 		register := login.RegisterIndex(false, "Passwords Do Not Match")
 		err = Render(c, register)
-		assert.NoErrorCF(err, "Handle View Register Page Failed To Render")
+		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
 
 		return nil
 	}
 
 	log.Info(c.Request().Context(), "Valid registration for user", "Username", username)
-	userUuid := model.RegisterUser(h.Database, username, password)
+	userUuid := model.RegisterUser(c.Request().Context(), h.Database, username, password)
 	sessionTok := generateSessionToken()
-	model.RegisterSession(h.Database, userUuid, sessionTok)
+	model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok)
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
 	cookie.Value = sessionTok
