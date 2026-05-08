@@ -372,6 +372,7 @@ func (dm *DraftManager) RemovePickListener(draftId int, listener picking.PickLis
 	draft.pickManager.RemoveListener(listener)
 }
 
+// TODO decompose this into messages
 func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
 	log.InfoNoContext("UpdateDraft: acquiring locks", "Draft Id", draftModel.Id)
 	loadLock := dm.getLoadLock(draftModel.Id)
