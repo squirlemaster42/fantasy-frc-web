@@ -49,6 +49,7 @@ type UpdateDraftProfileMessage struct {
 
 type TransferDraftOwnershipMessage struct {
 	// TODO If we actually want this we should record who initiated the transfer
+	Initiator int
 	UpdatedOwnerId int
 }
 
