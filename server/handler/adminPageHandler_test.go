@@ -1,10 +1,15 @@
 package handler
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"server/model"
+	"server/model/mocks"
 )
 
 func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
@@ -49,7 +54,7 @@ func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &ModifyPickTimeCommand{}
-			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -239,7 +244,7 @@ func TestAdminPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &AdminPickCommand{}
-			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -329,7 +334,7 @@ func TestRenameDraftCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &RenameDraftCommand{}
-			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -359,7 +364,7 @@ func TestUndoPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UndoPickCommand{}
-			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -383,7 +388,7 @@ func TestPopulateTeamsCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &PopulateTeamsCommand{}
-			result := cmd.ProcessCommand(nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(nil, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -435,4 +440,85 @@ func TestRenameDraftCommandNameValidation(t *testing.T) {
 			assert.Equal(t, tt.shouldBeEmpty, isEmpty, tt.description)
 		})
 	}
+}
+
+func TestListDraftsCommand(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("returns formatted draft list", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsByName", ctx, "").Return(&[]model.DraftModel{
+			{Id: 1, DisplayName: "Test Draft One"},
+			{Id: 42, DisplayName: "Test Draft Two"},
+		})
+
+		cmd := &ListDraftsCommand{}
+		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "")
+
+		assert.Contains(t, result, "Id    |  Name")
+		assert.Contains(t, result, "   1  | Test Draft One")
+		assert.Contains(t, result, "  42  | Test Draft Two")
+	})
+
+	t.Run("empty result shows headers only", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsByName", ctx, "").Return(&[]model.DraftModel{})
+
+		cmd := &ListDraftsCommand{}
+		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "")
+
+		assert.Contains(t, result, "Id    |  Name")
+		assert.NotContains(t, result, "Test Draft")
+	})
+
+	t.Run("search filter passed to store", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsByName", ctx, "playoffs").Return(&[]model.DraftModel{
+			{Id: 7, DisplayName: "Playoffs Draft"},
+		})
+
+		cmd := &ListDraftsCommand{}
+		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "-s=playoffs")
+
+		assert.Contains(t, result, "   7  | Playoffs Draft")
+	})
+}
+
+func TestStartDraftCommand_ValidationPaths(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("invalid draft id", func(t *testing.T) {
+		cmd := &StartDraftCommand{}
+		result := cmd.ProcessCommand(ctx, nil, nil, nil, nil, "-id=abc")
+
+		assert.Equal(t, "Draft Id Could Not Be Converted To An Int", result)
+	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", ctx, 999).Return(model.DraftModel{}, sql.ErrNoRows)
+
+		cmd := &StartDraftCommand{}
+		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "-id=999")
+
+		assert.Equal(t, "Draft Id Does Not Match A Valid Draft", result)
+	})
+
+	t.Run("not enough accepted players", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", ctx, 5).Return(model.DraftModel{
+			Id: 5,
+			Players: []model.DraftPlayer{
+				{Pending: false},
+				{Pending: false},
+				{Pending: true},
+				{Pending: false},
+			},
+		}, nil)
+
+		cmd := &StartDraftCommand{}
+		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "-id=5")
+
+		assert.Equal(t, "Not Enough Players Have Accepted The Draft", result)
+	})
 }

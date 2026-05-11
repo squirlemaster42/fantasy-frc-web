@@ -21,12 +21,12 @@ import (
 )
 
 type Command interface {
-	ProcessCommand(context context.Context, database  *sql.DB, draftManager *draft.DraftManager, argStr string) string
+	ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string
 }
 
 type PingCommand struct{}
 
-func (p *PingCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (p *PingCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	if len(argStr) > 0 {
 		return "Ping does not take any inputs"
 	}
@@ -35,7 +35,7 @@ func (p *PingCommand) ProcessCommand(ctx context.Context, database *sql.DB, draf
 
 type PopulateTeamsCommand struct{}
 
-func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	if len(argStr) > 0 {
 		return "PopulateTeams does not take any inputs"
 	}
@@ -49,9 +49,9 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, database *sql
 		teams := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
 		for _, team := range teams {
 			log.Debug(ctx, "Checking if team is needed", "Team", team.Key, "Event", event)
-			if model.GetTeam(ctx, database, team.Key) == nil {
+			if teamStore.GetTeam(ctx, team.Key) == nil {
 				log.Debug(ctx, "Creating team", "Team", team.Key, "Event", event)
-				model.CreateTeam(ctx, database, team.Key, "")
+				teamStore.CreateTeam(ctx, team.Key, "")
 				count++
 			}
 		}
@@ -63,12 +63,12 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, database *sql
 
 type ListDraftsCommand struct{}
 
-func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	//Parse command inputs
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
 
-	drafts := model.GetDraftsByName(ctx, database, searchString)
+	drafts := draftStore.GetDraftsByName(ctx, searchString)
 
 	var sb strings.Builder
 
@@ -84,7 +84,7 @@ func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, database *sql.DB
 
 type StartDraftCommand struct{}
 
-func (s *StartDraftCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -92,7 +92,7 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, database *sql.DB
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	draft, err := model.GetDraft(ctx, database, draftId)
+	draft, err := draftStore.GetDraft(ctx, draftId)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
@@ -121,7 +121,7 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, database *sql.DB
 
 type ViewWebhookKey struct{}
 
-func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, database *sql.DB, draft *draft.DraftManager, argStr string) string {
+func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draft *draft.DraftManager, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		return "Failed to open file: " + err.Error()
@@ -136,7 +136,7 @@ func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, database *sql.DB, d
 
 type SkipPickCommand struct{}
 
-func (s *SkipPickCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (s *SkipPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	log.Info(ctx, "Calling skip command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
@@ -155,7 +155,7 @@ func (s *SkipPickCommand) ProcessCommand(ctx context.Context, database *sql.DB, 
 
 type ModifyPickTimeCommand struct{}
 
-func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	log.Info(ctx, "Calling modify pick time command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -190,7 +190,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, database *sq
 
 type AdminPickCommand struct{}
 
-func (a *AdminPickCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (a *AdminPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	log.Info(ctx, "Calling admin pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -237,7 +237,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, database *sql.DB,
 
 type RenameDraftCommand struct{}
 
-func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	log.Info(ctx, "Calling rename draft command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -281,7 +281,7 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, database *sql.D
 
 type UndoPickCommand struct{}
 
-func (u *UndoPickCommand) ProcessCommand(ctx context.Context, database *sql.DB, draftManager *draft.DraftManager, argStr string) string {
+func (u *UndoPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
 	log.Info(ctx, "Calling undo pick command", "Args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -324,8 +324,8 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	adminConsoleIndex := admin.AdminConsoleIndex(username)
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
@@ -337,8 +337,8 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")
@@ -355,7 +355,7 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
 		return Render(c, response)
 	}
-	result := command.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
+	result := command.ProcessCommand(c.Request().Context(), h.DraftStore, h.UserStore, h.TeamStore, h.DraftManager, args)
 
 	assert.AddContext("Command", commandString)
 

@@ -1,17 +1,19 @@
 package handler
 
 import (
-	"database/sql"
 	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
+	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
 )
 
 type Handler struct {
-	Database            *sql.DB
+	DraftStore          model.DraftStore
+	UserStore           model.UserStore
+	TeamStore           model.TeamStore
 	TbaHandler          tbaHandler.TbaHandler
 	DraftManager        *draft.DraftManager
 	DraftDaemon         *background.DraftDaemon
@@ -20,5 +22,5 @@ type Handler struct {
 	TbaWebhookSecret    string
 	TbaVerificationCode string
 	DiscordBus          *discord.DiscordWebhookBus
-    SecureHttpCookie    bool
+	SecureHttpCookie    bool
 }

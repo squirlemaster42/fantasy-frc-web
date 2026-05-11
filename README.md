@@ -12,6 +12,7 @@ the entire drafting and scoring process for Fantasy FRC.
 
 - [Installation](#installation)
 - [Configuration](#configuration)
+- [Testing](#testing)
 - [Building and Running](#building-and-running)
 - [Contributing](#contributing)
 - [License](#license)
@@ -72,6 +73,23 @@ SECURE_HTTP_COOKIE=false
 - `SECURE_HTTP_COOKIE`: Set to `false` for development, `true` for production (default: `true`)
 - `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint (optional)
 - `OTEL_RESOURCE_ATTRIBUTES`: OpenTelemetry resource attributes (optional)
+
+## Testing
+
+The project uses repository interfaces with auto-generated mocks for unit testing. See the full [Testing Guide](docs/development/README.md#testing-with-repository-mocks) for details on writing handler tests without a database.
+
+```bash
+cd server
+
+# Run all tests
+go test ./...
+
+# Generate mocks after interface changes
+make mocks
+
+# Run specific handler test
+go test ./handler -run TestHandleViewDraftProfile -v
+```
 
 ## Building and Running
 

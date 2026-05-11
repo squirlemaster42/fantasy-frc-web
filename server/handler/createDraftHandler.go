@@ -20,8 +20,8 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	draftModel := model.DraftModel{
 		Id: -1,
 	}
@@ -59,8 +59,8 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	parsedEndTime, err := time.Parse(layout, endTime)
 	assert.NoError(c.Request().Context(), err, "Failed to parse end time")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, sessionToken.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), sessionToken.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	draftModel := model.DraftModel{
 		Owner: model.User{
@@ -76,7 +76,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Created Draft for user", "User", username)
 
-	draftId, err := model.CreateDraft(c.Request().Context(), h.Database, &draftModel)
+	draftId, err := h.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")

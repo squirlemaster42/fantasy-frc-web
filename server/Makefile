@@ -30,6 +30,14 @@ run-verbose: $(TAILWIND_BIN)
 generate:
 	go tool templ generate
 
+# Generate mocks for repository interfaces
+mocks:
+	go tool github.com/vektra/mockery/v2
+
+# Run tests
+test:
+	go test ./...
+
 # Production build (static binary with embedded assets)
 build: build-css generate
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o server .
@@ -44,4 +52,4 @@ build-linux: build-css generate
 prod: build
 	@echo "Production build complete. Binary: server"
 
-.PHONY: build-css watch-css run build build-linux prod generate
+.PHONY: build-css watch-css run build build-linux prod generate mocks test

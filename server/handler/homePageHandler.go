@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"server/assert"
 	"server/log"
-	"server/model"
 	"server/view"
 
 	"github.com/labstack/echo/v4"
@@ -25,12 +24,12 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	}
 
 	//Check if the cookie is valid
-	isValid := model.ValidateSessionToken(c.Request().Context(), h.Database, userTok.Value)
+	isValid := h.UserStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
 
 	if isValid {
 		//If the cookie is valid we let the request through
 		//We should probaly log a message
-		model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+		h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 	} else {
 		//If the cookie is not valid then we redirect to the login page
 		log.Warn(c.Request().Context(), "Failed login", "Ip", c.RealIP())
@@ -41,11 +40,11 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	log.Info(c.Request().Context(), "Loading drafts for user", "Username", username)
-	drafts, err := model.GetDraftsForUser(c.Request().Context(), h.Database, userUuid)
+	drafts, err := h.DraftStore.GetDraftsForUser(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load drafts")

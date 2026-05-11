@@ -3,50 +3,166 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"server/model"
+	"server/model/mocks"
 )
 
-func TestHandleAcceptInvite_ErrorHandling(t *testing.T) {
-	t.Run("returns error message for non-existent invite", func(t *testing.T) {
-		// Verify that errors.Is correctly identifies sql.ErrNoRows
-		// This is what the handler uses to detect non-existent invites
+func TestHandleViewInvites(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/invites", "", "test-session")
 
-		testErr := sql.ErrNoRows
-		assert.True(t, errors.Is(testErr, sql.ErrNoRows),
-			"Handler checks for sql.ErrNoRows using errors.Is()")
-	})
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
 
-	t.Run("error message for non-existent invite", func(t *testing.T) {
-		// Document the error message shown to users
-		expectedMsg := "Invite not found. It may have been cancelled or expired."
-		assert.NotEmpty(t, expectedMsg)
-		assert.Contains(t, expectedMsg, "not found")
-	})
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
 
-	t.Run("error message for database errors", func(t *testing.T) {
-		// Document the generic error message for other database errors
-		expectedMsg := "An error occurred. Please try again."
-		assert.NotEmpty(t, expectedMsg)
-	})
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleViewInvites(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
-func TestHandleAcceptInvite_GetInviteIntegration(t *testing.T) {
-	// Document the integration between handler and model
-	// After the fix, handler receives (DraftInvite, error) and handles errors gracefully
+func TestHandleAcceptInvite_InviteNotFound(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
 
-	t.Run("GetInvite returns error instead of crashing", func(t *testing.T) {
-		// This test documents the critical fix:
-		// Old behavior: model.GetInvite would call log.Fatal() and crash server
-		// New behavior: model.GetInvite returns error, handler handles it
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
 
-		// The function signature is: func GetInvite(*sql.DB, int) (DraftInvite, error)
-		// Previously it was: func GetInvite(*sql.DB, int) DraftInvite
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{}, sql.ErrNoRows)
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
 
-		type getInviteFunc func(*sql.DB, int) (interface{}, error)
-		var _ getInviteFunc = nil // Placeholder to show the expected signature
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
 
-		assert.True(t, true, "GetInvite now returns error as second value")
-	})
+	err := h.HandleAcceptInvite(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Invite not found")
+}
+
+func TestHandleAcceptInvite_WrongUser(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	otherUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{
+		Id:              123,
+		DraftId:         42,
+		InvitedUserUuid: otherUuid,
+	}, nil)
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
+
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleAcceptInvite(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "not allowed to accept")
+}
+
+func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{
+		Id:              123,
+		DraftId:         42,
+		InvitedUserUuid: userUuid,
+	}, nil)
+	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(8)
+	mockDraftStore.On("CancelOutstandingInvites", c.Request().Context(), 42).Return(nil)
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
+
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleAcceptInvite(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Too many players")
+}
+
+func TestHandleAcceptInvite_Success(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	playerUuid := uuid.MustParse("770e8400-e29b-41d4-a716-446655440002")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{
+		Id:              123,
+		DraftId:         42,
+		InvitedUserUuid: userUuid,
+	}, nil)
+	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(3)
+	mockDraftStore.On("AcceptInvite", c.Request().Context(), 123).Return(42, playerUuid)
+	mockDraftStore.On("AddPlayerToDraft", c.Request().Context(), 42, playerUuid)
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
+
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleAcceptInvite(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestHandleAcceptInvite_DatabaseError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{}, errors.New("connection refused"))
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{})
+
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleAcceptInvite(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "An error occurred")
 }

@@ -108,14 +108,20 @@ func main() {
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
 	assert.NoError(context.Background(), err, "Failed to create avatar store")
 
-	handler := handler.Handler {
-		Database:     database,
+	draftStore := model.NewSQLDraftStore(database)
+	userStore := model.NewSQLUserStore(database)
+	teamStore := model.NewSQLTeamStore(database)
+
+	handler := handler.Handler{
+		DraftStore:   draftStore,
+		UserStore:    userStore,
+		TeamStore:    teamStore,
 		TbaHandler:   *tbaHandler,
 		DraftManager: draftManager,
 		Scorer:       scorer,
 		AvatarStore:  &avatarStore,
 		DiscordBus:   discordBus,
-        SecureHttpCookie: secureHttpCookie,
+		SecureHttpCookie: secureHttpCookie,
 	}
 
 	// Load the tba webhook secret
@@ -132,7 +138,7 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, metricSecret)
+	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret)
 
 	go func() {
 		err := app.Start(":" + serverPort)

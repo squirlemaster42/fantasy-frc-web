@@ -1,0 +1,15 @@
+all: false
+with-expecter: false
+inpackage: false
+dir: '{{.InterfaceDir}}/mocks'
+filename: 'mock_{{.InterfaceName | lower}}.go'
+mockname: 'Mock{{.InterfaceName}}'
+outpkg: 'mocks'
+packages:
+  server/model:
+    config:
+      all: false
+    interfaces:
+      DraftStore:
+      UserStore:
+      TeamStore:

@@ -12,7 +12,6 @@ import (
 	"os"
 	"server/discord"
 	"server/log"
-	"server/model"
 	"server/swagger"
 	"server/utils"
 	"strconv"
@@ -151,7 +150,7 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 		return
 	}
 
-	rows, err := model.GetDraftPickRows(context.TODO(), h.Database, tbaEvent.TeamKeys)
+	rows, err := h.DraftStore.GetDraftPickRows(context.TODO(), tbaEvent.TeamKeys)
 
 	if err != nil {
 		log.Warn(context.TODO(), "Failed to get picked rows", "Error", err)

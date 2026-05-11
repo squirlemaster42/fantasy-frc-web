@@ -21,8 +21,8 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -30,7 +30,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to visit admin for invalid draft", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
@@ -55,14 +55,14 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -87,14 +87,14 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -134,14 +134,14 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -185,14 +185,14 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}

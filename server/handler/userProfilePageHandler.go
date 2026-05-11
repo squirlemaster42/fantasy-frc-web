@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"server/assert"
 	"server/log"
-	"server/model"
 	"server/view/userProfile"
 
 	"github.com/labstack/echo/v4"
@@ -23,9 +22,9 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 		return echo.ErrUnauthorized
 	}
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
-	discordId := model.GetDiscordId(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	discordId := h.UserStore.GetDiscordId(c.Request().Context(), userUuid)
 
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "")
 	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
@@ -44,8 +43,8 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	discordId := c.FormValue("discordId")
 	currentPassword := c.FormValue("currentPassword")
@@ -53,7 +52,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	confirmNewPassword := c.FormValue("confirmNewPassword")
 
 	// Update discord ID
-	model.UpdateDiscordId(c.Request().Context(), h.Database, userUuid, discordId)
+	h.UserStore.UpdateDiscordId(c.Request().Context(), userUuid, discordId)
 
 	// Handle password change if any password field is filled
 	if currentPassword != "" || newPassword != "" || confirmNewPassword != "" {
@@ -89,7 +88,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 			return nil
 		}
 
-		if !model.ValidateLogin(c.Request().Context(), h.Database, username, currentPassword) {
+		if !h.UserStore.ValidateLogin(c.Request().Context(), username, currentPassword) {
 			log.Info(c.Request().Context(), "Invalid current password attempt for user", "Username", username)
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is incorrect", "")
 			err = Render(c, userProfileIndex)
@@ -99,7 +98,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		}
 
 		log.Info(c.Request().Context(), "Updating password for user", "Username", username)
-		model.UpdatePassword(c.Request().Context(), h.Database, username, newPassword)
+		h.UserStore.UpdatePassword(c.Request().Context(), username, newPassword)
 	}
 
 	log.Info(c.Request().Context(), "Updated profile for user", "Username", username)

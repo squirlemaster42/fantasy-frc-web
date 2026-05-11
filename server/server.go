@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"server/assets"
 	"server/authentication"
@@ -17,16 +18,16 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*echo.Echo, func(context.Context) error) {
+func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string) (*echo.Echo, func(context.Context) error) {
 	log.Info(context.Background(), "Starting Server")
-	auth := authentication.NewAuth(h.Database)
+	auth := authentication.NewAuth(database)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
 
-	if err := metrics.InitMetrics(h.Database); err != nil {
+	if err := metrics.InitMetrics(database); err != nil {
 		log.Warn(context.Background(), "Failed to initialize metrics", "error", err)
 	}
 

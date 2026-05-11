@@ -16,20 +16,20 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	// TODO we cannot crash here
 	assert.NoError(c.Request().Context(), err, "Failed to convert draft id to int")
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	// TODO we cannot crash here
 	assert.NoError(c.Request().Context(), err, "Failed to get draft")
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
-	userDraftScore := model.GetDraftScore(c.Request().Context(), h.Database, draftId)
+	userDraftScore := h.DraftStore.GetDraftScore(c.Request().Context(), draftId)
 
 	slices.SortFunc(userDraftScore, func(a, b model.DraftPlayer) int {
 		return b.Score - a.Score
@@ -51,14 +51,14 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	// TODO we shouldn't crash here
 	assert.NoError(c.Request().Context(), err, "Failed to convert draft id to int")
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	// TODO we should not crash here
 	assert.NoError(c.Request().Context(), err, "Failed to get draft")
 
@@ -68,10 +68,10 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	assert.AddContext("Team Number", teamNumber)
 	assert.AddContext("Draft ID", draftId)
 
-	scores := model.GetScore(c.Request().Context(), h.Database, "frc"+teamNumber)
+	scores := h.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
 
 	// Get qualification matches
-	qualificationMatches := model.GetMatchScores(c.Request().Context(), h.Database, "frc"+teamNumber)
+	qualificationMatches := h.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
 
 	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
 	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, isOwner)

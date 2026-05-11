@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"server/assert"
 	"server/log"
-	"server/model"
 	"server/view/login"
 
 	"github.com/labstack/echo/v4"
@@ -41,18 +40,18 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	//We then want to pass a session token as a cookie
 	//And redirect the user to the come page (or somewhere else if they were redirected to login from there [idk how to do this])
 	//We wont validate the password if the user does not exist
-	taken, err := model.UsernameTaken(c.Request().Context(), h.Database, username)
+	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
-	valid := taken && model.ValidateLogin(c.Request().Context(), h.Database, username, password)
+	valid := taken && h.UserStore.ValidateLogin(c.Request().Context(), username, password)
 	if valid {
 		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
-		userUuid := model.GetUserUuidByUsername(c.Request().Context(), h.Database, username)
+		userUuid := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
 		sessionTok := generateSessionToken()
-		model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok)
+		h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok)
 
 		cookie := new(http.Cookie)
 		cookie.Name = "sessionToken"
@@ -77,7 +76,7 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	// TODO we cannot crash if we dont have an auth token
 	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-	model.UnRegisterSession(c.Request().Context(), h.Database, userTok.Value)
+	h.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value)
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
 	cookie.Value = ""
@@ -103,7 +102,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 	var err error
 
-	taken, err := model.UsernameTaken(c.Request().Context(), h.Database, username)
+	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
@@ -129,9 +128,9 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Valid registration for user", "Username", username)
-	userUuid := model.RegisterUser(c.Request().Context(), h.Database, username, password)
+	userUuid := h.UserStore.RegisterUser(c.Request().Context(), username, password)
 	sessionTok := generateSessionToken()
-	model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok)
+	h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok)
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
 	cookie.Value = sessionTok
