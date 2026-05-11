@@ -127,8 +127,8 @@ var ALLOWED_TIMES = map[time.Weekday]TimeRange{
 	},
 }
 
-func GetPickExpirationTime(context context.Context, t time.Time, expirationDuration time.Duration) time.Time {
-	log.Info(context, "Getting Expiration Time", "Current Time", t)
+func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration time.Duration) time.Time {
+	log.Info(ctx, "Getting Expiration Time", "Current Time", t)
 	expirationTime := t.Add(expirationDuration)
 	validTime := ALLOWED_TIMES[expirationTime.Weekday()]
 	nextDay := t.Add(24 * time.Hour)
@@ -136,14 +136,14 @@ func GetPickExpirationTime(context context.Context, t time.Time, expirationDurat
 	//If the expiration time is in the pick window and we are currently in the pick window
 	if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour &&
 		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Info(context, "Expiration Time and Current Time in Window")
+		log.Info(ctx, "Expiration Time and Current Time in Window")
 		return expirationTime
 	}
 
 	//If the expiration time is not in the pick window but the current time is
 	if (expirationTime.Hour() < validTime.startHour || expirationTime.Hour() > validTime.endHour) &&
 		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Info(context, "Expiration Time not in window and Current Time in Window")
+		log.Info(ctx, "Expiration Time not in window and Current Time in Window")
 		nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
 		diff := int(expirationDuration.Hours()) - (validTime.endHour - t.Hour())
 		expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
@@ -155,7 +155,7 @@ func GetPickExpirationTime(context context.Context, t time.Time, expirationDurat
 	//expirationDuration after the start of that window
 	//To find the next window we get the window for the current day
 	//If we are before that window we take that one, if not we take the next one
-	log.Info(context, "Current Time not in Window")
+	log.Info(ctx, "Current Time not in Window")
 	if t.Hour() > validTime.endHour {
 		//If we are after the window move the valid time to the next day
 		validTime = ALLOWED_TIMES[nextDay.Weekday()]
@@ -166,7 +166,7 @@ func GetPickExpirationTime(context context.Context, t time.Time, expirationDurat
 }
 
 // Return true if matchA comes before matchB
-func CompareMatchOrder(context context.Context, matchA string, matchB string) (bool, error) {
+func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool, error) {
 	assert := assert.CreateAssertWithContext("Compare Match Order")
 	assert.AddContext("Match A", matchA)
 	assert.AddContext("Match B", matchB)
@@ -184,57 +184,57 @@ func CompareMatchOrder(context context.Context, matchA string, matchB string) (b
 	assert.AddContext("Match A Level", matchALevel)
 	assert.AddContext("Match B Level", matchBLevel)
 	aPrecidence, ok := matchPrecidence()[matchALevel]
-	assert.RunAssert(context, ok, "Match Precidence Was Not Found")
+	assert.RunAssert(ctx, ok, "Match Precidence Was Not Found")
 	bPrecidence, ok := matchPrecidence()[matchBLevel]
-	assert.RunAssert(context, ok, "Match Precidence Was Not Found")
+	assert.RunAssert(ctx, ok, "Match Precidence Was Not Found")
 
 	if aPrecidence != bPrecidence {
 		return aPrecidence < bPrecidence, nil
 	}
 
-	assert.RunAssert(context, matchALevel == matchBLevel, "Match levels are not the same")
+	assert.RunAssert(ctx, matchALevel == matchBLevel, "Match levels are not the same")
 
 	if matchALevel == "qm" {
 		splitMatchA := strings.Split(matchA, "_")
 		splitMatchB := strings.Split(matchB, "_")
 		// TODO Return errors instead of crash
-		assert.RunAssert(context, len(splitMatchA) == 2, "Match A string was invalid")
-		assert.RunAssert(context, len(splitMatchB) == 2, "Match B string was invalid")
+		assert.RunAssert(ctx, len(splitMatchA) == 2, "Match A string was invalid")
+		assert.RunAssert(ctx, len(splitMatchB) == 2, "Match B string was invalid")
 		matchANumStr := strings.TrimSpace(splitMatchA[1][2:])
 		matchBNumStr := strings.TrimSpace(splitMatchB[1][2:])
 		assert.AddContext("Match A Num", matchANumStr)
 		assert.AddContext("Match B Num", matchBNumStr)
 		matchANum, err := strconv.Atoi(matchANumStr)
-		assert.NoError(context, err, "Match A num Atoi failed")
+		assert.NoError(ctx, err, "Match A num Atoi failed")
 		matchBNum, err := strconv.Atoi(matchBNumStr)
-		assert.NoError(context, err, "Match B num Atoi failed")
+		assert.NoError(ctx, err, "Match B num Atoi failed")
 		return matchANum < matchBNum, nil
 	}
 
 	if matchALevel == "f" {
 		splitMatchA := strings.Split(matchA, "_")
 		splitMatchB := strings.Split(matchB, "_")
-		assert.RunAssert(context, len(splitMatchA) == 2, "Match A string was invalid")
-		assert.RunAssert(context, len(splitMatchB) == 2, "Match B string was invalid")
+		assert.RunAssert(ctx, len(splitMatchA) == 2, "Match A string was invalid")
+		assert.RunAssert(ctx, len(splitMatchB) == 2, "Match B string was invalid")
 		splitMatchA = strings.Split(splitMatchA[1][1:], "m")
 		splitMatchB = strings.Split(splitMatchB[1][1:], "m")
-		assert.RunAssert(context, len(splitMatchA) == 2, "Match A string was invalid")
-		assert.RunAssert(context, len(splitMatchB) == 2, "Match B string was invalid")
+		assert.RunAssert(ctx, len(splitMatchA) == 2, "Match A string was invalid")
+		assert.RunAssert(ctx, len(splitMatchB) == 2, "Match B string was invalid")
 		matchANum, err := strconv.Atoi(splitMatchA[0])
-		assert.NoError(context, err, "Match A num Atoi failed")
+		assert.NoError(ctx, err, "Match A num Atoi failed")
 		matchBNum, err := strconv.Atoi(splitMatchB[0])
-		assert.NoError(context, err, "Match B num Atoi failed")
+		assert.NoError(ctx, err, "Match B num Atoi failed")
 
 		if matchANum != matchBNum {
 			return matchANum < matchBNum, nil
 		}
 
-		assert.RunAssert(context, matchANum == matchBNum, "Match nums are the same but shouldn't be")
+		assert.RunAssert(ctx, matchANum == matchBNum, "Match nums are the same but shouldn't be")
 
 		matchANum, err = strconv.Atoi(splitMatchA[1])
-		assert.NoError(context, err, "Match A num Atoi failed")
+		assert.NoError(ctx, err, "Match A num Atoi failed")
 		matchBNum, err = strconv.Atoi(splitMatchB[1])
-		assert.NoError(context, err, "Match B num Atoi failed")
+		assert.NoError(ctx, err, "Match B num Atoi failed")
 
 		return matchANum < matchBNum, nil
 	}
@@ -242,32 +242,32 @@ func CompareMatchOrder(context context.Context, matchA string, matchB string) (b
 	if matchALevel == "sf" {
 		splitMatchA := strings.Split(matchA, "_")
 		splitMatchB := strings.Split(matchB, "_")
-		assert.RunAssert(context, len(splitMatchA) == 2, "Match A string was invalid")
-		assert.RunAssert(context, len(splitMatchB) == 2, "Match B string was invalid")
+		assert.RunAssert(ctx, len(splitMatchA) == 2, "Match A string was invalid")
+		assert.RunAssert(ctx, len(splitMatchB) == 2, "Match B string was invalid")
 		splitMatchA = strings.Split(splitMatchA[1][2:], "m")
 		splitMatchB = strings.Split(splitMatchB[1][2:], "m")
-		assert.RunAssert(context, len(splitMatchA) == 2, "Match A string was invalid")
-		assert.RunAssert(context, len(splitMatchB) == 2, "Match B string was invalid")
+		assert.RunAssert(ctx, len(splitMatchA) == 2, "Match A string was invalid")
+		assert.RunAssert(ctx, len(splitMatchB) == 2, "Match B string was invalid")
 		matchANum, err := strconv.Atoi(splitMatchA[0])
-		assert.NoError(context, err, "Match A num Atoi failed")
+		assert.NoError(ctx, err, "Match A num Atoi failed")
 		matchBNum, err := strconv.Atoi(splitMatchB[0])
-		assert.NoError(context, err, "Match B num Atoi failed")
+		assert.NoError(ctx, err, "Match B num Atoi failed")
 
 		if matchANum != matchBNum {
 			return matchANum < matchBNum, nil
 		}
 
-		assert.RunAssert(context, matchANum == matchBNum, "Match nums are the same but shouldn't be")
+		assert.RunAssert(ctx, matchANum == matchBNum, "Match nums are the same but shouldn't be")
 
 		matchANum, err = strconv.Atoi(splitMatchA[1])
-		assert.NoError(context, err, "Match A num Atoi failed")
+		assert.NoError(ctx, err, "Match A num Atoi failed")
 		matchBNum, err = strconv.Atoi(splitMatchB[1])
-		assert.NoError(context, err, "Match B num Atoi failed")
+		assert.NoError(ctx, err, "Match B num Atoi failed")
 
 		return matchANum < matchBNum, nil
 	}
 
-	assert.RunAssert(context, 1 == 0, "Unknown match type found")
+	assert.RunAssert(ctx, 1 == 0, "Unknown match type found")
 	return false, nil // This is unreachable
 }
 

@@ -17,6 +17,7 @@ import (
 	"server/draft"
 	"server/handler"
 	"server/log"
+	"server/metrics"
 	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
@@ -58,7 +59,11 @@ func main() {
 	metricSecret := os.Getenv("METRIC_SECRET")
     secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	log.Info(context.Background(), "Extracted Env Vars")
-	database := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	database, err := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	if err != nil {
+		log.Error(context.Background(), "Failed to register database connection", "error", err)
+		os.Exit(1)
+	}
 	log.Info(context.Background(), "Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
@@ -151,6 +156,7 @@ func main() {
 	if err := otelShutdown(ctx); err != nil {
 		log.Warn(context.Background(), "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
+	metrics.ShutdownMetrics()
 	if err := database.Close(); err != nil {
 		log.Warn(context.Background(), "Failed to close database connection", "error", err)
 	}

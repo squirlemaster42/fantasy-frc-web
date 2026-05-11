@@ -64,8 +64,8 @@ func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, boo
 	return scoredMatch, true
 }
 
-func getQualMatchScore(context context.Context, match swagger.Match) (int, int) {
-	log.Debug(context, "Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
+func getQualMatchScore(ctx context.Context, match swagger.Match) (int, int) {
+	log.Debug(ctx, "Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
 
 	redScore, blueScore := getWinningAllianceScores(match, 3)
 
@@ -75,32 +75,32 @@ func getQualMatchScore(context context.Context, match swagger.Match) (int, int) 
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.EnergizedAchieved {
 		redScore += 1
-		log.Debug(context, "Red Energized Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Energized Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.SuperchargedAchieved {
 		redScore += 1
-		log.Debug(context, "Red Supercharded Bonus Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Supercharded Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.TraversalAchieved {
 		redScore += 2
-		log.Debug(context, "Red Traversal Bonus Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Traversal Bonus Achieved", "Score", redScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.EnergizedAchieved {
 		blueScore += 1
-		log.Debug(context, "Blue Energized Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Energized Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.SuperchargedAchieved {
 		blueScore += 1
-		log.Debug(context, "Blue Supercharged Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Supercharged Bonus Achieved", "Score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.TraversalAchieved {
 		blueScore += 2
-		log.Debug(context, "Blue Traversal Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Traversal Bonus Achieved", "Score", blueScore)
 	}
 
 	return redScore, blueScore
@@ -147,7 +147,7 @@ func getWinningAllianceScores(match swagger.Match, winningPoints int) (int, int)
 }
 
 // RedScore, BlueScore
-func getPlayoffMatchScore(context context.Context, match swagger.Match) (int, int) {
+func getPlayoffMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 	var matchPoints int
 
 	switch match.CompLevel {
@@ -160,7 +160,7 @@ func getPlayoffMatchScore(context context.Context, match swagger.Match) (int, in
 			matchPoints = 15
 		}
 	default:
-		log.Warn(context, "Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
+		log.Warn(ctx, "Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
 	}
 
 	if match.EventKey == utils.Einstein() {
@@ -339,14 +339,14 @@ func (s *Scorer) scoringRunner() {
 	}
 }
 
-func (s *Scorer) ScoreAllianceSelection(context context.Context, event string) {
-	alliances := s.tbaHandler.MakeEliminationAllianceRequest(context, event)
-	log.Info(context, "Made alliance selection request", "Alliance length", len(alliances))
+func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
+	alliances := s.tbaHandler.MakeEliminationAllianceRequest(ctx, event)
+	log.Info(ctx, "Made alliance selection request", "Alliance length", len(alliances))
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
-			log.Info(context, "Update alliance score for team", "Team", team, "Score", score)
-			model.UpdateTeamAllianceScore(context, s.database, team, score)
+			log.Info(ctx, "Update alliance score for team", "Team", team, "Score", score)
+			model.UpdateTeamAllianceScore(ctx, s.database, team, score)
 		}
 	}
 }

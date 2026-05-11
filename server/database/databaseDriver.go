@@ -3,28 +3,51 @@ package database
 import (
 	"context"
 	"database/sql"
-	"server/assert"
+	"fmt"
 	"server/log"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/XSAM/otelsql"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
-func RegisterDatabaseConnection(context context.Context, username string, password string, ip string, dbName string) *sql.DB {
-	log.Info(context, "Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
+func RegisterDatabaseConnection(ctx context.Context, username string, password string, ip string, dbName string, opts ...otelsql.Option) (*sql.DB, error) {
+	log.Info(ctx, "Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
 	connStr := createConnectionString(username, password, ip, dbName)
 
-	a := assert.CreateAssertWithContext("Register DB")
+	attrs := append(
+		otelsql.AttributesFromDSN(connStr),
+		semconv.DBSystemPostgreSQL,
+	)
 
-	db, err := sql.Open("postgres", connStr)
-	a.NoError(context, err, "Could not open database connection")
-	a.NoError(context, db.Ping(), "Failed to ping database")
+	options := append([]otelsql.Option{
+		otelsql.WithAttributes(attrs...),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{
+			OmitConnResetSession: true,
+		}),
+	}, opts...)
+
+	driverName, err := otelsql.Register("pgx", options...)
+	if err != nil {
+		return nil, fmt.Errorf("could not register otelsql driver: %w", err)
+	}
+
+	db, err := sql.Open(driverName, connStr)
+	if err != nil {
+		return nil, fmt.Errorf("could not open database connection: %w", err)
+	}
+
+	if err := db.PingContext(ctx); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
 
 	db.SetMaxOpenConns(90)
 	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	return db
+	return db, nil
 }
 
 func createConnectionString(username string, password string, ip string, dbName string) string {

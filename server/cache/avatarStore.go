@@ -67,8 +67,8 @@ func (a *AvatarStore) checkCache(teamNum int) ([]byte, error) {
 	return []byte(avatar), err
 }
 
-func (a *AvatarStore) getTbaAvatar(context context.Context, teamNum int) ([]byte, error) {
-	base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(context, fmt.Sprintf("frc%d", teamNum))
+func (a *AvatarStore) getTbaAvatar(ctx context.Context, teamNum int) ([]byte, error) {
+	base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(ctx, fmt.Sprintf("frc%d", teamNum))
 	if err != nil {
 		return nil, err
 	}
@@ -80,21 +80,21 @@ func (a *AvatarStore) getTbaAvatar(context context.Context, teamNum int) ([]byte
 	return avatar, nil
 }
 
-func (a *AvatarStore) GetAvatar(context context.Context, teamNum int) ([]byte, error) {
+func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error) {
 	log.DebugNoContext("Loading avatar", "Team Num", teamNum)
 	avatar, err := a.checkCache(teamNum)
 
 	if err == redis.Nil {
 		log.DebugNoContext("Avatar not in redis, loading from TBA", "Team Num", teamNum)
-		avatar, err = a.getTbaAvatar(context, teamNum)
+		avatar, err = a.getTbaAvatar(ctx, teamNum)
 
 		err = a.storeAvatar(teamNum, avatar)
 		if err != nil {
-			log.Warn(context, "Failed to store avatar in redis", "Error", err)
+			log.Warn(ctx, "Failed to store avatar in redis", "Error", err)
 		}
 	} else if err != nil {
-		log.Warn(context, "Failed to get cached avatar", "Team number", teamNum, "Error", err)
-		return a.getTbaAvatar(context, teamNum)
+		log.Warn(ctx, "Failed to get cached avatar", "Team number", teamNum, "Error", err)
+		return a.getTbaAvatar(ctx, teamNum)
 	} else {
 		log.DebugNoContext("Avatar in redis", "Team Num", teamNum)
 	}

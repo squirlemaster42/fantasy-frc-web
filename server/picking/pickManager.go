@@ -108,7 +108,7 @@ func (p *PickManager) SkipCurrentPick() error {
 	return nil
 }
 
-func (p *PickManager) MakePick(context context.Context, pick model.Pick) (bool, error) {
+func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, error) {
 	p.pickLock.Lock()
 	defer p.pickLock.Unlock()
 
@@ -121,67 +121,67 @@ func (p *PickManager) MakePick(context context.Context, pick model.Pick) (bool, 
 	}
 
 	// Check that we are still trying to make the current pick
-	currentPick, err := model.GetCurrentPick(context, p.database, p.draftId)
+	currentPick, err := model.GetCurrentPick(ctx, p.database, p.draftId)
 	if currentPick.Id != pick.Id {
-		log.Warn(context, "Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", pick.Id)
+		log.Warn(ctx, "Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", pick.Id)
 		return false, errors.New("attempting to make pick that is not the current pick")
 	}
 
 	if err == nil {
-		_, err = model.ValidPick(context, p.database, p.tbaHandler, pick.Pick.String, p.draftId)
+		_, err = model.ValidPick(ctx, p.database, p.tbaHandler, pick.Pick.String, p.draftId)
 	}
 
 	if err == nil {
 		//If we have not found any errors indicating that the pick is invalid, make the pick
-		err := model.MakePick(context, p.database, pick)
+		err := model.MakePick(ctx, p.database, pick)
 		if err != nil {
 			return false, err
 		}
-		nextPickPlayer := model.NextPick(context, p.database, p.draftId)
+		nextPickPlayer := model.NextPick(ctx, p.database, p.draftId)
 
 		//Make the next pick available if we havn't aleady made all picks
-		picks, err := model.GetPicks(context, p.database, p.draftId)
+		picks, err := model.GetPicks(ctx, p.database, p.draftId)
 
 		if err != nil {
-			log.Warn(context, "Failed to get picks", "Draft Id", p.draftId, "Error", err)
+			log.Warn(ctx, "Failed to get picks", "Draft Id", p.draftId, "Error", err)
 			return false, err
 		}
 
-		log.Info(context, "Checking if we should make another pick available", "Num picks", len(picks))
+		log.Info(ctx, "Checking if we should make another pick available", "Num picks", len(picks))
 		if len(picks) < 64 {
-			log.Info(context, "Making next pick available", "Draft Id", p.draftId)
-			expirationTime := utils.GetPickExpirationTime(context, time.Now(), utils.PICK_TIME)
-			model.MakePickAvailable(context, p.database, nextPickPlayer.Id, time.Now(), expirationTime)
+			log.Info(ctx, "Making next pick available", "Draft Id", p.draftId)
+			expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+			model.MakePickAvailable(ctx, p.database, nextPickPlayer.Id, time.Now(), expirationTime)
 
-			currPickDiscordId, err := model.GetPlayerDiscordId(context, p.database, currentPick.Player)
+			currPickDiscordId, err := model.GetPlayerDiscordId(ctx, p.database, currentPick.Player)
 			if err != nil {
-				log.Warn(context, "Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
+				log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
 				err = nil
 			}
 
-			currPickUser, err := model.GetDraftPlayerUser(context, p.database, currentPick.Player)
+			currPickUser, err := model.GetDraftPlayerUser(ctx, p.database, currentPick.Player)
 			if err != nil {
-				log.Warn(context, "Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
+				log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
 				err = nil
 			}
 			currPickName := currPickUser.Username
 
-			nextPickDiscordId, err := model.GetPlayerDiscordId(context, p.database, nextPickPlayer.Id)
+			nextPickDiscordId, err := model.GetPlayerDiscordId(ctx, p.database, nextPickPlayer.Id)
 			if err != nil {
-				log.Warn(context, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				log.Warn(ctx, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
 				err = nil
 			}
 
-			nextPickUser, err := model.GetDraftPlayerUser(context, p.database, nextPickPlayer.Id)
+			nextPickUser, err := model.GetDraftPlayerUser(ctx, p.database, nextPickPlayer.Id)
 			if err != nil {
-				log.Warn(context, "Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+				log.Warn(ctx, "Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
 				err = nil
 			}
 			nextPickName := nextPickUser.Username
 
-			draftWebhook, err := model.GetDraftWebhook(context, p.database, p.draftId)
+			draftWebhook, err := model.GetDraftWebhook(ctx, p.database, p.draftId)
 			if err != nil {
-				log.Warn(context, "Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
+				log.Warn(ctx, "Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
 				err = nil
 			}
 
@@ -197,11 +197,11 @@ func (p *PickManager) MakePick(context context.Context, pick model.Pick) (bool, 
 			go func() {
 				err = p.discordBus.PostPickNotification(event)
 				if err != nil {
-					log.Warn(context, "Failed to post discord webhook", "Error", err)
+					log.Warn(ctx, "Failed to post discord webhook", "Error", err)
 				}
 			}()
 		} else {
-			log.Info(context, "Draft Complete", "Draft Id", p.draftId)
+			log.Info(ctx, "Draft Complete", "Draft Id", p.draftId)
 			// Set draft to the teams playing state
 			// This isnt entirely correct becuase it doesnt account for skips
 			// But I dont care about that for this year

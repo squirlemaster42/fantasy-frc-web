@@ -85,16 +85,16 @@ type Result struct {
 	Error error
 }
 
-func NewDraftActor(context context.Context, draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		database: database,
 		tbaHandler: tbaHandler,
 		discordBus: discordBus,
-		states: setupStates(context, database),
+		states: setupStates(ctx, database),
 	}
 
-	draft, err := model.GetDraft(context, database, draftId)
+	draft, err := model.GetDraft(ctx, database, draftId)
 	if err != nil {
 		return &DraftActor{}, err
 	}
@@ -114,24 +114,24 @@ type ToStartTransition struct {
 	database *sql.DB
 }
 
-func (tst *ToStartTransition) executeTransition(context context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(context, tst.database, draft.draftId, model.WAITING_TO_START)
+func (tst *ToStartTransition) executeTransition(ctx context.Context, draft Draft) error {
+	return model.UpdateDraftStatus(ctx, tst.database, draft.draftId, model.WAITING_TO_START)
 }
 
 type ToPickingTransition struct {
 	database *sql.DB
 }
 
-func (tpt *ToPickingTransition) executeTransition(context context.Context, draft Draft) error {
-	err := model.RandomizePickOrder(context, tpt.database, draft.draftId)
+func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft Draft) error {
+	err := model.RandomizePickOrder(ctx, tpt.database, draft.draftId)
 	if err != nil {
 		return err
 	}
-	nextPickPlayer := model.NextPick(context, tpt.database, draft.draftId)
-	model.MakePickAvailable(context, tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context, time.Now(), utils.PICK_TIME))
-	err = model.UpdateDraftStatus(context, tpt.database, draft.draftId, model.PICKING)
+	nextPickPlayer := model.NextPick(ctx, tpt.database, draft.draftId)
+	model.MakePickAvailable(ctx, tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	err = model.UpdateDraftStatus(ctx, tpt.database, draft.draftId, model.PICKING)
 	if err != nil {
-		log.Error(context, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
 	}
 	return nil
@@ -141,11 +141,11 @@ type ToPlayingTransition struct {
 	database *sql.DB
 }
 
-func (tpt *ToPlayingTransition) executeTransition(context context.Context, draft Draft) error {
-	log.Info(context, "Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
-	err := model.UpdateDraftStatus(context, tpt.database, draft.draftId, model.TEAMS_PLAYING)
+func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, draft Draft) error {
+	log.Info(ctx, "Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
+	err := model.UpdateDraftStatus(ctx, tpt.database, draft.draftId, model.TEAMS_PLAYING)
 	if err != nil {
-		log.Error(context, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
+		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 	}
 	//Remove the draft from the pick daemon
 	return nil
@@ -155,8 +155,8 @@ type ToCompleteTransition struct {
 	database *sql.DB
 }
 
-func (tct *ToCompleteTransition) executeTransition(context context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(context, tct.database, draft.draftId, model.COMPLETE)
+func (tct *ToCompleteTransition) executeTransition(ctx context.Context, draft Draft) error {
+	return model.UpdateDraftStatus(ctx, tct.database, draft.draftId, model.COMPLETE)
 }
 
 type state struct {
@@ -164,7 +164,7 @@ type state struct {
 	transitions map[model.DraftState]stateTransition
 }
 
-func setupStates(context context.Context, database *sql.DB) map[model.DraftState]*state {
+func setupStates(ctx context.Context, database *sql.DB) map[model.DraftState]*state {
 	states := make(map[model.DraftState]*state)
 	states[model.FILLING] = &state{
 		state:       model.FILLING,
@@ -251,51 +251,51 @@ func (d *DraftActor) handleMessage(message Message) Result {
 	}
 }
 
-func (d *DraftActor) handleAcceptInvite(context context.Context, msg AcceptInviteMessage) Result {
+func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleDeclineInvite(context context.Context, msg DeclineInviteMessage) Result {
+func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleInvitePlayer(context context.Context, msg InvitePlayerMessage) Result {
+func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleStateTransition(context context.Context, msg StateTransitionMessage) Result {
+func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransitionMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handlePick(context context.Context, msg PickMessage) Result {
+func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleModifyExpiraitonTime(context context.Context, msg ModifyExpirationTimeMessage) Result {
+func (d *DraftActor) handleModifyExpiraitonTime(ctx context.Context, msg ModifyExpirationTimeMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleAddPickListener(context context.Context, msg AddPickListenerMessage) Result {
+func (d *DraftActor) handleAddPickListener(ctx context.Context, msg AddPickListenerMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleRemovePickListener(context context.Context, msg RemovePickListenerMessage) Result {
+func (d *DraftActor) handleRemovePickListener(ctx context.Context, msg RemovePickListenerMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleSkipCurrentPick(context context.Context, msg SkipCurrentPickMessage) Result {
+func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentPickMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleUndoLastPick(context context.Context, msg UndoLastPickMessage) Result {
+func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleUpdateDraftProfile(context context.Context, msg UpdateDraftProfileMessage) Result {
+func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDraftProfileMessage) Result {
 	return Result{}
 }
 
-func (d *DraftActor) handleTransferDraftOwnership(context context.Context, msg TransferDraftOwnershipMessage) Result {
+func (d *DraftActor) handleTransferDraftOwnership(ctx context.Context, msg TransferDraftOwnershipMessage) Result {
 	return Result{}
 }
 
@@ -306,6 +306,6 @@ func (d *DraftActor) GetDraftState() (model.DraftModel) {
 	return d.draftState
 }
 
-func (d *DraftActor) PostMessage(context context.Context, message Message) error {
+func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 	return nil
 }

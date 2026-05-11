@@ -123,7 +123,7 @@ func (d *DraftInvite) String() string {
 		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
-func GetDraftsByName(context context.Context, database *sql.DB, searchString string) *[]DraftModel {
+func GetDraftsByName(ctx context.Context, database *sql.DB, searchString string) *[]DraftModel {
 	query := `SELECT
         Drafts.Id,
         DisplayName
@@ -131,24 +131,24 @@ func GetDraftsByName(context context.Context, database *sql.DB, searchString str
     Where DisplayName LIKE CONCAT('%', Cast($1 As varchar), '%');`
 	assert := assert.CreateAssertWithContext("Get Drafts For User")
 	assert.AddContext("Search", searchString)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		err := stmt.Close()
 		if err != nil {
-			log.Warn(context, "GetDraftsByName: Failed to close statement", "Error", err)
+			log.Warn(ctx, "GetDraftsByName: Failed to close statement", "Error", err)
 		}
 	}()
-	rows, err := stmt.Query(searchString)
+	rows, err := stmt.QueryContext(ctx, searchString)
 
 	if err != nil {
-		log.Error(context, "Failed to get drafts by name", "Search string", searchString, "Error", err)
+		log.Error(ctx, "Failed to get drafts by name", "Search string", searchString, "Error", err)
 		return nil
 	}
 	defer func() {
 		err := rows.Close()
 		if err != nil {
-			log.Warn(context, "GetDraftsByName: Failed to close rows", "Error", err)
+			log.Warn(ctx, "GetDraftsByName: Failed to close rows", "Error", err)
 		}
 	}()
 	var drafts []DraftModel
@@ -158,7 +158,7 @@ func GetDraftsByName(context context.Context, database *sql.DB, searchString str
 		err = rows.Scan(&draftId, &displayName)
 
 		if err != nil {
-			log.Error(context, "Failed to get drafts by name", "Search string", searchString, "Error", err)
+			log.Error(ctx, "Failed to get drafts by name", "Search string", searchString, "Error", err)
 			return nil
 		}
 
@@ -173,7 +173,7 @@ func GetDraftsByName(context context.Context, database *sql.DB, searchString str
 	return &drafts
 }
 
-func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error) {
+func GetDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error) {
 	query := `SELECT DISTINCT
         Drafts.Id,
         displayName,
@@ -192,24 +192,24 @@ func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.U
 		Or currUser.IsAdmin = true
     Order By Drafts.Id Asc;`
 
-	stmt, err := database.Prepare(query)
+	stmt, err := database.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		err := stmt.Close()
 		if err != nil {
-			log.Warn(context, "GetDraftsForUser: Failed to close statement", "Error", err)
+			log.Warn(ctx, "GetDraftsForUser: Failed to close statement", "Error", err)
 		}
 	}()
-	rows, err := stmt.Query(FILLING, userUuid)
+	rows, err := stmt.QueryContext(ctx, FILLING, userUuid)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		err := rows.Close()
 		if err != nil {
-			log.Warn(context, "GetDraftsForUser: Failed to close rows", "Error", err)
+			log.Warn(ctx, "GetDraftsForUser: Failed to close rows", "Error", err)
 		}
 	}()
 	var drafts []DraftModel
@@ -245,11 +245,11 @@ func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.U
                     ORDER BY MAX(PLAYERORDER);`
 
 	assert := assert.CreateAssertWithContext("GetDraftsForUser")
-	playerStmt, err := database.Prepare(playerQuery)
-	assert.NoError(context, err, "Failed to prepare player statement")
+	playerStmt, err := database.PrepareContext(ctx, playerQuery)
+	assert.NoError(ctx, err, "Failed to prepare player statement")
 	defer func() {
 		if err := playerStmt.Close(); err != nil {
-			log.Warn(context, "GetDraftsForUser: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftsForUser: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -277,13 +277,13 @@ func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.U
 
 		pick := Pick{}
 		if status == PICKING {
-			pick, err = GetCurrentPick(context, database, draftId)
+			pick, err = GetCurrentPick(ctx, database, draftId)
 			if err != nil {
 				return []DraftModel{}, err
 			}
 
 			if pick.Id != 0 {
-				user, err := GetDraftPlayerUser(context, database, pick.Player)
+				user, err := GetDraftPlayerUser(ctx, database, pick.Player)
 				if err != nil {
 					return []DraftModel{}, err
 				}
@@ -295,7 +295,7 @@ func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.U
 			}
 		}
 
-		playerRows, err := playerStmt.Query(draftId)
+		playerRows, err := playerStmt.QueryContext(ctx, draftId)
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +328,7 @@ func GetDraftsForUser(context context.Context, database *sql.DB, userUuid uuid.U
 	return drafts, nil
 }
 
-func CreateDraft(context context.Context, database *sql.DB, draft *DraftModel) (int, error) {
+func CreateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
 	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
         EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
@@ -339,57 +339,57 @@ func CreateDraft(context context.Context, database *sql.DB, draft *DraftModel) (
 	assert.AddContext("End Time", draft.EndTime)
 	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare query")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "CreateDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
 	var draftId int
-	err = stmt.QueryRow(draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
 	if err != nil {
 		return -1, err
 	}
 	playerQuery := `INSERT INTO DraftPlayers (draftId, useruuid) Values ($1, $2);`
-	stmt, err = database.Prepare(playerQuery)
+	stmt, err = database.PrepareContext(ctx, playerQuery)
 	if err != nil {
 		return -1, err
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "CreateDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "CreateDraft: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(draftId, draft.Owner.UserUuid)
+	_, err = stmt.ExecContext(ctx, draftId, draft.Owner.UserUuid)
 	if err != nil {
 		return -1, err
 	}
 	return draftId, nil
 }
 
-func UpdateDraftStatus(context context.Context, database *sql.DB, draftId int, status DraftState) error {
+func UpdateDraftStatus(ctx context.Context, database *sql.DB, draftId int, status DraftState) error {
 	assert := assert.CreateAssertWithContext("Update Draft Status")
 	query := `Update Drafts Set Status = $1 Where Id = $2;`
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "UpdateDraftStatus: Failed to close statement", "error", err)
+			log.Warn(ctx, "UpdateDraftStatus: Failed to close statement", "error", err)
 		}
 	}()
 
-	_, err = stmt.Exec(status, draftId)
+	_, err = stmt.ExecContext(ctx, status, draftId)
 	if err != nil {
-		log.Error(context, "Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
+		log.Error(ctx, "Failed to update draft status", "Draft Id", draftId, "Status", status, "Error", err)
 		return err
 	}
 	return nil
 }
 
-func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftModel, error) {
-	log.Info(context, "model.GetDraft: starting", "Draft Id", draftId)
+func GetDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
+	log.Info(ctx, "model.GetDraft: starting", "Draft Id", draftId)
 	query := `Select
         DisplayName,
         COALESCE(Description, '') As Description,
@@ -404,19 +404,19 @@ func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftMode
 	assert := assert.CreateAssertWithContext("Get Draft")
 	assert.AddContext("Draft Id", draftId)
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare draft statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare draft statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraft: Failed to close statement", "error", err)
 		}
 	}()
-	log.Info(context, "model.GetDraft: executing query", "Draft Id", draftId)
+	log.Info(ctx, "model.GetDraft: executing query", "Draft Id", draftId)
 	draftModel := DraftModel{
 		Id: draftId,
 	}
 	var ownerId uuid.UUID
-	err = stmt.QueryRow(draftId).Scan(
+	err = stmt.QueryRowContext(ctx, draftId).Scan(
 		&draftModel.DisplayName,
 		&draftModel.Description,
 		&draftModel.Status,
@@ -426,9 +426,9 @@ func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftMode
 		&ownerId,
 		&draftModel.DiscordWebhook,
 	)
-	log.Info(context, "model.GetDraft: query completed", "Draft Id", draftId, "Error", err)
+	log.Info(ctx, "model.GetDraft: query completed", "Draft Id", draftId, "Error", err)
 	if err != nil {
-		log.Warn(context, "Failed to load draft", "Draft Id", draftId, "Error", err)
+		log.Warn(ctx, "Failed to load draft", "Draft Id", draftId, "Error", err)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
 
@@ -462,28 +462,28 @@ func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftMode
                     GROUP BY UserUuid, USERNAME
                     ORDER BY PLAYERORDER;`
 
-	playerStmt, err := database.Prepare(playerQuery)
-	assert.NoError(context, err, "Failed to prepare player statement")
+	playerStmt, err := database.PrepareContext(ctx, playerQuery)
+	assert.NoError(ctx, err, "Failed to prepare player statement")
 	defer func() {
 		if err := playerStmt.Close(); err != nil {
-			log.Warn(context, "GetDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraft: Failed to close statement", "error", err)
 		}
 	}()
-	playerRows, err := playerStmt.Query(draftId)
+	playerRows, err := playerStmt.QueryContext(ctx, draftId)
 	if err != nil {
-		log.Warn(context, "Failed to load players for draft", "Draft Id", draftId)
+		log.Warn(ctx, "Failed to load players for draft", "Draft Id", draftId)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
 	defer func() {
 		if err := playerRows.Close(); err != nil {
-			log.Warn(context, "GetDraft: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetDraft: Failed to close rows", "error", err)
 		}
 	}()
 
-	log.Info(context, "Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
+	log.Info(ctx, "Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
 	if draftModel.Status == PICKING {
-		log.Info(context, "Getting the current pick for the draft")
-		currPick, err := GetCurrentPick(context, database, draftId)
+		log.Info(ctx, "Getting the current pick for the draft")
+		currPick, err := GetCurrentPick(ctx, database, draftId)
 		if err != nil {
 			return DraftModel{}, err
 		}
@@ -528,7 +528,7 @@ func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftMode
 		}
 
 		//Get picks for the player
-		picks := GetDraftPlayerPicks(context, database, draftPlayer.Id)
+		picks := GetDraftPlayerPicks(ctx, database, draftPlayer.Id)
 		draftPlayer.Picks = picks
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
@@ -537,7 +537,7 @@ func GetDraft(context context.Context, database *sql.DB, draftId int) (DraftMode
 	return draftModel, nil
 }
 
-func GetDraftPlayerPicks(context context.Context, database *sql.DB, draftPlayerId int) []Pick {
+func GetDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId int) []Pick {
 	query := `SELECT
                 Picks.id,
                 Picks.player,
@@ -551,19 +551,19 @@ func GetDraftPlayerPicks(context context.Context, database *sql.DB, draftPlayerI
 
 	assert := assert.CreateAssertWithContext("Get Picks")
 	assert.AddContext("Draft Player Id", draftPlayerId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftPlayerPicks: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftPlayerPicks: Failed to close statement", "error", err)
 		}
 	}()
 
-	rows, err := stmt.Query(draftPlayerId)
-	assert.NoError(context, err, "Failed to query for picks")
+	rows, err := stmt.QueryContext(ctx, draftPlayerId)
+	assert.NoError(ctx, err, "Failed to query for picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetDraftPlayerPicks: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetDraftPlayerPicks: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -573,7 +573,7 @@ func GetDraftPlayerPicks(context context.Context, database *sql.DB, draftPlayerI
 		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime, &pick.Skipped)
 
 		if err != nil {
-			log.Warn(context, "Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
+			log.Warn(ctx, "Failed to get draft player picks", "Draft Player", draftPlayerId, "Error", err)
 			return nil
 		}
 
@@ -583,8 +583,8 @@ func GetDraftPlayerPicks(context context.Context, database *sql.DB, draftPlayerI
 	return picks
 }
 
-func UpdateDraft(context context.Context, database *sql.DB, draft *DraftModel) error {
-	log.Info(context, "model.UpdateDraft: starting", "Draft Id", draft.Id)
+func UpdateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
+	log.Info(ctx, "model.UpdateDraft: starting", "Draft Id", draft.Id)
 	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
@@ -592,33 +592,33 @@ func UpdateDraft(context context.Context, database *sql.DB, draft *DraftModel) e
 	assert.AddContext("Start Time", draft.StartTime)
 	assert.AddContext("End Time", draft.EndTime)
 	assert.AddContext("Description", draft.Description)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "UpdateDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "UpdateDraft: Failed to close statement", "error", err)
 		}
 	}()
-	log.Info(context, "model.UpdateDraft: executing query", "Draft Id", draft.Id)
-	_, err = stmt.Exec(draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.DiscordWebhook, draft.Id)
-	log.Info(context, "model.UpdateDraft: query completed", "Draft Id", draft.Id, "Error", err)
+	log.Info(ctx, "model.UpdateDraft: executing query", "Draft Id", draft.Id)
+	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.DiscordWebhook, draft.Id)
+	log.Info(ctx, "model.UpdateDraft: query completed", "Draft Id", draft.Id, "Error", err)
 	return err
 }
 
-func InvitePlayer(context context.Context, database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
+func InvitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
 	assert := assert.CreateAssertWithContext("Invite Player")
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
     sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statment")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statment")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "InvitePlayer: Failed to close statement", "error", err)
+			log.Warn(ctx, "InvitePlayer: Failed to close statement", "error", err)
 		}
 	}()
 
 	var inviteId int
-	err = stmt.QueryRow(draft, invitingUserUuid, invitedUserUuid, time.Now(), false).Scan(&inviteId)
+	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now(), false).Scan(&inviteId)
 	if err != nil {
 		return -1, err
 	}
@@ -626,67 +626,67 @@ func InvitePlayer(context context.Context, database *sql.DB, draft int, inviting
 }
 
 // Returns draftId, UserUuid
-func AcceptInvite(context context.Context, database *sql.DB, inviteId int) (int, uuid.UUID) {
+func AcceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uuid.UUID) {
 	query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Invite Id", inviteId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "AcceptInvite: Failed to close statement", "error", err)
+			log.Warn(ctx, "AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(true, time.Now(), inviteId)
-	assert.NoError(context, err, "Failed to accept invite")
+	_, err = stmt.ExecContext(ctx, true, time.Now(), inviteId)
+	assert.NoError(ctx, err, "Failed to accept invite")
 
 	query = `Select DraftId, InvitedUserUuid From DraftInvites Where Id = $1;`
-	stmt, err = database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err = database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "AcceptInvite: Failed to close statement", "error", err)
+			log.Warn(ctx, "AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
 	var draftId int
 	var userUuid uuid.UUID
-	err = stmt.QueryRow(inviteId).Scan(&draftId, &userUuid)
-	assert.NoError(context, err, "Failed to insert invite player")
+	err = stmt.QueryRowContext(ctx, inviteId).Scan(&draftId, &userUuid)
+	assert.NoError(ctx, err, "Failed to insert invite player")
 
 	return draftId, userUuid
 }
 
-func AddPlayerToDraft(context context.Context, database *sql.DB, draft int, player uuid.UUID) {
+func AddPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player uuid.UUID) {
 	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Draft", draft)
 	assert.AddContext("Player", player)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "AddPlayerToDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "AddPlayerToDraft: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(draft, player)
-	assert.NoError(context, err, "Failed to accept invite")
+	_, err = stmt.ExecContext(ctx, draft, player)
+	assert.NoError(ctx, err, "Failed to accept invite")
 }
 
-func CancelOutstandingInvites(context context.Context, database *sql.DB, draftId int) error {
+func CancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int) error {
 	query := `Update DraftInvites Set Canceled = true Where DraftId = $1 and Accepted = false;`
 	assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
 	assert.AddContext("Draft Id", draftId)
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "CancelOutstandingInvites: Failed to close statement", "error", err)
+			log.Warn(ctx, "CancelOutstandingInvites: Failed to close statement", "error", err)
 		}
 	}()
 
-	_, err = stmt.Exec(draftId)
+	_, err = stmt.ExecContext(ctx, draftId)
 	if err != nil {
 		return fmt.Errorf("failed to cancel invites for draft %d: %w", draftId, err)
 	}
@@ -694,7 +694,7 @@ func CancelOutstandingInvites(context context.Context, database *sql.DB, draftId
 	return nil
 }
 
-func GetInvite(context context.Context, database *sql.DB, inviteId int) (DraftInvite, error) {
+func GetInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite, error) {
 	query := `SELECT
             di.Id,
             u.username,
@@ -705,31 +705,31 @@ func GetInvite(context context.Context, database *sql.DB, inviteId int) (DraftIn
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1;`
-	stmt, err := database.Prepare(query)
+	stmt, err := database.PrepareContext(ctx, query)
 	if err != nil {
-		log.Error(context, "GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
+		log.Error(ctx, "GetInvite: Failed to prepare statement", "error", err, "inviteId", inviteId)
 		return DraftInvite{}, err
 	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetInvite: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetInvite: Failed to close statement", "error", err)
 		}
 	}()
 	invite := DraftInvite{}
-	err = stmt.QueryRow(inviteId).Scan(
+	err = stmt.QueryRowContext(ctx, inviteId).Scan(
 		&invite.Id,
 		&invite.InvitingPlayerName,
 		&invite.InvitedUserUuid,
 		&invite.DraftName,
 		&invite.DraftId)
 	if err != nil {
-		log.Error(context, "GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
+		log.Error(ctx, "GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
 		return DraftInvite{}, err
 	}
 	return invite, nil
 }
 
-func GetInvites(context context.Context, database *sql.DB, userUuid uuid.UUID) []DraftInvite {
+func GetInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) []DraftInvite {
 	query := `SELECT
             di.Id,
             u.username,
@@ -741,22 +741,22 @@ func GetInvites(context context.Context, database *sql.DB, userUuid uuid.UUID) [
         And di.Accepted = false;`
 	assert := assert.CreateAssertWithContext("Get Invites")
 	assert.AddContext("User Uuid", userUuid)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetInvites: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetInvites: Failed to close statement", "error", err)
 		}
 	}()
-	rows, err := stmt.Query(userUuid)
+	rows, err := stmt.QueryContext(ctx, userUuid)
 
 	if err != nil {
-		log.Error(context, "Failed to get invites", "User Uuid", userUuid, "Error", err)
+		log.Error(ctx, "Failed to get invites", "User Uuid", userUuid, "Error", err)
 		return nil
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetInvites: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetInvites: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -766,7 +766,7 @@ func GetInvites(context context.Context, database *sql.DB, userUuid uuid.UUID) [
 		err = rows.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.DraftName)
 
 		if err != nil {
-			log.Warn(context, "Failed to get invite", "User Uuid", userUuid, "Error", err)
+			log.Warn(ctx, "Failed to get invite", "User Uuid", userUuid, "Error", err)
 			continue
 		}
 
@@ -775,7 +775,7 @@ func GetInvites(context context.Context, database *sql.DB, userUuid uuid.UUID) [
 	return invites
 }
 
-func GetPicks(context context.Context, database *sql.DB, draft int) ([]Pick, error) {
+func GetPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) {
 	query := `SELECT
         Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
     From Picks
@@ -785,18 +785,18 @@ func GetPicks(context context.Context, database *sql.DB, draft int) ([]Pick, err
 
 	assert := assert.CreateAssertWithContext("Get Picks")
 	assert.AddContext("Draft", draft)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetPicks: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetPicks: Failed to close statement", "error", err)
 		}
 	}()
-	rows, err := stmt.Query(draft)
-	assert.NoError(context, err, "Failed to query for picks")
+	rows, err := stmt.QueryContext(ctx, draft)
+	assert.NoError(ctx, err, "Failed to query for picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetPicks: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetPicks: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -815,22 +815,22 @@ func GetPicks(context context.Context, database *sql.DB, draft int) ([]Pick, err
 	return picks, nil
 }
 
-func GetDraftPlayerId(context context.Context, database *sql.DB, draftId int, userUuid uuid.UUID) (int, error) {
+func GetDraftPlayerId(ctx context.Context, database *sql.DB, draftId int, userUuid uuid.UUID) (int, error) {
 	query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
 
 	assert := assert.CreateAssertWithContext("Get Draft Player Id")
 	assert.AddContext("Draft Id", draftId)
 	assert.AddContext("Player Id", userUuid)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftPlayerId: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftPlayerId: Failed to close statement", "error", err)
 		}
 	}()
 
 	var draftPlayerId int
-	err = stmt.QueryRow(draftId, userUuid).Scan(&draftPlayerId)
+	err = stmt.QueryRowContext(ctx, draftId, userUuid).Scan(&draftPlayerId)
 
 	if err != nil {
 		return -1, errors.Join(fmt.Errorf("failed to get draft player for user %s in draft %d", userUuid.String(), draftId), err)
@@ -839,7 +839,7 @@ func GetDraftPlayerId(context context.Context, database *sql.DB, draftId int, us
 	return draftPlayerId, nil
 }
 
-func GetDraftPlayerUser(context context.Context, database *sql.DB, draftPlayerId int) (User, error) {
+func GetDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int) (User, error) {
 	query := `Select
         u.UserUuid,
         u.Username
@@ -849,16 +849,16 @@ func GetDraftPlayerUser(context context.Context, database *sql.DB, draftPlayerId
 
 	assert := assert.CreateAssertWithContext("Get Draft Player User")
 	assert.AddContext("Draft Player Id", draftPlayerId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare query")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftPlayerUser: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftPlayerUser: Failed to close statement", "error", err)
 		}
 	}()
 
 	var user User
-	err = stmt.QueryRow(draftPlayerId).Scan(&user.UserUuid, &user.Username)
+	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&user.UserUuid, &user.Username)
 	if err != nil {
 		return User{}, err
 	}
@@ -866,85 +866,85 @@ func GetDraftPlayerUser(context context.Context, database *sql.DB, draftPlayerId
 	return user, nil
 }
 
-func MakePickAvailable(context context.Context, database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
+func MakePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
 	query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
 
 	assert := assert.CreateAssertWithContext("Make Pick Available")
 	assert.AddContext("Draft Player Id", draftPlayerId)
 	assert.AddContext("Available Time", availableTime)
 	assert.AddContext("Expiration Time", expirationTime)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statment")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statment")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "MakePickAvailable: Failed to close statement", "error", err)
+			log.Warn(ctx, "MakePickAvailable: Failed to close statement", "error", err)
 		}
 	}()
 
 	var pickId int
-	err = stmt.QueryRow(draftPlayerId, availableTime, expirationTime).Scan(&pickId)
+	err = stmt.QueryRowContext(ctx, draftPlayerId, availableTime, expirationTime).Scan(&pickId)
 
-	assert.NoError(context, err, "Failed to make pick available")
+	assert.NoError(ctx, err, "Failed to make pick available")
 
 	return pickId
 }
 
-func MakePick(context context.Context, database *sql.DB, pick Pick) error {
+func MakePick(ctx context.Context, database *sql.DB, pick Pick) error {
 	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
 
 	assert := assert.CreateAssertWithContext("Make Pick")
 	assert.AddContext("Player", pick.Player)
 	assert.AddContext("Team", pick.Pick)
 	assert.AddContext("Pick Time", pick.PickTime)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "MakePick: Failed to close statement", "error", err)
+			log.Warn(ctx, "MakePick: Failed to close statement", "error", err)
 		}
 	}()
 	var updatedId int
-	err = stmt.QueryRow(pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
+	err = stmt.QueryRowContext(ctx, pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
 	if err != nil {
-		log.Warn(context, "Failed to make pick", "Error", err)
+		log.Warn(ctx, "Failed to make pick", "Error", err)
 		return err
 	}
-	assert.RunAssert(context, pick.Id == updatedId, "Updated id does not match or no pick was updated")
+	assert.RunAssert(ctx, pick.Id == updatedId, "Updated id does not match or no pick was updated")
 	return nil
 }
 
-func SetPlayerOrder(context context.Context, database *sql.DB, draftPlayerId int, playerOrder int) {
+func SetPlayerOrder(ctx context.Context, database *sql.DB, draftPlayerId int, playerOrder int) {
 	query := `Update DraftPlayers Set PlayerOrder = $1 Where DraftPlayers.Id = $2;`
 
 	assert := assert.CreateAssertWithContext("Set Player Order")
 	assert.AddContext("Draft Player", draftPlayerId)
 	assert.AddContext("Player Order", playerOrder)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "SetPlayerOrder: Failed to close statement", "error", err)
+			log.Warn(ctx, "SetPlayerOrder: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(playerOrder, draftPlayerId)
-	assert.NoError(context, err, "Failed to set player order")
+	_, err = stmt.ExecContext(ctx, playerOrder, draftPlayerId)
+	assert.NoError(ctx, err, "Failed to set player order")
 }
 
-func GetAllPicks(context context.Context, database *sql.DB) []string {
+func GetAllPicks(ctx context.Context, database *sql.DB) []string {
 	query := `Select Distinct pick From Picks;`
 	assert := assert.CreateAssertWithContext("Get All Picks")
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetAllPicks: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetAllPicks: Failed to close statement", "error", err)
 		}
 	}()
-	rows, err := stmt.Query()
-	assert.NoError(context, err, "Failed to query picks")
+	rows, err := stmt.QueryContext(ctx, )
+	assert.NoError(ctx, err, "Failed to query picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetAllPicks: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetAllPicks: Failed to close rows", "error", err)
 		}
 	}()
 	var picks []string
@@ -953,7 +953,7 @@ func GetAllPicks(context context.Context, database *sql.DB) []string {
 		err = rows.Scan(&pick)
 
 		if err != nil {
-			log.Error(context, "Failed to get all picks", "Error", err)
+			log.Error(ctx, "Failed to get all picks", "Error", err)
 			return nil
 		}
 
@@ -963,7 +963,7 @@ func GetAllPicks(context context.Context, database *sql.DB) []string {
 	return picks
 }
 
-func HasBeenPicked(context context.Context, database *sql.DB, draftId int, team string) bool {
+func HasBeenPicked(ctx context.Context, database *sql.DB, draftId int, team string) bool {
 	query := `SELECT
     Count(*) As num
     From Picks
@@ -973,23 +973,23 @@ func HasBeenPicked(context context.Context, database *sql.DB, draftId int, team 
 	assert := assert.CreateAssertWithContext("Has Been Picked")
 	assert.AddContext("Draft", draftId)
 	assert.AddContext("Team", team)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "HasBeenPicked: Failed to close statement", "error", err)
+			log.Warn(ctx, "HasBeenPicked: Failed to close statement", "error", err)
 		}
 	}()
 	var numPicked int
-	err = stmt.QueryRow(draftId, team).Scan(&numPicked)
-	assert.NoError(context, err, "Failed to query for picks")
+	err = stmt.QueryRowContext(ctx, draftId, team).Scan(&numPicked)
+	assert.NoError(ctx, err, "Failed to query for picks")
 	return numPicked != 0
 }
 
-func RandomizePickOrder(context context.Context, database *sql.DB, draftId int) error {
-	draftModel, err := GetDraft(context, database, draftId)
+func RandomizePickOrder(ctx context.Context, database *sql.DB, draftId int) error {
+	draftModel, err := GetDraft(ctx, database, draftId)
 	if err != nil {
-		log.Warn(context, "Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
+		log.Warn(ctx, "Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
 		return fmt.Errorf("could not load draft %d", draftId)
 	}
 	var awaitingAssignment []DraftPlayer
@@ -1007,29 +1007,29 @@ func RandomizePickOrder(context context.Context, database *sql.DB, draftId int) 
 	}
 
 	query := `Update DraftPlayers Set PlayerOrder = $1 Where Id = $2`
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "RandomizePickOrder: Failed to close statement", "error", err)
+			log.Warn(ctx, "RandomizePickOrder: Failed to close statement", "error", err)
 		}
 	}()
 
 	for i, player := range awaitingAssignment {
-		draftPlayerId, err := GetDraftPlayerId(context, database, draftId, player.User.UserUuid)
+		draftPlayerId, err := GetDraftPlayerId(ctx, database, draftId, player.User.UserUuid)
 		if err != nil {
 			return fmt.Errorf("could not get draftplayer for user %s in draft %d", player.User.UserUuid.String(), draftId)
 		}
-		_, err = stmt.Exec(i, draftPlayerId)
+		_, err = stmt.ExecContext(ctx, i, draftPlayerId)
 		if err != nil {
-			log.Warn(context, "Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
+			log.Warn(ctx, "Failed to write pick order", "Draft Id", draftId, "Player", player.User.UserUuid, "Order", i, "Error", err)
 		}
 	}
 
 	return nil
 }
 
-func GetAvailablePickId(context context.Context, database *sql.DB, draftId int) Pick {
+func GetAvailablePickId(ctx context.Context, database *sql.DB, draftId int) Pick {
 	query := `SELECT
         p.Id,
         p.Player
@@ -1044,34 +1044,34 @@ func GetAvailablePickId(context context.Context, database *sql.DB, draftId int) 
 
 	assert := assert.CreateAssertWithContext("Get Available Picks Id")
 	assert.AddContext("Draft Id", draftId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare query")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetAvailablePickId: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetAvailablePickId: Failed to close statement", "error", err)
 		}
 	}()
 
 	var pick Pick
-	err = stmt.QueryRow(draftId).Scan(&pick.Id, &pick.Player)
-	assert.NoError(context, err, "Failed to get pick id")
+	err = stmt.QueryRowContext(ctx, draftId).Scan(&pick.Id, &pick.Player)
+	assert.NoError(ctx, err, "Failed to get pick id")
 
 	return pick
 }
 
-func NextPick(context context.Context, database *sql.DB, draftId int) DraftPlayer {
+func NextPick(ctx context.Context, database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
 	assert := assert.CreateAssertWithContext("Next Pick")
-	picks, err := GetPicks(context, database, draftId)
+	picks, err := GetPicks(ctx, database, draftId)
 
 	if err != nil {
-		log.Warn(context, "Failed to get picks", "Draft Id", draftId, "Error", err)
+		log.Warn(ctx, "Failed to get picks", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
 	}
 
-	draft, err := GetDraft(context, database, draftId)
+	draft, err := GetDraft(ctx, database, draftId)
 	if err != nil {
-		log.Warn(context, "Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
+		log.Warn(ctx, "Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
 	}
 	var nextPlayer DraftPlayer
@@ -1079,7 +1079,7 @@ func NextPick(context context.Context, database *sql.DB, draftId int) DraftPlaye
 	//I dont think we need to account for the case where there are only two players
 	if len(picks) < 2 {
 		for _, player := range draft.Players {
-			assert.RunAssert(context, player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+			assert.RunAssert(ctx, player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
 			if int(player.PlayerOrder.Int16) == len(picks) {
 				nextPlayer = player
 			}
@@ -1088,9 +1088,9 @@ func NextPick(context context.Context, database *sql.DB, draftId int) DraftPlaye
 		//We can then figure out what direction
 		//we are going and if we hit the
 		//end then we decide what the next pick is
-		lastPlayer := GetDraftPlayerFromDraft(context, draft, picks[len(picks)-1].Player)
-		secondLastPick := GetDraftPlayerFromDraft(context, draft, picks[len(picks)-2].Player)
-		assert.RunAssert(context, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
+		lastPlayer := GetDraftPlayerFromDraft(ctx, draft, picks[len(picks)-1].Player)
+		secondLastPick := GetDraftPlayerFromDraft(ctx, draft, picks[len(picks)-2].Player)
+		assert.RunAssert(ctx, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
 		direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
 		if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
 			if int(lastPlayer.PlayerOrder.Int16) == len(draft.Players)-1 {
@@ -1108,7 +1108,7 @@ func NextPick(context context.Context, database *sql.DB, draftId int) DraftPlaye
 		assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
 		assert.AddContext("Direction", direction)
 		//We know draft.players is order by player order
-		assert.RunAssert(context, int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16+direction && lastPlayer.PlayerOrder.Int16+direction >= 0, "Next pick is out of bounds")
+		assert.RunAssert(ctx, int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16+direction && lastPlayer.PlayerOrder.Int16+direction >= 0, "Next pick is out of bounds")
 		nextPlayer = draft.Players[lastPlayer.PlayerOrder.Int16+direction]
 	}
 
@@ -1116,7 +1116,7 @@ func NextPick(context context.Context, database *sql.DB, draftId int) DraftPlaye
 	return nextPlayer
 }
 
-func GetNumPlayersInInvitedDraft(context context.Context, database *sql.DB, inviteId int) int {
+func GetNumPlayersInInvitedDraft(ctx context.Context, database *sql.DB, inviteId int) int {
 	query := `Select
                 Count(*)
             From DraftInvites ci
@@ -1125,20 +1125,20 @@ func GetNumPlayersInInvitedDraft(context context.Context, database *sql.DB, invi
             Where ci.Id = $1;`
 	assert := assert.CreateAssertWithContext("Get Num Players In Invited Draft")
 	assert.AddContext("InviteId", inviteId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetNumPlayersInInvitedDraft: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetNumPlayersInInvitedDraft: Failed to close statement", "error", err)
 		}
 	}()
 	var numPlayers int
-	err = stmt.QueryRow(inviteId).Scan(&numPlayers)
-	assert.NoError(context, err, "Failed to query for num players")
+	err = stmt.QueryRowContext(ctx, inviteId).Scan(&numPlayers)
+	assert.NoError(ctx, err, "Failed to query for num players")
 	return numPlayers
 }
 
-func GetDraftPlayerFromDraft(context context.Context, draft DraftModel, draftPlayerId int) DraftPlayer {
+func GetDraftPlayerFromDraft(ctx context.Context, draft DraftModel, draftPlayerId int) DraftPlayer {
 	for _, p := range draft.Players {
 		if p.Id == draftPlayerId {
 			return p
@@ -1147,7 +1147,7 @@ func GetDraftPlayerFromDraft(context context.Context, draft DraftModel, draftPla
 	return DraftPlayer{}
 }
 
-func ShouldSkipPick(context context.Context, database *sql.DB, draftPlayer int) bool {
+func ShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) bool {
 	assert := assert.CreateAssertWithContext("Should Skip Pick")
 	assert.AddContext("Draft Player", draftPlayer)
 
@@ -1156,43 +1156,43 @@ func ShouldSkipPick(context context.Context, database *sql.DB, draftPlayer int) 
     From DraftPlayers dp
     Where dp.Id = $1;`
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "ShouldSkipPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "ShouldSkipPick: Failed to close statement", "error", err)
 		}
 	}()
 	var shouldSkip bool
-	err = stmt.QueryRow(draftPlayer).Scan(&shouldSkip)
+	err = stmt.QueryRowContext(ctx, draftPlayer).Scan(&shouldSkip)
 
 	if err != nil {
-		log.Warn(context, "Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
+		log.Warn(ctx, "Failed to query if player should be skipped", "Player", draftPlayer, "Error", err)
 		return false
 	}
 
 	return shouldSkip
 }
 
-func MarkShouldSkipPick(context context.Context, database *sql.DB, draftPlayer int, shouldSkip bool) error {
+func MarkShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int, shouldSkip bool) error {
 	assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
 	assert.AddContext("Draft Player", draftPlayer)
 
 	query := `Update DraftPlayers Set skipPicks = $2 Where Id = $1;`
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to preparte statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to preparte statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "MarkShouldSkipPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "MarkShouldSkipPick: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(draftPlayer, shouldSkip)
+	_, err = stmt.ExecContext(ctx, draftPlayer, shouldSkip)
 
 	return err
 }
 
-func GetCurrentPick(context context.Context, database *sql.DB, draftId int) (Pick, error) {
+func GetCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, error) {
 	query := `Select
                 p.Id,
                 p.Player,
@@ -1212,15 +1212,15 @@ func GetCurrentPick(context context.Context, database *sql.DB, draftId int) (Pic
 
 	assert := assert.CreateAssertWithContext("Get Current Pick")
 	assert.AddContext("Draft Id", draftId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetCurrentPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetCurrentPick: Failed to close statement", "error", err)
 		}
 	}()
 	var pick Pick
-	err = stmt.QueryRow(draftId).Scan(
+	err = stmt.QueryRowContext(ctx, draftId).Scan(
 		&pick.Id,
 		&pick.Player,
 		&pick.Pick,
@@ -1231,47 +1231,47 @@ func GetCurrentPick(context context.Context, database *sql.DB, draftId int) (Pic
 	)
 
 	if err != nil {
-		log.Warn(context, "No current pick found", "Draft Id", draftId, "Error", err.Error())
+		log.Warn(ctx, "No current pick found", "Draft Id", draftId, "Error", err.Error())
 		return Pick{}, err
 	}
 
 	return pick, nil
 }
 
-func SkipPick(context context.Context, database *sql.DB, pickId int) {
+func SkipPick(ctx context.Context, database *sql.DB, pickId int) {
 	query := `Update Picks Set Skipped = true Where Id = $1`
 
 	assert := assert.CreateAssertWithContext("Skip Pick")
 	assert.AddContext("Pick Id", pickId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "SkipPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "SkipPick: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(pickId)
-	assert.NoError(context, err, "Failed to skip pick")
+	_, err = stmt.ExecContext(ctx, pickId)
+	assert.NoError(ctx, err, "Failed to skip pick")
 }
 
-func UpdatePickExpirationTime(context context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
+func UpdatePickExpirationTime(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set ExpirationTime = $1 Where Id = $2;`
 
 	assert := assert.CreateAssertWithContext("Update Pick Expiration Time")
 	assert.AddContext("Pick Id", pickId)
 	assert.AddContext("Expiration Time", expirationTime)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "UpdatePickExpirationTime: Failed to close statement", "error", err)
+			log.Warn(ctx, "UpdatePickExpirationTime: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(expirationTime, pickId)
+	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
 	return err
 }
 
-func GetPreviousPick(context context.Context, database *sql.DB, draftId int, currentPickId int) (Pick, error) {
+func GetPreviousPick(ctx context.Context, database *sql.DB, draftId int, currentPickId int) (Pick, error) {
 	query := `Select
                 p.Id,
                 p.Player,
@@ -1289,15 +1289,15 @@ func GetPreviousPick(context context.Context, database *sql.DB, draftId int, cur
 	assert := assert.CreateAssertWithContext("Get Previous Pick")
 	assert.AddContext("Draft Id", draftId)
 	assert.AddContext("Current Pick Id", currentPickId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetPreviousPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetPreviousPick: Failed to close statement", "error", err)
 		}
 	}()
 	var pick Pick
-	err = stmt.QueryRow(draftId, currentPickId).Scan(
+	err = stmt.QueryRowContext(ctx, draftId, currentPickId).Scan(
 		&pick.Id,
 		&pick.Player,
 		&pick.Pick,
@@ -1314,40 +1314,40 @@ func GetPreviousPick(context context.Context, database *sql.DB, draftId int, cur
 	return pick, nil
 }
 
-func DeletePick(context context.Context, database *sql.DB, pickId int) error {
+func DeletePick(ctx context.Context, database *sql.DB, pickId int) error {
 	query := `Delete From Picks Where Id = $1`
 
 	assert := assert.CreateAssertWithContext("Delete Pick")
 	assert.AddContext("Pick Id", pickId)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "DeletePick: Failed to close statement", "error", err)
+			log.Warn(ctx, "DeletePick: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(pickId)
+	_, err = stmt.ExecContext(ctx, pickId)
 	return err
 }
 
-func ResetPick(context context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
+func ResetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set Pick = Null, PickTime = Null, Skipped = false, ExpirationTime = $1 Where Id = $2`
 
 	assert := assert.CreateAssertWithContext("Reset Pick")
 	assert.AddContext("Pick Id", pickId)
 	assert.AddContext("Expiration Time", expirationTime)
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "ResetPick: Failed to close statement", "error", err)
+			log.Warn(ctx, "ResetPick: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.Exec(expirationTime, pickId)
+	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
 	return err
 }
 
-func GetDraftsInStatus(context context.Context, database *sql.DB, status DraftState) []int {
+func GetDraftsInStatus(ctx context.Context, database *sql.DB, status DraftState) []int {
 	assert := assert.CreateAssertWithContext("Get Drafts In Status")
 	assert.AddContext("Status", status)
 
@@ -1356,19 +1356,19 @@ func GetDraftsInStatus(context context.Context, database *sql.DB, status DraftSt
     From Drafts
     Where Status = $1;`
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare query")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftsInStatus: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftsInStatus: Failed to close statement", "error", err)
 		}
 	}()
 
-	rows, err := stmt.Query(status)
-	assert.NoError(context, err, "Failed to Query Drafts")
+	rows, err := stmt.QueryContext(ctx, status)
+	assert.NoError(ctx, err, "Failed to Query Drafts")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetDraftsInStatus: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetDraftsInStatus: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -1378,7 +1378,7 @@ func GetDraftsInStatus(context context.Context, database *sql.DB, status DraftSt
 		err = rows.Scan(&draftId)
 
 		if err != nil {
-			log.Warn(context, "Failed to load drafts in status", "Status", status, "Error", err)
+			log.Warn(ctx, "Failed to load drafts in status", "Status", status, "Error", err)
 			return nil
 		}
 
@@ -1388,10 +1388,10 @@ func GetDraftsInStatus(context context.Context, database *sql.DB, status DraftSt
 	return drafts
 }
 
-func GetDraftScore(context context.Context, database *sql.DB, draftId int) []DraftPlayer {
+func GetDraftScore(ctx context.Context, database *sql.DB, draftId int) []DraftPlayer {
 	assert := assert.CreateAssertWithContext("Get Draft Score")
 	assert.AddContext("Draft Id", draftId)
-	assert.RunAssert(context, draftId != 0, "Draft Id Should Not Be 0")
+	assert.RunAssert(ctx, draftId != 0, "Draft Id Should Not Be 0")
 
 	query := `Select
         dp.Id,
@@ -1403,19 +1403,19 @@ func GetDraftScore(context context.Context, database *sql.DB, draftId int) []Dra
     Where dp.DraftId = $1
 	and p.Pick Is Not Null;`
 
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare query")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftScore: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftScore: Failed to close statement", "error", err)
 		}
 	}()
 
-	rows, err := stmt.Query(draftId)
-	assert.NoError(context, err, "Failed to get picks for draft")
+	rows, err := stmt.QueryContext(ctx, draftId)
+	assert.NoError(ctx, err, "Failed to get picks for draft")
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetDraftScore: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetDraftScore: Failed to close rows", "error", err)
 		}
 	}()
 
@@ -1428,7 +1428,7 @@ func GetDraftScore(context context.Context, database *sql.DB, draftId int) []Dra
 		err = rows.Scan(&playerId, &username, &pick)
 
 		if err != nil {
-			log.Warn(context, "Failed to get draft scores", "Draft Id", draftId, "Error", err)
+			log.Warn(ctx, "Failed to get draft scores", "Draft Id", draftId, "Error", err)
 			return nil
 		}
 
@@ -1447,7 +1447,7 @@ func GetDraftScore(context context.Context, database *sql.DB, draftId int) []Dra
 		}
 
 		for _, pick := range playerPicks {
-			score := GetScore(context, database, pick)
+			score := GetScore(ctx, database, pick)
 			draftPlayer.Score += score["Total Score"]
 
 			team := Pick{
@@ -1465,7 +1465,7 @@ func GetDraftScore(context context.Context, database *sql.DB, draftId int) []Dra
 	return playerScores
 }
 
-func GetDraftsToStart(context context.Context, database *sql.DB, cutoffDate time.Time) ([]int, error) {
+func GetDraftsToStart(ctx context.Context, database *sql.DB, cutoffDate time.Time) ([]int, error) {
 	assert := assert.CreateAssertWithContext("Get Drafts To Start")
 	assert.AddContext("Cutoff Date", cutoffDate)
 
@@ -1476,21 +1476,21 @@ func GetDraftsToStart(context context.Context, database *sql.DB, cutoffDate time
     Where d.StartTime < $1
     And d.Status = $2
     `
-	stmt, err := database.Prepare(query)
-	assert.NoError(context, err, "Failed to prepare statement")
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(context, "GetDraftsToStart: Failed to close statement", "error", err)
+			log.Warn(ctx, "GetDraftsToStart: Failed to close statement", "error", err)
 		}
 	}()
-	rows, err := stmt.Query(cutoffDate, WAITING_TO_START)
+	rows, err := stmt.QueryContext(ctx, cutoffDate, WAITING_TO_START)
 
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			log.Warn(context, "GetDraftsToStart: Failed to close rows", "error", err)
+			log.Warn(ctx, "GetDraftsToStart: Failed to close rows", "error", err)
 		}
 	}()
 

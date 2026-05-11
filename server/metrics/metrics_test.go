@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -11,8 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -35,12 +37,12 @@ func getDB(t *testing.T) *sql.DB {
 	}
 
 	connStr := "postgresql://" + dbUsername + ":" + dbPassword + "@" + dbIp + "/" + dbName + "?sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		t.Skipf("Skipping test: failed to open database connection %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(context.Background()); err != nil {
 		t.Skipf("Skipping test: failed to ping database %v", err)
 	}
 
@@ -54,7 +56,7 @@ func TestDBStatsCollector(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
 
-	_, err := db.Exec("SELECT 1")
+	_, err := db.ExecContext(context.Background(), "SELECT 1")
 	assert.NoError(t, err)
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
@@ -82,7 +84,7 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
 
 	for i := 0; i < 3; i++ {
-		_, err := db.Exec("SELECT 1")
+		_, err := db.ExecContext(context.Background(), "SELECT 1")
 		assert.NoError(t, err)
 	}
 
@@ -96,6 +98,30 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 
 	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
 		"DB connection metrics should be trackable")
+}
+
+func TestOTelDBStatsMetrics(t *testing.T) {
+	db := getDB(t)
+	defer db.Close()
+
+	reg, err := otelsql.RegisterDBStatsMetrics(db)
+	assert.NoError(t, err)
+	defer func() {
+		assert.NoError(t, reg.Unregister())
+	}()
+
+	// Trigger some DB activity so stats are non-trivial
+	_, err = db.ExecContext(context.Background(), "SELECT 1")
+	assert.NoError(t, err)
+
+	t.Log("OTel DB stats metrics registered successfully")
+}
+
+func TestShutdownMetricsIdempotent(t *testing.T) {
+	// Should not panic even when called before InitMetrics
+	assert.NotPanics(t, func() {
+		ShutdownMetrics()
+	}, "ShutdownMetrics should be idempotent and not panic when called before InitMetrics")
 }
 
 func TestRecordUserActivity(t *testing.T) {

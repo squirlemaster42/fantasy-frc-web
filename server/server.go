@@ -26,7 +26,9 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
 
-	metrics.InitMetrics(h.Database)
+	if err := metrics.InitMetrics(h.Database); err != nil {
+		log.Warn(context.Background(), "Failed to initialize metrics", "error", err)
+	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
