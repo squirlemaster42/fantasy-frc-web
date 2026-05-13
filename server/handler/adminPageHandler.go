@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"server/assert"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -320,24 +320,17 @@ var commands = map[string]Command{
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to render admin console")
-	assert := assert.CreateAssertWithContext("Handle Admin Console Get")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
-	adminConsoleIndex := admin.AdminConsoleIndex(username)
+	adminConsoleIndex := admin.AdminConsoleIndex(username, h.csrfToken(c))
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
 	return Render(c, adminConsole)
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Run Admin Console Command")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	commandString := c.FormValue("command")
@@ -356,8 +349,6 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 		return Render(c, response)
 	}
 	result := command.ProcessCommand(c.Request().Context(), h.Database, h.DraftManager, args)
-
-	assert.AddContext("Command", commandString)
 
 	response := admin.RenderCommand(username, commandString, result)
 	return Render(c, response)

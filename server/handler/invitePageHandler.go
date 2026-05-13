@@ -5,9 +5,9 @@ import (
 	"errors"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"server/assert"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
@@ -18,17 +18,13 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
 }
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
-	assert := assert.CreateAssertWithContext("Render Invite Table")
-
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	invites := model.GetInvites(c.Request().Context(), h.Database, userUuid)
 
-	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
+	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
+	var err error
 	if includeWrapper {
 		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
 		err = Render(c, inviteView)
@@ -40,19 +36,15 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 }
 
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Accept Invite")
-
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	inviteIdStr := c.FormValue("inviteId")
 	log.Info(c.Request().Context(), "Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
 	inviteId, err := strconv.Atoi(inviteIdStr)
-	// TODO we should not crash here
-	assert.RunAssert(c.Request().Context(), inviteId != 0, "Invite Id Should Never Be 0")
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse invite id")
+	if err != nil || inviteId == 0 {
+		log.Warn(c.Request().Context(), "Failed to parse invite id", "Invite Id", inviteIdStr, "Error", err)
+		return renderInviteTable(h, c, true, "Invalid invite ID.", false)
+	}
+
 	invite, err := model.GetInvite(c.Request().Context(), h.Database, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

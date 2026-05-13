@@ -1,9 +1,10 @@
 package userprofile
 
+import "fmt"
 import "server/view"
 import "server/view/partials"
 
-templ UserProfileIndex(username string, discordId string, errorMessage string, successMessage string) {
+templ UserProfileIndex(username string, discordId string, errorMessage string, successMessage string, csrfToken string, minPasswordLength int) {
     <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
         <div class="max-w-md w-full" id="profile-box">
             <!-- Profile Card -->
@@ -39,6 +40,8 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
                         method="post"
                         class="space-y-6"
                     >
+                        @partials.CSRFInput(csrfToken)
+
                         <!-- Username Field (Read-only) -->
                         <div>
                             <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -108,7 +111,7 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
                                     type="password"
                                     name="newPassword"
                                     placeholder="Enter new password"
-                                    minlength="6"
+                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
@@ -127,7 +130,7 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
                                     type="password"
                                     name="confirmNewPassword"
                                     placeholder="Confirm new password"
-                                    minlength="6"
+                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">

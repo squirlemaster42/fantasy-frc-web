@@ -1,23 +1,19 @@
 package handler
 
 import (
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/view/team"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleTeamScore(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Team Score")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
-	teamIndex := team.TeamScoreIndex()
+	teamIndex := team.TeamScoreIndex(h.csrfToken(c))
 	team := team.TeamPick(" | Team Score", true, username, teamIndex)
 	return Render(c, team)
 }

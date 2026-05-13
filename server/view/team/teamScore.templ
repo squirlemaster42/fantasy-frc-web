@@ -3,8 +3,9 @@ package team
 import "server/view"
 import "fmt"
 import "server/model"
+import "server/view/partials"
 
-templ TeamScoreIndex() {
+templ TeamScoreIndex(csrfToken string) {
     <div class="bg-slate-900 p-6 flex flex-col h-full">
         <div class="w-full max-w-[1400px] mx-auto flex-1 flex flex-col min-h-0">
             <!-- Header Section -->
@@ -31,6 +32,7 @@ templ TeamScoreIndex() {
                             method="post"
                             class="space-y-3"
                         >
+                            @partials.CSRFInput(csrfToken)
                             <div>
                                 <label class="block text-base font-medium text-slate-300 mb-2">Team Number</label>
                                 <div class="relative">

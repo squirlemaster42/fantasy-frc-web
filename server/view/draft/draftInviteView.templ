@@ -5,7 +5,7 @@ import "server/model"
 import "server/view/partials"
 import "fmt"
 
-templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
+templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string, csrfToken string) {
     if hasError {
         @partials.AlertBanner(errorMessage, "error")
     }
@@ -50,6 +50,7 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
                                     "",
                                     "inviteId",
                                     fmt.Sprintf("%d", invite.Id),
+                                    csrfToken,
                                 ) {
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -66,6 +67,7 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
                                     "",
                                     "inviteId",
                                     fmt.Sprintf("%d", invite.Id),
+                                    csrfToken,
                                 ) {
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
