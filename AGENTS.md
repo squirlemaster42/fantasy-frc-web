@@ -84,7 +84,7 @@ See `database/README.md` for full details.
 
 - **Go Version**: Go 1.26.2 with toolchain go1.26.2
 - **Logging**: Use custom logging with context
-- **Error Handling**: Use custom `assert` package for context-aware error handling
+- **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the enture project with the appropriate log level.
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
 
 ### Import Organization
