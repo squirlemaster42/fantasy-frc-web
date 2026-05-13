@@ -23,7 +23,7 @@ func (t *Team) String() string {
 		t.TbaId, t.Name, t.AllianceScore)
 }
 
-func GetTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error) {
+func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error) {
 	query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
 	assert := assert.CreateAssertWithContext("Get Team")
 	assert.AddContext("TbaId", tbaId)
@@ -50,7 +50,7 @@ func GetTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	return &team, nil
 }
 
-func CreateTeam(ctx context.Context, database *sql.DB, tbaId string, name string) error {
+func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string) error {
 	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Create Team")
 	assert.AddContext("Tba Id", tbaId)
@@ -71,7 +71,7 @@ func CreateTeam(ctx context.Context, database *sql.DB, tbaId string, name string
 	return nil
 }
 
-func UpdateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) {
+func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) {
 	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
 	assert := assert.CreateAssertWithContext("Update Team Alliance Score")
 	assert.AddContext("Tba Id", tbaId)
@@ -96,7 +96,7 @@ type MatchTeamScore struct {
 }
 
 // GetQualificationReturns individual qualification match scores for a team
-func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]MatchTeamScore, error) {
+func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]MatchTeamScore, error) {
 	query := `
 		Select
 			mt.Match_tbaId,
@@ -155,12 +155,12 @@ func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 	return matches, nil
 }
 
-func ValidPick(ctx context.Context, database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
+func ValidPick(ctx context.Context, draftStore DraftStore, teamStore TeamStore, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
 	if tbaId == "" {
 		return false, errors.New("no team entered")
 	}
 
-	picked := HasBeenPicked(ctx, database, draftId, tbaId)
+	picked := draftStore.HasBeenPicked(ctx, draftId, tbaId)
 
 	if picked {
 		return false, errors.New("team already picked")
@@ -196,7 +196,7 @@ func ValidPick(ctx context.Context, database *sql.DB, handler *tbaHandler.TbaHan
 // Keys are the string that represents display name and the value is the score
 // for that display name
 // Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
-func GetScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]int, error) {
+func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]int, error) {
 	query := `Select
                 COALESCE(t.AllianceScore, 0) As AllianceScore
             From Teams t

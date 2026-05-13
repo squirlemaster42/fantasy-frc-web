@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -23,4 +24,21 @@ type DraftStore interface {
 	GetDraftPlayerId(ctx context.Context, draftId int, userUuid uuid.UUID) (int, error)
 	ShouldSkipPick(ctx context.Context, draftPlayerId int) (bool, error)
 	MarkShouldSkipPick(ctx context.Context, draftPlayerId int, shouldSkip bool) error
+	UpdateDraftStatus(ctx context.Context, draftId int, status DraftState) error
+	UpdateDraft(ctx context.Context, draft *DraftModel) error
+	GetPicks(ctx context.Context, draft int) ([]Pick, error)
+	GetDraftPlayerUser(ctx context.Context, draftPlayerId int) (User, error)
+	MakePickAvailable(ctx context.Context, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int
+	MakePick(ctx context.Context, pick Pick) error
+	NextPick(ctx context.Context, draftId int) DraftPlayer
+	GetCurrentPick(ctx context.Context, draftId int) (Pick, error)
+	SkipPick(ctx context.Context, pickId int)
+	UpdatePickExpirationTime(ctx context.Context, pickId int, expirationTime time.Time) error
+	GetPreviousPick(ctx context.Context, draftId int, currentPickId int) (Pick, error)
+	DeletePick(ctx context.Context, pickId int) error
+	ResetPick(ctx context.Context, pickId int, expirationTime time.Time) error
+	GetDraftsInStatus(ctx context.Context, status DraftState) []int
+	GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error)
+	RandomizePickOrder(ctx context.Context, draftId int) error
+	HasBeenPicked(ctx context.Context, draftId int, team string) bool
 }

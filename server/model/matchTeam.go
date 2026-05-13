@@ -20,13 +20,13 @@ func (m *MatchTeam) String() string {
 		m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
-func AssocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
-	team, err := GetTeam(ctx, database, teamTbaId)
+func assocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
+	team, err := getTeam(ctx, database, teamTbaId)
 	if err != nil {
 		return fmt.Errorf("failed to get team: %w", err)
 	}
 	if team == nil {
-		if err := CreateTeam(ctx, database, teamTbaId, ""); err != nil {
+		if err := createTeam(ctx, database, teamTbaId, ""); err != nil {
 			return fmt.Errorf("failed to create team: %w", err)
 		}
 	}

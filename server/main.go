@@ -110,9 +110,16 @@ func main() {
 	}
 
 	discordBus := discord.NewBus()
-	draftManager := draft.NewDraftManager(tbaHandler, database, discordBus)
+	draftStore := model.NewSQLDraftStore(database)
+	userStore := model.NewSQLUserStore(database)
+	teamStore := model.NewSQLTeamStore(database)
+	discordStore := model.NewSQLDiscordStore(database)
+	matchStore := model.NewSQLMatchStore(database)
+	matchTeamStore := model.NewSQLMatchTeamStore(database)
+
+	draftManager := draft.NewDraftManager(tbaHandler, draftStore, teamStore, discordStore, discordBus)
 	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(database, draftManager)
+	draftDaemon := background.NewDraftDaemon(draftStore, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
 		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
@@ -120,7 +127,7 @@ func main() {
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts := model.GetDraftsInStatus(context.Background(), database, model.PICKING)
+	drafts := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
 	for _, draftId := range drafts {
 		err = draftDaemon.AddDraft(draftId)
 		if err != nil {
@@ -128,7 +135,7 @@ func main() {
 		}
 	}
 
-	scorer := scorer.NewScorer(tbaHandler, database)
+	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
 	if !*skipScoring {
 		log.Info(context.Background(), "Started Scorer")
 		scorer.RunScorer()
@@ -142,10 +149,6 @@ func main() {
 
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
 	assert.NoError(context.Background(), err, "Failed to create avatar store")
-
-	draftStore := model.NewSQLDraftStore(database)
-	userStore := model.NewSQLUserStore(database)
-	teamStore := model.NewSQLTeamStore(database)
 
 	handler := handler.Handler{
 		DraftStore:        draftStore,

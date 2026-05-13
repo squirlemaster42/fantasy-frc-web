@@ -123,7 +123,7 @@ func (d *DraftInvite) String() string {
 		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
-func GetDraftsByName(ctx context.Context, database *sql.DB, searchString string) ([]DraftModel, error) {
+func getDraftsByName(ctx context.Context, database *sql.DB, searchString string) ([]DraftModel, error) {
 	query := `SELECT
         Drafts.Id,
         DisplayName
@@ -173,7 +173,7 @@ func GetDraftsByName(ctx context.Context, database *sql.DB, searchString string)
 	return drafts, nil
 }
 
-func GetDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error) {
+func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftModel, error) {
 	query := `SELECT DISTINCT
         Drafts.Id,
         displayName,
@@ -277,13 +277,13 @@ func GetDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 		pick := Pick{}
 		if status == PICKING {
-			pick, err = GetCurrentPick(ctx, database, draftId)
+			pick, err = getCurrentPick(ctx, database, draftId)
 			if err != nil {
 				return []DraftModel{}, err
 			}
 
 			if pick.Id != 0 {
-				user, err := GetDraftPlayerUser(ctx, database, pick.Player)
+				user, err := getDraftPlayerUser(ctx, database, pick.Player)
 				if err != nil {
 					return []DraftModel{}, err
 				}
@@ -328,7 +328,7 @@ func GetDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 	return drafts, nil
 }
 
-func CreateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
+func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
 	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
         EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
@@ -368,7 +368,7 @@ func CreateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 	return draftId, nil
 }
 
-func UpdateDraftStatus(ctx context.Context, database *sql.DB, draftId int, status DraftState) error {
+func updateDraftStatus(ctx context.Context, database *sql.DB, draftId int, status DraftState) error {
 	assert := assert.CreateAssertWithContext("Update Draft Status")
 	query := `Update Drafts Set Status = $1 Where Id = $2;`
 
@@ -388,7 +388,7 @@ func UpdateDraftStatus(ctx context.Context, database *sql.DB, draftId int, statu
 	return nil
 }
 
-func GetDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
+func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
 	log.Info(ctx, "model.GetDraft: starting", "Draft Id", draftId)
 	query := `Select
         DisplayName,
@@ -483,7 +483,7 @@ func GetDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	log.Info(ctx, "Checking if we need to get the current pick for the draft", "Status", draftModel.Status, "Picking", PICKING)
 	if draftModel.Status == PICKING {
 		log.Info(ctx, "Getting the current pick for the draft")
-		currPick, err := GetCurrentPick(ctx, database, draftId)
+		currPick, err := getCurrentPick(ctx, database, draftId)
 		if err != nil {
 			return DraftModel{}, err
 		}
@@ -528,7 +528,7 @@ func GetDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		}
 
 		//Get picks for the player
-		picks := GetDraftPlayerPicks(ctx, database, draftPlayer.Id)
+		picks := getDraftPlayerPicks(ctx, database, draftPlayer.Id)
 		draftPlayer.Picks = picks
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
@@ -537,7 +537,7 @@ func GetDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	return draftModel, nil
 }
 
-func GetDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId int) []Pick {
+func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId int) []Pick {
 	query := `SELECT
                 Picks.id,
                 Picks.player,
@@ -583,7 +583,7 @@ func GetDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 	return picks
 }
 
-func UpdateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
+func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
 	log.Info(ctx, "model.UpdateDraft: starting", "Draft Id", draft.Id)
 	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
@@ -605,7 +605,7 @@ func UpdateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error
 	return err
 }
 
-func InvitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
+func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
 	assert := assert.CreateAssertWithContext("Invite Player")
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
     sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
@@ -626,7 +626,7 @@ func InvitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 }
 
 // Returns draftId, UserUuid, error
-func AcceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uuid.UUID, error) {
+func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uuid.UUID, error) {
 	query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Invite Id", inviteId)
@@ -664,7 +664,7 @@ func AcceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 	return draftId, userUuid, nil
 }
 
-func AddPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player uuid.UUID) error {
+func addPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player uuid.UUID) error {
 	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Draft", draft)
@@ -685,7 +685,7 @@ func AddPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player u
 	return nil
 }
 
-func CancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int) error {
+func cancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int) error {
 	query := `Update DraftInvites Set Canceled = true Where DraftId = $1 and Accepted = false;`
 	assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
 	assert.AddContext("Draft Id", draftId)
@@ -707,7 +707,7 @@ func CancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int
 	return nil
 }
 
-func GetInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite, error) {
+func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite, error) {
 	query := `SELECT
             di.Id,
             u.username,
@@ -742,7 +742,7 @@ func GetInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite
 	return invite, nil
 }
 
-func GetInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftInvite, error) {
+func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]DraftInvite, error) {
 	query := `SELECT
             di.Id,
             u.username,
@@ -788,7 +788,7 @@ func GetInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
 	return invites, nil
 }
 
-func GetPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) {
+func getPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) {
 	query := `SELECT
         Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
     From Picks
@@ -828,7 +828,7 @@ func GetPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) 
 	return picks, nil
 }
 
-func GetDraftPlayerId(ctx context.Context, database *sql.DB, draftId int, userUuid uuid.UUID) (int, error) {
+func getDraftPlayerId(ctx context.Context, database *sql.DB, draftId int, userUuid uuid.UUID) (int, error) {
 	query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
 
 	assert := assert.CreateAssertWithContext("Get Draft Player Id")
@@ -852,7 +852,7 @@ func GetDraftPlayerId(ctx context.Context, database *sql.DB, draftId int, userUu
 	return draftPlayerId, nil
 }
 
-func GetDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int) (User, error) {
+func getDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int) (User, error) {
 	query := `Select
         u.UserUuid,
         u.Username
@@ -879,7 +879,7 @@ func GetDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int
 	return user, nil
 }
 
-func MakePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
+func makePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
 	query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
 
 	assert := assert.CreateAssertWithContext("Make Pick Available")
@@ -902,7 +902,7 @@ func MakePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int,
 	return pickId
 }
 
-func MakePick(ctx context.Context, database *sql.DB, pick Pick) error {
+func makePick(ctx context.Context, database *sql.DB, pick Pick) error {
 	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
 
 	assert := assert.CreateAssertWithContext("Make Pick")
@@ -926,7 +926,7 @@ func MakePick(ctx context.Context, database *sql.DB, pick Pick) error {
 	return nil
 }
 
-func SetPlayerOrder(ctx context.Context, database *sql.DB, draftPlayerId int, playerOrder int) {
+func setPlayerOrder(ctx context.Context, database *sql.DB, draftPlayerId int, playerOrder int) {
 	query := `Update DraftPlayers Set PlayerOrder = $1 Where DraftPlayers.Id = $2;`
 
 	assert := assert.CreateAssertWithContext("Set Player Order")
@@ -943,7 +943,7 @@ func SetPlayerOrder(ctx context.Context, database *sql.DB, draftPlayerId int, pl
 	assert.NoError(ctx, err, "Failed to set player order")
 }
 
-func GetAllPicks(ctx context.Context, database *sql.DB) []string {
+func getAllPicks(ctx context.Context, database *sql.DB) []string {
 	query := `Select Distinct pick From Picks;`
 	assert := assert.CreateAssertWithContext("Get All Picks")
 	stmt, err := database.PrepareContext(ctx, query)
@@ -976,7 +976,7 @@ func GetAllPicks(ctx context.Context, database *sql.DB) []string {
 	return picks
 }
 
-func HasBeenPicked(ctx context.Context, database *sql.DB, draftId int, team string) bool {
+func hasBeenPicked(ctx context.Context, database *sql.DB, draftId int, team string) bool {
 	query := `SELECT
     Count(*) As num
     From Picks
@@ -999,8 +999,8 @@ func HasBeenPicked(ctx context.Context, database *sql.DB, draftId int, team stri
 	return numPicked != 0
 }
 
-func RandomizePickOrder(ctx context.Context, database *sql.DB, draftId int) error {
-	draftModel, err := GetDraft(ctx, database, draftId)
+func randomizePickOrder(ctx context.Context, database *sql.DB, draftId int) error {
+	draftModel, err := getDraft(ctx, database, draftId)
 	if err != nil {
 		log.Warn(ctx, "Attempting to randomize pick order for invalid draft", "Draft Id", draftId)
 		return fmt.Errorf("could not load draft %d", draftId)
@@ -1029,7 +1029,7 @@ func RandomizePickOrder(ctx context.Context, database *sql.DB, draftId int) erro
 	}()
 
 	for i, player := range awaitingAssignment {
-		draftPlayerId, err := GetDraftPlayerId(ctx, database, draftId, player.User.UserUuid)
+		draftPlayerId, err := getDraftPlayerId(ctx, database, draftId, player.User.UserUuid)
 		if err != nil {
 			return fmt.Errorf("could not get draftplayer for user %s in draft %d", player.User.UserUuid.String(), draftId)
 		}
@@ -1042,7 +1042,7 @@ func RandomizePickOrder(ctx context.Context, database *sql.DB, draftId int) erro
 	return nil
 }
 
-func GetAvailablePickId(ctx context.Context, database *sql.DB, draftId int) Pick {
+func getAvailablePickId(ctx context.Context, database *sql.DB, draftId int) Pick {
 	query := `SELECT
         p.Id,
         p.Player
@@ -1072,17 +1072,17 @@ func GetAvailablePickId(ctx context.Context, database *sql.DB, draftId int) Pick
 	return pick
 }
 
-func NextPick(ctx context.Context, database *sql.DB, draftId int) DraftPlayer {
+func nextPick(ctx context.Context, database *sql.DB, draftId int) DraftPlayer {
 	//We need to get the last two picks
 	assert := assert.CreateAssertWithContext("Next Pick")
-	picks, err := GetPicks(ctx, database, draftId)
+	picks, err := getPicks(ctx, database, draftId)
 
 	if err != nil {
 		log.Warn(ctx, "Failed to get picks", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
 	}
 
-	draft, err := GetDraft(ctx, database, draftId)
+	draft, err := getDraft(ctx, database, draftId)
 	if err != nil {
 		log.Warn(ctx, "Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}
@@ -1129,7 +1129,7 @@ func NextPick(ctx context.Context, database *sql.DB, draftId int) DraftPlayer {
 	return nextPlayer
 }
 
-func GetNumPlayersInInvitedDraft(ctx context.Context, database *sql.DB, inviteId int) (int, error) {
+func getNumPlayersInInvitedDraft(ctx context.Context, database *sql.DB, inviteId int) (int, error) {
 	query := `Select
                 Count(*)
             From DraftInvites ci
@@ -1164,7 +1164,7 @@ func GetDraftPlayerFromDraft(ctx context.Context, draft DraftModel, draftPlayerI
 	return DraftPlayer{}
 }
 
-func ShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) (bool, error) {
+func shouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) (bool, error) {
 	assert := assert.CreateAssertWithContext("Should Skip Pick")
 	assert.AddContext("Draft Player", draftPlayer)
 
@@ -1192,7 +1192,7 @@ func ShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) (boo
 	return shouldSkip, nil
 }
 
-func MarkShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int, shouldSkip bool) error {
+func markShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int, shouldSkip bool) error {
 	assert := assert.CreateAssertWithContext("Mark Should Skip Pick")
 	assert.AddContext("Draft Player", draftPlayer)
 
@@ -1210,7 +1210,7 @@ func MarkShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int, 
 	return err
 }
 
-func GetCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, error) {
+func getCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, error) {
 	query := `Select
                 p.Id,
                 p.Player,
@@ -1256,7 +1256,7 @@ func GetCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, e
 	return pick, nil
 }
 
-func SkipPick(ctx context.Context, database *sql.DB, pickId int) {
+func skipPick(ctx context.Context, database *sql.DB, pickId int) {
 	query := `Update Picks Set Skipped = true Where Id = $1`
 
 	assert := assert.CreateAssertWithContext("Skip Pick")
@@ -1272,7 +1272,7 @@ func SkipPick(ctx context.Context, database *sql.DB, pickId int) {
 	assert.NoError(ctx, err, "Failed to skip pick")
 }
 
-func UpdatePickExpirationTime(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
+func updatePickExpirationTime(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set ExpirationTime = $1 Where Id = $2;`
 
 	assert := assert.CreateAssertWithContext("Update Pick Expiration Time")
@@ -1289,7 +1289,7 @@ func UpdatePickExpirationTime(ctx context.Context, database *sql.DB, pickId int,
 	return err
 }
 
-func GetPreviousPick(ctx context.Context, database *sql.DB, draftId int, currentPickId int) (Pick, error) {
+func getPreviousPick(ctx context.Context, database *sql.DB, draftId int, currentPickId int) (Pick, error) {
 	query := `Select
                 p.Id,
                 p.Player,
@@ -1332,7 +1332,7 @@ func GetPreviousPick(ctx context.Context, database *sql.DB, draftId int, current
 	return pick, nil
 }
 
-func DeletePick(ctx context.Context, database *sql.DB, pickId int) error {
+func deletePick(ctx context.Context, database *sql.DB, pickId int) error {
 	query := `Delete From Picks Where Id = $1`
 
 	assert := assert.CreateAssertWithContext("Delete Pick")
@@ -1348,7 +1348,7 @@ func DeletePick(ctx context.Context, database *sql.DB, pickId int) error {
 	return err
 }
 
-func ResetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
+func resetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set Pick = Null, PickTime = Null, Skipped = false, ExpirationTime = $1 Where Id = $2`
 
 	assert := assert.CreateAssertWithContext("Reset Pick")
@@ -1365,7 +1365,7 @@ func ResetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime
 	return err
 }
 
-func GetDraftsInStatus(ctx context.Context, database *sql.DB, status DraftState) []int {
+func getDraftsInStatus(ctx context.Context, database *sql.DB, status DraftState) []int {
 	assert := assert.CreateAssertWithContext("Get Drafts In Status")
 	assert.AddContext("Status", status)
 
@@ -1406,7 +1406,7 @@ func GetDraftsInStatus(ctx context.Context, database *sql.DB, status DraftState)
 	return drafts
 }
 
-func GetDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftPlayer, error) {
+func getDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftPlayer, error) {
 	assert := assert.CreateAssertWithContext("Get Draft Score")
 	assert.AddContext("Draft Id", draftId)
 	assert.RunAssert(ctx, draftId != 0, "Draft Id Should Not Be 0")
@@ -1468,7 +1468,7 @@ func GetDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 		}
 
 		for _, pick := range playerPicks {
-			score, err := GetScore(ctx, database, pick)
+			score, err := getScore(ctx, database, pick)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get score for pick %s: %w", pick, err)
 			}
@@ -1489,7 +1489,7 @@ func GetDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 	return playerScores, nil
 }
 
-func GetDraftsToStart(ctx context.Context, database *sql.DB, cutoffDate time.Time) ([]int, error) {
+func getDraftsToStart(ctx context.Context, database *sql.DB, cutoffDate time.Time) ([]int, error) {
 	assert := assert.CreateAssertWithContext("Get Drafts To Start")
 	assert.AddContext("Cutoff Date", cutoffDate)
 

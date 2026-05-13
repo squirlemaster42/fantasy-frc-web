@@ -122,6 +122,11 @@ func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) (*model.Team
 	return r0, r1
 }
 
+// UpdateTeamAllianceScore provides a mock function with given fields: ctx, tbaId, allianceScore
+func (_m *MockTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId string, allianceScore int16) {
+	_m.Called(ctx, tbaId, allianceScore)
+}
+
 // NewMockTeamStore creates a new instance of MockTeamStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockTeamStore(t interface {

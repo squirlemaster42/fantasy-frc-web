@@ -2,7 +2,6 @@ package scorer
 
 import (
 	"context"
-	"database/sql"
 	"server/assert"
 	"server/log"
 	"server/model"
@@ -15,15 +14,19 @@ import (
 
 type Scorer struct {
 	tbaHandler       *tbaHandler.TbaHandler
-	database         *sql.DB
+	matchStore       model.MatchStore
+	matchTeamStore   model.MatchTeamStore
+	teamStore        model.TeamStore
 	scoringIteration int
 	queue            *MatchQueue
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, database *sql.DB) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TbaHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
 	return &Scorer{
 		tbaHandler:       tbaHandler,
-		database:         database,
+		matchStore:       matchStore,
+		matchTeamStore:   matchTeamStore,
+		teamStore:        teamStore,
 		scoringIteration: 0,
 		queue:            NewMatchQueue(),
 	}
@@ -282,12 +285,12 @@ func (s *Scorer) getNextMatchToScore() swagger.Match {
 
 func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
 	log.Debug(context.TODO(), "Updating Match Scores", "Match", dbMatch.String())
-	model.UpdateScore(context.TODO(), s.database, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+	s.matchStore.UpdateScore(context.TODO(), dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
 	for _, team := range dbMatch.BlueAlliance {
-		model.AssocateTeam(context.TODO(), s.database, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+		s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
 	}
 	for _, team := range dbMatch.RedAlliance {
-		model.AssocateTeam(context.TODO(), s.database, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+		s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
 	}
 }
 
@@ -320,10 +323,10 @@ func (s *Scorer) scoringRunner() {
 		}
 
 		log.DebugNoContext("Starting scoring run", "Match", match.Key)
-		dbMatchPtr := model.GetMatch(context.TODO(), s.database, match.Key)
+		dbMatchPtr := s.matchStore.GetMatch(context.TODO(), match.Key)
 
 		if dbMatchPtr == nil {
-			model.AddMatch(context.TODO(), s.database, match.Key)
+			s.matchStore.AddMatch(context.TODO(), match.Key)
 			dbMatchPtr = &model.Match{
 				TbaId:        match.Key,
 				BlueAlliance: []string{},
@@ -346,7 +349,7 @@ func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
 			log.Info(ctx, "Update alliance score for team", "Team", team, "Score", score)
-			model.UpdateTeamAllianceScore(ctx, s.database, team, score)
+			s.teamStore.UpdateTeamAllianceScore(ctx, team, score)
 		}
 	}
 }

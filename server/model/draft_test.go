@@ -113,7 +113,7 @@ func TestGetInvite_FunctionBehavior(t *testing.T) {
 	t.Run("returns DraftInvite and error", func(t *testing.T) {
 		// Verify function signature: returns (DraftInvite, error)
 		// This is a compile-time check
-		fn := GetInvite
+		fn := getInvite
 		assert.NotNil(t, fn)
 	})
 }
@@ -170,6 +170,6 @@ func TestGetInvite_FunctionSignature(t *testing.T) {
 	// and return both the invite and an error
 	type getInviteFunc func(context.Context, *sql.DB, int) (DraftInvite, error)
 
-	// This will compile only if GetInvite has the correct signature
-	var _ getInviteFunc = GetInvite
+	// This will compile only if getInvite has the correct signature
+	var _ getInviteFunc = getInvite
 }

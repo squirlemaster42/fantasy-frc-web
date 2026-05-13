@@ -2,7 +2,6 @@ package draft
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"server/discord"
 	"server/log"
@@ -67,7 +66,7 @@ type DeclineInviteMessage struct {
 
 type DraftActor struct {
 	inbox chan Message
-	database *sql.DB
+	draftStore model.DraftStore
 	draftState model.DraftModel
 	discordBus *discord.DiscordWebhook
 	tbaHandler *tbaHandler.TbaHandler
@@ -85,16 +84,16 @@ type Result struct {
 	Error error
 }
 
-func NewDraftActor(ctx context.Context, draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
-		database: database,
+		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordBus: discordBus,
-		states: setupStates(ctx, database),
+		states: setupStates(ctx, draftStore),
 	}
 
-	draft, err := model.GetDraft(ctx, database, draftId)
+	draft, err := draftStore.GetDraft(ctx, draftId)
 	if err != nil {
 		return &DraftActor{}, err
 	}
@@ -111,25 +110,25 @@ type stateTransition interface {
 }
 
 type ToStartTransition struct {
-	database *sql.DB
+	draftStore model.DraftStore
 }
 
 func (tst *ToStartTransition) executeTransition(ctx context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(ctx, tst.database, draft.draftId, model.WAITING_TO_START)
+	return tst.draftStore.UpdateDraftStatus(ctx, draft.draftId, model.WAITING_TO_START)
 }
 
 type ToPickingTransition struct {
-	database *sql.DB
+	draftStore model.DraftStore
 }
 
 func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft Draft) error {
-	err := model.RandomizePickOrder(ctx, tpt.database, draft.draftId)
+	err := tpt.draftStore.RandomizePickOrder(ctx, draft.draftId)
 	if err != nil {
 		return err
 	}
-	nextPickPlayer := model.NextPick(ctx, tpt.database, draft.draftId)
-	model.MakePickAvailable(ctx, tpt.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
-	err = model.UpdateDraftStatus(ctx, tpt.database, draft.draftId, model.PICKING)
+	nextPickPlayer := tpt.draftStore.NextPick(ctx, draft.draftId)
+	tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	err = tpt.draftStore.UpdateDraftStatus(ctx, draft.draftId, model.PICKING)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 		return err
@@ -138,12 +137,12 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft Dra
 }
 
 type ToPlayingTransition struct {
-	database *sql.DB
+	draftStore model.DraftStore
 }
 
 func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, draft Draft) error {
 	log.Info(ctx, "Executing TEAMS_PLAYING playing transition", "Draft Id", draft.draftId)
-	err := model.UpdateDraftStatus(ctx, tpt.database, draft.draftId, model.TEAMS_PLAYING)
+	err := tpt.draftStore.UpdateDraftStatus(ctx, draft.draftId, model.TEAMS_PLAYING)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)
 	}
@@ -152,11 +151,11 @@ func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, draft Dra
 }
 
 type ToCompleteTransition struct {
-	database *sql.DB
+	draftStore model.DraftStore
 }
 
 func (tct *ToCompleteTransition) executeTransition(ctx context.Context, draft Draft) error {
-	return model.UpdateDraftStatus(ctx, tct.database, draft.draftId, model.COMPLETE)
+	return tct.draftStore.UpdateDraftStatus(ctx, draft.draftId, model.COMPLETE)
 }
 
 type state struct {
@@ -164,14 +163,14 @@ type state struct {
 	transitions map[model.DraftState]stateTransition
 }
 
-func setupStates(ctx context.Context, database *sql.DB) map[model.DraftState]*state {
+func setupStates(ctx context.Context, draftStore model.DraftStore) map[model.DraftState]*state {
 	states := make(map[model.DraftState]*state)
 	states[model.FILLING] = &state{
 		state:       model.FILLING,
 		transitions: make(map[model.DraftState]stateTransition),
 	}
 	states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition{
-		database: database,
+		draftStore: draftStore,
 	}
 
 	states[model.WAITING_TO_START] = &state{
@@ -179,7 +178,7 @@ func setupStates(ctx context.Context, database *sql.DB) map[model.DraftState]*st
 		transitions: make(map[model.DraftState]stateTransition),
 	}
 	states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition{
-		database: database,
+		draftStore: draftStore,
 	}
 
 	states[model.PICKING] = &state{
@@ -187,7 +186,7 @@ func setupStates(ctx context.Context, database *sql.DB) map[model.DraftState]*st
 		transitions: make(map[model.DraftState]stateTransition),
 	}
 	states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
-		database: database,
+		draftStore: draftStore,
 	}
 
 	states[model.TEAMS_PLAYING] = &state{
@@ -195,7 +194,7 @@ func setupStates(ctx context.Context, database *sql.DB) map[model.DraftState]*st
 		transitions: make(map[model.DraftState]stateTransition),
 	}
 	states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = &ToCompleteTransition{
-		database: database,
+		draftStore: draftStore,
 	}
 
 	states[model.COMPLETE] = &state{

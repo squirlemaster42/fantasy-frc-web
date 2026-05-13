@@ -2,7 +2,6 @@ package picking
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"server/discord"
 	"server/log"
@@ -19,7 +18,9 @@ type PickManager struct {
 	pickLock     sync.Mutex
 	listenerLock sync.RWMutex
 	listeners    []PickListener
-	database     *sql.DB
+	draftStore   model.DraftStore
+	teamStore    model.TeamStore
+	discordStore model.DiscordStore
 	tbaHandler   *tbaHandler.TbaHandler
 	discordBus   *discord.DiscordWebhookBus
 }
@@ -35,19 +36,21 @@ type PickListener interface {
 	ReceivePickEvent(pickEvent PickEvent) error
 }
 
-func NewPickManager(draftId int, database *sql.DB, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus) *PickManager {
+func NewPickManager(draftId int, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus) *PickManager {
 	return &PickManager{
-		draftId:    draftId,
-		database:   database,
-		tbaHandler: tbaHandler,
-		discordBus: discordBus,
+		draftId:      draftId,
+		draftStore:   draftStore,
+		teamStore:    teamStore,
+		discordStore: discordStore,
+		tbaHandler:   tbaHandler,
+		discordBus:   discordBus,
 	}
 }
 
 func (p *PickManager) GetCurrentPick(draftId int) (model.Pick, error) {
 	p.pickLock.Lock()
 	defer p.pickLock.Unlock()
-	return model.GetCurrentPick(context.TODO(), p.database, draftId)
+	return p.draftStore.GetCurrentPick(context.TODO(), draftId)
 }
 
 func (p *PickManager) UndoLastPick() error {
@@ -55,19 +58,19 @@ func (p *PickManager) UndoLastPick() error {
 	defer p.pickLock.Unlock()
 
 	// Get the current pick
-	currentPick, err := model.GetCurrentPick(context.TODO(), p.database, p.draftId)
+	currentPick, err := p.draftStore.GetCurrentPick(context.TODO(), p.draftId)
 	if currentPick.Id == 0 || err != nil {
 		return errors.New("no current pick found for this draft")
 	}
 
 	// Get the previous pick
-	previousPick, err := model.GetPreviousPick(context.TODO(), p.database, p.draftId, currentPick.Id)
+	previousPick, err := p.draftStore.GetPreviousPick(context.TODO(), p.draftId, currentPick.Id)
 	if err != nil {
 		return errors.New("cannot undo pick: this is the first pick of the draft")
 	}
 
 	// Delete the current pick
-	err = model.DeletePick(context.TODO(), p.database, currentPick.Id)
+	err = p.draftStore.DeletePick(context.TODO(), currentPick.Id)
 	if err != nil {
 		log.Error(context.TODO(), "Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
 		return errors.New("failed to delete current pick")
@@ -77,7 +80,7 @@ func (p *PickManager) UndoLastPick() error {
 	newExpirationTime := time.Now().Add(3 * time.Hour)
 
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = model.ResetPick(context.TODO(), p.database, previousPick.Id, newExpirationTime)
+	err = p.draftStore.ResetPick(context.TODO(), previousPick.Id, newExpirationTime)
 	if err != nil {
 		log.Error(context.TODO(), "Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
 		return errors.New("failed to reset previous pick")
@@ -87,14 +90,14 @@ func (p *PickManager) UndoLastPick() error {
 
 func (p *PickManager) SkipCurrentPick() error {
 	p.pickLock.Lock()
-	curPick, err := model.GetCurrentPick(context.TODO(), p.database, p.draftId)
+	curPick, err := p.draftStore.GetCurrentPick(context.TODO(), p.draftId)
 	if err != nil {
 		p.pickLock.Unlock()
 		return err
 	}
-	nextPickPlayer := model.NextPick(context.TODO(), p.database, p.draftId)
-	model.SkipPick(context.TODO(), p.database, curPick.Id)
-	model.MakePickAvailable(context.TODO(), p.database, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context.TODO(), time.Now(), utils.PICK_TIME))
+	nextPickPlayer := p.draftStore.NextPick(context.TODO(), p.draftId)
+	p.draftStore.SkipPick(context.TODO(), curPick.Id)
+	p.draftStore.MakePickAvailable(context.TODO(), nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context.TODO(), time.Now(), utils.PICK_TIME))
 
 	event := PickEvent{
 		Pick:    model.Pick{},
@@ -121,26 +124,26 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 	}
 
 	// Check that we are still trying to make the current pick
-	currentPick, err := model.GetCurrentPick(ctx, p.database, p.draftId)
+	currentPick, err := p.draftStore.GetCurrentPick(ctx, p.draftId)
 	if currentPick.Id != pick.Id {
 		log.Warn(ctx, "Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", pick.Id)
 		return false, errors.New("attempting to make pick that is not the current pick")
 	}
 
 	if err == nil {
-		_, err = model.ValidPick(ctx, p.database, p.tbaHandler, pick.Pick.String, p.draftId)
+		_, err = model.ValidPick(ctx, p.draftStore, p.teamStore, p.tbaHandler, pick.Pick.String, p.draftId)
 	}
 
 	if err == nil {
 		//If we have not found any errors indicating that the pick is invalid, make the pick
-		err := model.MakePick(ctx, p.database, pick)
+		err := p.draftStore.MakePick(ctx, pick)
 		if err != nil {
 			return false, err
 		}
-		nextPickPlayer := model.NextPick(ctx, p.database, p.draftId)
+		nextPickPlayer := p.draftStore.NextPick(ctx, p.draftId)
 
 		//Make the next pick available if we havn't aleady made all picks
-		picks, err := model.GetPicks(ctx, p.database, p.draftId)
+		picks, err := p.draftStore.GetPicks(ctx, p.draftId)
 
 		if err != nil {
 			log.Warn(ctx, "Failed to get picks", "Draft Id", p.draftId, "Error", err)
@@ -151,35 +154,35 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 		if len(picks) < 64 {
 			log.Info(ctx, "Making next pick available", "Draft Id", p.draftId)
 			expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
-			model.MakePickAvailable(ctx, p.database, nextPickPlayer.Id, time.Now(), expirationTime)
+			p.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
 
-			currPickDiscordId, err := model.GetPlayerDiscordId(ctx, p.database, currentPick.Player)
+			currPickDiscordId, err := p.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
 			if err != nil {
 				log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
 				err = nil
 			}
 
-			currPickUser, err := model.GetDraftPlayerUser(ctx, p.database, currentPick.Player)
+			currPickUser, err := p.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
 			if err != nil {
 				log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
 				err = nil
 			}
 			currPickName := currPickUser.Username
 
-			nextPickDiscordId, err := model.GetPlayerDiscordId(ctx, p.database, nextPickPlayer.Id)
+			nextPickDiscordId, err := p.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
 			if err != nil {
 				log.Warn(ctx, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
 				err = nil
 			}
 
-			nextPickUser, err := model.GetDraftPlayerUser(ctx, p.database, nextPickPlayer.Id)
+			nextPickUser, err := p.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
 			if err != nil {
 				log.Warn(ctx, "Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
 				err = nil
 			}
 			nextPickName := nextPickUser.Username
 
-			draftWebhook, err := model.GetDraftWebhook(ctx, p.database, p.draftId)
+			draftWebhook, err := p.discordStore.GetDraftWebhook(ctx, p.draftId)
 			if err != nil {
 				log.Warn(ctx, "Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
 				err = nil

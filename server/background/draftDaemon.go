@@ -2,7 +2,6 @@ package background
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"server/assert"
 	"server/draft"
@@ -13,16 +12,16 @@ import (
 )
 
 type DraftDaemon struct {
-	database      *sql.DB
+	draftStore    model.DraftStore
 	running       bool
 	mu            sync.Mutex
 	runningDrafts map[int]bool
 	draftManager  *draft.DraftManager
 }
 
-func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDaemon {
+func NewDraftDaemon(draftStore model.DraftStore, draftManager *draft.DraftManager) *DraftDaemon {
 	return &DraftDaemon{
-		database:      database,
+		draftStore:    draftStore,
 		running:       false,
 		runningDrafts: make(map[int]bool),
 		draftManager:  draftManager,
@@ -61,7 +60,7 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 	//Get all drafts that are in the waiting to start status
 	log.DebugNoContext("Checking for drafts to Start")
 	now := time.Now()
-	draftIds, err := model.GetDraftsToStart(context.TODO(), d.database, now)
+	draftIds, err := d.draftStore.GetDraftsToStart(context.TODO(), now)
 	if err != nil && draftIds == nil {
 		return err
 	}
@@ -110,7 +109,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		//Check if the current player if skipping their pick. If so we
 		//should skip them
 		log.DebugNoContext("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-		shouldSkip, err := model.ShouldSkipPick(context.TODO(), d.database, curPick.Player)
+		shouldSkip, err := d.draftStore.ShouldSkipPick(context.TODO(), curPick.Player)
 		if err != nil {
 			log.Warn(context.TODO(), "Failed to check if player should be skipped", "Draft Id", draftId, "Player", curPick.Player, "Error", err)
 			shouldSkip = false
