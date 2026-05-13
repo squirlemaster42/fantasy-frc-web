@@ -27,9 +27,7 @@ func (u *User) String() string {
 func RegisterUser(ctx context.Context, database *sql.DB, username string, password string) (uuid.UUID, error) {
 	query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "RegisterUser: Failed to close statement", "error", err)
@@ -50,9 +48,7 @@ func RegisterUser(ctx context.Context, database *sql.DB, username string, passwo
 func UsernameTaken(ctx context.Context, database *sql.DB, username string) (bool, error) {
 	query := `Select count(UserUuid) From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return false, err
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UsernameTaken: Failed to close statement", "error", err)
@@ -69,9 +65,7 @@ func UsernameTaken(ctx context.Context, database *sql.DB, username string) (bool
 func GetUserUuidByUsername(ctx context.Context, database *sql.DB, username string) (uuid.UUID, error) {
 	query := `Select UserUuid From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetUserUuidByUsername: Failed to close statement", "error", err)
@@ -141,9 +135,7 @@ var dummyPasswordHash = []byte("$2a$14$abcdefghijklmnopqrstuuxxxxxxxxxxxxxxxxxxx
 func ValidateLogin(ctx context.Context, database *sql.DB, username string, password string) (bool, error) {
 	query := `Select password From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return false, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "ValidateLogin: Failed to close statement", "error", err)
@@ -169,9 +161,7 @@ func ValidateLogin(ctx context.Context, database *sql.DB, username string, passw
 func UpdatePassword(ctx context.Context, database *sql.DB, username string, newPassword string) error {
 	query := `Update Users Set password = $1 Where username = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UpdatePassword: Failed to close statement", "error", err)
@@ -193,9 +183,7 @@ func UpdatePassword(ctx context.Context, database *sql.DB, username string, newP
 func RegisterSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare query: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "RegisterSession: Failed to close statement", "error", err)
@@ -213,9 +201,7 @@ func RegisterSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 func UnRegisterSession(ctx context.Context, database *sql.DB, sessionToken string) error {
 	query := `Delete From UserSessions Where sessionToken = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UnRegisterSession: Failed to close statement", "error", err)
@@ -233,9 +219,7 @@ func UnRegisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 func GetUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
 	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetUserBySessionToken: Failed to close statement", "error", err)
@@ -257,9 +241,7 @@ func GetUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 func UserIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (bool, error) {
 	query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return false, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UserIsAdmin: Failed to close statement", "error", err)
@@ -277,9 +259,7 @@ func UpdateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 	//We want to make sure we only update the session token that the user logged in with
 	query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare query: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UpdateSessionExpiration: Failed to close statement", "error", err)
@@ -299,9 +279,7 @@ func ValidateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 	//I think <= is fine, it probably doesn't matter though
 	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return false, fmt.Errorf("failed to prepare query: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "ValidateSessionToken: Failed to close statement", "error", err)
@@ -324,9 +302,7 @@ func ValidateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 func InvalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
 	query := `Delete From UserSessions Where userUuid = $1 And sessionToken != $2;`
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare query: %w", err)
-	}
+	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "InvalidateAllUserSessionsExcept: Failed to close statement", "error", err)
