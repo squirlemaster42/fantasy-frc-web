@@ -19,11 +19,11 @@ func (s *SQLDraftStore) GetDraft(ctx context.Context, draftId int) (DraftModel, 
 	return GetDraft(ctx, s.db, draftId)
 }
 
-func (s *SQLDraftStore) GetDraftsByName(ctx context.Context, searchString string) *[]DraftModel {
+func (s *SQLDraftStore) GetDraftsByName(ctx context.Context, searchString string) ([]DraftModel, error) {
 	return GetDraftsByName(ctx, s.db, searchString)
 }
 
-func (s *SQLDraftStore) GetDraftScore(ctx context.Context, draftId int) []DraftPlayer {
+func (s *SQLDraftStore) GetDraftScore(ctx context.Context, draftId int) ([]DraftPlayer, error) {
 	return GetDraftScore(ctx, s.db, draftId)
 }
 
@@ -39,7 +39,7 @@ func (s *SQLDraftStore) CreateDraft(ctx context.Context, draft *DraftModel) (int
 	return CreateDraft(ctx, s.db, draft)
 }
 
-func (s *SQLDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) []DraftInvite {
+func (s *SQLDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error) {
 	return GetInvites(ctx, s.db, userUuid)
 }
 
@@ -47,7 +47,7 @@ func (s *SQLDraftStore) GetInvite(ctx context.Context, inviteId int) (DraftInvit
 	return GetInvite(ctx, s.db, inviteId)
 }
 
-func (s *SQLDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) int {
+func (s *SQLDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error) {
 	return GetNumPlayersInInvitedDraft(ctx, s.db, inviteId)
 }
 
@@ -55,12 +55,12 @@ func (s *SQLDraftStore) CancelOutstandingInvites(ctx context.Context, draftId in
 	return CancelOutstandingInvites(ctx, s.db, draftId)
 }
 
-func (s *SQLDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID) {
+func (s *SQLDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error) {
 	return AcceptInvite(ctx, s.db, inviteId)
 }
 
-func (s *SQLDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) {
-	AddPlayerToDraft(ctx, s.db, draftId, player)
+func (s *SQLDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) error {
+	return AddPlayerToDraft(ctx, s.db, draftId, player)
 }
 
 func (s *SQLDraftStore) InvitePlayer(ctx context.Context, draftId int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
@@ -71,7 +71,7 @@ func (s *SQLDraftStore) GetDraftPlayerId(ctx context.Context, draftId int, userU
 	return GetDraftPlayerId(ctx, s.db, draftId, userUuid)
 }
 
-func (s *SQLDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int) bool {
+func (s *SQLDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int) (bool, error) {
 	return ShouldSkipPick(ctx, s.db, draftPlayerId)
 }
 

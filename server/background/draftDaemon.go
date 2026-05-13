@@ -110,7 +110,11 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		//Check if the current player if skipping their pick. If so we
 		//should skip them
 		log.DebugNoContext("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-		shouldSkip := model.ShouldSkipPick(context.TODO(), d.database, curPick.Player)
+		shouldSkip, err := model.ShouldSkipPick(context.TODO(), d.database, curPick.Player)
+		if err != nil {
+			log.Warn(context.TODO(), "Failed to check if player should be skipped", "Draft Id", draftId, "Player", curPick.Player, "Error", err)
+			shouldSkip = false
+		}
 		if shouldSkip {
 			log.DebugNoContext("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
 			err := d.draftManager.SkipCurrentPick(draftId)

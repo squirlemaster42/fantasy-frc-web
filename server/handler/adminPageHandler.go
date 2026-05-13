@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
-	"server/assert"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -47,11 +47,19 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, draftStore mo
 	for _, event := range utils.Events() {
 		log.Debug(ctx, "Creating teams for event", "Event", event)
 		teams := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
-		for _, team := range teams {
-			log.Debug(ctx, "Checking if team is needed", "Team", team.Key, "Event", event)
-			if teamStore.GetTeam(ctx, team.Key) == nil {
-				log.Debug(ctx, "Creating team", "Team", team.Key, "Event", event)
-				teamStore.CreateTeam(ctx, team.Key, "")
+		for _, t := range teams {
+			log.Debug(ctx, "Checking if team is needed", "Team", t.Key, "Event", event)
+			team, err := teamStore.GetTeam(ctx, t.Key)
+			if err != nil {
+				log.Error(ctx, "Failed to get team", "Team", t.Key, "Error", err)
+				continue
+			}
+			if team == nil {
+				log.Debug(ctx, "Creating team", "Team", t.Key, "Event", event)
+				if err := teamStore.CreateTeam(ctx, t.Key, ""); err != nil {
+					log.Error(ctx, "Failed to create team", "Team", t.Key, "Error", err)
+					continue
+				}
 				count++
 			}
 		}
@@ -68,14 +76,17 @@ func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, draftStore model
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
 
-	drafts := draftStore.GetDraftsByName(ctx, searchString)
+	drafts, err := draftStore.GetDraftsByName(ctx, searchString)
+	if err != nil {
+		return "Failed to list drafts: " + err.Error()
+	}
 
 	var sb strings.Builder
 
 	sb.WriteString("Id    |  Name\n")
 	sb.WriteString("-------------\n")
 
-	for _, draft := range *drafts {
+	for _, draft := range drafts {
 		sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
 	}
 
@@ -320,25 +331,26 @@ var commands = map[string]Command{
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to render admin console")
-	assert := assert.CreateAssertWithContext("Handle Admin Console Get")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
-	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		username = ""
+	}
 
-	adminConsoleIndex := admin.AdminConsoleIndex(username)
+	adminConsoleIndex := admin.AdminConsoleIndex(username, h.csrfToken(c))
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
 	return Render(c, adminConsole)
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Run Admin Console Command")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
-	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		username = ""
+	}
 
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")
@@ -356,8 +368,6 @@ func (h *Handler) HandleRunCommand(c echo.Context) error {
 		return Render(c, response)
 	}
 	result := command.ProcessCommand(c.Request().Context(), h.DraftStore, h.UserStore, h.TeamStore, h.DraftManager, args)
-
-	assert.AddContext("Command", commandString)
 
 	response := admin.RenderCommand(username, commandString, result)
 	return Render(c, response)

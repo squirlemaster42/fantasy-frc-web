@@ -17,7 +17,7 @@ type MockDraftStore struct {
 }
 
 // AcceptInvite provides a mock function with given fields: ctx, inviteId
-func (_m *MockDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID) {
+func (_m *MockDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error) {
 	ret := _m.Called(ctx, inviteId)
 
 	if len(ret) == 0 {
@@ -26,7 +26,8 @@ func (_m *MockDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, 
 
 	var r0 int
 	var r1 uuid.UUID
-	if rf, ok := ret.Get(0).(func(context.Context, int) (int, uuid.UUID)); ok {
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (int, uuid.UUID, error)); ok {
 		return rf(ctx, inviteId)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, int) int); ok {
@@ -43,12 +44,31 @@ func (_m *MockDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, 
 		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, int) error); ok {
+		r2 = rf(ctx, inviteId)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // AddPlayerToDraft provides a mock function with given fields: ctx, draftId, player
-func (_m *MockDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) {
-	_m.Called(ctx, draftId, player)
+func (_m *MockDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) error {
+	ret := _m.Called(ctx, draftId, player)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddPlayerToDraft")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) error); ok {
+		r0 = rf(ctx, draftId, player)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // CancelOutstandingInvites provides a mock function with given fields: ctx, draftId
@@ -184,7 +204,7 @@ func (_m *MockDraftStore) GetDraftPlayerId(ctx context.Context, draftId int, use
 }
 
 // GetDraftScore provides a mock function with given fields: ctx, draftId
-func (_m *MockDraftStore) GetDraftScore(ctx context.Context, draftId int) []model.DraftPlayer {
+func (_m *MockDraftStore) GetDraftScore(ctx context.Context, draftId int) ([]model.DraftPlayer, error) {
 	ret := _m.Called(ctx, draftId)
 
 	if len(ret) == 0 {
@@ -192,6 +212,10 @@ func (_m *MockDraftStore) GetDraftScore(ctx context.Context, draftId int) []mode
 	}
 
 	var r0 []model.DraftPlayer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) ([]model.DraftPlayer, error)); ok {
+		return rf(ctx, draftId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, int) []model.DraftPlayer); ok {
 		r0 = rf(ctx, draftId)
 	} else {
@@ -200,27 +224,43 @@ func (_m *MockDraftStore) GetDraftScore(ctx context.Context, draftId int) []mode
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetDraftsByName provides a mock function with given fields: ctx, searchString
-func (_m *MockDraftStore) GetDraftsByName(ctx context.Context, searchString string) *[]model.DraftModel {
+func (_m *MockDraftStore) GetDraftsByName(ctx context.Context, searchString string) ([]model.DraftModel, error) {
 	ret := _m.Called(ctx, searchString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDraftsByName")
 	}
 
-	var r0 *[]model.DraftModel
-	if rf, ok := ret.Get(0).(func(context.Context, string) *[]model.DraftModel); ok {
+	var r0 []model.DraftModel
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]model.DraftModel, error)); ok {
+		return rf(ctx, searchString)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []model.DraftModel); ok {
 		r0 = rf(ctx, searchString)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*[]model.DraftModel)
+			r0 = ret.Get(0).([]model.DraftModel)
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, searchString)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetDraftsForUser provides a mock function with given fields: ctx, userUuid
@@ -282,7 +322,7 @@ func (_m *MockDraftStore) GetInvite(ctx context.Context, inviteId int) (model.Dr
 }
 
 // GetInvites provides a mock function with given fields: ctx, userUuid
-func (_m *MockDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) []model.DraftInvite {
+func (_m *MockDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) ([]model.DraftInvite, error) {
 	ret := _m.Called(ctx, userUuid)
 
 	if len(ret) == 0 {
@@ -290,6 +330,10 @@ func (_m *MockDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) []
 	}
 
 	var r0 []model.DraftInvite
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.DraftInvite, error)); ok {
+		return rf(ctx, userUuid)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.DraftInvite); ok {
 		r0 = rf(ctx, userUuid)
 	} else {
@@ -298,11 +342,17 @@ func (_m *MockDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) []
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetNumPlayersInInvitedDraft provides a mock function with given fields: ctx, inviteId
-func (_m *MockDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) int {
+func (_m *MockDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error) {
 	ret := _m.Called(ctx, inviteId)
 
 	if len(ret) == 0 {
@@ -310,13 +360,23 @@ func (_m *MockDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, invit
 	}
 
 	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (int, error)); ok {
+		return rf(ctx, inviteId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, int) int); ok {
 		r0 = rf(ctx, inviteId)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, inviteId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // InvitePlayer provides a mock function with given fields: ctx, draftId, invitingUserUuid, invitedUserUuid
@@ -366,7 +426,7 @@ func (_m *MockDraftStore) MarkShouldSkipPick(ctx context.Context, draftPlayerId 
 }
 
 // ShouldSkipPick provides a mock function with given fields: ctx, draftPlayerId
-func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int) bool {
+func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int) (bool, error) {
 	ret := _m.Called(ctx, draftPlayerId)
 
 	if len(ret) == 0 {
@@ -374,13 +434,23 @@ func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int)
 	}
 
 	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (bool, error)); ok {
+		return rf(ctx, draftPlayerId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, int) bool); ok {
 		r0 = rf(ctx, draftPlayerId)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftPlayerId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // NewMockDraftStore creates a new instance of MockDraftStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

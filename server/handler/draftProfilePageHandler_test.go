@@ -20,13 +20,12 @@ func TestHandleViewDraftProfile(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/profile", "", "test-session")
 		c.SetParamNames("id")
 		c.SetParamValues("42")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 			Id:      42,
 			Owner:   model.User{UserUuid: userUuid},
@@ -47,13 +46,12 @@ func TestHandleViewDraftProfile(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/profile", "", "test-session")
 		c.SetParamNames("id")
 		c.SetParamValues("abc")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 		h := &Handler{
 			DraftStore: mockDraftStore,
@@ -70,13 +68,12 @@ func TestHandleViewDraftProfile(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/profile", "", "test-session")
 		c.SetParamNames("id")
 		c.SetParamValues("42")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
 
 		h := &Handler{
@@ -103,6 +100,7 @@ func TestSearchPlayers(t *testing.T) {
 		c := e.NewContext(req, rec)
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
@@ -110,7 +108,6 @@ func TestSearchPlayers(t *testing.T) {
 			Id:    42,
 			Owner: model.User{UserUuid: userUuid},
 		}, nil)
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
 		mockUserStore.On("SearchUsers", c.Request().Context(), "john", 42).Return([]model.User{
 			{UserUuid: uuid.MustParse("660e8400-e29b-41d4-a716-446655440001"), Username: "john_doe"},
 		}, nil)
@@ -125,5 +122,3 @@ func TestSearchPlayers(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
-
-

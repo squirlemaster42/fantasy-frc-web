@@ -18,9 +18,9 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string) (*echo.Echo, func(context.Context) error) {
+func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
 	log.Info(context.Background(), "Starting Server")
-	auth := authentication.NewAuth(database)
+	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
@@ -63,14 +63,17 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 	app.Use(middleware.CorrelationID())
 	app.Use(otelecho.Middleware("fantasy-frc-web"))
 	app.Use(metrics.MetricsMiddleware())
+	app.Use(middleware.SecurityHeaders(h.SecureHttpCookie))
+
+	csrf := middleware.NewCSRF(csrfSecret, h.SecureHttpCookie)
+	rateLimiter := middleware.NewRateLimiter(redisAddr, redisPassword, redisRateLimitDB)
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
 	app.GET("/login", h.HandleViewLogin, echomiddleware.Gzip())
-	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip())
+	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip(), rateLimiter.RateLimitLogin())
 	app.GET("/register", h.HandleViewRegister, echomiddleware.Gzip())
-	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip())
-	app.POST("/logout", h.HandleLogoutPost, echomiddleware.Gzip())
+	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip(), rateLimiter.RateLimitRegister())
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
@@ -80,8 +83,9 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 		return c.String(http.StatusOK, "ok")
 	})
 
-	protected := app.Group("/u", auth.Authenticate)
+	protected := app.Group("/u", auth.Authenticate, csrf.CSRF(), rateLimiter.RateLimitGeneral(postsPerMinute))
 	protected.Use(echomiddleware.Gzip())
+	protected.POST("/logout", h.HandleLogoutPost)
 	protected.GET("/home", h.HandleViewHome)
 	protected.GET("/createDraft", h.HandleViewCreateDraft)
 	protected.POST("/createDraft", h.HandleCreateDraftPost)

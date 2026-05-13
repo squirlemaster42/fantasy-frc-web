@@ -23,12 +23,14 @@ func (t *Team) String() string {
 		t.TbaId, t.Name, t.AllianceScore)
 }
 
-func GetTeam(ctx context.Context, database *sql.DB, tbaId string) *Team {
+func GetTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error) {
 	query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
 	assert := assert.CreateAssertWithContext("Get Team")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetTeam: Failed to close statement", "error", err)
@@ -36,28 +38,37 @@ func GetTeam(ctx context.Context, database *sql.DB, tbaId string) *Team {
 	}()
 	team := Team{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
-	if err != nil || team.TbaId == "" {
-		return nil
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get team: %w", err)
 	}
-	return &team
+	if team.TbaId == "" {
+		return nil, nil
+	}
+	return &team, nil
 }
 
-func CreateTeam(ctx context.Context, database *sql.DB, tbaId string, name string) {
-	// TODO This should return an error
+func CreateTeam(ctx context.Context, database *sql.DB, tbaId string, name string) error {
 	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Create Team")
 	assert.AddContext("Tba Id", tbaId)
 	assert.AddContext("Name", name)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "CreateTeam: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, tbaId, name)
-	assert.NoError(ctx, err, "Failed to create team")
-
+	if err != nil {
+		return fmt.Errorf("failed to create team: %w", err)
+	}
+	return nil
 }
 
 func UpdateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) {
@@ -85,7 +96,7 @@ type MatchTeamScore struct {
 }
 
 // GetQualificationReturns individual qualification match scores for a team
-func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) []MatchTeamScore {
+func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]MatchTeamScore, error) {
 	query := `
 		Select
 			mt.Match_tbaId,
@@ -100,7 +111,9 @@ func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) []Match
 	assert := assert.CreateAssertWithContext("Get Qualification Matches")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetMatchScores: Failed to close statement", "error", err)
@@ -109,8 +122,7 @@ func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) []Match
 
 	rows, err := stmt.QueryContext(ctx, tbaId)
 	if err != nil {
-		log.Error(ctx, "Failed to get match scores for team", "Team", tbaId, "Error", err)
-		return nil
+		return nil, fmt.Errorf("failed to get match scores for team: %w", err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -123,15 +135,13 @@ func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) []Match
 		var match MatchTeamScore
 		err := rows.Scan(&match.MatchTbaId, &match.Alliance, &match.Score, &match.IsDqed)
 		if err != nil {
-			log.Warn(ctx, "Failed to scan match scores", "Team", tbaId, "Error", err)
-			return nil
+			return nil, fmt.Errorf("failed to scan match scores: %w", err)
 		}
 		matches = append(matches, match)
 	}
 
 	if err = rows.Err(); err != nil {
-		log.Error(ctx, "Error iterating matches scores", "Team", tbaId, "Error", err)
-		return nil
+		return nil, fmt.Errorf("error iterating matches scores: %w", err)
 	}
 
 	sort.Slice(matches, func(i, j int) bool {
@@ -142,7 +152,7 @@ func GetMatchScores(ctx context.Context, database *sql.DB, tbaId string) []Match
 		return val
 	})
 
-	return matches
+	return matches, nil
 }
 
 func ValidPick(ctx context.Context, database *sql.DB, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
@@ -186,7 +196,7 @@ func ValidPick(ctx context.Context, database *sql.DB, handler *tbaHandler.TbaHan
 // Keys are the string that represents display name and the value is the score
 // for that display name
 // Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
-func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]int {
+func GetScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]int, error) {
 	query := `Select
                 COALESCE(t.AllianceScore, 0) As AllianceScore
             From Teams t
@@ -195,7 +205,9 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
 	assert := assert.CreateAssertWithContext("Get Score")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetScore: Failed to close statement", "error", err)
@@ -205,8 +217,7 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
 	var allianceScore int
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&allianceScore)
 	if err != nil {
-		log.Error(ctx, "Failed to get alliance score for team", "Team", tbaId, "Error", err)
-		return nil
+		return nil, fmt.Errorf("failed to get alliance score for team: %w", err)
 	}
 
 	query = `Select
@@ -224,7 +235,9 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
              Order By mt.Team_TbaId`
 
 	stmt, err = database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetScore: Failed to close statement", "error", err)
@@ -235,8 +248,7 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
 	var matchScore int
 	rows, err := stmt.QueryContext(ctx, tbaId)
 	if err != nil {
-		log.Error(ctx, "Failed to get score for team", "Team", tbaId, "Error", err)
-		return nil
+		return nil, fmt.Errorf("failed to get score for team: %w", err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -250,8 +262,7 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
 		err = rows.Scan(&displayName, &matchScore)
 
 		if err != nil {
-			log.Warn(ctx, "Failed to get scores for team", "Team", tbaId, "Error", err)
-			return nil
+			return nil, fmt.Errorf("failed to scan scores for team: %w", err)
 		}
 
 		total += matchScore
@@ -263,5 +274,5 @@ func GetScore(ctx context.Context, database *sql.DB, tbaId string) map[string]in
 
 	log.Info(ctx, "Got scores for team", "Team", tbaId, "Scores", scores)
 
-	return scores
+	return scores, nil
 }

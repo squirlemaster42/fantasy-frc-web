@@ -447,10 +447,10 @@ func TestListDraftsCommand(t *testing.T) {
 
 	t.Run("returns formatted draft list", func(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
-		mockDraftStore.On("GetDraftsByName", ctx, "").Return(&[]model.DraftModel{
+		mockDraftStore.On("GetDraftsByName", ctx, "").Return([]model.DraftModel{
 			{Id: 1, DisplayName: "Test Draft One"},
 			{Id: 42, DisplayName: "Test Draft Two"},
-		})
+		}, nil)
 
 		cmd := &ListDraftsCommand{}
 		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "")
@@ -462,7 +462,7 @@ func TestListDraftsCommand(t *testing.T) {
 
 	t.Run("empty result shows headers only", func(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
-		mockDraftStore.On("GetDraftsByName", ctx, "").Return(&[]model.DraftModel{})
+		mockDraftStore.On("GetDraftsByName", ctx, "").Return([]model.DraftModel{}, nil)
 
 		cmd := &ListDraftsCommand{}
 		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "")
@@ -473,9 +473,9 @@ func TestListDraftsCommand(t *testing.T) {
 
 	t.Run("search filter passed to store", func(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
-		mockDraftStore.On("GetDraftsByName", ctx, "playoffs").Return(&[]model.DraftModel{
+		mockDraftStore.On("GetDraftsByName", ctx, "playoffs").Return([]model.DraftModel{
 			{Id: 7, DisplayName: "Playoffs Draft"},
-		})
+		}, nil)
 
 		cmd := &ListDraftsCommand{}
 		result := cmd.ProcessCommand(ctx, mockDraftStore, nil, nil, nil, "-s=playoffs")

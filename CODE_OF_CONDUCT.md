@@ -58,7 +58,7 @@ representative at an online or offline event.
 
 ## Enforcement
 
-If you're mean, you're probably gonna just get ban...so don't.
+If you're mean, you're probably gonna just get ban...so don't please.
 
 ## Attribution
 

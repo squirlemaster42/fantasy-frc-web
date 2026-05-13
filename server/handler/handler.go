@@ -8,6 +8,8 @@ import (
 	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
+
+	"github.com/labstack/echo/v4"
 )
 
 type Handler struct {
@@ -23,4 +25,11 @@ type Handler struct {
 	TbaVerificationCode string
 	DiscordBus          *discord.DiscordWebhookBus
 	SecureHttpCookie    bool
+	MinPasswordLength   int
+	CsrfSecret          string
+}
+
+func (h *Handler) csrfToken(c echo.Context) string {
+	tok, _ := c.Get("csrfToken").(string)
+	return tok
 }

@@ -4,25 +4,25 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to serve draft admin page")
-	assert := assert.CreateAssertWithContext("Handle Draft Admin Get")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
-	username := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		username = ""
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -43,19 +43,15 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 
 	isOwner := true
 
-	adminIndex := draftView.DraftAdminIndex(draftModel)
+	adminIndex := draftView.DraftAdminIndex(draftModel, h.csrfToken(c))
 	draftAdmin := draftView.DraftAdmin(" | Draft Admin", true, username, adminIndex, draftId, isOwner)
 	return Render(c, draftAdmin)
 }
 
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to skip pick")
-	assert := assert.CreateAssertWithContext("Handle Admin Skip Pick")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -82,12 +78,8 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 
 func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to extend pick time")
-	assert := assert.CreateAssertWithContext("Handle Admin Extend Time")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -129,12 +121,8 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 
 func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to make admin pick")
-	assert := assert.CreateAssertWithContext("Handle Admin Make Pick")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -180,12 +168,8 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to undo pick")
-	assert := assert.CreateAssertWithContext("Handle Admin Undo Pick")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

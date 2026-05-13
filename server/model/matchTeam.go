@@ -20,9 +20,15 @@ func (m *MatchTeam) String() string {
 		m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
-func AssocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) {
-	if GetTeam(ctx, database, teamTbaId) == nil {
-		CreateTeam(ctx, database, teamTbaId, "")
+func AssocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
+	team, err := GetTeam(ctx, database, teamTbaId)
+	if err != nil {
+		return fmt.Errorf("failed to get team: %w", err)
+	}
+	if team == nil {
+		if err := CreateTeam(ctx, database, teamTbaId, ""); err != nil {
+			return fmt.Errorf("failed to create team: %w", err)
+		}
 	}
 
 	query := `INSERT INTO Matches_Teams (team_tbaId, match_tbaId, alliance, isDqed) Values ($1, $2, $3, $4)
@@ -33,12 +39,17 @@ func AssocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, team
 	assert.AddContext("Alliance", alliance)
 	assert.AddContext("Is Dqed", isDqed)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "AssocateTeam: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, teamTbaId, matchTbaId, alliance, isDqed)
-	assert.NoError(ctx, err, "Failed to associate team")
+	if err != nil {
+		return fmt.Errorf("failed to associate team: %w", err)
+	}
+	return nil
 }

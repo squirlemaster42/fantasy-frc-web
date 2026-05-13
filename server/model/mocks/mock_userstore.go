@@ -17,7 +17,7 @@ type MockUserStore struct {
 }
 
 // GetDiscordId provides a mock function with given fields: ctx, userUuid
-func (_m *MockUserStore) GetDiscordId(ctx context.Context, userUuid uuid.UUID) string {
+func (_m *MockUserStore) GetDiscordId(ctx context.Context, userUuid uuid.UUID) (string, error) {
 	ret := _m.Called(ctx, userUuid)
 
 	if len(ret) == 0 {
@@ -25,17 +25,27 @@ func (_m *MockUserStore) GetDiscordId(ctx context.Context, userUuid uuid.UUID) s
 	}
 
 	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
+		return rf(ctx, userUuid)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
 		r0 = rf(ctx, userUuid)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetUserBySessionToken provides a mock function with given fields: ctx, sessionToken
-func (_m *MockUserStore) GetUserBySessionToken(ctx context.Context, sessionToken string) uuid.UUID {
+func (_m *MockUserStore) GetUserBySessionToken(ctx context.Context, sessionToken string) (uuid.UUID, error) {
 	ret := _m.Called(ctx, sessionToken)
 
 	if len(ret) == 0 {
@@ -43,6 +53,10 @@ func (_m *MockUserStore) GetUserBySessionToken(ctx context.Context, sessionToken
 	}
 
 	var r0 uuid.UUID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, error)); ok {
+		return rf(ctx, sessionToken)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
 		r0 = rf(ctx, sessionToken)
 	} else {
@@ -51,11 +65,17 @@ func (_m *MockUserStore) GetUserBySessionToken(ctx context.Context, sessionToken
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, sessionToken)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetUserUuidByUsername provides a mock function with given fields: ctx, username
-func (_m *MockUserStore) GetUserUuidByUsername(ctx context.Context, username string) uuid.UUID {
+func (_m *MockUserStore) GetUserUuidByUsername(ctx context.Context, username string) (uuid.UUID, error) {
 	ret := _m.Called(ctx, username)
 
 	if len(ret) == 0 {
@@ -63,6 +83,10 @@ func (_m *MockUserStore) GetUserUuidByUsername(ctx context.Context, username str
 	}
 
 	var r0 uuid.UUID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, error)); ok {
+		return rf(ctx, username)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
 		r0 = rf(ctx, username)
 	} else {
@@ -71,11 +95,17 @@ func (_m *MockUserStore) GetUserUuidByUsername(ctx context.Context, username str
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, username)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetUsername provides a mock function with given fields: ctx, userUuid
-func (_m *MockUserStore) GetUsername(ctx context.Context, userUuid uuid.UUID) string {
+func (_m *MockUserStore) GetUsername(ctx context.Context, userUuid uuid.UUID) (string, error) {
 	ret := _m.Called(ctx, userUuid)
 
 	if len(ret) == 0 {
@@ -83,22 +113,63 @@ func (_m *MockUserStore) GetUsername(ctx context.Context, userUuid uuid.UUID) st
 	}
 
 	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
+		return rf(ctx, userUuid)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
 		r0 = rf(ctx, userUuid)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// InvalidateAllUserSessionsExcept provides a mock function with given fields: ctx, userUuid, keepSessionToken
+func (_m *MockUserStore) InvalidateAllUserSessionsExcept(ctx context.Context, userUuid uuid.UUID, keepSessionToken string) error {
+	ret := _m.Called(ctx, userUuid, keepSessionToken)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InvalidateAllUserSessionsExcept")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, userUuid, keepSessionToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+
 	return r0
 }
 
 // RegisterSession provides a mock function with given fields: ctx, userUuid, sessionToken
-func (_m *MockUserStore) RegisterSession(ctx context.Context, userUuid uuid.UUID, sessionToken string) {
-	_m.Called(ctx, userUuid, sessionToken)
+func (_m *MockUserStore) RegisterSession(ctx context.Context, userUuid uuid.UUID, sessionToken string) error {
+	ret := _m.Called(ctx, userUuid, sessionToken)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RegisterSession")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, userUuid, sessionToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // RegisterUser provides a mock function with given fields: ctx, username, password
-func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, password string) uuid.UUID {
+func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, password string) (uuid.UUID, error) {
 	ret := _m.Called(ctx, username, password)
 
 	if len(ret) == 0 {
@@ -106,6 +177,10 @@ func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, pass
 	}
 
 	var r0 uuid.UUID
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, error)); ok {
+		return rf(ctx, username, password)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) uuid.UUID); ok {
 		r0 = rf(ctx, username, password)
 	} else {
@@ -114,7 +189,13 @@ func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, pass
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, username, password)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // SearchUsers provides a mock function with given fields: ctx, searchString, draftId
@@ -148,18 +229,57 @@ func (_m *MockUserStore) SearchUsers(ctx context.Context, searchString string, d
 }
 
 // UnRegisterSession provides a mock function with given fields: ctx, sessionToken
-func (_m *MockUserStore) UnRegisterSession(ctx context.Context, sessionToken string) {
-	_m.Called(ctx, sessionToken)
+func (_m *MockUserStore) UnRegisterSession(ctx context.Context, sessionToken string) error {
+	ret := _m.Called(ctx, sessionToken)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnRegisterSession")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, sessionToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UpdateDiscordId provides a mock function with given fields: ctx, userUuid, discordId
-func (_m *MockUserStore) UpdateDiscordId(ctx context.Context, userUuid uuid.UUID, discordId string) {
-	_m.Called(ctx, userUuid, discordId)
+func (_m *MockUserStore) UpdateDiscordId(ctx context.Context, userUuid uuid.UUID, discordId string) error {
+	ret := _m.Called(ctx, userUuid, discordId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateDiscordId")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = rf(ctx, userUuid, discordId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UpdatePassword provides a mock function with given fields: ctx, username, newPassword
-func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, newPassword string) {
-	_m.Called(ctx, username, newPassword)
+func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, newPassword string) error {
+	ret := _m.Called(ctx, username, newPassword)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePassword")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, username, newPassword)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // UsernameTaken provides a mock function with given fields: ctx, username
@@ -191,7 +311,7 @@ func (_m *MockUserStore) UsernameTaken(ctx context.Context, username string) (bo
 }
 
 // ValidateLogin provides a mock function with given fields: ctx, username, password
-func (_m *MockUserStore) ValidateLogin(ctx context.Context, username string, password string) bool {
+func (_m *MockUserStore) ValidateLogin(ctx context.Context, username string, password string) (bool, error) {
 	ret := _m.Called(ctx, username, password)
 
 	if len(ret) == 0 {
@@ -199,17 +319,55 @@ func (_m *MockUserStore) ValidateLogin(ctx context.Context, username string, pas
 	}
 
 	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return rf(ctx, username, password)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
 		r0 = rf(ctx, username, password)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, username, password)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UserIsAdmin provides a mock function with given fields: ctx, userUuid
+func (_m *MockUserStore) UserIsAdmin(ctx context.Context, userUuid uuid.UUID) (bool, error) {
+	ret := _m.Called(ctx, userUuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserIsAdmin")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return rf(ctx, userUuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = rf(ctx, userUuid)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ValidateSessionToken provides a mock function with given fields: ctx, sessionToken
-func (_m *MockUserStore) ValidateSessionToken(ctx context.Context, sessionToken string) bool {
+func (_m *MockUserStore) ValidateSessionToken(ctx context.Context, sessionToken string) (bool, error) {
 	ret := _m.Called(ctx, sessionToken)
 
 	if len(ret) == 0 {
@@ -217,13 +375,23 @@ func (_m *MockUserStore) ValidateSessionToken(ctx context.Context, sessionToken 
 	}
 
 	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (bool, error)); ok {
+		return rf(ctx, sessionToken)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) bool); ok {
 		r0 = rf(ctx, sessionToken)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, sessionToken)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // NewMockUserStore creates a new instance of MockUserStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

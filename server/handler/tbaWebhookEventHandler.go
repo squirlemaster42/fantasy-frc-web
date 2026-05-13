@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,10 +39,25 @@ func validMAC(message []byte, messageMAC string, key []byte) bool {
 
 func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	log.Info(c.Request().Context(), "Received webhook message")
+	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, 1<<20) // 1 MB
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			log.Warn(c.Request().Context(), "Webhook payload too large")
+			return c.NoContent(http.StatusRequestEntityTooLarge)
+		}
 		log.Error(c.Request().Context(), "Failed to read request body", "Error", err)
 		return nil
+	}
+
+	// Validate HMAC BEFORE processing any events
+	messageMac := c.Request().Header.Get("X-TBA-HMAC")
+	valid := validMAC(body, messageMac, []byte(h.TbaWebhookSecret))
+
+	if !valid {
+		log.Warn(c.Request().Context(), "Webhook event authentication failed", "Message", string(body))
+		return c.NoContent(http.StatusOK)
 	}
 
 	var event TbaWebsocketEvent
@@ -53,13 +69,6 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 
 	if event.MessageType == "verification" {
 		h.HandleVerificationEvent(event.MessageData)
-	}
-
-	messageMac := c.Request().Header.Get("X-TBA-HMAC")
-	valid := validMAC(body, messageMac, []byte(h.TbaWebhookSecret))
-
-	if !valid {
-		log.Warn(c.Request().Context(), "Webhook event authentication failed", "Message", string(body))
 		return c.NoContent(http.StatusOK)
 	}
 
@@ -283,7 +292,7 @@ func (h *Handler) HandleVerificationEvent(messageData json.RawMessage) {
 	// Only create the file if it doesn't already exist
 	_, err = os.Stat(utils.GetWebhookFilePath())
 	if os.IsNotExist(err) {
-		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaVerificationCode), 0644)
+		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaVerificationCode), 0600)
 		if err != nil {
 			log.Warn(context.TODO(), "Failed to write tba webhook file body", "Error", err)
 		}

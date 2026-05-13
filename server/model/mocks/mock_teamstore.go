@@ -15,12 +15,25 @@ type MockTeamStore struct {
 }
 
 // CreateTeam provides a mock function with given fields: ctx, tbaId, name
-func (_m *MockTeamStore) CreateTeam(ctx context.Context, tbaId string, name string) {
-	_m.Called(ctx, tbaId, name)
+func (_m *MockTeamStore) CreateTeam(ctx context.Context, tbaId string, name string) error {
+	ret := _m.Called(ctx, tbaId, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateTeam")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, tbaId, name)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // GetMatchScores provides a mock function with given fields: ctx, tbaId
-func (_m *MockTeamStore) GetMatchScores(ctx context.Context, tbaId string) []model.MatchTeamScore {
+func (_m *MockTeamStore) GetMatchScores(ctx context.Context, tbaId string) ([]model.MatchTeamScore, error) {
 	ret := _m.Called(ctx, tbaId)
 
 	if len(ret) == 0 {
@@ -28,6 +41,10 @@ func (_m *MockTeamStore) GetMatchScores(ctx context.Context, tbaId string) []mod
 	}
 
 	var r0 []model.MatchTeamScore
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]model.MatchTeamScore, error)); ok {
+		return rf(ctx, tbaId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) []model.MatchTeamScore); ok {
 		r0 = rf(ctx, tbaId)
 	} else {
@@ -36,11 +53,17 @@ func (_m *MockTeamStore) GetMatchScores(ctx context.Context, tbaId string) []mod
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, tbaId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetScore provides a mock function with given fields: ctx, tbaId
-func (_m *MockTeamStore) GetScore(ctx context.Context, tbaId string) map[string]int {
+func (_m *MockTeamStore) GetScore(ctx context.Context, tbaId string) (map[string]int, error) {
 	ret := _m.Called(ctx, tbaId)
 
 	if len(ret) == 0 {
@@ -48,6 +71,10 @@ func (_m *MockTeamStore) GetScore(ctx context.Context, tbaId string) map[string]
 	}
 
 	var r0 map[string]int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (map[string]int, error)); ok {
+		return rf(ctx, tbaId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) map[string]int); ok {
 		r0 = rf(ctx, tbaId)
 	} else {
@@ -56,11 +83,17 @@ func (_m *MockTeamStore) GetScore(ctx context.Context, tbaId string) map[string]
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, tbaId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetTeam provides a mock function with given fields: ctx, tbaId
-func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) *model.Team {
+func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) (*model.Team, error) {
 	ret := _m.Called(ctx, tbaId)
 
 	if len(ret) == 0 {
@@ -68,6 +101,10 @@ func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) *model.Team 
 	}
 
 	var r0 *model.Team
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*model.Team, error)); ok {
+		return rf(ctx, tbaId)
+	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) *model.Team); ok {
 		r0 = rf(ctx, tbaId)
 	} else {
@@ -76,7 +113,13 @@ func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) *model.Team 
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, tbaId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // NewMockTeamStore creates a new instance of MockTeamStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

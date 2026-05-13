@@ -13,12 +13,11 @@ import (
 
 func TestHandleTeamScore(t *testing.T) {
 	_, c, rec := setupTestContext(t, http.MethodGet, "/team/score", "", "test-session")
-
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
 	mockUserStore := mocks.NewMockUserStore(t)
 
-	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 	h := &Handler{
 		UserStore: mockUserStore,
@@ -34,8 +33,8 @@ func TestHandleGetTeamScore(t *testing.T) {
 
 	mockTeamStore := mocks.NewMockTeamStore(t)
 
-	mockTeamStore.On("GetScore", c.Request().Context(), "frc254").Return(map[string]int{"total": 42})
-	mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{})
+	mockTeamStore.On("GetScore", c.Request().Context(), "frc254").Return(map[string]int{"total": 42}, nil)
+	mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{}, nil)
 
 	h := &Handler{
 		TeamStore: mockTeamStore,

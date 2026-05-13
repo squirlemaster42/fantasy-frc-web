@@ -14,15 +14,16 @@ import (
 
 func TestHandleLoginPost(t *testing.T) {
 	t.Run("valid login", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "testuser").Return(true, nil)
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "secret").Return(true)
-		mockUserStore.On("GetUserUuidByUsername", c.Request().Context(), "testuser").Return(userUuid)
-		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string"))
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "secret").Return(true, nil)
+		mockUserStore.On("GetUserUuidByUsername", c.Request().Context(), "testuser").Return(userUuid, nil)
+		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string")).Return(nil)
 
 		h := &Handler{
 			UserStore:        mockUserStore,
@@ -46,12 +47,13 @@ func TestHandleLoginPost(t *testing.T) {
 	})
 
 	t.Run("invalid credentials", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=wrong", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=wrong&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "testuser").Return(true, nil)
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false)
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
 
 		h := &Handler{
 			UserStore:        mockUserStore,
@@ -65,7 +67,8 @@ func TestHandleLoginPost(t *testing.T) {
 	})
 
 	t.Run("username not taken", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=newuser&password=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=newuser&password=secret&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
@@ -83,7 +86,8 @@ func TestHandleLoginPost(t *testing.T) {
 	})
 
 	t.Run("database error checking username", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
@@ -106,7 +110,7 @@ func TestHandleLogoutPost(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/logout", "", "test-session")
 
 		mockUserStore := mocks.NewMockUserStore(t)
-		mockUserStore.On("UnRegisterSession", c.Request().Context(), "test-session")
+		mockUserStore.On("UnRegisterSession", c.Request().Context(), "test-session").Return(nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -131,17 +135,19 @@ func TestHandleLogoutPost(t *testing.T) {
 
 func TestHandlerRegisterPost(t *testing.T) {
 	t.Run("valid registration", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=secret&confirmPassword=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, nil)
-		mockUserStore.On("RegisterUser", c.Request().Context(), "newuser", "secret").Return(userUuid)
-		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string"))
+		mockUserStore.On("RegisterUser", c.Request().Context(), "newuser", "Secret123").Return(userUuid, nil)
+		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string")).Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			UserStore:         mockUserStore,
+			MinPasswordLength: 8,
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -161,14 +167,16 @@ func TestHandlerRegisterPost(t *testing.T) {
 	})
 
 	t.Run("username taken", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=existing&password=secret&confirmPassword=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=existing&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "existing").Return(true, nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			UserStore:         mockUserStore,
+			MinPasswordLength: 8,
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -178,14 +186,16 @@ func TestHandlerRegisterPost(t *testing.T) {
 	})
 
 	t.Run("passwords do not match", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=secret&confirmPassword=other", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Other456&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			UserStore:         mockUserStore,
+			MinPasswordLength: 8,
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -195,14 +205,16 @@ func TestHandlerRegisterPost(t *testing.T) {
 	})
 
 	t.Run("database error checking username", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=secret&confirmPassword=secret", "")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, errors.New("connection refused"))
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			UserStore:         mockUserStore,
+			MinPasswordLength: 8,
 		}
 
 		err := h.HandlerRegisterPost(c)

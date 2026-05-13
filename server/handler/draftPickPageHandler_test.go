@@ -20,10 +20,9 @@ func TestServePickPage(t *testing.T) {
 		c.SetParamValues("abc")
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
-
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
 
 		h := &Handler{
 			DraftStore: mockDraftStore,
@@ -48,10 +47,10 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		c.SetParamValues("42")
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
 		mockDraftStore.On("GetDraftPlayerId", c.Request().Context(), 42, userUuid).Return(7, nil)
 		mockDraftStore.On("MarkShouldSkipPick", c.Request().Context(), 7, true).Return(nil)
 
@@ -76,10 +75,9 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		c.SetParamValues("abc")
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
-
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
 
 		h := &Handler{
 			DraftStore: mockDraftStore,

@@ -1,9 +1,10 @@
 package login
 
+import "fmt"
 import "server/view"
 import "server/view/partials"
 
-templ LoginIndex(fromProtected bool, errorMessage string) {
+templ LoginIndex(fromProtected bool, errorMessage string, minPasswordLength int, csrfToken string) {
     <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
         <div class="max-w-md w-full" id="login-box">
             <!-- Login Card -->
@@ -29,6 +30,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
                         method="post"
                         class="space-y-6"
                     >
+                        @partials.CSRFInput(csrfToken)
                         <!-- Username Field -->
                         <div>
                             <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -62,7 +64,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
                                     type="password"
                                     name="password"
                                     required
-                                    minlength="6"
+                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                     disabled?={ fromProtected }
                                     if fromProtected {
                                         value="disabled"

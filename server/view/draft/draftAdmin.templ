@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-templ DraftAdminIndex(draft model.DraftModel) {
+templ DraftAdminIndex(draft model.DraftModel, csrfToken string) {
 	<div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
 		<div class="max-w-4xl mx-auto w-full space-y-6">
 			<div class="flex items-center justify-between">
@@ -36,11 +36,11 @@ templ DraftAdminIndex(draft model.DraftModel) {
 					</div>
 				</div>
 
-			@QuickActionsCard(draft)
+			@QuickActionsCard(draft, csrfToken)
 
-			@ExtendTimeCard(draft)
+			@ExtendTimeCard(draft, csrfToken)
 
-			@AdminPickCard(draft)
+			@AdminPickCard(draft, csrfToken)
 		}
 
 		if draft.Status != model.PICKING {
@@ -58,7 +58,7 @@ templ DraftAdminIndex(draft model.DraftModel) {
 	</div>
 }
 
-templ QuickActionsCard(draft model.DraftModel) {
+templ QuickActionsCard(draft model.DraftModel, csrfToken string) {
 	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-slate-100 mb-4">Quick Actions</h2>
@@ -73,6 +73,7 @@ templ QuickActionsCard(draft model.DraftModel) {
 				"",
 				"",
 				"",
+				csrfToken,
 			) {
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-amber-400">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
@@ -91,6 +92,7 @@ templ QuickActionsCard(draft model.DraftModel) {
 				"",
 				"",
 				"",
+				csrfToken,
 			) {
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-red-400">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
@@ -103,7 +105,7 @@ templ QuickActionsCard(draft model.DraftModel) {
 	</div>
 }
 
-templ ExtendTimeCard(draft model.DraftModel) {
+templ ExtendTimeCard(draft model.DraftModel, csrfToken string) {
 	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-slate-100 mb-4">Extend Pick Time</h2>
@@ -119,6 +121,7 @@ templ ExtendTimeCard(draft model.DraftModel) {
 					"",
 					"",
 					"",
+					csrfToken,
 				) {
 					+30 min
 				}
@@ -132,6 +135,7 @@ templ ExtendTimeCard(draft model.DraftModel) {
 					"",
 					"",
 					"",
+					csrfToken,
 				) {
 					+1 hour
 				}
@@ -145,6 +149,7 @@ templ ExtendTimeCard(draft model.DraftModel) {
 					"",
 					"",
 					"",
+					csrfToken,
 				) {
 					+2 hours
 				}
@@ -155,6 +160,7 @@ templ ExtendTimeCard(draft model.DraftModel) {
 					hx-swap="innerHTML"
 					class="flex gap-2"
 				>
+					@partials.CSRFInput(csrfToken)
 					<input
 						type="text"
 						name="duration"
@@ -183,7 +189,7 @@ templ ExtendTimeCard(draft model.DraftModel) {
 	</div>
 }
 
-templ AdminPickCard(draft model.DraftModel) {
+templ AdminPickCard(draft model.DraftModel, csrfToken string) {
 	<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-slate-100 mb-4">Make Pick For Current Player</h2>
@@ -193,6 +199,7 @@ templ AdminPickCard(draft model.DraftModel) {
 				hx-swap="innerHTML"
 				class="flex gap-2"
 			>
+				@partials.CSRFInput(csrfToken)
 				<div class="flex-1">
 					<label class="block text-sm font-medium text-slate-300 mb-2">Team Number</label>
 					<input

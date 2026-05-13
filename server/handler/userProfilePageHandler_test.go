@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 
 	"server/model/mocks"
@@ -14,13 +13,12 @@ import (
 func TestHandleViewUserProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/userProfile", "", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("GetDiscordId", c.Request().Context(), userUuid).Return("12345678901234567")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("GetDiscordId", c.Request().Context(), userUuid).Return("12345678901234567", nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -37,7 +35,7 @@ func TestHandleViewUserProfile(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleViewUserProfile(c)
-		assert.ErrorIs(t, err, echo.ErrUnauthorized)
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
@@ -46,13 +44,12 @@ func TestHandleViewUserProfile(t *testing.T) {
 func TestHandleUpdateUserProfile(t *testing.T) {
 	t.Run("update discord only", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/userProfile", "discordId=12345678901234567", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "12345678901234567")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "12345678901234567").Return(nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -66,15 +63,15 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 
 	t.Run("update password success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/userProfile", "discordId=&currentPassword=oldpass&newPassword=newpass123&confirmNewPassword=newpass123", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "")
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "oldpass").Return(true)
-		mockUserStore.On("UpdatePassword", c.Request().Context(), "testuser", "newpass123")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "oldpass").Return(true, nil)
+		mockUserStore.On("UpdatePassword", c.Request().Context(), "testuser", "newpass123").Return(nil)
+		mockUserStore.On("InvalidateAllUserSessionsExcept", c.Request().Context(), userUuid, "test-session").Return(nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -88,13 +85,12 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 
 	t.Run("missing current password", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/userProfile", "discordId=&currentPassword=&newPassword=newpass&confirmNewPassword=newpass", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -108,13 +104,12 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 
 	t.Run("passwords do not match", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/userProfile", "discordId=&currentPassword=oldpass&newPassword=newpass&confirmNewPassword=different", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "")
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,
@@ -128,14 +123,13 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 
 	t.Run("invalid current password", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/userProfile", "discordId=&currentPassword=wrong&newPassword=newpass123&confirmNewPassword=newpass123", "test-session")
-
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "test-session").Return(userUuid)
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser")
-		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "")
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
 
 		h := &Handler{
 			UserStore: mockUserStore,

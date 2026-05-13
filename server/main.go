@@ -57,7 +57,42 @@ func main() {
 	serverPort := os.Getenv("SERVER_PORT")
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	metricSecret := os.Getenv("METRIC_SECRET")
-    secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
+	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
+	csrfSecret := os.Getenv("CSRF_SECRET")
+	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
+	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
+
+	if csrfSecret == "" {
+		panic("CSRF_SECRET environment variable is required")
+	}
+
+	minPasswordLength := 12
+	if minPasswordLengthVar != "" {
+		parsed, err := strconv.Atoi(minPasswordLengthVar)
+		if err == nil && parsed > 0 {
+			minPasswordLength = parsed
+		}
+	}
+
+	redisRateLimitDB := 1
+	if redisRateLimitDBVar != "" {
+		parsed, err := strconv.Atoi(redisRateLimitDBVar)
+		if err == nil {
+			redisRateLimitDB = parsed
+		}
+	}
+
+	postsPerMinute := int64(100)
+	if postsPerMinuteVar != "" {
+		parsed, err := strconv.ParseInt(postsPerMinuteVar, 10, 64)
+		if err == nil && parsed > 0 {
+			postsPerMinute = parsed
+		}
+	}
+
 	log.Info(context.Background(), "Extracted Env Vars")
 	database, err := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
@@ -68,11 +103,11 @@ func main() {
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
-    secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
-    if err != nil {
-        log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
-        secureHttpCookie = true
-    }
+	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
+	if err != nil {
+		log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+		secureHttpCookie = true
+	}
 
 	discordBus := discord.NewBus()
 	draftManager := draft.NewDraftManager(tbaHandler, database, discordBus)
@@ -113,15 +148,17 @@ func main() {
 	teamStore := model.NewSQLTeamStore(database)
 
 	handler := handler.Handler{
-		DraftStore:   draftStore,
-		UserStore:    userStore,
-		TeamStore:    teamStore,
-		TbaHandler:   *tbaHandler,
-		DraftManager: draftManager,
-		Scorer:       scorer,
-		AvatarStore:  &avatarStore,
-		DiscordBus:   discordBus,
-		SecureHttpCookie: secureHttpCookie,
+		DraftStore:        draftStore,
+		UserStore:         userStore,
+		TeamStore:         teamStore,
+		TbaHandler:        *tbaHandler,
+		DraftManager:      draftManager,
+		Scorer:            scorer,
+		AvatarStore:       &avatarStore,
+		DiscordBus:        discordBus,
+		SecureHttpCookie:  secureHttpCookie,
+		MinPasswordLength: minPasswordLength,
+		CsrfSecret:        csrfSecret,
 	}
 
 	// Load the tba webhook secret
@@ -133,12 +170,12 @@ func main() {
 		if err != nil {
 			log.Warn(context.Background(), "Failed to read tba webhook file body", "Error", err)
 		} else {
-		handler.TbaVerificationCode = string(body)
+			handler.TbaVerificationCode = string(body)
 		}
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret)
+	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
 
 	go func() {
 		err := app.Start(":" + serverPort)

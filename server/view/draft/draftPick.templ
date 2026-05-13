@@ -4,6 +4,7 @@ import (
 	"server/model"
 	"server/types"
 	"server/view"
+	"server/view/partials"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ type PickPage struct {
     SkipUrl string
 }
 
-templ DraftPickIndex (pickPageModel PickPage) {
+templ DraftPickIndex (pickPageModel PickPage, csrfToken string) {
     <div id="draftPicks" class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500">
         <div hx-ext="ws" ws-connect={pickPageModel.NotifierUrl} class="w-full">
             <div
@@ -33,6 +34,7 @@ templ DraftPickIndex (pickPageModel PickPage) {
                     action=""
                     method="post"
                 >
+                    @partials.CSRFInput(csrfToken)
                     <div id="draft-table" class="flex flex-col gap-6">
                         <div class="w-full flex items-center justify-center">
                             if pickPageModel.PickError != nil {
