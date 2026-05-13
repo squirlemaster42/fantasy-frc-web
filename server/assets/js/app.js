@@ -6,6 +6,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+document.body.addEventListener('htmx:configRequest', function(evt) {
+    // Auto-inject CSRF token from cookie into HTMX request headers
+    var token = document.cookie.split('; ').find(function(row) {
+        return row.startsWith('csrf_token=');
+    });
+    if (token) {
+        evt.detail.headers['X-CSRF-Token'] = token.split('=')[1];
+    }
+});
+
 document.body.addEventListener('htmx:responseError', function(evt) {
     // Simple global error toast fallback
     var toast = document.getElementById('global-error-toast');

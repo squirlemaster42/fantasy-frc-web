@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
@@ -17,13 +16,8 @@ import (
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got a request to serve the draft profile page")
-	assert := assert.CreateAssertWithContext("Handle update Draft Profile")
 
-	userTok, err := c.Cookie("sessionToken")
-	// We validate the cookie in the middleware so we can assert here
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -52,20 +46,19 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		draftModel.EndTime = time.Now().Add(72 * time.Hour)
 	}
 
-	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner)
+	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
 }
 
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to update a draft")
-	assert := assert.CreateAssertWithContext("Handle Update Draft Profile")
 
 	draftId, err := strconv.Atoi(c.Param("id"))
-
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Could not parse draftId from params")
-	assert.AddContext("Draft Id", draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Could not parse draftId from params", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
 
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
@@ -74,22 +67,25 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	endTime := c.FormValue("endTime")
 	discordWebhook := c.FormValue("discordWebhook")
 
-	sessionToken, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get session cookie")
-
 	intInterval, err := strconv.Atoi(interval)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse interval")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse interval", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid interval")
+	}
 
 	layout := "2006-01-02T15:04:05"
 	parsedStartTime, err := time.Parse(layout, startTime)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse start time")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse start time", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid start time")
+	}
 	parsedEndTime, err := time.Parse(layout, endTime)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse end time")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse end time", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid end time")
+	}
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, sessionToken.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
 	if err != nil {
@@ -132,8 +128,10 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 func (h *Handler) SearchPlayers(c echo.Context) error {
 	splitSource := strings.Split(c.Request().Header["Hx-Current-Url"][0], "/")
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
-	// TODO we should not crash here
-	assert.NoErrorCF(c.Request().Context(), err, "Failed to parse draft Id")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse draft Id", "Error", err)
+		return nil
+	}
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
@@ -149,31 +147,28 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 		return nil
 	}
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoErrorCF(c.Request().Context(), err, "Failed to get user token")
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
-
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
-	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner)
+	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner, h.csrfToken(c))
 	err = Render(c, searchResults)
 	return err
 }
 
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Invite Draft Player")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
-	invitingUserUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
 	draftId, err := strconv.Atoi(draftIdStr)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Invalid draft id")
-	userUuidString := c.FormValue("userUuid")
-	assert.AddContext("User UUID String", userUuidString)
-	userUuid, err := uuid.Parse(userUuidString)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse user guid")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft id", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
+	invitedUserUuidString := c.FormValue("userUuid")
+	invitedUserUuid, err := uuid.Parse(invitedUserUuidString)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse user guid", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid user UUID")
+	}
 
 	// Check that the draft is in the correct state
 	draft, err := h.DraftManager.GetDraft(draftId, false)
@@ -186,19 +181,17 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to invite players")
 	}
 
-	isOwner := invitingUserUuid == draft.GetOwner().UserUuid
+	isOwner := userUuid == draft.GetOwner().UserUuid
 	if !isOwner {
 		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
 
-	_, err = model.InvitePlayer(c.Request().Context(), h.Database, draftId, invitingUserUuid, userUuid)
+	_, err = model.InvitePlayer(c.Request().Context(), h.Database, draftId, userUuid, invitedUserUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
 	}
 
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to parse draft Id")
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
@@ -216,21 +209,16 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	players := draftModel.Players
 
-	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner)
+	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner, h.csrfToken(c))
 	err = Render(c, updatedPage)
 
 	return err
 }
 
 func (h *Handler) HandleStartDraft(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Start Draft")
-	userTok, err := c.Cookie("sessionToken")
-	// Session token should always be here because the middleware should have
-	// checked for it
-	assert.NoError(c.Request().Context(), err, "Failed to get user token.")
 	draftIdStr := c.Param("id")
 	log.Info(c.Request().Context(), "Got a request to start a draft", "Draft Id", draftIdStr)
-	requestingUser := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	requestingUser := c.Get("userUuid").(uuid.UUID)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not parse draftId", "Draft Id Str", draftIdStr, "Error", err)
@@ -239,6 +227,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			"Draft Id is not a number",
 			false,
+			h.csrfToken(c),
 		)
 		return Render(c, page)
 	}
@@ -247,14 +236,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
-		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false)
+		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false, h.csrfToken(c))
 		return Render(c, page)
 	}
 
 	if draft.GetOwner().UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "Draft Id", draftId, "User", requestingUser)
 		c.Response().Status = http.StatusUnauthorized
-		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false)
+		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false, h.csrfToken(c))
 		return Render(c, page)
 	}
 
@@ -274,6 +263,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			fmt.Sprintf("Draft must have exactly 8 accepted players to start (current: %d)", numAccepted),
 			true,
+			h.csrfToken(c),
 		)
 		return Render(c, page)
 	}

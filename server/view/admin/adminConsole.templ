@@ -3,7 +3,7 @@ package admin
 import "server/view"
 import "fmt"
 
-templ AdminConsoleIndex(username string) {
+templ AdminConsoleIndex(username string, csrfToken string) {
 <div class="w-full h-full p-4">
     <div class="terminal p-6 rounded-lg shadow-lg h-full overflow-auto">
         <div id="output" class="space-y-2 mb-4" aria-live="polite" aria-atomic="false">
@@ -14,7 +14,8 @@ templ AdminConsoleIndex(username string) {
             <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
                 aria-label="Command input"
                 hx-on::after-request="document.getElementById('commandInput').value = ''"
-                hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend"/>
+                hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend"
+                hx-vals={fmt.Sprintf(`{"csrf_token": "%s"}`, csrfToken)}/>
         </div>
     </div>
 </div>

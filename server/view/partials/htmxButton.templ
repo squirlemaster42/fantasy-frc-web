@@ -1,6 +1,8 @@
 package partials
 
-templ HtmxButton(url string, target string, swap string, confirmMsg string, disabled bool, classes string, loadingText string, btnName string, btnValue string) {
+import "fmt"
+
+templ HtmxButton(url string, target string, swap string, confirmMsg string, disabled bool, classes string, loadingText string, btnName string, btnValue string, csrfToken string) {
     <button
         hx-post={url}
         if target != "" {
@@ -17,6 +19,9 @@ templ HtmxButton(url string, target string, swap string, confirmMsg string, disa
         }
         if btnValue != "" {
             value={btnValue}
+        }
+        if csrfToken != "" {
+            hx-vals={fmt.Sprintf(`{"csrf_token": "%s"}`, csrfToken)}
         }
         disabled?={disabled}
         hx-disabled-elt="this"

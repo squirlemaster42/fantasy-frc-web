@@ -115,6 +115,7 @@ import (
 ### Error Handling
 
 - Use the custom `assert` package for database operations and critical paths
+- **Never use `assert.Fatal` in authentication hot paths or user-facing handlers** — always return errors gracefully to avoid crashing the server on invalid user input
 - Provide context when creating assertions: `assert := assert.CreateAssertWithContext("Function Name")`
 - Add context to assertions: `assert.AddContext("User ID", userId)`
 - Use `slog` for non-critical errors and informational logging

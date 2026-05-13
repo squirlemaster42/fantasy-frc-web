@@ -1,50 +1,31 @@
 package handler
 
 import (
-	"net/http"
-	"server/assert"
+	"fmt"
 	"server/log"
 	"server/model"
 	"server/view/userProfile"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleViewUserProfile(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle View User Profile")
-
-	userTok, err := c.Cookie("sessionToken")
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to get session token", "Ip", c.RealIP())
-		err = c.Redirect(http.StatusSeeOther, "/login")
-		if err != nil {
-			return err
-		}
-		return echo.ErrUnauthorized
-	}
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 	discordId := model.GetDiscordId(c.Request().Context(), h.Database, userUuid)
 
-	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "")
+	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "", h.csrfToken(c), h.MinPasswordLength)
 	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
-	err = Render(c, userProfile)
-	// TODO should we crash here?
-	assert.NoError(c.Request().Context(), err, "Handle View User Profile Failed To Render")
+	err := Render(c, userProfile)
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View User Profile Failed To Render", "Error", err)
+	}
 	return nil
 }
 
 func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Update User Profile")
-
-	userTok, err := c.Cookie("sessionToken")
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to get session token", "Ip", c.RealIP())
-		return c.Redirect(http.StatusSeeOther, "/login")
-	}
-
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	discordId := c.FormValue("discordId")
@@ -58,54 +39,85 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	// Handle password change if any password field is filled
 	if currentPassword != "" || newPassword != "" || confirmNewPassword != "" {
 		if currentPassword == "" {
-			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is required to change your password", "")
-			err = Render(c, userProfileIndex)
-			// TODO should we crash here
-			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is required to change your password", "", h.csrfToken(c), h.MinPasswordLength)
+			err := Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
 			return nil
 		}
 
 		if newPassword == "" {
-			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password is required", "")
-			err = Render(c, userProfileIndex)
-			// TODO should we crash here
-			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password is required", "", h.csrfToken(c), h.MinPasswordLength)
+			err := Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
 			return nil
 		}
 
 		if newPassword != confirmNewPassword {
-			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New passwords do not match", "")
-			err = Render(c, userProfileIndex)
-			// TODO should we crash here
-			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New passwords do not match", "", h.csrfToken(c), h.MinPasswordLength)
+			err := Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
 			return nil
 		}
 
-		if len(newPassword) < 6 {
-			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "New password must be at least 6 characters", "")
-			err = Render(c, userProfileIndex)
-			// TODO should we crash here
-			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+		if len(newPassword) < h.MinPasswordLength {
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, fmt.Sprintf("New password must be at least %d characters", h.MinPasswordLength), "", h.csrfToken(c), h.MinPasswordLength)
+			err := Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
 			return nil
 		}
 
-		if !model.ValidateLogin(c.Request().Context(), h.Database, username, currentPassword) {
+		valid, err := model.ValidateLogin(c.Request().Context(), h.Database, username, currentPassword)
+		if err != nil {
+			log.Error(c.Request().Context(), "Failed to validate current password", "Username", username, "Error", err)
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "An error occurred. Please try again.", "", h.csrfToken(c), h.MinPasswordLength)
+			err = Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
+			return nil
+		}
+		if !valid {
 			log.Info(c.Request().Context(), "Invalid current password attempt for user", "Username", username)
-			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is incorrect", "")
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "Current password is incorrect", "", h.csrfToken(c), h.MinPasswordLength)
 			err = Render(c, userProfileIndex)
-			// TODO should we crash here
-			assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
 			return nil
 		}
 
 		log.Info(c.Request().Context(), "Updating password for user", "Username", username)
-		model.UpdatePassword(c.Request().Context(), h.Database, username, newPassword)
+		if err := model.UpdatePassword(c.Request().Context(), h.Database, username, newPassword); err != nil {
+			log.Error(c.Request().Context(), "Failed to update password", "Username", username, "Error", err)
+			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "An error occurred. Please try again.", "", h.csrfToken(c), h.MinPasswordLength)
+			err = Render(c, userProfileIndex)
+			if err != nil {
+				log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+			}
+			return nil
+		}
+		// Invalidate all other sessions on password change
+		userTok, _ := c.Cookie("sessionToken")
+		if userTok != nil && userTok.Value != "" {
+			if err := model.InvalidateAllUserSessionsExcept(c.Request().Context(), h.Database, userUuid, userTok.Value); err != nil {
+				log.Warn(c.Request().Context(), "Failed to invalidate other sessions", "Username", username, "Error", err)
+			}
+		}
 	}
 
 	log.Info(c.Request().Context(), "Updated profile for user", "Username", username)
-	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "Profile updated successfully")
-	err = Render(c, userProfileIndex)
-	// TODO should we crash here
-	assert.NoError(c.Request().Context(), err, "Handle Update User Profile Failed To Render")
+	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "Profile updated successfully", h.csrfToken(c), h.MinPasswordLength)
+	err := Render(c, userProfileIndex)
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
+	}
 	return nil
 }

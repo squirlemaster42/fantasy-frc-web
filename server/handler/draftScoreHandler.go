@@ -8,15 +8,14 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleDraftScore(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Draft Score")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -48,10 +47,8 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	assert := assert.CreateAssertWithContext("Handle Draft Team Score")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(c.Request().Context(), err, "Failed to get user token")
 
-	userUuid := model.GetUserBySessionToken(c.Request().Context(), h.Database, userTok.Value)
+	userUuid := c.Get("userUuid").(uuid.UUID)
 	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
 
 	draftId, err := strconv.Atoi(c.Param("id"))
