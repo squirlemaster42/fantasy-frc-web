@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"server/assert"
 	"server/log"
@@ -15,8 +16,6 @@ import (
 )
 
 func (h *Handler) HandleDraftScore(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Draft Score")
-
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
@@ -25,12 +24,16 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
-	// TODO we cannot crash here
-	assert.NoError(c.Request().Context(), err, "Failed to convert draft id to int")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to convert draft id to int", "Error", err)
+		return c.String(http.StatusBadRequest, "Draft id was not an int")
+	}
 
 	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
-	// TODO we cannot crash here
-	assert.NoError(c.Request().Context(), err, "Failed to get draft")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get draft by id", "Draft Id", draftId, "Error", err)
+		return c.String(http.StatusNotFound, fmt.Sprintf("Failed to load draft id %d", draftId))
+	}
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
@@ -66,12 +69,16 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
-	// TODO we shouldn't crash here
-	assert.NoError(c.Request().Context(), err, "Failed to convert draft id to int")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to convert draft id to int", "Error", err)
+		return c.String(http.StatusBadRequest, "Draft id was not an int")
+	}
 
 	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
-	// TODO we should not crash here
-	assert.NoError(c.Request().Context(), err, "Failed to get draft")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get draft by id", "Draft Id", draftId, "Error", err)
+		return c.String(http.StatusNotFound, fmt.Sprintf("Failed to load draft id %d", draftId))
+	}
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
