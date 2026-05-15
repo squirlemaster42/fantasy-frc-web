@@ -110,9 +110,16 @@ func main() {
 	}
 
 	discordBus := discord.NewBus()
-	draftManager := draft.NewDraftManager(tbaHandler, database, discordBus)
+	draftStore := model.NewSQLDraftStore(database)
+	userStore := model.NewSQLUserStore(database)
+	teamStore := model.NewSQLTeamStore(database)
+	discordStore := model.NewSQLDiscordStore(database)
+	matchStore := model.NewSQLMatchStore(database)
+	matchTeamStore := model.NewSQLMatchTeamStore(database)
+
+	draftManager := draft.NewDraftManager(tbaHandler, draftStore, teamStore, discordStore, discordBus)
 	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(database, draftManager)
+	draftDaemon := background.NewDraftDaemon(draftStore, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
 		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
@@ -120,15 +127,19 @@ func main() {
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts := model.GetDraftsInStatus(context.Background(), database, model.PICKING)
-	for _, draftId := range drafts {
-		err = draftDaemon.AddDraft(draftId)
-		if err != nil {
-			log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+	drafts, err := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
+	if err != nil {
+		log.Warn(context.Background(), "Could not get any drafts in picking status", "Error", err)
+	} else {
+		for _, draftId := range drafts {
+			err = draftDaemon.AddDraft(draftId)
+			if err != nil {
+				log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+			}
 		}
 	}
 
-	scorer := scorer.NewScorer(tbaHandler, database)
+	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
 	if !*skipScoring {
 		log.Info(context.Background(), "Started Scorer")
 		scorer.RunScorer()
@@ -144,7 +155,9 @@ func main() {
 	assert.NoError(context.Background(), err, "Failed to create avatar store")
 
 	handler := handler.Handler{
-		Database:          database,
+		DraftStore:        draftStore,
+		UserStore:         userStore,
+		TeamStore:         teamStore,
 		TbaHandler:        *tbaHandler,
 		DraftManager:      draftManager,
 		Scorer:            scorer,
@@ -169,7 +182,7 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
+	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
 
 	go func() {
 		err := app.Start(":" + serverPort)

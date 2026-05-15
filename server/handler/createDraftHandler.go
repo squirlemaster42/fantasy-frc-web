@@ -17,7 +17,11 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to serve the create draft page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	draftModel := model.DraftModel{
 		Id: -1,
 	}
@@ -26,7 +30,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 
 	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
-	err := Render(c, draftCreate)
+	err = Render(c, draftCreate)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "Error", err)
 	}
@@ -61,7 +65,11 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid end time format")
 	}
 
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	draftModel := model.DraftModel{
 		Owner: model.User{
@@ -77,7 +85,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Created Draft for user", "User", username)
 
-	draftId, err := model.CreateDraft(c.Request().Context(), h.Database, &draftModel)
+	draftId, err := h.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")

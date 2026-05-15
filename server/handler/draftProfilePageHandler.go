@@ -18,7 +18,11 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got a request to serve the draft profile page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -27,7 +31,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	}
 
 	// TODO I think this should go through the draft manager
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
 		log.Warn(c.Request().Context(), "User attempted to visit incorrect draft id", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
@@ -87,7 +91,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "User Uuid", userUuid, "Draft Id", draftId)
 		return nil
@@ -135,13 +139,13 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := model.SearchUsers(c.Request().Context(), h.Database, searchInput, draftId)
+	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to search for players in an invalid draft", "Draft Id", draftId, "Error", err)
 		return nil
@@ -158,6 +162,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
+	invitingUserUuid := userUuid
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Invalid draft id", "Error", err)
@@ -186,7 +191,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
 
-	_, err = model.InvitePlayer(c.Request().Context(), h.Database, draftId, userUuid, invitedUserUuid)
+	_, err = h.DraftStore.InvitePlayer(c.Request().Context(), draftId, invitingUserUuid, invitedUserUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
@@ -195,14 +200,14 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := model.SearchUsers(c.Request().Context(), h.Database, searchInput, draftId)
+	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
 		return nil
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
 	}
@@ -269,7 +274,9 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	// Cancel the invites for players who have not accepted the draft
-	model.CancelOutstandingInvites(c.Request().Context(), h.Database, draftId)
+	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", draftId)
+	}
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
 	err = h.DraftManager.ExecuteDraftStateTransition(c.Request().Context(), draftId, model.WAITING_TO_START)

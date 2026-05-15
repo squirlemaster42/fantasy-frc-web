@@ -18,7 +18,11 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to serve draft admin page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		username = ""
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -26,7 +30,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to visit admin for invalid draft", "User Uuid", userUuid, "Draft Id", draftId, "Error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
@@ -54,7 +58,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -82,7 +86,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -125,7 +129,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}
@@ -172,7 +176,7 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Invalid draft ID", false))
 	}
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		return Render(c, draftView.AdminMessage("Draft not found", false))
 	}

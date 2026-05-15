@@ -9,7 +9,6 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"server/log"
-	"server/model"
 	draftView "server/view/draft"
 )
 
@@ -19,12 +18,19 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		username = ""
+	}
 
-	invites := model.GetInvites(c.Request().Context(), h.Database, userUuid)
+	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get invites", "Error", err)
+		return err
+	}
 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
-	var err error
 	if includeWrapper {
 		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
 		err = Render(c, inviteView)
@@ -45,7 +51,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, "Invalid invite ID.", false)
 	}
 
-	invite, err := model.GetInvite(c.Request().Context(), h.Database, inviteId)
+	invite, err := h.DraftStore.GetInvite(c.Request().Context(), inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
@@ -65,19 +71,30 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	// If more than 8 players are invites then we cancel the other outstanding invites
 	// Maybe we need an active bool
 	// Check that accepting this invite will not lead to more than eight players being in the draft
-	numPlayers := model.GetNumPlayersInInvitedDraft(c.Request().Context(), h.Database, inviteId)
+	numPlayers, err := h.DraftStore.GetNumPlayersInInvitedDraft(c.Request().Context(), inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get num players in invited draft", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
 	if numPlayers >= 8 {
-		if err := model.CancelOutstandingInvites(c.Request().Context(), h.Database, invite.DraftId); err != nil {
+		if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), invite.DraftId); err != nil {
 			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.", false)
 	}
 
-	draftId, playerId := model.AcceptInvite(c.Request().Context(), h.Database, inviteId)
-	model.AddPlayerToDraft(c.Request().Context(), h.Database, draftId, playerId)
+	draftId, playerId, err := h.DraftStore.AcceptInvite(c.Request().Context(), inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to accept invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
+	if err := h.DraftStore.AddPlayerToDraft(c.Request().Context(), draftId, playerId); err != nil {
+		log.Error(c.Request().Context(), "Failed to add player to draft", "error", err, "draftId", draftId, "playerId", playerId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
 
 	if numPlayers >= 7 {
-		if err := model.CancelOutstandingInvites(c.Request().Context(), h.Database, invite.DraftId); err != nil {
+		if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), invite.DraftId); err != nil {
 			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
 		}
 	}

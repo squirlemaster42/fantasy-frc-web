@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"server/assert"
 	"server/log"
-	"server/model"
 	"server/view/login"
 	"unicode"
 
@@ -55,7 +54,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	valid, err := model.ValidateLogin(c.Request().Context(), h.Database, username, password)
+	valid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
@@ -63,7 +62,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	if valid {
 		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
-		userUuid, err := model.GetUserUuidByUsername(c.Request().Context(), h.Database, username)
+		userUuid, err := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to get user uuid", "Username", username, "Error", err)
 			return c.String(http.StatusInternalServerError, "Failed to validate login")
@@ -72,7 +71,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		// Session fixation prevention: invalidate any pre-existing session token
 		oldTok, err := c.Cookie("sessionToken")
 		if err == nil && oldTok.Value != "" {
-			if unregisterErr := model.UnRegisterSession(c.Request().Context(), h.Database, oldTok.Value); unregisterErr != nil {
+			if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
 				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "Error", unregisterErr)
 			}
 		}
@@ -82,7 +81,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 			log.Error(c.Request().Context(), "Failed to generate session token", "Error", err)
 			return c.String(http.StatusInternalServerError, "Failed to create session")
 		}
-		if err := model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok); err != nil {
+		if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
 			log.Error(c.Request().Context(), "Failed to register session", "Error", err)
 			return c.String(http.StatusInternalServerError, "Failed to create session")
 		}
@@ -115,7 +114,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	userTok, err := c.Cookie("sessionToken")
 	if err == nil && userTok.Value != "" {
-		if unregisterErr := model.UnRegisterSession(c.Request().Context(), h.Database, userTok.Value); unregisterErr != nil {
+		if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
 			log.Warn(c.Request().Context(), "Failed to unregister session", "Error", unregisterErr)
 		}
 	}
@@ -161,7 +160,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	password := c.FormValue("password")
 	confirmPassword := c.FormValue("confirmPassword")
 
-	taken, err := model.UsernameTaken(c.Request().Context(), h.Database, username)
+	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
@@ -238,7 +237,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Valid registration for user", "Username", username)
-	userUuid, err := model.RegisterUser(c.Request().Context(), h.Database, username, password)
+	userUuid, err := h.UserStore.RegisterUser(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to register user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create account")
@@ -248,7 +247,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		log.Error(c.Request().Context(), "Failed to generate session token", "Error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create session")
 	}
-	if err := model.RegisterSession(c.Request().Context(), h.Database, userUuid, sessionTok); err != nil {
+	if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
 		log.Error(c.Request().Context(), "Failed to register session", "Error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create session")
 	}

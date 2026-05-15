@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func GetPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int) (sql.NullString, error) {
+func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int) (sql.NullString, error) {
 	query := `
 		Select
 			u.DiscordId
@@ -38,7 +38,7 @@ func GetPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 	return discordId, nil
 }
 
-func GetDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string, error) {
+func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string, error) {
 	query := `
 		Select
 			d.DiscordWebhook
@@ -78,7 +78,7 @@ type DraftPickRow struct {
 	Webhook   sql.NullString
 }
 
-func GetDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) ([]DraftPickRow, error) {
+func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) ([]DraftPickRow, error) {
 	// set up query params
 	placeholders := make([]string, len(teamKeys))
 	args := make([]interface{}, len(teamKeys))

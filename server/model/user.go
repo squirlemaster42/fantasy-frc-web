@@ -24,7 +24,7 @@ func (u *User) String() string {
 	return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
 }
 
-func RegisterUser(ctx context.Context, database *sql.DB, username string, password string) (uuid.UUID, error) {
+func registerUser(ctx context.Context, database *sql.DB, username string, password string) (uuid.UUID, error) {
 	query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -45,7 +45,7 @@ func RegisterUser(ctx context.Context, database *sql.DB, username string, passwo
 	return userUuid, nil
 }
 
-func UsernameTaken(ctx context.Context, database *sql.DB, username string) (bool, error) {
+func usernameTaken(ctx context.Context, database *sql.DB, username string) (bool, error) {
 	query := `Select count(UserUuid) From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -62,7 +62,7 @@ func UsernameTaken(ctx context.Context, database *sql.DB, username string) (bool
 	return count > 0, nil
 }
 
-func GetUserUuidByUsername(ctx context.Context, database *sql.DB, username string) (uuid.UUID, error) {
+func getUserUuidByUsername(ctx context.Context, database *sql.DB, username string) (uuid.UUID, error) {
 	query := `Select UserUuid From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -79,12 +79,12 @@ func GetUserUuidByUsername(ctx context.Context, database *sql.DB, username strin
 	return userUuid, nil
 }
 
-func GetUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) string {
+func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (string, error) {
 	query := `Select Username From Users Where UserUuid = $1;`
 	assert := assert.CreateAssertWithContext("Get Username")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetUsername: Failed to close statement", "error", err)
@@ -92,16 +92,18 @@ func GetUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) stri
 	}()
 	var username string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&username)
-	assert.NoError(ctx, err, "Failed to get user")
-	return username
+	if err != nil {
+		return "", fmt.Errorf("failed to get user: %w", err)
+	}
+	return username, nil
 }
 
-func GetDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) string {
+func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (string, error) {
 	query := `Select Coalesce(discordId, '') From Users Where UserUuid = $1;`
 	assert := assert.CreateAssertWithContext("Get Discord Id")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetDiscordId: Failed to close statement", "error", err)
@@ -109,30 +111,35 @@ func GetDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) str
 	}()
 	var discordId string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&discordId)
-	assert.NoError(ctx, err, "Failed to get discord id")
-	return discordId
+	if err != nil {
+		return "", fmt.Errorf("failed to get discord id: %w", err)
+	}
+	return discordId, nil
 }
 
-func UpdateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, discordId string) {
+func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, discordId string) error {
 	query := `Update Users Set discordId = $1 Where UserUuid = $2;`
 	assert := assert.CreateAssertWithContext("Update Discord Id")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UpdateDiscordId: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, discordId, userUuid)
-	assert.NoError(ctx, err, "Failed to update discord id")
+	if err != nil {
+		return fmt.Errorf("failed to update discord id: %w", err)
+	}
+	return nil
 }
 
 // Precomputed dummy bcrypt hash for constant-time comparison on unknown usernames
 var dummyPasswordHash = []byte("$2a$14$abcdefghijklmnopqrstuuxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 
 // ValidateLogin validates credentials in constant time regardless of username existence.
-func ValidateLogin(ctx context.Context, database *sql.DB, username string, password string) (bool, error) {
+func validateLogin(ctx context.Context, database *sql.DB, username string, password string) (bool, error) {
 	query := `Select password From Users Where username = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -158,7 +165,7 @@ func ValidateLogin(ctx context.Context, database *sql.DB, username string, passw
 // The old password logic should happen before this
 // Should we move more logic here? No, we want to be able to
 // send back error messages which we should need to check the database for
-func UpdatePassword(ctx context.Context, database *sql.DB, username string, newPassword string) error {
+func updatePassword(ctx context.Context, database *sql.DB, username string, newPassword string) error {
 	query := `Update Users Set password = $1 Where username = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -180,7 +187,7 @@ func UpdatePassword(ctx context.Context, database *sql.DB, username string, newP
 
 // This can probably clean up session that expired more than a month ago or something
 // Actually it can probably be sooner than that because expire tokens should never be reissued
-func RegisterSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
+func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -198,7 +205,7 @@ func RegisterSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	return nil
 }
 
-func UnRegisterSession(ctx context.Context, database *sql.DB, sessionToken string) error {
+func unregisterSession(ctx context.Context, database *sql.DB, sessionToken string) error {
 	query := `Delete From UserSessions Where sessionToken = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -216,7 +223,7 @@ func UnRegisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 	return nil
 }
 
-func GetUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
+func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
 	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -232,13 +239,13 @@ func GetUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to get user: %w", err)
 	}
-	if err := UpdateSessionExpiration(ctx, database, userUuid, sessionToken); err != nil {
+	if err := updateSessionExpiration(ctx, database, userUuid, sessionToken); err != nil {
 		log.Warn(ctx, "Failed to update session expiration", "error", err)
 	}
 	return userUuid, nil
 }
 
-func UserIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (bool, error) {
+func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (bool, error) {
 	query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -255,7 +262,7 @@ func UserIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (boo
 	return isAdmin, nil
 }
 
-func UpdateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
+func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	//We want to make sure we only update the session token that the user logged in with
 	query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
@@ -275,7 +282,7 @@ func UpdateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 }
 
 // Check if the session token is in the database and that it is not expired
-func ValidateSessionToken(ctx context.Context, database *sql.DB, sessionToken string) (bool, error) {
+func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken string) (bool, error) {
 	//I think <= is fine, it probably doesn't matter though
 	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
@@ -299,7 +306,7 @@ func ValidateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 }
 
 // InvalidateAllUserSessionsExcept deletes all sessions for a user except the given token.
-func InvalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
+func invalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
 	query := `Delete From UserSessions Where userUuid = $1 And sessionToken != $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
@@ -317,7 +324,7 @@ func InvalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, user
 	return nil
 }
 
-func SearchUsers(ctx context.Context, database *sql.DB, searchString string, draftId int) ([]User, error) {
+func searchUsers(ctx context.Context, database *sql.DB, searchString string, draftId int) ([]User, error) {
 	query := `SELECT
                     Users.UserUuid,
                     Users.Username

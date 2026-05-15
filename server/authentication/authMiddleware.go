@@ -2,7 +2,6 @@ package authentication
 
 import (
 	"crypto/subtle"
-	"database/sql"
 	"net/http"
 	"server/log"
 	"server/metrics"
@@ -19,12 +18,12 @@ const UserUuidKey contextKey = "userUuid"
 const IsAdminKey contextKey = "isAdmin"
 
 type Authenticator struct {
-	database *sql.DB
+	userStore model.UserStore
 }
 
-func NewAuth(db *sql.DB) *Authenticator {
+func NewAuth(userStore model.UserStore) *Authenticator {
 	return &Authenticator{
-		database: db,
+		userStore: userStore,
 	}
 }
 
@@ -37,14 +36,14 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 		//Check if the cookie is valid
-		isValid, err := model.ValidateSessionToken(c.Request().Context(), a.database, userTok.Value)
+		isValid, err := a.userStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to validate session token", "Ip", c.RealIP(), "Error", err)
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 
 		if isValid {
-			userUuid, err := model.GetUserBySessionToken(c.Request().Context(), a.database, userTok.Value)
+			userUuid, err := a.userStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 			if err != nil {
 				log.Error(c.Request().Context(), "Failed to get user by session token", "Ip", c.RealIP(), "Error", err)
 				return c.Redirect(http.StatusSeeOther, "/login")
@@ -62,16 +61,6 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-type AdminAuth struct {
-	database *sql.DB
-}
-
-func NewAdminAuth(db *sql.DB) *AdminAuth {
-	return &AdminAuth{
-		database: db,
-	}
-}
-
 func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userUuidVal := c.Get(string(UserUuidKey))
@@ -81,7 +70,7 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 		userUuid := userUuidVal.(uuid.UUID)
 
-		isAdmin, err := model.UserIsAdmin(c.Request().Context(), a.database, userUuid)
+		isAdmin, err := a.userStore.UserIsAdmin(c.Request().Context(), userUuid)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to check admin status", "User Id", userUuid, "Ip", c.RealIP(), "Error", err)
 			return c.Redirect(http.StatusSeeOther, "/u/home")

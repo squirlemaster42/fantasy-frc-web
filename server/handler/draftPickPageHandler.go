@@ -46,7 +46,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
 
-	draftModel, err := model.GetDraft(c.Request().Context(), h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to make pick in invalid draft", "Draft Id", draftId, "User Uuid", userUuid)
 		return err
@@ -55,7 +55,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 
 	//Make the pick
-	draftPlayer, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
+	draftPlayer, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		return err
 	}
@@ -100,12 +100,16 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
 	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 	isOwner := draftModel.Owner.UserUuid == userUuid
-	draftPlayerId, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
+	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "Draft", draftId, "User Uuid", userUuid, "Error", err)
 		draftPlayerId = -1
 	}
-	isSkipping := model.ShouldSkipPick(c.Request().Context(), h.Database, draftPlayerId)
+	isSkipping, err := h.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to check if pick should be skipped", "DraftPlayer", draftPlayerId, "Error", err)
+		isSkipping = false
+	}
 	log.Debug(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
 	pickPageModel := draft.PickPage{
@@ -120,14 +124,16 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	pickPageIndex := draft.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
-		username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+		username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+		if err != nil {
+			log.Warn(c.Request().Context(), "Failed to get username", "Error", err)
+			username = ""
+		}
 		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
-		err = Render(c, pickPageView)
+		return Render(c, pickPageView)
 	} else {
-		err = Render(c, pickPageIndex)
+		return Render(c, pickPageIndex)
 	}
-
-	return err
 }
 
 type WebSocketListener struct {
@@ -174,10 +180,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		if err != nil {
+			log.Warn(c.Request().Context(), "Failed to set context read deadline", "Error", err)
+		}
 		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(120 * time.Second))
-			return nil
+			return conn.SetReadDeadline(time.Now().Add(120 * time.Second))
 		})
 		for {
 			_, _, err := conn.ReadMessage()
@@ -206,8 +214,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Info(ctx, "Client disconnected, closing pick notifier", "Draft Id", draftId, "User Uuid", userUuid)
 			return nil
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Warn(ctx, "Failed to set context deadline for pick notifier", "Draft Id", draftId, "Error", err)
+				// TODO I dont think we want to crash here but verify
+			}
+			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
 				log.Warn(ctx, "Failed to write ping message", "Draft Id", draftId, "Error", err)
 				return nil
 			}
@@ -228,7 +240,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 				continue
 			}
 
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Warn(ctx, "failed to set context deadline on webhook context", "Draft Id", draftId, "Error", err)
+				// TODO I don't think this should be a condition to break this loop. Verify this
+			}
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "Draft Id", draftId, "Error", err)
@@ -248,7 +264,7 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 		return err
 	}
 
-	draftPlayerId, err := model.GetDraftPlayerId(c.Request().Context(), h.Database, draftId, userUuid)
+	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft player", "User uuid", userUuid, "Draft Id String", draftIdStr, "Error", err)
 		return err
@@ -257,5 +273,5 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	shouldSkip := c.FormValue("skipping") != ""
 	log.Info(c.Request().Context(), "Marking should skip", "Should Skip", shouldSkip, "Draft Player Id", draftPlayerId)
 
-	return model.MarkShouldSkipPick(c.Request().Context(), h.Database, draftPlayerId, shouldSkip)
+	return h.DraftStore.MarkShouldSkipPick(c.Request().Context(), draftPlayerId, shouldSkip)
 }

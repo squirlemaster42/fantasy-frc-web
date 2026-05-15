@@ -24,7 +24,7 @@ func (m *Match) String() string {
 		m.TbaId, m.Played, m.RedScore, m.BlueScore, strings.Join(m.RedAlliance, ", "), strings.Join(m.BlueAlliance, ", "), strings.Join(m.DqedTeams, ", "))
 }
 
-func AddMatch(ctx context.Context, database *sql.DB, tbaId string) {
+func addMatch(ctx context.Context, database *sql.DB, tbaId string) error {
 	query := `INSERT INTO Matches (tbaid, played, redscore, bluescore) Values ($1, $2, $3, $4);`
 	stmt, err := database.PrepareContext(ctx, query)
 	a := assert.CreateAssertWithContext("Add Match")
@@ -36,10 +36,14 @@ func AddMatch(ctx context.Context, database *sql.DB, tbaId string) {
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, tbaId, false, 0, 0)
-	a.NoError(ctx, err, "Failed to insert into database")
+	if err != nil {
+		log.Warn(ctx, "Failed to add match", "Match Tba Id", tbaId, "Error", err)
+		return err
+	}
+	return nil
 }
 
-func UpdateScore(ctx context.Context, database *sql.DB, tbaId string, redScore int, blueScore int) {
+func updateScore(ctx context.Context, database *sql.DB, tbaId string, redScore int, blueScore int) error {
 	query := `UPDATE Matches Set played = $1, redscore = $2, bluescore = $3 Where tbaid = $4;`
 	a := assert.CreateAssertWithContext("Update Match")
 	a.AddContext("MatchTbaId", tbaId)
@@ -53,11 +57,14 @@ func UpdateScore(ctx context.Context, database *sql.DB, tbaId string, redScore i
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, true, redScore, blueScore, tbaId)
-	a.NoError(ctx, err, "Failed to update in database")
-}
+	if err != nil {
+		log.Warn(ctx, "Failed to update score", "Match Tba Id", tbaId, "Red Score", redScore, "Blue Score", blueScore, "Error", err)
+		return err
+	}
+	return nil}
 
 // All validity checks should be done before now, so we can have this many asserts here
-func GetMatch(ctx context.Context, database *sql.DB, tbaId string) *Match {
+func getMatch(ctx context.Context, database *sql.DB, tbaId string) (*Match, error) {
 	query := `Select tbaid, played, redscore, bluescore From Matches Where tbaid = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	a := assert.CreateAssertWithContext("Get Match")
@@ -71,7 +78,8 @@ func GetMatch(ctx context.Context, database *sql.DB, tbaId string) *Match {
 	match := Match{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {
-		return nil
+		log.Warn(ctx, "Failed to get match", "Match Tba Id", tbaId, "Error", err)
+		return nil, err
 	}
-	return &match
+	return &match, nil
 }

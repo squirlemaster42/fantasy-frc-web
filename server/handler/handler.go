@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"database/sql"
 	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
+	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
 
@@ -13,7 +13,9 @@ import (
 )
 
 type Handler struct {
-	Database            *sql.DB
+	DraftStore          model.DraftStore
+	UserStore           model.UserStore
+	TeamStore           model.TeamStore
 	TbaHandler          tbaHandler.TbaHandler
 	DraftManager        *draft.DraftManager
 	DraftDaemon         *background.DraftDaemon

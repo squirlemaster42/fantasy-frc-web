@@ -17,13 +17,13 @@ type AssetManager struct {
     AssetPath string
 }
 
-func (a *AssetManager) LoadDraftProfileAsset(database *sql.DB, draftId int) *Asset {
-    return nil
+func loadDraftProfileAsset(database *sql.DB, draftId int) (*Asset, error) {
+    return nil, nil
 }
 
 //The actual html will need to base64 encode the image
 
-func (a *AssetManager) UploadDraftProfileAsset(database *sql.DB, draftId int, image image.Image) error {
+func uploadDraftProfileAsset(database *sql.DB, draftId int, image image.Image) error {
     //Generate a unique id for the image
     //assetId := uuid.New()
 
@@ -34,10 +34,10 @@ func (a *AssetManager) UploadDraftProfileAsset(database *sql.DB, draftId int, im
     return nil
 }
 
-func (a *AssetManager) LoadUserProfileAsset(database *sql.DB, userUuid uuid.UUID) *Asset {
-    return nil
+func loadUserProfileAsset(database *sql.DB, userUuid uuid.UUID) (*Asset, error) {
+    return nil, nil
 }
 
-func (a *AssetManager) UploadUserProfileAsset(database *sql.DB, userUuid uuid.UUID, image image.Image) error {
+func uploadUserProfileAsset(database *sql.DB, userUuid uuid.UUID, image image.Image) error {
     return nil
 }

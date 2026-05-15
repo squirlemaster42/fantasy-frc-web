@@ -2,7 +2,6 @@ package draft
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"server/assert"
@@ -16,13 +15,15 @@ import (
 	"time"
 )
 
-func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, database *sql.DB, discordBus *discord.DiscordWebhookBus) *DraftManager {
+func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus) *DraftManager {
 	draftManager := &DraftManager{
-		drafts:     map[int]*Draft{},
-		database:   database,
-		tbaHandler: tbaHandler,
-		states:     setupStates(context.TODO(), database),
-		discordBus: discordBus,
+		drafts:       map[int]*Draft{},
+		draftStore:   draftStore,
+		teamStore:    teamStore,
+		discordStore: discordStore,
+		tbaHandler:   tbaHandler,
+		states:       setupStates(context.TODO(), draftStore),
+		discordBus:   discordBus,
 	}
 
 	log.Info(context.TODO(), "Draft Manager Started")
@@ -34,7 +35,9 @@ type DraftManager struct {
 	drafts          map[int]*Draft
 	loadLocks       sync.Map
 	transitionLocks sync.Map
-	database        *sql.DB
+	draftStore      model.DraftStore
+	teamStore       model.TeamStore
+	discordStore    model.DiscordStore
 	tbaHandler      *tbaHandler.TbaHandler
 	states          map[model.DraftState]*state
 	discordBus      *discord.DiscordWebhookBus
@@ -52,14 +55,14 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		log.DebugNoContext("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
 		log.DebugNoContext("GetDraft reload: acquired loadLock", "Draft Id", draftId)
-		draftModel, err := model.GetDraft(context.TODO(), dm.database, draftId)
+		draftModel, err := dm.draftStore.GetDraft(context.TODO(), draftId)
 		log.DebugNoContext("GetDraft reload: model.GetDraft returned", "Requested Draft Id", draftId, "Returned", draftModel.Id, "Error", err)
 		if draft != nil {
 			draft.Model = &draftModel
 		} else {
 			draft := Draft{
 				draftId:     draftId,
-				pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
+			pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus),
 				Model:       &draftModel,
 			}
 			dm.drafts[draftId] = &draft
@@ -71,11 +74,11 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		log.DebugNoContext("Loading Draft For First Time", "Draft Id", draftId)
 		//Load draft model
 		lock.Lock()
-		draftModel, err := model.GetDraft(context.TODO(), dm.database, draftId)
+		draftModel, err := dm.draftStore.GetDraft(context.TODO(), draftId)
 
 		draft := Draft{
 			draftId:     draftId,
-			pickManager: picking.NewPickManager(draftId, dm.database, dm.tbaHandler, dm.discordBus),
+			pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus),
 			Model:       &draftModel,
 		}
 		dm.drafts[draftId] = &draft
@@ -285,7 +288,7 @@ func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
 	log.Info(context.TODO(), "UpdateDraft: acquired transitionLock", "Draft Id", draftModel.Id)
 	defer transitionLock.Unlock()
 	log.Info(context.TODO(), "UpdateDraft: calling model.UpdateDraft", "Draft Id", draftModel.Id)
-	err := model.UpdateDraft(context.TODO(), dm.database, &draftModel)
+	err := dm.draftStore.UpdateDraft(context.TODO(), &draftModel)
 	log.Info(context.TODO(), "UpdateDraft: model.UpdateDraft returned", "Draft Id", draftModel.Id, "Error", err)
 	loadLock.Unlock()
 	if err != nil {
@@ -314,7 +317,7 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention t
 	newExpirationTime := utils.GetPickExpirationTime(context.TODO(), currentPick.ExpirationTime, extention)
 	log.Info(context.TODO(), "Setting new pick expiration time", "Current Pick Time", currentPick.ExpirationTime, "New Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
 
-	err = model.UpdatePickExpirationTime(context.TODO(), dm.database, currentPick.Id, newExpirationTime)
+	err = dm.draftStore.UpdatePickExpirationTime(context.TODO(), currentPick.Id, newExpirationTime)
 	if err != nil {
 		log.Error(context.TODO(), "Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
 		loadLock.Unlock()

@@ -2,8 +2,8 @@ package handler
 
 import (
 	"fmt"
+	"net/http"
 	"server/log"
-	"server/model"
 	"server/view/userProfile"
 
 	"github.com/google/uuid"
@@ -11,13 +11,26 @@ import (
 )
 
 func (h *Handler) HandleViewUserProfile(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
-	discordId := model.GetDiscordId(c.Request().Context(), h.Database, userUuid)
+	userUuidVal := c.Get("userUuid")
+	if userUuidVal == nil {
+		log.Warn(c.Request().Context(), "Failed to get user uuid from context")
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+	userUuid := userUuidVal.(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "UserUuid", userUuid, "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
+	discordId, err := h.UserStore.GetDiscordId(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get discord id", "UserUuid", userUuid, "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "", h.csrfToken(c), h.MinPasswordLength)
 	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
-	err := Render(c, userProfile)
+	err = Render(c, userProfile)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle View User Profile Failed To Render", "Error", err)
 	}
@@ -25,8 +38,17 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 }
 
 func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username := model.GetUsername(c.Request().Context(), h.Database, userUuid)
+	userUuidVal := c.Get("userUuid")
+	if userUuidVal == nil {
+		log.Warn(c.Request().Context(), "Failed to get user uuid from context")
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+	userUuid := userUuidVal.(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "UserUuid", userUuid, "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	discordId := c.FormValue("discordId")
 	currentPassword := c.FormValue("currentPassword")
@@ -34,7 +56,10 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	confirmNewPassword := c.FormValue("confirmNewPassword")
 
 	// Update discord ID
-	model.UpdateDiscordId(c.Request().Context(), h.Database, userUuid, discordId)
+	if err := h.UserStore.UpdateDiscordId(c.Request().Context(), userUuid, discordId); err != nil {
+		log.Error(c.Request().Context(), "Failed to update discord id", "UserUuid", userUuid, "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	// Handle password change if any password field is filled
 	if currentPassword != "" || newPassword != "" || confirmNewPassword != "" {
@@ -74,7 +99,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 			return nil
 		}
 
-		valid, err := model.ValidateLogin(c.Request().Context(), h.Database, username, currentPassword)
+		valid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, currentPassword)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to validate current password", "Username", username, "Error", err)
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "An error occurred. Please try again.", "", h.csrfToken(c), h.MinPasswordLength)
@@ -95,7 +120,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		}
 
 		log.Info(c.Request().Context(), "Updating password for user", "Username", username)
-		if err := model.UpdatePassword(c.Request().Context(), h.Database, username, newPassword); err != nil {
+		if err := h.UserStore.UpdatePassword(c.Request().Context(), username, newPassword); err != nil {
 			log.Error(c.Request().Context(), "Failed to update password", "Username", username, "Error", err)
 			userProfileIndex := userprofile.UserProfileIndex(username, discordId, "An error occurred. Please try again.", "", h.csrfToken(c), h.MinPasswordLength)
 			err = Render(c, userProfileIndex)
@@ -107,7 +132,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		// Invalidate all other sessions on password change
 		userTok, _ := c.Cookie("sessionToken")
 		if userTok != nil && userTok.Value != "" {
-			if err := model.InvalidateAllUserSessionsExcept(c.Request().Context(), h.Database, userUuid, userTok.Value); err != nil {
+			if err := h.UserStore.InvalidateAllUserSessionsExcept(c.Request().Context(), userUuid, userTok.Value); err != nil {
 				log.Warn(c.Request().Context(), "Failed to invalidate other sessions", "Username", username, "Error", err)
 			}
 		}
@@ -115,7 +140,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Updated profile for user", "Username", username)
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "Profile updated successfully", h.csrfToken(c), h.MinPasswordLength)
-	err := Render(c, userProfileIndex)
+	err = Render(c, userProfileIndex)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle Update User Profile Failed To Render", "Error", err)
 	}
