@@ -99,10 +99,13 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 
 	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
 	inviteIdStr := c.FormValue("inviteId")
+
 	log.Info(c.Request().Context(), "Got request to decline invite", "User", userUuid, "Invite Id", inviteIdStr)
+
 	inviteId, err := strconv.Atoi(inviteIdStr)
 	assert.RunAssert(inviteId != 0, "Invite Id Should Never Be 0")
 	assert.NoError(err, "Failed to parse invite id")
+
 	invite, err := model.GetInvite(h.Database, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,5 +126,34 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, "An error occurred while declining the invite. Please try again.", false)
 	}
 
-	return renderInviteTable(h, c, false, "", false)
+	draft, err := model.GetDraft(h.Database, invite.DraftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to load draft after declining invite", "error", err, "draftId", invite.DraftId)
+		return renderInviteTable(h, c, true, "An error occurred while updating the draft.", false)
+	}
+
+	acceptedPlayers := 0
+	for _, player := range draft.Players {
+		if !player.Pending {
+			acceptedPlayers++
+		}
+	}
+
+	if acceptedPlayers < 8 && draft.Status == model.WAITING_TO_START {
+		err = model.UpdateDraftStatus(h.Database, draft.Id, model.FILLING)
+		if err != nil {
+			log.Error(c.Request().Context(), "Failed to revert draft status to filling", "error", err, "draftId", draft.Id)
+			return renderInviteTable(h, c, true, "An error occurred while updating the draft.", false)
+		}
+	}
+
+	invites := model.GetInvites(h.Database, userUuid)
+	inviteIndex := draftView.DraftInviteIndex(invites, false, "")
+	pendingInvites := model.GetOutstandingInvitesForDraft(h.Database, draft.Id)
+
+	if err := Render(c, inviteIndex); err != nil {
+		return err
+	}
+
+	return Render(c, draftView.UpdateDraftPlayers(draft.Players, pendingInvites, draft.Id))
 }

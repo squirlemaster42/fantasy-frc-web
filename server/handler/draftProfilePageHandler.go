@@ -132,6 +132,8 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
+	c.Response().Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
 	users, err := model.SearchUsers(h.Database, searchInput, draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
@@ -251,9 +253,25 @@ func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to uninvite player")
 	}
 
+	draftModel, err := model.GetDraft(h.Database, draftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get draft after uninvite", "error", err, "draftId", draftId)
+		return c.String(http.StatusInternalServerError, "Failed to get draft")
+	}
+
 	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
-	pendingList := draftView.PendingInvitesList(outstandingInvites, draftId)
-	return Render(c, pendingList)
+
+	searchInput := c.FormValue("search")
+	var users []model.User
+	if searchInput != "" {
+		users, err = model.SearchUsers(h.Database, searchInput, draftId)
+		if err != nil {
+			log.Warn(c.Request().Context(), "Failed to search users after uninvite", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+		}
+	}
+
+	updatedPage := draftView.UpdateAfterInvite(users, draftId, draftModel.Players, isOwner, outstandingInvites)
+	return Render(c, updatedPage)
 }
 
 func (h *Handler) HandleStartDraft(c echo.Context) error {
