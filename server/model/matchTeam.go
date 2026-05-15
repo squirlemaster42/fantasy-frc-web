@@ -39,9 +39,7 @@ func assocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, team
 	assert.AddContext("Alliance", alliance)
 	assert.AddContext("Is Dqed", isDqed)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "AssocateTeam: Failed to close statement", "error", err)

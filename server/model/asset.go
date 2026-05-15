@@ -17,8 +17,8 @@ type AssetManager struct {
     AssetPath string
 }
 
-func loadDraftProfileAsset(database *sql.DB, draftId int) *Asset {
-    return nil
+func loadDraftProfileAsset(database *sql.DB, draftId int) (*Asset, error) {
+    return nil, nil
 }
 
 //The actual html will need to base64 encode the image
@@ -34,8 +34,8 @@ func uploadDraftProfileAsset(database *sql.DB, draftId int, image image.Image) e
     return nil
 }
 
-func loadUserProfileAsset(database *sql.DB, userUuid uuid.UUID) *Asset {
-    return nil
+func loadUserProfileAsset(database *sql.DB, userUuid uuid.UUID) (*Asset, error) {
+    return nil, nil
 }
 
 func uploadUserProfileAsset(database *sql.DB, userUuid uuid.UUID, image image.Image) error {

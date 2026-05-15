@@ -20,7 +20,6 @@ func TestHandleLoginPost(t *testing.T) {
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("UsernameTaken", c.Request().Context(), "testuser").Return(true, nil)
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "secret").Return(true, nil)
 		mockUserStore.On("GetUserUuidByUsername", c.Request().Context(), "testuser").Return(userUuid, nil)
 		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string")).Return(nil)
@@ -52,7 +51,6 @@ func TestHandleLoginPost(t *testing.T) {
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("UsernameTaken", c.Request().Context(), "testuser").Return(true, nil)
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
 
 		h := &Handler{
@@ -72,7 +70,7 @@ func TestHandleLoginPost(t *testing.T) {
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, nil)
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "newuser", "secret").Return(false, nil)
 
 		h := &Handler{
 			UserStore:        mockUserStore,
@@ -85,13 +83,13 @@ func TestHandleLoginPost(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "invalid username or password")
 	})
 
-	t.Run("database error checking username", func(t *testing.T) {
+	t.Run("database error validating login", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret&csrf_token=test-csrf", "")
 		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
 
 		mockUserStore := mocks.NewMockUserStore(t)
 
-		mockUserStore.On("UsernameTaken", c.Request().Context(), "testuser").Return(false, errors.New("connection refused"))
+		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "secret").Return(false, errors.New("connection refused"))
 
 		h := &Handler{
 			UserStore:        mockUserStore,

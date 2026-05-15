@@ -2,6 +2,7 @@ package scorer
 
 import (
 	"context"
+	"errors"
 	"server/assert"
 	"server/log"
 	"server/model"
@@ -283,15 +284,20 @@ func (s *Scorer) getNextMatchToScore() swagger.Match {
 	return s.queue.PopMatch()
 }
 
-func (s *Scorer) updateMatchInDB(dbMatch model.Match) {
+func (s *Scorer) updateMatchInDB(dbMatch model.Match) error {
 	log.Debug(context.TODO(), "Updating Match Scores", "Match", dbMatch.String())
-	s.matchStore.UpdateScore(context.TODO(), dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+	err := s.matchStore.UpdateScore(context.TODO(), dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+	if err != nil {
+		return err
+	}
+	var errs []error
 	for _, team := range dbMatch.BlueAlliance {
-		s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams))
+		errs = append(errs, s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams)))
 	}
 	for _, team := range dbMatch.RedAlliance {
-		s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams))
+		errs = append(errs, s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
 	}
+	return errors.Join(errs...)
 }
 
 func (s *Scorer) scoringRunner() {
@@ -323,10 +329,18 @@ func (s *Scorer) scoringRunner() {
 		}
 
 		log.DebugNoContext("Starting scoring run", "Match", match.Key)
-		dbMatchPtr := s.matchStore.GetMatch(context.TODO(), match.Key)
+		dbMatchPtr, err := s.matchStore.GetMatch(context.TODO(), match.Key)
+		if err != nil {
+			log.Warn(context.TODO(), "Failed to get match", "Match", match.Key, "Error", err)
+			continue
+		}
 
 		if dbMatchPtr == nil {
-			s.matchStore.AddMatch(context.TODO(), match.Key)
+			err = s.matchStore.AddMatch(context.TODO(), match.Key)
+			if err != nil {
+				log.Warn(context.TODO(), "Failed to add match to database", "Match Key", match.Key, "Error", err)
+				continue
+			}
 			dbMatchPtr = &model.Match{
 				TbaId:        match.Key,
 				BlueAlliance: []string{},
@@ -338,7 +352,10 @@ func (s *Scorer) scoringRunner() {
 		log.DebugNoContext("Scoring match", "Match", dbMatchPtr.String())
 
 		dbMatch, _ := s.scoreMatch(match, true)
-		s.updateMatchInDB(dbMatch)
+		err = s.updateMatchInDB(dbMatch)
+		if err != nil {
+			log.Warn(context.TODO(), "Failed to update match in db", "Match Id", dbMatch.TbaId, "Error", err)
+		}
 	}
 }
 
@@ -349,7 +366,10 @@ func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
 		scores := s.GetAllianceSelectionScore(alliance)
 		for team, score := range scores {
 			log.Info(ctx, "Update alliance score for team", "Team", team, "Score", score)
-			s.teamStore.UpdateTeamAllianceScore(ctx, team, score)
+			err := s.teamStore.UpdateTeamAllianceScore(ctx, team, score)
+			if err != nil {
+				log.Warn(ctx, "Failed to update alliance selection scores", "Event", event, "Team", team, "Error", err)
+			}
 		}
 	}
 }

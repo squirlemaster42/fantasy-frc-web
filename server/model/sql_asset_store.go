@@ -16,7 +16,7 @@ func NewSQLAssetStore(db *sql.DB) *SQLAssetStore {
 	return &SQLAssetStore{db: db}
 }
 
-func (s *SQLAssetStore) LoadDraftProfileAsset(ctx context.Context, draftId int) *Asset {
+func (s *SQLAssetStore) LoadDraftProfileAsset(ctx context.Context, draftId int) (*Asset, error) {
 	return loadDraftProfileAsset(s.db, draftId)
 }
 
@@ -24,7 +24,7 @@ func (s *SQLAssetStore) UploadDraftProfileAsset(ctx context.Context, draftId int
 	return uploadDraftProfileAsset(s.db, draftId, image)
 }
 
-func (s *SQLAssetStore) LoadUserProfileAsset(ctx context.Context, userUuid uuid.UUID) *Asset {
+func (s *SQLAssetStore) LoadUserProfileAsset(ctx context.Context, userUuid uuid.UUID) (*Asset, error) {
 	return loadUserProfileAsset(s.db, userUuid)
 }
 

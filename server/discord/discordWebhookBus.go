@@ -198,6 +198,10 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 	}
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Warn(context.TODO(), "Failed to create post pick notification request", "Error", err)
+		return err
+	}
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := d.client.Do(req)

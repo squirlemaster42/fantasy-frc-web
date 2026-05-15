@@ -126,8 +126,15 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft Dra
 	if err != nil {
 		return err
 	}
-	nextPickPlayer := tpt.draftStore.NextPick(ctx, draft.draftId)
-	tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	nextPickPlayer, err := tpt.draftStore.NextPick(ctx, draft.draftId)
+	if err != nil {
+		log.Warn(ctx, "failed to get next pick when transitioning to picking", "Draft Id", draft.draftId, "Error", err)
+		return err
+	}
+	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	if err != nil {
+		log.Warn(ctx, "failed to make first pick available", "Draft Id", draft.draftId, "Error", err)
+ 	}
 	err = tpt.draftStore.UpdateDraftStatus(ctx, draft.draftId, model.PICKING)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.draftId, "Error", err)

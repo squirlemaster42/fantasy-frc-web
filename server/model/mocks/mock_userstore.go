@@ -282,6 +282,34 @@ func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, ne
 	return r0
 }
 
+// UserIsAdmin provides a mock function with given fields: ctx, userUuid
+func (_m *MockUserStore) UserIsAdmin(ctx context.Context, userUuid uuid.UUID) (bool, error) {
+	ret := _m.Called(ctx, userUuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserIsAdmin")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return rf(ctx, userUuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = rf(ctx, userUuid)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UsernameTaken provides a mock function with given fields: ctx, username
 func (_m *MockUserStore) UsernameTaken(ctx context.Context, username string) (bool, error) {
 	ret := _m.Called(ctx, username)
@@ -331,34 +359,6 @@ func (_m *MockUserStore) ValidateLogin(ctx context.Context, username string, pas
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
 		r1 = rf(ctx, username, password)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// UserIsAdmin provides a mock function with given fields: ctx, userUuid
-func (_m *MockUserStore) UserIsAdmin(ctx context.Context, userUuid uuid.UUID) (bool, error) {
-	ret := _m.Called(ctx, userUuid)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UserIsAdmin")
-	}
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
-		return rf(ctx, userUuid)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
-		r0 = rf(ctx, userUuid)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, userUuid)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -28,17 +28,17 @@ type DraftStore interface {
 	UpdateDraft(ctx context.Context, draft *DraftModel) error
 	GetPicks(ctx context.Context, draft int) ([]Pick, error)
 	GetDraftPlayerUser(ctx context.Context, draftPlayerId int) (User, error)
-	MakePickAvailable(ctx context.Context, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int
+	MakePickAvailable(ctx context.Context, draftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error)
 	MakePick(ctx context.Context, pick Pick) error
-	NextPick(ctx context.Context, draftId int) DraftPlayer
+	NextPick(ctx context.Context, draftId int) (DraftPlayer, error)
 	GetCurrentPick(ctx context.Context, draftId int) (Pick, error)
-	SkipPick(ctx context.Context, pickId int)
+	SkipPick(ctx context.Context, pickId int) error
 	UpdatePickExpirationTime(ctx context.Context, pickId int, expirationTime time.Time) error
 	GetPreviousPick(ctx context.Context, draftId int, currentPickId int) (Pick, error)
 	DeletePick(ctx context.Context, pickId int) error
 	ResetPick(ctx context.Context, pickId int, expirationTime time.Time) error
-	GetDraftsInStatus(ctx context.Context, status DraftState) []int
+	GetDraftsInStatus(ctx context.Context, status DraftState) ([]int, error)
 	GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error)
 	RandomizePickOrder(ctx context.Context, draftId int) error
-	HasBeenPicked(ctx context.Context, draftId int, team string) bool
+	HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error)
 }

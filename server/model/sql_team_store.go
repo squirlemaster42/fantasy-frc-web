@@ -29,6 +29,6 @@ func (s *SQLTeamStore) CreateTeam(ctx context.Context, tbaId string, name string
 	return createTeam(ctx, s.db, tbaId, name)
 }
 
-func (s *SQLTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId string, allianceScore int16) {
-	updateTeamAllianceScore(ctx, s.db, tbaId, allianceScore)
+func (s *SQLTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId string, allianceScore int16) error {
+	return updateTeamAllianceScore(ctx, s.db, tbaId, allianceScore)
 }

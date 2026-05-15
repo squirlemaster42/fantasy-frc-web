@@ -54,21 +54,12 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
+	valid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
-	valid := taken
-	if valid {
-		loginValid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, password)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to validate login", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to validate login")
-		}
-		valid = loginValid
-	}
 	if valid {
 		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
 		userUuid, err := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)

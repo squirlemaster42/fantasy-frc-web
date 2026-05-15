@@ -28,9 +28,7 @@ func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	assert := assert.CreateAssertWithContext("Get Team")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetTeam: Failed to close statement", "error", err)
@@ -39,9 +37,6 @@ func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	team := Team{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("failed to get team: %w", err)
 	}
 	if team.TbaId == "" {
@@ -56,9 +51,7 @@ func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string
 	assert.AddContext("Tba Id", tbaId)
 	assert.AddContext("Name", name)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "CreateTeam: Failed to close statement", "error", err)
@@ -71,7 +64,7 @@ func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string
 	return nil
 }
 
-func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) {
+func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) error {
 	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
 	assert := assert.CreateAssertWithContext("Update Team Alliance Score")
 	assert.AddContext("Tba Id", tbaId)
@@ -84,7 +77,7 @@ func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, allianceScore, tbaId)
-	assert.NoError(ctx, err, "Failed to associate team")
+	return err
 }
 
 // MatchTeamScore represents a team's score in a specific match
@@ -111,9 +104,7 @@ func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 	assert := assert.CreateAssertWithContext("Get Qualification Matches")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetMatchScores: Failed to close statement", "error", err)
@@ -160,7 +151,10 @@ func ValidPick(ctx context.Context, draftStore DraftStore, teamStore TeamStore, 
 		return false, errors.New("no team entered")
 	}
 
-	picked := draftStore.HasBeenPicked(ctx, draftId, tbaId)
+	picked, err := draftStore.HasBeenPicked(ctx, draftId, tbaId)
+	if err != nil {
+		return false, err
+	}
 
 	if picked {
 		return false, errors.New("team already picked")
@@ -205,9 +199,7 @@ func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]i
 	assert := assert.CreateAssertWithContext("Get Score")
 	assert.AddContext("TbaId", tbaId)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetScore: Failed to close statement", "error", err)
@@ -235,9 +227,7 @@ func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]i
              Order By mt.Team_TbaId`
 
 	stmt, err = database.PrepareContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetScore: Failed to close statement", "error", err)

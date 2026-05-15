@@ -96,7 +96,7 @@ func (s *SQLDraftStore) GetDraftPlayerUser(ctx context.Context, draftPlayerId in
 	return getDraftPlayerUser(ctx, s.db, draftPlayerId)
 }
 
-func (s *SQLDraftStore) MakePickAvailable(ctx context.Context, draftPlayerId int, availableTime time.Time, expirationTime time.Time) int {
+func (s *SQLDraftStore) MakePickAvailable(ctx context.Context, draftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
 	return makePickAvailable(ctx, s.db, draftPlayerId, availableTime, expirationTime)
 }
 
@@ -104,7 +104,7 @@ func (s *SQLDraftStore) MakePick(ctx context.Context, pick Pick) error {
 	return makePick(ctx, s.db, pick)
 }
 
-func (s *SQLDraftStore) NextPick(ctx context.Context, draftId int) DraftPlayer {
+func (s *SQLDraftStore) NextPick(ctx context.Context, draftId int) (DraftPlayer, error) {
 	return nextPick(ctx, s.db, draftId)
 }
 
@@ -112,8 +112,8 @@ func (s *SQLDraftStore) GetCurrentPick(ctx context.Context, draftId int) (Pick, 
 	return getCurrentPick(ctx, s.db, draftId)
 }
 
-func (s *SQLDraftStore) SkipPick(ctx context.Context, pickId int) {
-	skipPick(ctx, s.db, pickId)
+func (s *SQLDraftStore) SkipPick(ctx context.Context, pickId int) error {
+	return skipPick(ctx, s.db, pickId)
 }
 
 func (s *SQLDraftStore) UpdatePickExpirationTime(ctx context.Context, pickId int, expirationTime time.Time) error {
@@ -132,7 +132,7 @@ func (s *SQLDraftStore) ResetPick(ctx context.Context, pickId int, expirationTim
 	return resetPick(ctx, s.db, pickId, expirationTime)
 }
 
-func (s *SQLDraftStore) GetDraftsInStatus(ctx context.Context, status DraftState) []int {
+func (s *SQLDraftStore) GetDraftsInStatus(ctx context.Context, status DraftState) ([]int, error) {
 	return getDraftsInStatus(ctx, s.db, status)
 }
 
@@ -144,6 +144,6 @@ func (s *SQLDraftStore) RandomizePickOrder(ctx context.Context, draftId int) err
 	return randomizePickOrder(ctx, s.db, draftId)
 }
 
-func (s *SQLDraftStore) HasBeenPicked(ctx context.Context, draftId int, team string) bool {
+func (s *SQLDraftStore) HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error) {
 	return hasBeenPicked(ctx, s.db, draftId, team)
 }

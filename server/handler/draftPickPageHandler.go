@@ -130,12 +130,10 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 			username = ""
 		}
 		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
-		err = Render(c, pickPageView)
+		return Render(c, pickPageView)
 	} else {
-		err = Render(c, pickPageIndex)
+		return Render(c, pickPageIndex)
 	}
-
-	return err
 }
 
 type WebSocketListener struct {
@@ -182,10 +180,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		if err != nil {
+			log.Warn(c.Request().Context(), "Failed to set context read deadline", "Error", err)
+		}
 		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(120 * time.Second))
-			return nil
+			return conn.SetReadDeadline(time.Now().Add(120 * time.Second))
 		})
 		for {
 			_, _, err := conn.ReadMessage()
@@ -214,8 +214,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Info(ctx, "Client disconnected, closing pick notifier", "Draft Id", draftId, "User Uuid", userUuid)
 			return nil
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Warn(ctx, "Failed to set context deadline for pick notifier", "Draft Id", draftId, "Error", err)
+				// TODO I dont think we want to crash here but verify
+			}
+			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
 				log.Warn(ctx, "Failed to write ping message", "Draft Id", draftId, "Error", err)
 				return nil
 			}
@@ -236,7 +240,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 				continue
 			}
 
-			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err != nil {
+				log.Warn(ctx, "failed to set context deadline on webhook context", "Draft Id", draftId, "Error", err)
+				// TODO I don't think this should be a condition to break this loop. Verify this
+			}
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "Draft Id", draftId, "Error", err)

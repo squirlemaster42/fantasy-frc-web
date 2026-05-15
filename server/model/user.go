@@ -84,9 +84,7 @@ func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (str
 	assert := assert.CreateAssertWithContext("Get Username")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return "", fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetUsername: Failed to close statement", "error", err)
@@ -105,9 +103,7 @@ func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (st
 	assert := assert.CreateAssertWithContext("Get Discord Id")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return "", fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetDiscordId: Failed to close statement", "error", err)
@@ -126,9 +122,7 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	assert := assert.CreateAssertWithContext("Update Discord Id")
 	assert.AddContext("User Id", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
+	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "UpdateDiscordId: Failed to close statement", "error", err)

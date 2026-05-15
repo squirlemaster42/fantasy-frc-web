@@ -127,11 +127,15 @@ func main() {
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
-	for _, draftId := range drafts {
-		err = draftDaemon.AddDraft(draftId)
-		if err != nil {
-			log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+	drafts, err := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
+	if err != nil {
+		log.Warn(context.Background(), "Could not get any drafts in picking status", "Error", err)
+	} else {
+		for _, draftId := range drafts {
+			err = draftDaemon.AddDraft(draftId)
+			if err != nil {
+				log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+			}
 		}
 	}
 

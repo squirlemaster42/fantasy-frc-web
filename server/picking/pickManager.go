@@ -95,9 +95,20 @@ func (p *PickManager) SkipCurrentPick() error {
 		p.pickLock.Unlock()
 		return err
 	}
-	nextPickPlayer := p.draftStore.NextPick(context.TODO(), p.draftId)
-	p.draftStore.SkipPick(context.TODO(), curPick.Id)
-	p.draftStore.MakePickAvailable(context.TODO(), nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context.TODO(), time.Now(), utils.PICK_TIME))
+	nextPickPlayer, err := p.draftStore.NextPick(context.TODO(), p.draftId)
+	if err != nil {
+		return err
+	}
+	err = p.draftStore.SkipPick(context.TODO(), curPick.Id)
+	if err != nil {
+		log.Warn(context.Background(), "Failed to skip current pick", "Current pick", curPick.Id, "Error", err)
+		return err
+	}
+	_, err = p.draftStore.MakePickAvailable(context.TODO(), nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context.TODO(), time.Now(), utils.PICK_TIME))
+	if err != nil {
+		log.Warn(context.Background(), "Failed to make pick available when skipping current pick", "Current pick", curPick.Id, "Error", err)
+		return err
+	}
 
 	event := PickEvent{
 		Pick:    model.Pick{},
@@ -140,7 +151,11 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 		if err != nil {
 			return false, err
 		}
-		nextPickPlayer := p.draftStore.NextPick(ctx, p.draftId)
+		nextPickPlayer, err := p.draftStore.NextPick(ctx, p.draftId)
+		if err != nil {
+			log.Warn(ctx, "failed to get next pick", "Pick Id", pick.Id, "Errors", err)
+			return false, err
+		}
 
 		//Make the next pick available if we havn't aleady made all picks
 		picks, err := p.draftStore.GetPicks(ctx, p.draftId)
@@ -154,38 +169,42 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 		if len(picks) < 64 {
 			log.Info(ctx, "Making next pick available", "Draft Id", p.draftId)
 			expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
-			p.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
+			_, err = p.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
+			if err != nil {
+				log.Warn(ctx, "Failed to make pick available", "Draft Player Id", pick.Player, "Error", err)
+				return false, err
+			}
 
 			currPickDiscordId, err := p.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
 			if err != nil {
 				log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", pick.Player, "Error", err)
-				err = nil
+				return false, err
 			}
 
 			currPickUser, err := p.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
 			if err != nil {
 				log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", pick.Player, "Error", err)
-				err = nil
+				return false, err
 			}
 			currPickName := currPickUser.Username
 
 			nextPickDiscordId, err := p.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
 			if err != nil {
 				log.Warn(ctx, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
-				err = nil
+				return false, err
 			}
 
 			nextPickUser, err := p.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
 			if err != nil {
 				log.Warn(ctx, "Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
-				err = nil
+				return false, err
 			}
 			nextPickName := nextPickUser.Username
 
 			draftWebhook, err := p.discordStore.GetDraftWebhook(ctx, p.draftId)
 			if err != nil {
 				log.Warn(ctx, "Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
-				err = nil
+				return false, err
 			}
 
 			event := discord.NextPickDiscordEvent{

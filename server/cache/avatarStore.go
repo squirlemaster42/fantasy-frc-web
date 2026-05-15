@@ -87,6 +87,10 @@ func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error
 	if err == redis.Nil {
 		log.DebugNoContext("Avatar not in redis, loading from TBA", "Team Num", teamNum)
 		avatar, err = a.getTbaAvatar(ctx, teamNum)
+		if err != nil {
+			log.Warn(ctx, "Failed to get avatar", "Team Num", teamNum, "Error", err)
+			return nil, err
+		}
 
 		err = a.storeAvatar(teamNum, avatar)
 		if err != nil {
