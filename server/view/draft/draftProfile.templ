@@ -73,7 +73,9 @@ templ DraftProfileIndex(draft model.DraftModel, isOwner bool, pendingInvites []m
 						</div>
 					</div>
 
-					@PlayerList(draft.Players)
+					<div id="playerListContainer">
+						@PlayerList(draft.Players)
+					</div>
 				</div>
 			</div>
 		</div>
@@ -204,8 +206,9 @@ templ DraftProfileIndex(draft model.DraftModel, isOwner bool, pendingInvites []m
 						</div>
 					} else {
 						<div class="space-y-4">
-
-							@PendingInvitesList(pendingInvites, draft.Id)
+							<div id="pendingInvitesContainer">
+								@PendingInvitesList(pendingInvites, draft.Id, isOwner)
+							</div>
 
 							<div>
 								<label class="block text-sm font-medium text-slate-300 mb-2">
@@ -259,11 +262,10 @@ templ StartDraftButton(submitUrl string, err string, isOwner bool) {
 	</button>
 }
 
-templ PendingInvitesList(invites []model.DraftInvite, draftId int) {
+templ PendingInvitesList(invites []model.DraftInvite, draftId int, isOwner bool) {
 	<div
 		id="pendingInvitesList"
 		class="space-y-2"
-		hx-swap-oob="outerHTML:#pendingInvitesList"
 	>
 		if len(invites) == 0 {
 			<div class="text-center py-2 text-slate-400 text-sm">
@@ -274,7 +276,7 @@ templ PendingInvitesList(invites []model.DraftInvite, draftId int) {
 				{fmt.Sprintf("%d pending invitation(s)", len(invites))}
 			</div>
 
-			for _, invite := range invites {
+for _, invite := range invites {
 				<div class="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg">
 					<div class="flex items-center gap-2">
 						<span class="text-sm text-slate-100">
@@ -282,16 +284,31 @@ templ PendingInvitesList(invites []model.DraftInvite, draftId int) {
 						</span>
 					</div>
 
-<button
-						type="button"
-						hx-post={fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId)}
-						name="inviteId"
-						value={fmt.Sprintf("%d", invite.Id)}
-						hx-vals={fmt.Sprintf("{'search': document.getElementById('searchInput').value}")}
-						class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
-					>
-						Uninvite
-					</button>
+					<div class="flex gap-2">
+						if isOwner {
+							<button
+								type="button"
+								hx-post={fmt.Sprintf("/u/draft/%d/cancelInvite", draftId)}
+								hx-swap="outerHTML"
+								name="inviteId"
+								value={fmt.Sprintf("%d", invite.Id)}
+								class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
+							>
+								Cancel
+							</button>
+						} else {
+							<button
+								type="button"
+								hx-post="/u/declineInvite"
+								hx-swap="outerHTML"
+								name="inviteId"
+								value={fmt.Sprintf("%d", invite.Id)}
+								class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
+							>
+								Decline
+							</button>
+						}
+					</div>
 				</div>
 			}
 		}
@@ -308,7 +325,6 @@ templ PlayerList(players []model.DraftPlayer) {
 	<div
 		class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
 		id="playerList"
-		hx-swap-oob="outerHTML:#playerList"
 	>
 		for _, player := range players {
 			if player.Pending {
@@ -357,11 +373,10 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool) {
 
 					<button
 						disabled?={!isOwner}
-						hx-target="#searchResults"
-						hx-swap="innerHTML"
 						name="userUuid"
 						value={fmt.Sprintf("%s", user.UserUuid)}
 						hx-post={fmt.Sprintf("/u/draft/%d/invitePlayer", draftId)}
+						hx-swap="outerHTML"
 						class="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
 					>
 						Invite
@@ -376,22 +391,113 @@ templ UpdateDraftPlayers(
 	players []model.DraftPlayer,
 	pendingInvites []model.DraftInvite,
 	draftId int,
+	isOwner bool,
 ) {
 	@PlayerList(players)
 
-	@PendingInvitesList(pendingInvites, draftId)
+	@PendingInvitesList(pendingInvites, draftId, isOwner)
 }
 
 templ UpdateAfterInvite(
 	users []model.User,
 	draftId int,
 	players []model.DraftPlayer,
-	isOwner bool,
+	isOwnerParam bool,
 	pendingInvites []model.DraftInvite,
 ) {
 	@PlayerList(players)
 
-	@PendingInvitesList(pendingInvites, draftId)
+	@PendingInvitesList(pendingInvites, draftId, isOwnerParam)
 
-	@PlayerSearchResults(users, draftId, isOwner)
+	@PlayerSearchResults(users, draftId, isOwnerParam)
+}
+
+templ UpdateAllSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, users []model.User, draftId int, isOwner bool) {
+	<div id="playerListContainer" hx-swap-oob="outerHTML:#playerListContainer">
+		<div
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+			id="playerList"
+		>
+			for _, player := range players {
+				if player.Pending {
+					<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-red-400 font-medium mb-2">
+								Pending Invitation
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-green-400 font-medium mb-2">
+								Joined
+							</div>
+						</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+
+	<div id="pendingInvitesContainer" hx-swap-oob="outerHTML:#pendingInvitesContainer">
+		<div>
+			@PendingInvitesList(pendingInvites, draftId, isOwner)
+		</div>
+	</div>
+
+	<div id="searchResults" hx-swap-oob="innerHTML:#searchResults">
+		<div>
+			@PlayerSearchResults(users, draftId, isOwner)
+		</div>
+	</div>
+}
+
+templ UpdatePlayerSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, draftId int, isOwner bool) {
+	<div id="playerListContainer" hx-swap-oob="outerHTML:#playerListContainer">
+		<div
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+			id="playerList"
+		>
+			for _, player := range players {
+				if player.Pending {
+					<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-red-400 font-medium mb-2">
+								Pending Invitation
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-green-400 font-medium mb-2">
+								Joined
+							</div>
+						</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+
+	<div id="pendingInvitesContainer" hx-swap-oob="outerHTML:#pendingInvitesContainer">
+		@PendingInvitesList(pendingInvites, draftId, isOwner)
+	</div>
 }

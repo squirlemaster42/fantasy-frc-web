@@ -148,12 +148,5 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 	}
 
 	invites := model.GetInvites(h.Database, userUuid)
-	inviteIndex := draftView.DraftInviteIndex(invites, false, "")
-	pendingInvites := model.GetOutstandingInvitesForDraft(h.Database, draft.Id)
-
-	if err := Render(c, inviteIndex); err != nil {
-		return err
-	}
-
-	return Render(c, draftView.UpdateDraftPlayers(draft.Players, pendingInvites, draft.Id))
+	return Render(c, draftView.DraftInviteIndex(invites, false, ""))
 }

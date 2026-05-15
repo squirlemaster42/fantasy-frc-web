@@ -91,7 +91,7 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 	protected.GET("/viewInvites", h.HandleViewInvites)
 	protected.POST("/acceptInvite", h.HandleAcceptInvite)
 	protected.POST("/declineInvite", h.HandleDeclineInvite)
-	protected.POST("/draft/:id/uninvitePlayer", h.HandleUninvitePlayer)
+	protected.POST("/draft/:id/cancelInvite", h.HandleCancelInvite)
 	protected.POST("/draft/:id/skipPickToggle", h.HandleSkipPickToggle)
 	protected.GET("/team/:id/avatar", h.GetTeamAvatar)
 	protected.GET("/userProfile", h.HandleViewUserProfile)
