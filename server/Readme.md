@@ -64,11 +64,6 @@ make build-linux
 make prod
 ```
 
-**Install binary to deploy location:**
-```bash
-make install
-```
-
 ## Testing
 
 ```bash
