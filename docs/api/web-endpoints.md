@@ -19,7 +19,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Generation**: 128-bit random tokens using `crypto/rand`
 - **Encoding**: Base32 encoding for URL-safe representation
 - **Storage**: SHA-256 hash stored in database (never plain tokens)
-- **Duration**: 10-day expiration with automatic extension on access
+- **Duration**: 10-day expiration with automatic extension on access. Old tokens invalidated on new login.
 
 #### Authentication Flow
 1. **Login**: User submits credentials → bcrypt verification → session token created → cookie set
