@@ -217,7 +217,6 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err != nil {
 				log.Warn(ctx, "Failed to set context deadline for pick notifier", "Draft Id", draftId, "Error", err)
-				// TODO I dont think we want to crash here but verify
 			}
 			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
 				log.Warn(ctx, "Failed to write ping message", "Draft Id", draftId, "Error", err)
@@ -234,6 +233,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			var html strings.Builder
 			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
+			// Use a background context because this goroutine outlives the HTTP request.
 			err = pickPage.Render(context.Background(), &html)
 			if err != nil {
 				log.Warn(ctx, "Failed to render picks for notifier", "Error", err)
@@ -242,8 +242,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err != nil {
-				log.Warn(ctx, "failed to set context deadline on webhook context", "Draft Id", draftId, "Error", err)
-				// TODO I don't think this should be a condition to break this loop. Verify this
+				log.Warn(ctx, "failed to set context deadline on websocket context", "Draft Id", draftId, "Error", err)
 			}
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
 			if err != nil {

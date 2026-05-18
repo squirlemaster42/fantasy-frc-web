@@ -1,18 +1,19 @@
 package handler
 
 import (
-	"server/assert"
+	"net/http"
+	"server/log"
 	"server/view"
 
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleViewLanding(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Landing View")
-
 	landing := view.Landing()
 	err := Render(c, landing)
-	// TODO should we crash here
-	assert.NoError(c.Request().Context(), err, "Handle View Landing Failed To Render")
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View Landing Failed To Render", "error", err)
+		return c.String(http.StatusInternalServerError, DefaultErrorMessage)
+	}
 	return nil
 }

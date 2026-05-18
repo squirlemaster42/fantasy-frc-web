@@ -63,6 +63,7 @@ func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
+	redisAvatarDBVar := os.Getenv("REDIS_AVATAR_DB")
 	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
 
 	if csrfSecret == "" {
@@ -82,6 +83,14 @@ func main() {
 		parsed, err := strconv.Atoi(redisRateLimitDBVar)
 		if err == nil {
 			redisRateLimitDB = parsed
+		}
+	}
+
+	redisAvatarDB := 2
+	if redisAvatarDBVar != "" {
+		parsed, err := strconv.Atoi(redisAvatarDBVar)
+		if err == nil {
+			redisAvatarDB = parsed
 		}
 	}
 
@@ -151,7 +160,7 @@ func main() {
 		slog.Error("Failed to start cleanup service", "Error", err)
 	}
 
-	avatarStore, err := cache.NewAvatarStore(*tbaHandler)
+	avatarStore, err := cache.NewAvatarStore(*tbaHandler, redisAddr, redisPassword, redisAvatarDB)
 	assert.NoError(context.Background(), err, "Failed to create avatar store")
 
 	handler := handler.Handler{
