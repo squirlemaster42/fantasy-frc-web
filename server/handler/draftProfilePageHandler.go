@@ -254,7 +254,6 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	// Check that eight players have accepted the draft
 	numAccepted := 0
-	fmt.Println(draft.Model.String())
 	for _, p := range draft.Model.Players {
 		if !p.Pending {
 			numAccepted++
