@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (h *Handler) ServePickPage(c echo.Context) error {
@@ -26,6 +27,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse draft id string", "Draft Id String", c.Param("id"), "Error", err)
 		return err
 	}
+	setSpanAttrs(c, attribute.Int("draft.id", draftId))
 
 	return h.renderPickPage(c, draftId, userUuid, nil, true)
 }
@@ -45,6 +47,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 		return err
 	}
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
+	setSpanAttrs(c, attribute.Int("draft.id", draftId), attribute.String("user.id", userUuid.String()), attribute.String("pick.team", pick))
 
 	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
@@ -90,7 +93,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
-	cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
+	cachedDraft, err := h.DraftManager.GetDraft(c.Request().Context(), draftId, false)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User is attempting to render pick page for invalid draft", "Draft", draftId, "User Uuid", userUuid)
 	}
@@ -137,6 +140,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 }
 
 type WebSocketListener struct {
+	ctx          context.Context
 	messageQueue chan picking.PickEvent
 }
 
@@ -145,7 +149,7 @@ func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) error 
 	case w.messageQueue <- pickEvent:
 		return nil
 	case <-time.After(5 * time.Second):
-		log.Warn(context.TODO(), "Timeout sending pick event to websocket listener", "Listener", w)
+		log.Warn(w.ctx, "Timeout sending pick event to websocket listener", "Listener", w)
 		return errors.New("timeout sending to listener")
 	}
 }
@@ -171,8 +175,10 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		conn.Close()
 		return nil
 	}
+	setSpanAttrs(c, attribute.Int("draft.id", draftId))
 
 	wsl := WebSocketListener{
+		ctx:          ctx,
 		messageQueue: make(chan picking.PickEvent, 10),
 	}
 	h.DraftManager.AddPickListener(draftId, &wsl)
@@ -224,7 +230,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			}
 		case msg := <-wsl.messageQueue:
 			log.Info(ctx, "Writing pick event to client", "Event", msg)
-			cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
+			cachedDraft, err := h.DraftManager.GetDraft(ctx, draftId, false)
 			if err != nil {
 				log.Warn(ctx, "Attempting to notify draft that does not exist", "Draft Id", draftId)
 				continue
@@ -233,7 +239,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			var html strings.Builder
 			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
-			err = pickPage.Render(context.TODO(), &html)
+			err = pickPage.Render(ctx, &html)
 			if err != nil {
 				log.Warn(ctx, "Failed to render picks for notifier", "Error", err)
 				continue

@@ -5,42 +5,35 @@ import (
 	"database/sql"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"server/log"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
-	dbQueryMeanTime = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "db_query_mean_time_seconds",
-			Help: "Mean execution time of queries in seconds",
-		},
-		[]string{"query"},
-	)
-	dbQueryCalls = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "db_query_calls_total",
-			Help: "Total number of times each query was called",
-		},
-		[]string{"query"},
-	)
-	dbQueryRows = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "db_query_rows_total",
-			Help: "Total rows returned by queries",
-		},
-		[]string{"query"},
-	)
-)
+	dbQueryMeanTime metric.Float64ObservableGauge
+	dbQueryCalls    metric.Int64ObservableGauge
+	dbQueryRows     metric.Int64ObservableGauge
 
-var (
 	queryThresholdMs = getEnvAsInt("DB_QUERY_THRESHOLD_MS", 50)
 	pollInterval     = getEnvAsDuration("DB_QUERY_POLL_INTERVAL", 30*time.Second)
 	maxQueries       = getEnvAsInt("DB_QUERY_MAX_COUNT", 50)
+
+	dbStatsMu        sync.RWMutex
+	latestQueryStats []queryStat
 )
+
+type queryStat struct {
+	query string
+	calls int
+	mean  float64
+	rows  int64
+}
 
 func getEnvAsInt(key string, defaultVal int) int {
 	val := os.Getenv(key)
@@ -68,20 +61,78 @@ func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
 	return d
 }
 
-func InitDBQueryStats(db *sql.DB) {
-	prometheus.MustRegister(dbQueryMeanTime, dbQueryCalls, dbQueryRows)
+func InitDBQueryStats(ctx context.Context, db *sql.DB) {
+	meter := otel.Meter("fantasy-frc-web")
+	var err error
+	dbQueryMeanTime, err = meter.Float64ObservableGauge(
+		"db.query.mean.duration",
+		metric.WithDescription("Mean execution time of queries in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		panic("failed to create db.query.mean.duration: " + err.Error())
+	}
 
-	log.Info(context.TODO(), "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
+	dbQueryCalls, err = meter.Int64ObservableGauge(
+		"db.query.calls",
+		metric.WithDescription("Total number of times each query was called"),
+	)
+	if err != nil {
+		panic("failed to create db.query.calls: " + err.Error())
+	}
 
-	go collectQueryStats(db)
+	dbQueryRows, err = meter.Int64ObservableGauge(
+		"db.query.rows",
+		metric.WithDescription("Total rows returned by queries"),
+	)
+	if err != nil {
+		panic("failed to create db.query.rows: " + err.Error())
+	}
+
+	_, err = meter.RegisterCallback(
+		func(ctx context.Context, o metric.Observer) error {
+			dbStatsMu.RLock()
+			stats := latestQueryStats
+			dbStatsMu.RUnlock()
+
+			for _, s := range stats {
+				queryID := s.query
+				if len(queryID) > 100 {
+					queryID = queryID[:100] + "..."
+				}
+
+				o.ObserveFloat64(dbQueryMeanTime, s.mean/1000.0,
+					metric.WithAttributes(attribute.String("query", queryID)))
+				o.ObserveInt64(dbQueryCalls, int64(s.calls),
+					metric.WithAttributes(attribute.String("query", queryID)))
+				o.ObserveInt64(dbQueryRows, s.rows,
+					metric.WithAttributes(attribute.String("query", queryID)))
+			}
+			return nil
+		},
+		dbQueryMeanTime, dbQueryCalls, dbQueryRows,
+	)
+	if err != nil {
+		log.Warn(ctx, "Failed to register DB query stats callback", "error", err)
+	}
+
+	log.Info(ctx, "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
+
+	go collectQueryStats(ctx, db)
 }
 
-func collectQueryStats(db *sql.DB) {
+func collectQueryStats(ctx context.Context, db *sql.DB) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		collectQueryStatsIteration(context.TODO(), db)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "DB query stats collector shutting down")
+			return
+		case <-ticker.C:
+			collectQueryStatsIteration(ctx, db)
+		}
 	}
 }
 
@@ -106,9 +157,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 	}
 	defer rows.Close()
 
-	dbQueryMeanTime.Reset()
-	dbQueryCalls.Reset()
-	dbQueryRows.Reset()
+	var stats []queryStat
 
 	for rows.Next() {
 		var queryText string
@@ -127,8 +176,15 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 			queryID = queryID[:100] + "..."
 		}
 
-		dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)
-		dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
-		dbQueryRows.WithLabelValues(queryID).Set(float64(rowsCount))
+		stats = append(stats, queryStat{
+			query: queryID,
+			calls: calls,
+			mean:  meanTime,
+			rows:  rowsCount,
+		})
 	}
+
+	dbStatsMu.Lock()
+	latestQueryStats = stats
+	dbStatsMu.Unlock()
 }

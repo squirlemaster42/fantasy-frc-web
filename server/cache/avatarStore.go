@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 )
 
 // I think that there will be too much variance in the avatars requested for this
@@ -28,6 +29,8 @@ func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPass
 		DB:       redisDB,
 		Protocol: 2,
 	})
+	_ = redisotel.InstrumentTracing(rdb)
+	_ = redisotel.InstrumentMetrics(rdb)
 	ctx := context.Background()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {

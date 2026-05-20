@@ -1,3 +1,8 @@
+# Build metadata
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_FLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)"
+
 # CSS build commands
 TAILWIND_BIN := ./tailwindcss
 CSS_INPUT := ./assets/input.css
@@ -40,12 +45,12 @@ test:
 
 # Production build (static binary with embedded assets)
 build: build-css generate
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o server .
+	CGO_ENABLED=0 go build $(BUILD_FLAGS) -o server .
 	@echo "Server binary built successfully!"
 
 # Build for deployment (cross-compile for Linux amd64)
 build-linux: build-css generate
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o server .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(BUILD_FLAGS) -o server .
 	@echo "Linux binary built successfully!"
 
 # Full production build

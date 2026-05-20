@@ -1,24 +1,38 @@
 package metrics
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"context"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+)
 
 var (
-	websocketListenerGauge = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name: "websocket_listeners_active",
-			Help: "Number of active websocket listeners for draft pick events",
-		},
-	)
+	websocketListenerGauge metric.Int64UpDownCounter
 )
 
 func InitWebSocketMetrics() {
-	prometheus.MustRegister(websocketListenerGauge)
+	meter := otel.Meter("fantasy-frc-web")
+	var err error
+	websocketListenerGauge, err = meter.Int64UpDownCounter(
+		"websocket.listeners.active",
+		metric.WithDescription("Number of active websocket listeners for draft pick events"),
+	)
+	if err != nil {
+		panic("failed to create websocket.listeners.active: " + err.Error())
+	}
 }
 
 func IncrementWebSocketListener() {
-	websocketListenerGauge.Inc()
+	if websocketListenerGauge == nil {
+		return
+	}
+	websocketListenerGauge.Add(context.Background(), 1)
 }
 
 func DecrementWebSocketListener() {
-	websocketListenerGauge.Dec()
+	if websocketListenerGauge == nil {
+		return
+	}
+	websocketListenerGauge.Add(context.Background(), -1)
 }

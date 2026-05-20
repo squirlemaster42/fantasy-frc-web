@@ -29,6 +29,11 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 func main() {
 	assert := assert.CreateAssertWithContext("Main")
 
@@ -37,17 +42,20 @@ func main() {
 	logFormat := flag.String("log-format", "json", "Log format: json or text")
 	flag.Parse()
 
-	log.SetupLogger(*logFormat)
+	log.SetupLogger(*logFormat, "fantasy-frc-web", version)
 
 	if *verbose {
 		log.SetLevel(log.LevelDebug)
 	}
 
-	log.Info(context.Background(), "-------- Starting Fantasy FRC --------")
+	serverCtx, serverCancel := context.WithCancel(context.Background())
+	defer serverCancel()
+
+	log.Info(serverCtx, "-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Info(context.Background(), "No .env file loaded, using environment variables")
+		log.Info(serverCtx, "No .env file loaded, using environment variables")
 	}
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
@@ -56,8 +64,11 @@ func main() {
 	dbName := os.Getenv("DB_NAME")
 	serverPort := os.Getenv("SERVER_PORT")
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
-	metricSecret := os.Getenv("METRIC_SECRET")
 	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
+	deploymentEnv := os.Getenv("DEPLOYMENT_ENV")
+	if deploymentEnv == "" {
+		deploymentEnv = "production"
+	}
 	csrfSecret := os.Getenv("CSRF_SECRET")
 	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
@@ -102,23 +113,23 @@ func main() {
 		}
 	}
 
-	log.Info(context.Background(), "Extracted Env Vars")
-	database, err := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	log.Info(serverCtx, "Extracted Env Vars")
+	database, err := database.RegisterDatabaseConnection(serverCtx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
-		log.Error(context.Background(), "Failed to register database connection", "error", err)
+		log.Error(serverCtx, "Failed to register database connection", "error", err)
 		os.Exit(1)
 	}
-	log.Info(context.Background(), "Registered Database Connection")
+	log.Info(serverCtx, "Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
 	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
 	if err != nil {
-		log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+		log.Warn(serverCtx, "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
 		secureHttpCookie = true
 	}
 
-	discordBus := discord.NewBus()
+	discordBus := discord.NewBus(serverCtx)
 	draftStore := model.NewSQLDraftStore(database)
 	userStore := model.NewSQLUserStore(database)
 	teamStore := model.NewSQLTeamStore(database)
@@ -126,36 +137,36 @@ func main() {
 	matchStore := model.NewSQLMatchStore(database)
 	matchTeamStore := model.NewSQLMatchTeamStore(database)
 
-	draftManager := draft.NewDraftManager(tbaHandler, draftStore, teamStore, discordStore, discordBus)
+	draftManager := draft.NewDraftManager(serverCtx, tbaHandler, draftStore, teamStore, discordStore, discordBus)
 	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(draftStore, draftManager)
+	draftDaemon := background.NewDraftDaemon(serverCtx, draftStore, draftManager)
 	err = draftDaemon.Start()
 	if err != nil {
-		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
+		log.Warn(serverCtx, "Failed to start draft daemon", "Error", err)
 		panic("failed to start draft manager")
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts, err := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
+	drafts, err := draftStore.GetDraftsInStatus(serverCtx, model.PICKING)
 	if err != nil {
-		log.Warn(context.Background(), "Could not get any drafts in picking status", "Error", err)
+		log.Warn(serverCtx, "Could not get any drafts in picking status", "Error", err)
 	} else {
 		for _, draftId := range drafts {
 			err = draftDaemon.AddDraft(draftId)
 			if err != nil {
-				log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+				log.Warn(serverCtx, "Failed to add draft to manager in init", "Error", err)
 			}
 		}
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
 	if !*skipScoring {
-		log.Info(context.Background(), "Started Scorer")
-		scorer.RunScorer()
+		log.Info(serverCtx, "Started Scorer")
+		scorer.RunScorer(serverCtx)
 	}
 
 	cleanupService := background.NewCleanupService(database, 60)
-	err = cleanupService.Start()
+	err = cleanupService.Start(serverCtx)
 	if err != nil {
 		slog.Error("Failed to start cleanup service", "Error", err)
 	}
@@ -165,7 +176,7 @@ func main() {
 	}
 
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler, redisAddr, redisPassword, redisAvatarDB)
-	assert.NoError(context.Background(), err, "Failed to create avatar store")
+	assert.NoError(serverCtx, err, "Failed to create avatar store")
 
 	handler := handler.Handler{
 		DraftStore:        draftStore,
@@ -184,23 +195,24 @@ func main() {
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		log.Warn(context.Background(), "Unable to open tba webhook secret file", "Error", err)
+		log.Warn(serverCtx, "Unable to open tba webhook secret file", "Error", err)
 	} else {
 		body, err := io.ReadAll(file)
 		if err != nil {
-			log.Warn(context.Background(), "Failed to read tba webhook file body", "Error", err)
+			log.Warn(serverCtx, "Failed to read tba webhook file body", "Error", err)
 		} else {
 			handler.TbaVerificationCode = string(body)
 		}
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
+	app, otelShutdown := CreateServer(serverCtx, serverPort, handler, database, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute, "fantasy-frc-web", version, commit, deploymentEnv)
+	log.SetShutdownFunc(otelShutdown)
 
 	go func() {
 		err := app.Start(":" + serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			assert.NoError(context.Background(), err, "Failed to start server")
+			assert.NoError(serverCtx, err, "Failed to start server")
 		}
 	}()
 
@@ -209,18 +221,20 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	<-shutdownChan
 
-	log.Info(context.Background(), "Shutting down gracefully...")
+	log.Info(serverCtx, "Shutting down gracefully...")
+	serverCancel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := app.Shutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown server gracefully", "error", err)
+		log.Warn(serverCtx, "Failed to shutdown server gracefully", "error", err)
 	}
 	if err := otelShutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown OpenTelemetry tracer", "error", err)
+		log.Warn(serverCtx, "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
 	metrics.ShutdownMetrics()
 	if err := database.Close(); err != nil {
-		log.Warn(context.Background(), "Failed to close database connection", "error", err)
+		log.Warn(serverCtx, "Failed to close database connection", "error", err)
 	}
 }

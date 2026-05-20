@@ -20,6 +20,7 @@ type DiscordWebhookBus struct {
 	preMatchCh chan PreMatchDiscordEvent
 	stopCh     chan struct{}
 	wg         sync.WaitGroup
+	serverCtx  context.Context
 }
 
 type DiscordWebhook struct {
@@ -50,13 +51,14 @@ type NextPickDiscordEvent struct {
 	ExpirationTime        time.Time
 }
 
-func NewBus() *DiscordWebhookBus {
+func NewBus(ctx context.Context) *DiscordWebhookBus {
 	d := &DiscordWebhookBus{
 		client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
 		preMatchCh: make(chan PreMatchDiscordEvent, 100),
 		stopCh:     make(chan struct{}),
+		serverCtx:  ctx,
 	}
 	d.wg.Add(1)
 	go d.worker()
@@ -73,13 +75,13 @@ func (d *DiscordWebhookBus) worker() {
 	for {
 		select {
 		case event := <-d.preMatchCh:
-			d.sendPreMatchNotification(context.TODO(), event)
+			d.sendPreMatchNotification(d.serverCtx, event)
 		case <-d.stopCh:
 			// Drain remaining events before stopping.
 			for {
 				select {
 				case event := <-d.preMatchCh:
-					d.sendPreMatchNotification(context.TODO(), event)
+					d.sendPreMatchNotification(d.serverCtx, event)
 				default:
 					return
 				}
@@ -147,7 +149,7 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 	}
 }
 
-func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
+func (d *DiscordWebhookBus) PostPickNotification(ctx context.Context, event NextPickDiscordEvent) error {
 	previousIdentifier := event.PreviousPickName
 	if event.PreviousPickDiscordId.Valid {
 		previousPickId := event.PreviousPickDiscordId.String
@@ -199,7 +201,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Warn(context.TODO(), "Failed to create post pick notification request", "Error", err)
+		log.Warn(ctx, "Failed to create post pick notification request", "Error", err)
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
