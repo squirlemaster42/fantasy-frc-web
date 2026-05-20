@@ -160,6 +160,10 @@ func main() {
 		slog.Error("Failed to start cleanup service", "Error", err)
 	}
 
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
 	avatarStore, err := cache.NewAvatarStore(*tbaHandler, redisAddr, redisPassword, redisAvatarDB)
 	assert.NoError(context.Background(), err, "Failed to create avatar store")
 

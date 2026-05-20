@@ -22,9 +22,6 @@ type AvatarStore struct {
 }
 
 func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
-	if redisAddr == "" {
-		redisAddr = "localhost:6379"
-	}
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,

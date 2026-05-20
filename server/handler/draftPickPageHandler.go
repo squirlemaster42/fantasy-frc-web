@@ -233,8 +233,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			var html strings.Builder
 			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
-			// Use a background context because this goroutine outlives the HTTP request.
-			err = pickPage.Render(context.Background(), &html)
+			err = pickPage.Render(context.TODO(), &html)
 			if err != nil {
 				log.Warn(ctx, "Failed to render picks for notifier", "Error", err)
 				continue

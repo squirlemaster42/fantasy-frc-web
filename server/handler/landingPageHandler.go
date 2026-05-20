@@ -13,7 +13,7 @@ func (h *Handler) HandleViewLanding(c echo.Context) error {
 	err := Render(c, landing)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle View Landing Failed To Render", "error", err)
-		return c.String(http.StatusInternalServerError, DefaultErrorMessage)
+		return c.String(http.StatusInternalServerError, "Unable to render page")
 	}
 	return nil
 }
