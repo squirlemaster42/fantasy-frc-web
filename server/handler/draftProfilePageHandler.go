@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
@@ -29,6 +30,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
+	setSpanAttrs(c, attribute.Int("draft.id", draftId))
 
 	// TODO I think this should go through the draft manager
 	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
@@ -176,7 +178,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	// Check that the draft is in the correct state
-	draft, err := h.DraftManager.GetDraft(draftId, false)
+	draft, err := h.DraftManager.GetDraft(c.Request().Context(), draftId, false)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to load draft", "Draft Id", draftId, "Error", err)
 		return err
@@ -236,8 +238,9 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		)
 		return Render(c, page)
 	}
+	setSpanAttrs(c, attribute.Int("draft.id", draftId), attribute.String("user.id", requestingUser.String()))
 
-	draft, err := h.DraftManager.GetDraft(draftId, true)
+	draft, err := h.DraftManager.GetDraft(c.Request().Context(), draftId, true)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest

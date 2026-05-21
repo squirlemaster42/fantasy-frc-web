@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
@@ -29,6 +30,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse draft id", "Draft Id String", c.Param("id"), "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
+	setSpanAttrs(c, attribute.Int("draft.id", draftId))
 
 	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {

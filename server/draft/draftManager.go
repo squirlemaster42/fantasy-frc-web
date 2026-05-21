@@ -13,26 +13,36 @@ import (
 	"server/utils"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus) *DraftManager {
+var draftManagerTracer = otel.Tracer("draft-manager")
+
+func NewDraftManager(ctx context.Context, tbaHandler *tbaHandler.TbaHandler, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus) *DraftManager {
 	draftManager := &DraftManager{
-		drafts:       map[int]*Draft{},
-		draftStore:   draftStore,
-		teamStore:    teamStore,
-		discordStore: discordStore,
-		tbaHandler:   tbaHandler,
-		states:       setupStates(context.TODO(), draftStore),
-		discordBus:   discordBus,
+		drafts:        map[int]*Draft{},
+		draftContexts: map[int]context.CancelFunc{},
+		draftStore:    draftStore,
+		teamStore:     teamStore,
+		discordStore:  discordStore,
+		tbaHandler:    tbaHandler,
+		states:        setupStates(ctx, draftStore),
+		discordBus:    discordBus,
+		serverCtx:     ctx,
 	}
 
-	log.Info(context.TODO(), "Draft Manager Started")
+	log.Info(ctx, "Draft Manager Started")
 
 	return draftManager
 }
 
 type DraftManager struct {
 	drafts          map[int]*Draft
+	draftContexts   map[int]context.CancelFunc
 	loadLocks       sync.Map
 	transitionLocks sync.Map
 	draftStore      model.DraftStore
@@ -41,10 +51,11 @@ type DraftManager struct {
 	tbaHandler      *tbaHandler.TbaHandler
 	states          map[model.DraftState]*state
 	discordBus      *discord.DiscordWebhookBus
+	serverCtx       context.Context
 }
 
-func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
-	log.Info(context.TODO(), "Get Draft", "Draft Id", draftId, "Reload", reload)
+func (dm *DraftManager) GetDraft(ctx context.Context, draftId int, reload bool) (Draft, error) {
+	log.Info(ctx, "Get Draft", "Draft Id", draftId, "Reload", reload)
 	//We just need to be careful that only one call can reload the draft at one time
 	lock := dm.getLoadLock(draftId)
 	draft, ok := dm.drafts[draftId]
@@ -55,14 +66,17 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		log.DebugNoContext("Reloading Draft", "Draft Id", draftId)
 		lock.Lock()
 		log.DebugNoContext("GetDraft reload: acquired loadLock", "Draft Id", draftId)
-		draftModel, err := dm.draftStore.GetDraft(context.TODO(), draftId)
+		draftModel, err := dm.draftStore.GetDraft(ctx, draftId)
 		log.DebugNoContext("GetDraft reload: model.GetDraft returned", "Requested Draft Id", draftId, "Returned", draftModel.Id, "Error", err)
 		if draft != nil {
 			draft.Model = &draftModel
 		} else {
+			draftCtx, cancel := context.WithCancel(dm.serverCtx)
+			dm.draftContexts[draftId] = cancel
 			draft := Draft{
 				draftId:     draftId,
-			pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus),
+				ctx:         draftCtx,
+				pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus, draftCtx),
 				Model:       &draftModel,
 			}
 			dm.drafts[draftId] = &draft
@@ -74,11 +88,14 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 		log.DebugNoContext("Loading Draft For First Time", "Draft Id", draftId)
 		//Load draft model
 		lock.Lock()
-		draftModel, err := dm.draftStore.GetDraft(context.TODO(), draftId)
+		draftModel, err := dm.draftStore.GetDraft(ctx, draftId)
 
+		draftCtx, cancel := context.WithCancel(dm.serverCtx)
+		dm.draftContexts[draftId] = cancel
 		draft := Draft{
 			draftId:     draftId,
-			pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus),
+			ctx:         draftCtx,
+			pickManager: picking.NewPickManager(draftId, dm.draftStore, dm.teamStore, dm.discordStore, dm.tbaHandler, dm.discordBus, draftCtx),
 			Model:       &draftModel,
 		}
 		dm.drafts[draftId] = &draft
@@ -90,6 +107,7 @@ func (dm *DraftManager) GetDraft(draftId int, reload bool) (Draft, error) {
 
 type Draft struct {
 	draftId     int
+	ctx         context.Context
 	Model       *model.DraftModel
 	pickManager *picking.PickManager
 }
@@ -112,6 +130,14 @@ func (e *invalidStateTransitionError) Error() string {
 }
 
 func (dm *DraftManager) ExecuteDraftStateTransition(ctx context.Context, draftId int, requestedState model.DraftState) error {
+	ctx, span := draftManagerTracer.Start(ctx, "draft.state-transition",
+		trace.WithAttributes(
+			attribute.Int("draft.id", draftId),
+			attribute.String("draft.requested_state", string(requestedState)),
+		),
+	)
+	defer span.End()
+
 	log.Info(ctx, "Got request to execute draft state transition", "Draft Id", draftId, "Requested State", requestedState)
 	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
 
@@ -123,13 +149,16 @@ func (dm *DraftManager) ExecuteDraftStateTransition(ctx context.Context, draftId
 	log.DebugNoContext("ExecuteDraftStateTransition: acquired transitionLock", "Draft Id", draftId)
 	defer transitionLock.Unlock()
 
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(ctx, draftId, false)
 	log.DebugNoContext("Loaded draft to execute transition", "Draft Id", draftId)
 	if err != nil {
 		log.Warn(ctx, "Failed get draft when trying to execute state transition", "Draft Id", draftId, "Error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		loadLock.Unlock()
 		return err
 	}
+	span.SetAttributes(attribute.String("draft.current_state", string(draft.Model.Status)))
 	assert.AddContext("Draft Id", draft.draftId)
 	assert.AddContext("Current State", string(draft.Model.Status))
 	assert.AddContext("Requested State", string(requestedState))
@@ -141,31 +170,40 @@ func (dm *DraftManager) ExecuteDraftStateTransition(ctx context.Context, draftId
 	transition, transitionFound := state.transitions[requestedState]
 	if !transitionFound {
 		log.Error(ctx, "Did not find draft state transition", "Current State", draft.Model.Status, "Requested State", requestedState)
-		loadLock.Unlock()
-		return &invalidStateTransitionError{
+		err := &invalidStateTransitionError{
 			currentState:   draft.Model.Status,
 			requestedState: requestedState,
 		}
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		loadLock.Unlock()
+		return err
 	}
 
 	log.Info(ctx, "Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
 	err = transition.executeTransition(ctx, draft)
 	if err != nil {
 		log.Warn(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		loadLock.Unlock()
 		return err
 	}
 	log.Info(ctx, "Executed draft state transition", "Draft Id", draftId)
 
 	loadLock.Unlock()
-	draft, err = dm.GetDraft(draftId, true)
+	draft, err = dm.GetDraft(ctx, draftId, true)
 	log.Debug(ctx, "Reloaded draft after state transition", "End State", draft.GetStatus(), "Error", err)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
 
 	return err
 }
 
 func (dm *DraftManager) UndoLastPick(draftId int) error {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 	if err != nil {
 		return err
 	}
@@ -173,7 +211,7 @@ func (dm *DraftManager) UndoLastPick(draftId int) error {
 }
 
 func (dm *DraftManager) GetCurrentPick(draftId int) (model.Pick, error) {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 	if err != nil {
 		return model.Pick{}, err
 	}
@@ -182,28 +220,41 @@ func (dm *DraftManager) GetCurrentPick(draftId int) (model.Pick, error) {
 }
 
 func (dm *DraftManager) MakePick(draftId int, pick model.Pick) error {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 	if err != nil {
 		return err
 	}
 
-	pickingComplete, err := draft.pickManager.MakePick(context.TODO(), pick)
+	ctx, span := draftManagerTracer.Start(draft.ctx, "draft.make-pick",
+		trace.WithAttributes(
+			attribute.Int("draft.id", draftId),
+			attribute.Int("pick.id", pick.Id),
+			attribute.String("pick.team", pick.Pick.String),
+		),
+	)
+	defer span.End()
+
+	pickingComplete, err := draft.pickManager.MakePick(ctx, pick)
 
 	if err != nil {
-		log.Info(context.TODO(), "Failed to make pick", "Pick", pick.Pick.String, "Pick Id", pick.Id, "Player", pick.Player, "Error", err)
+		log.Info(ctx, "Failed to make pick", "Pick", pick.Pick.String, "Pick Id", pick.Id, "Player", pick.Player, "Error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 
 	if pickingComplete {
-		log.Info(context.TODO(), "Update status to TEAMS_PLAYING", "Draft Id", draftId)
-		err = dm.ExecuteDraftStateTransition(context.TODO(), draft.draftId, model.TEAMS_PLAYING)
+		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", draftId)
+		err = dm.ExecuteDraftStateTransition(ctx, draft.draftId, model.TEAMS_PLAYING)
 
 		if err != nil {
-			log.Warn(context.TODO(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+			log.Warn(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 		}
 	} else {
 		// Reload the cached draft model so PickNotifier gets fresh data
-		_, _ = dm.GetDraft(draftId, true)
+		_, _ = dm.GetDraft(dm.serverCtx, draftId, true)
 	}
 
 	go draft.pickManager.NotifyListeners(picking.PickEvent{
@@ -239,10 +290,10 @@ func (dm *DraftManager) getTransitionLock(draftId int) *sync.Mutex {
 }
 
 func (dm *DraftManager) SkipCurrentPick(draftId int) error {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 
 	if err != nil {
-		log.Warn(context.TODO(), "Skip Current Pick Error", "Draft Id", draftId, "Error", err)
+		log.Warn(draft.ctx, "Skip Current Pick Error", "Draft Id", draftId, "Error", err)
 		return err
 	}
 
@@ -252,23 +303,23 @@ func (dm *DraftManager) SkipCurrentPick(draftId int) error {
 	}
 
 	// Reload the cached draft model so PickNotifier gets fresh data
-	_, _ = dm.GetDraft(draftId, true)
+	_, _ = dm.GetDraft(dm.serverCtx, draftId, true)
 	return nil
 }
 
 func (dm *DraftManager) AddPickListener(draftId int, listener picking.PickListener) {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to load draft when adding pick listener", "Error", err)
+		log.Error(dm.serverCtx, "Failed to load draft when adding pick listener", "Error", err)
 		return
 	}
 	draft.pickManager.AddListener(listener)
 }
 
 func (dm *DraftManager) RemovePickListener(draftId int, listener picking.PickListener) {
-	draft, err := dm.GetDraft(draftId, false)
+	draft, err := dm.GetDraft(dm.serverCtx, draftId, false)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to load draft when removing pick listener, searching all drafts", "Draft Id", draftId, "Error", err)
+		log.Error(dm.serverCtx, "Failed to load draft when removing pick listener, searching all drafts", "Draft Id", draftId, "Error", err)
 		for _, d := range dm.drafts {
 			d.pickManager.RemoveListener(listener)
 		}
@@ -279,25 +330,25 @@ func (dm *DraftManager) RemovePickListener(draftId int, listener picking.PickLis
 
 // TODO decompose this into messages
 func (dm *DraftManager) UpdateDraft(draftModel model.DraftModel) error {
-	log.Info(context.TODO(), "UpdateDraft: acquiring locks", "Draft Id", draftModel.Id)
+	log.Info(dm.serverCtx, "UpdateDraft: acquiring locks", "Draft Id", draftModel.Id)
 	loadLock := dm.getLoadLock(draftModel.Id)
 	transitionLock := dm.getTransitionLock(draftModel.Id)
 	loadLock.Lock()
-	log.Info(context.TODO(), "UpdateDraft: acquired loadLock", "Draft Id", draftModel.Id)
+	log.Info(dm.serverCtx, "UpdateDraft: acquired loadLock", "Draft Id", draftModel.Id)
 	transitionLock.Lock()
-	log.Info(context.TODO(), "UpdateDraft: acquired transitionLock", "Draft Id", draftModel.Id)
+	log.Info(dm.serverCtx, "UpdateDraft: acquired transitionLock", "Draft Id", draftModel.Id)
 	defer transitionLock.Unlock()
-	log.Info(context.TODO(), "UpdateDraft: calling model.UpdateDraft", "Draft Id", draftModel.Id)
-	err := dm.draftStore.UpdateDraft(context.TODO(), &draftModel)
-	log.Info(context.TODO(), "UpdateDraft: model.UpdateDraft returned", "Draft Id", draftModel.Id, "Error", err)
+	log.Info(dm.serverCtx, "UpdateDraft: calling model.UpdateDraft", "Draft Id", draftModel.Id)
+	err := dm.draftStore.UpdateDraft(dm.serverCtx, &draftModel)
+	log.Info(dm.serverCtx, "UpdateDraft: model.UpdateDraft returned", "Draft Id", draftModel.Id, "Error", err)
 	loadLock.Unlock()
 	if err != nil {
-		log.Warn(context.TODO(), "Failed to update draft", "Error", err)
+		log.Warn(dm.serverCtx, "Failed to update draft", "Error", err)
 		return err
 	}
-	log.Info(context.TODO(), "UpdateDraft: calling GetDraft with reload", "Draft Id", draftModel.Id)
-	_, err = dm.GetDraft(draftModel.Id, true)
-	log.Info(context.TODO(), "UpdateDraft: GetDraft returned", "Draft Id", draftModel.Id, "Error", err)
+	log.Info(dm.serverCtx, "UpdateDraft: calling GetDraft with reload", "Draft Id", draftModel.Id)
+	_, err = dm.GetDraft(dm.serverCtx, draftModel.Id, true)
+	log.Info(dm.serverCtx, "UpdateDraft: GetDraft returned", "Draft Id", draftModel.Id, "Error", err)
 	return err
 }
 
@@ -314,18 +365,18 @@ func (dm *DraftManager) ModifyCurrentPickExpirationTime(draftId int, extention t
 		return errors.New("no current pick found for this draft")
 	}
 
-	newExpirationTime := utils.GetPickExpirationTime(context.TODO(), currentPick.ExpirationTime, extention)
-	log.Info(context.TODO(), "Setting new pick expiration time", "Current Pick Time", currentPick.ExpirationTime, "New Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
+	newExpirationTime := utils.GetPickExpirationTime(dm.serverCtx, currentPick.ExpirationTime, extention)
+	log.Info(dm.serverCtx, "Setting new pick expiration time", "Current Pick Time", currentPick.ExpirationTime, "New Expiration Time", newExpirationTime, "Pick Id", currentPick.Id)
 
-	err = dm.draftStore.UpdatePickExpirationTime(context.TODO(), currentPick.Id, newExpirationTime)
+	err = dm.draftStore.UpdatePickExpirationTime(dm.serverCtx, currentPick.Id, newExpirationTime)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
+		log.Error(dm.serverCtx, "Failed to update pick expiration time", "Pick Id", currentPick.Id, "Error", err)
 		loadLock.Unlock()
 		return errors.New("failed to update pick expiration time")
 	}
 
 	loadLock.Unlock()
-	_, err = dm.GetDraft(draftId, true)
+	_, err = dm.GetDraft(dm.serverCtx, draftId, true)
 
 	return err
 }

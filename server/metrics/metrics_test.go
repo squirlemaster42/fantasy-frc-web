@@ -3,22 +3,20 @@ package metrics
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/XSAM/otelsql"
 	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func getDB(t *testing.T) *sql.DB {
@@ -49,76 +47,31 @@ func getDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func TestDBStatsCollector(t *testing.T) {
-	db := getDB(t)
-	defer db.Close()
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
-
-	_, err := db.ExecContext(context.Background(), "SELECT 1")
-	assert.NoError(t, err)
-
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	handler.ServeHTTP(rec, req)
-
-	output := rec.Body.String()
-
-	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
-		"go_sql_in_use_connections metric should be present")
-	assert.True(t, strings.Contains(output, "go_sql_idle_connections"),
-		"go_sql_idle_connections metric should be present")
-	assert.True(t, strings.Contains(output, "go_sql_max_open_connections"),
-		"go_sql_max_open_connections metric should be present")
-
-	t.Log("DBStatsCollector metrics are being collected correctly")
+func setupTestMeterProvider() *sdkmetric.ManualReader {
+	reader := sdkmetric.NewManualReader()
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	otel.SetMeterProvider(mp)
+	return reader
 }
 
-func TestDBStatsCollectorQueryCount(t *testing.T) {
-	db := getDB(t)
-	defer db.Close()
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
-
-	for i := 0; i < 3; i++ {
-		_, err := db.ExecContext(context.Background(), "SELECT 1")
-		assert.NoError(t, err)
-	}
-
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	handler.ServeHTTP(rec, req)
-
-	output := rec.Body.String()
-	fmt.Printf("Metrics output sample:\n%s\n", strings.Split(output, "\n")[0:10])
-
-	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
-		"DB connection metrics should be trackable")
+func resetMeterProvider() {
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider())
 }
 
-func TestOTelDBStatsMetrics(t *testing.T) {
+func TestInitMetrics(t *testing.T) {
 	db := getDB(t)
 	defer db.Close()
 
-	reg, err := otelsql.RegisterDBStatsMetrics(db)
-	assert.NoError(t, err)
-	defer func() {
-		assert.NoError(t, reg.Unregister())
-	}()
+	setupTestMeterProvider()
+	defer resetMeterProvider()
 
-	// Trigger some DB activity so stats are non-trivial
-	_, err = db.ExecContext(context.Background(), "SELECT 1")
+	err := InitMetrics(context.Background(), db)
 	assert.NoError(t, err)
 
-	t.Log("OTel DB stats metrics registered successfully")
+	ShutdownMetrics()
 }
 
 func TestShutdownMetricsIdempotent(t *testing.T) {
-	// Should not panic even when called before InitMetrics
 	assert.NotPanics(t, func() {
 		ShutdownMetrics()
 	}, "ShutdownMetrics should be idempotent and not panic when called before InitMetrics")
@@ -138,43 +91,116 @@ func TestRecordUserActivity(t *testing.T) {
 	assert.True(t, ok, "user should be recorded in active users map")
 }
 
+func TestMetricsMiddleware(t *testing.T) {
+	reader := setupTestMeterProvider()
+	defer resetMeterProvider()
+
+	InitHTTPMetrics()
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mw := MetricsMiddleware()
+	handler := mw(func(c echo.Context) error {
+		c.Response().WriteHeader(http.StatusOK)
+		return nil
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+
+	rm := metricdata.ResourceMetrics{}
+	err = reader.Collect(context.Background(), &rm)
+	assert.NoError(t, err)
+
+	found := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "http.request.count" {
+				found = true
+			}
+		}
+	}
+	assert.True(t, found, "http.request.count metric should be present")
+}
+
 func TestRecordAuthenticatedRequest(t *testing.T) {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(authenticatedRequestCount)
+	reader := setupTestMeterProvider()
+	defer resetMeterProvider()
+
+	InitHTTPMetrics()
 
 	RecordAuthenticatedRequest("GET", "/u/home")
 	RecordAuthenticatedRequest("POST", "/u/createDraft")
 
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	handler.ServeHTTP(rec, req)
+	rm := metricdata.ResourceMetrics{}
+	err := reader.Collect(context.Background(), &rm)
+	assert.NoError(t, err)
 
-	output := rec.Body.String()
-	assert.True(t, strings.Contains(output, "authenticated_requests_total"),
-		"authenticated_requests_total metric should be present")
-	assert.True(t, strings.Contains(output, `method="GET"`),
-		"GET method label should be present")
-	assert.True(t, strings.Contains(output, `route="/u/home"`),
-		"/u/home route label should be present")
+	found := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "http.authenticated.request.count" {
+				found = true
+			}
+		}
+	}
+	assert.True(t, found, "http.authenticated.request.count metric should be present")
 }
 
 func TestWebSocketListenerGauge(t *testing.T) {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(websocketListenerGauge)
+	reader := setupTestMeterProvider()
+	defer resetMeterProvider()
+
+	InitWebSocketMetrics()
 
 	IncrementWebSocketListener()
 	IncrementWebSocketListener()
 	DecrementWebSocketListener()
 
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-	handler.ServeHTTP(rec, req)
+	rm := metricdata.ResourceMetrics{}
+	err := reader.Collect(context.Background(), &rm)
+	assert.NoError(t, err)
 
-	output := rec.Body.String()
-	assert.True(t, strings.Contains(output, "websocket_listeners_active"),
-		"websocket_listeners_active metric should be present")
-	assert.True(t, strings.Contains(output, " 1"),
-		"gauge value should be 1 after 2 increments and 1 decrement")
+	found := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "websocket.listeners.active" {
+				found = true
+			}
+		}
+	}
+	assert.True(t, found, "websocket.listeners.active metric should be present")
+}
+
+func TestOTelDBStatsMetrics(t *testing.T) {
+	db := getDB(t)
+	defer db.Close()
+
+	reader := setupTestMeterProvider()
+	defer resetMeterProvider()
+
+	err := InitMetrics(context.Background(), db)
+	assert.NoError(t, err)
+
+	_, err = db.ExecContext(context.Background(), "SELECT 1")
+	assert.NoError(t, err)
+
+	rm := metricdata.ResourceMetrics{}
+	err = reader.Collect(context.Background(), &rm)
+	assert.NoError(t, err)
+
+	found := false
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "db.sql.connection.open" {
+				found = true
+			}
+		}
+	}
+	assert.True(t, found, "OTel DB stats metrics should be present")
+
+	ShutdownMetrics()
 }

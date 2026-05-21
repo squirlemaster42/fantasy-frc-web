@@ -2,7 +2,6 @@ package assert
 
 import (
 	"context"
-	stdlog "log"
 	"runtime"
 	"server/log"
 )
@@ -42,7 +41,7 @@ func (a *assert) printContext(ctx context.Context, msg string) {
 	for k, v := range a.context {
 		log.Error(ctx, "assertion context", "key", k, "value", v)
 	}
-	stdlog.Fatal(msg)
+	log.Fatal(ctx, msg)
 }
 
 func (a *assert) NoError(ctx context.Context, err error, msg string) {
@@ -58,7 +57,7 @@ func AssertCF(ctx context.Context, predicate bool, msg string) {
 		if ok {
 			log.Error(ctx, "assertion failed", "line", line, "file", file)
 		}
-		stdlog.Fatal(msg)
+		log.Fatal(ctx, msg)
 	}
 }
 
@@ -69,6 +68,6 @@ func NoErrorCF(ctx context.Context, err error, msg string) {
 			log.Error(ctx, "assertion failed", "line", line, "file", file)
 		}
 		log.Error(ctx, "NoError#error encountered", "error", err)
-		stdlog.Fatal(msg)
+		log.Fatal(ctx, msg)
 	}
 }

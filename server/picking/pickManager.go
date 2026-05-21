@@ -15,6 +15,7 @@ import (
 
 type PickManager struct {
 	draftId      int
+	ctx          context.Context
 	pickLock     sync.Mutex
 	listenerLock sync.RWMutex
 	listeners    []PickListener
@@ -36,9 +37,10 @@ type PickListener interface {
 	ReceivePickEvent(pickEvent PickEvent) error
 }
 
-func NewPickManager(draftId int, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus) *PickManager {
+func NewPickManager(draftId int, draftStore model.DraftStore, teamStore model.TeamStore, discordStore model.DiscordStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus, ctx context.Context) *PickManager {
 	return &PickManager{
 		draftId:      draftId,
+		ctx:          ctx,
 		draftStore:   draftStore,
 		teamStore:    teamStore,
 		discordStore: discordStore,
@@ -50,7 +52,7 @@ func NewPickManager(draftId int, draftStore model.DraftStore, teamStore model.Te
 func (p *PickManager) GetCurrentPick(draftId int) (model.Pick, error) {
 	p.pickLock.Lock()
 	defer p.pickLock.Unlock()
-	return p.draftStore.GetCurrentPick(context.TODO(), draftId)
+	return p.draftStore.GetCurrentPick(p.ctx, draftId)
 }
 
 func (p *PickManager) UndoLastPick() error {
@@ -58,21 +60,21 @@ func (p *PickManager) UndoLastPick() error {
 	defer p.pickLock.Unlock()
 
 	// Get the current pick
-	currentPick, err := p.draftStore.GetCurrentPick(context.TODO(), p.draftId)
+	currentPick, err := p.draftStore.GetCurrentPick(p.ctx, p.draftId)
 	if currentPick.Id == 0 || err != nil {
 		return errors.New("no current pick found for this draft")
 	}
 
 	// Get the previous pick
-	previousPick, err := p.draftStore.GetPreviousPick(context.TODO(), p.draftId, currentPick.Id)
+	previousPick, err := p.draftStore.GetPreviousPick(p.ctx, p.draftId, currentPick.Id)
 	if err != nil {
 		return errors.New("cannot undo pick: this is the first pick of the draft")
 	}
 
 	// Delete the current pick
-	err = p.draftStore.DeletePick(context.TODO(), currentPick.Id)
+	err = p.draftStore.DeletePick(p.ctx, currentPick.Id)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
+		log.Error(p.ctx, "Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
 		return errors.New("failed to delete current pick")
 	}
 
@@ -80,9 +82,9 @@ func (p *PickManager) UndoLastPick() error {
 	newExpirationTime := time.Now().Add(3 * time.Hour)
 
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = p.draftStore.ResetPick(context.TODO(), previousPick.Id, newExpirationTime)
+	err = p.draftStore.ResetPick(p.ctx, previousPick.Id, newExpirationTime)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
+		log.Error(p.ctx, "Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
 		return errors.New("failed to reset previous pick")
 	}
 	return nil
@@ -90,23 +92,23 @@ func (p *PickManager) UndoLastPick() error {
 
 func (p *PickManager) SkipCurrentPick() error {
 	p.pickLock.Lock()
-	curPick, err := p.draftStore.GetCurrentPick(context.TODO(), p.draftId)
+	curPick, err := p.draftStore.GetCurrentPick(p.ctx, p.draftId)
 	if err != nil {
 		p.pickLock.Unlock()
 		return err
 	}
-	nextPickPlayer, err := p.draftStore.NextPick(context.TODO(), p.draftId)
+	nextPickPlayer, err := p.draftStore.NextPick(p.ctx, p.draftId)
 	if err != nil {
 		return err
 	}
-	err = p.draftStore.SkipPick(context.TODO(), curPick.Id)
+	err = p.draftStore.SkipPick(p.ctx, curPick.Id)
 	if err != nil {
-		log.Warn(context.Background(), "Failed to skip current pick", "Current pick", curPick.Id, "Error", err)
+		log.Warn(p.ctx, "Failed to skip current pick", "Current pick", curPick.Id, "Error", err)
 		return err
 	}
-	_, err = p.draftStore.MakePickAvailable(context.TODO(), nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(context.TODO(), time.Now(), utils.PICK_TIME))
+	_, err = p.draftStore.MakePickAvailable(p.ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(p.ctx, time.Now(), utils.PICK_TIME))
 	if err != nil {
-		log.Warn(context.Background(), "Failed to make pick available when skipping current pick", "Current pick", curPick.Id, "Error", err)
+		log.Warn(p.ctx, "Failed to make pick available when skipping current pick", "Current pick", curPick.Id, "Error", err)
 		return err
 	}
 
@@ -217,7 +219,7 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 				ExpirationTime: 	   expirationTime,
 			}
 			go func() {
-				err = p.discordBus.PostPickNotification(event)
+				err = p.discordBus.PostPickNotification(ctx, event)
 				if err != nil {
 					log.Warn(ctx, "Failed to post discord webhook", "Error", err)
 				}
@@ -235,7 +237,7 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 }
 
 func (p *PickManager) AddListener(listener PickListener) {
-	log.Info(context.TODO(), "Added pick listener", "Listener", listener)
+	log.Info(p.ctx, "Added pick listener", "Listener", listener)
 	p.listenerLock.Lock()
 	p.listeners = append(p.listeners, listener)
 	p.listenerLock.Unlock()
@@ -250,12 +252,12 @@ func (p *PickManager) RemoveListener(listener PickListener) {
 		if l == listener {
 			p.listeners[i] = p.listeners[len(p.listeners)-1]
 			p.listeners = p.listeners[:len(p.listeners)-1]
-			log.Info(context.TODO(), "Removed pick listener", "Listener", listener)
+			log.Info(p.ctx, "Removed pick listener", "Listener", listener)
 			metrics.DecrementWebSocketListener()
 			return
 		}
 	}
-	log.Warn(context.TODO(), "Failed to remove pick listener, not found", "Listener", listener)
+	log.Warn(p.ctx, "Failed to remove pick listener, not found", "Listener", listener)
 }
 
 func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
@@ -273,7 +275,7 @@ func (p *PickManager) NotifyListeners(pickEvent PickEvent) {
 			defer wg.Done()
 			log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
 			if err := l.ReceivePickEvent(pickEvent); err != nil {
-				log.Warn(context.TODO(), "Removing dead listener", "Listener", l, "Error", err)
+				log.Warn(p.ctx, "Removing dead listener", "Listener", l, "Error", err)
 				p.RemoveListener(l)
 			}
 		}(listener)

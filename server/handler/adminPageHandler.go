@@ -272,7 +272,7 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, draftStore mode
 	}
 
 	// Fetch the draft
-	draft, err := draftManager.GetDraft(draftId, true)
+	draft, err := draftManager.GetDraft(ctx, draftId, true)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}

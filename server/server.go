@@ -14,21 +14,20 @@ import (
 
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
-	log.Info(context.Background(), "Starting Server")
+func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64, serviceName, version, commit, env string) (*echo.Echo, func(context.Context) error) {
+	log.Info(ctx, "Starting Server")
 	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
 	// Initialize OpenTelemetry
-	shutdown := otel.InitTracer("fantasy-frc-web")
+	shutdown := otel.InitTelemetry(serviceName, version, commit, env)
 
-	if err := metrics.InitMetrics(database); err != nil {
-		log.Warn(context.Background(), "Failed to initialize metrics", "error", err)
+	if err := metrics.InitMetrics(ctx, database); err != nil {
+		log.Warn(ctx, "Failed to initialize metrics", "error", err)
 	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -75,9 +74,6 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 	app.GET("/register", h.HandleViewRegister, echomiddleware.Gzip())
 	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip(), rateLimiter.RateLimitRegister())
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
-
-	metricAuth := authentication.NewMetricAuth(metricSecret)
-	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
 
 	app.GET("/healthz", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
