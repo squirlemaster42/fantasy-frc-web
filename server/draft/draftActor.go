@@ -2,6 +2,8 @@ package draft
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"server/discord"
 	"server/log"
@@ -10,6 +12,8 @@ import (
 	"server/tbaHandler"
 	"server/utils"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type StateTransitionMessage struct {
@@ -58,6 +62,7 @@ type InvitePlayerMessage struct {
 
 type AcceptInviteMessage struct {
 	InviteId int
+	AcceptingUserUuid uuid.UUID
 }
 
 type DeclineInviteMessage struct {
@@ -258,6 +263,70 @@ func (d *DraftActor) handleMessage(message Message) Result {
 }
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
+	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
+		if errors.Is(err, sql.ErrNoRows) {
+			return Result{
+				Error: errors.New("invite not found. It may have been cancelled or expired."),
+			}
+		}
+		return Result{
+			Error: err,
+		}
+	}
+
+	//Make sure that other players cannot accept someones draft
+	if invite.InvitedUserUuid != msg.AcceptingUserUuid {
+		log.Info(ctx, "Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", msg.AcceptingUserUuid)
+		return Result{
+			Error: errors.New("you are not allowed to accept drafts for other players."),
+		}
+	}
+
+	log.Info(ctx, "Accepting invite from player", "Invite Id", msg.InviteId, "User Id", msg.AcceptingUserUuid)
+
+	// If more than 8 players are invites then we cancel the other outstanding invites
+	// Maybe we need an active bool
+	// Check that accepting this invite will not lead to more than eight players being in the draft
+	numPlayers, err := d.draftStore.GetNumPlayersInInvitedDraft(ctx, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to get num players in invited draft", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: err,
+		}
+	}
+	if numPlayers >= 8 {
+		if err := d.draftStore.CancelOutstandingInvites(ctx, invite.DraftId); err != nil {
+			log.Error(ctx, "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
+		}
+		return Result{
+			Error: errors.New("too many players are already in the draft. Please contect the draft owner if you think this is an error."),
+		}
+	}
+
+	draftId, playerId, err := d.draftStore.AcceptInvite(ctx, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to accept invite", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: err,
+		}
+	}
+	if err := d.draftStore.AddPlayerToDraft(ctx, draftId, playerId); err != nil {
+		log.Error(ctx, "Failed to add player to draft", "error", err, "draftId", draftId, "playerId", playerId)
+		return Result{
+			Error: err,
+		}
+	}
+
+	if numPlayers >= 7 {
+		if err := d.draftStore.CancelOutstandingInvites(ctx, invite.DraftId); err != nil {
+			log.Error(ctx, "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
+			return Result{
+				Error: err,
+			}
+		}
+	}
 	return Result{}
 }
 
