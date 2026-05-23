@@ -37,6 +37,8 @@ type DraftModel struct {
 	Status         DraftState
 	Players        []DraftPlayer
 	NextPick       DraftPlayer
+	CurrentPick    Pick
+	Picks 		   []Pick
 }
 
 func (d *DraftModel) String() string {
@@ -111,7 +113,7 @@ type DraftInvite struct {
 	DraftId            int //Draft
 	DraftName          string
 	InvitedUserUuid    uuid.UUID //User
-	invitingUserUuid   uuid.UUID //User
+	InvitingUserUuid   uuid.UUID //User
 	InvitingPlayerName string
 	SentTime           time.Time
 	AcceptedTime       time.Time
@@ -120,7 +122,7 @@ type DraftInvite struct {
 
 func (d *DraftInvite) String() string {
 	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n}",
-		d.Id, d.DraftId, d.invitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
+		d.Id, d.DraftId, d.InvitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
 }
 
 func getDraftsByName(ctx context.Context, database *sql.DB, searchString string) ([]DraftModel, error) {
@@ -425,6 +427,21 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		log.Warn(ctx, "Failed to load draft", "Draft Id", draftId, "Error", err)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
+
+	// Get Current Pick
+	currentPick, err := getCurrentPick(ctx, database, draftId)
+	if err != nil {
+		log.Warn(ctx, "Failed to get current pick for draft", "Draft Id", draftId, "Error", err)
+		return DraftModel{}, errors.New("failed to get current pick for draft")
+	}
+	draftModel.CurrentPick = currentPick
+
+	picks, err := getPicks(ctx, database, draftId)
+	if err != nil {
+		log.Warn(ctx, "Failed to get picks for draft", "Draft Id", draftId, "Error", err)
+		return DraftModel{}, errors.New("failed to get picks for draft")
+	}
+	draftModel.Picks = picks
 
 	playerQuery := `SELECT
                         UserUuid,
@@ -771,7 +788,7 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
 	return invites, nil
 }
 
-func getPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) {
+func getPicks(ctx context.Context, database *sql.DB, draftId int) ([]Pick, error) {
 	query := `SELECT
         Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
     From Picks
@@ -780,7 +797,7 @@ func getPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) 
     Order By Picks.Id Asc;`
 
 	assert := assert.CreateAssertWithContext("Get Picks")
-	assert.AddContext("Draft", draft)
+	assert.AddContext("Draft", draftId)
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
@@ -788,7 +805,7 @@ func getPicks(ctx context.Context, database *sql.DB, draft int) ([]Pick, error) 
 			log.Warn(ctx, "GetPicks: Failed to close statement", "error", err)
 		}
 	}()
-	rows, err := stmt.QueryContext(ctx, draft)
+	rows, err := stmt.QueryContext(ctx, draftId)
 	assert.NoError(ctx, err, "Failed to query for picks")
 	defer func() {
 		if err := rows.Close(); err != nil {
