@@ -2,5 +2,6 @@ package draft
 
 import "testing"
 
-func testInvitePlayerToDraft(t *testing.T) {
+func TestInvitePlayerToDraft(t *testing.T) {
+    t.Fail()
 }

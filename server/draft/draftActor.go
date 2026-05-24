@@ -76,12 +76,14 @@ type DraftActor struct {
 	draftState model.DraftModel
 	discordBus *discord.DiscordWebhook
 	tbaHandler *tbaHandler.TbaHandler
+	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
+	listeners    []picking.PickListener
 }
 
 type Message struct {
 	Content any
-	Context context.Context
+	context context.Context
 	Reply chan Result
 }
 
@@ -90,12 +92,13 @@ type Result struct {
 	Error error
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordBus: discordBus,
+		pickNotifier: pickNotifier,
 		states: setupStates(ctx, draftStore),
 	}
 
@@ -234,29 +237,29 @@ func (d *DraftActor) run() {
 func (d *DraftActor) handleMessage(message Message) Result {
 	switch msg := message.Content.(type) {
 	case StateTransitionMessage:
-		return d.handleStateTransition(message.Context, msg)
+		return d.handleStateTransition(message.context, msg)
 	case PickMessage:
-		return d.handlePick(message.Context, msg)
+		return d.handlePick(message.context, msg)
 	case ModifyExpirationTimeMessage:
-		return d.handleModifyExpiraitonTime(message.Context, msg)
+		return d.handleModifyExpiraitonTime(message.context, msg)
 	case AddPickListenerMessage:
-		return d.handleAddPickListener(message.Context, msg)
+		return d.handleAddPickListener(message.context, msg)
 	case RemovePickListenerMessage:
-		return d.handleRemovePickListener(message.Context, msg)
+		return d.handleRemovePickListener(message.context, msg)
 	case SkipCurrentPickMessage:
-		return d.handleSkipCurrentPick(message.Context, msg)
+		return d.handleSkipCurrentPick(message.context, msg)
 	case UndoLastPickMessage:
-		return d.handleUndoLastPick(message.Context, msg)
+		return d.handleUndoLastPick(message.context, msg)
 	case UpdateDraftProfileMessage:
-		return d.handleUpdateDraftProfile(message.Context, msg)
+		return d.handleUpdateDraftProfile(message.context, msg)
 	case TransferDraftOwnershipMessage:
-		return d.handleTransferDraftOwnership(message.Context, msg)
+		return d.handleTransferDraftOwnership(message.context, msg)
 	case InvitePlayerMessage:
-		return d.handleInvitePlayer(message.Context, msg)
+		return d.handleInvitePlayer(message.context, msg)
 	case AcceptInviteMessage:
-		return d.handleAcceptInvite(message.Context, msg)
+		return d.handleAcceptInvite(message.context, msg)
 	case DeclineInviteMessage:
-		return d.handleDeclineInvite(message.Context, msg)
+		return d.handleDeclineInvite(message.context, msg)
 	default:
 		return Result{
 			Error: fmt.Errorf("unknown message type: %T", msg),
@@ -455,7 +458,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	}
 
 	// TODO How do we want to make this happen?
-	go p.NotifyListeners(event)
+	go d.notifyListeners(ctx, event)
 
 	return Result{}
 }
@@ -463,27 +466,38 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMessage) Result {
 	// TODO Will need some transactions here too
 	// Get the previous pick
-	previousPick, err := p.draftStore.GetPreviousPick(context.TODO(), p.draftId, currentPick.Id)
+	previousPick, err := d.getPreviousPick(ctx)
 	if err != nil {
-		return errors.New("cannot undo pick: this is the first pick of the draft")
+		return Result{
+			Error: err,
+		}
 	}
 
 	// Delete the current pick
-	err = p.draftStore.DeletePick(context.TODO(), currentPick.Id)
+	err = d.draftStore.DeletePick(ctx, d.draftState.CurrentPick.Id)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to delete current pick", "Pick Id", currentPick.Id, "Error", err)
-		return errors.New("failed to delete current pick")
+		log.Error(ctx, "Failed to delete current pick", "Pick Id", d.draftState.CurrentPick.Id, "Error", err)
+		return Result{
+			Error: errors.New("failed to delete current pick"),
+		}
 	}
+	d.draftState.CurrentPick = previousPick
 
 	// Set the expiration time to 3 hours from now
 	newExpirationTime := time.Now().Add(3 * time.Hour)
 
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = p.draftStore.ResetPick(context.TODO(), previousPick.Id, newExpirationTime)
+	err = d.draftStore.ResetPick(ctx, previousPick.Id, newExpirationTime)
 	if err != nil {
-		log.Error(context.TODO(), "Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
-		return errors.New("failed to reset previous pick")
+		log.Error(ctx, "Failed to reset previous pick", "Pick Id", previousPick.Id, "Error", err)
+		return Result{
+			Error: errors.New("failed to reset previous pick"),
+		}
 	}
+	d.draftState.CurrentPick.Pick = sql.NullString{
+		Valid: false,
+	}
+
 	return Result{}
 }
 
@@ -493,6 +507,18 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 
 func (d *DraftActor) handleTransferDraftOwnership(ctx context.Context, msg TransferDraftOwnershipMessage) Result {
 	return Result{}
+}
+
+func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
+	if len(d.draftState.Picks) == 0 {
+		return model.Pick{}, errors.New("cannot undo pick from draft with no picks")
+	}
+
+	if len(d.draftState.Picks) == 1 {
+		return model.Pick{}, nil
+	}
+
+	return d.draftState.Picks[len(d.draftState.Picks) - 2], nil
 }
 
 func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
@@ -538,6 +564,33 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 	return nextPlayer
 }
 
+func (d *DraftActor) notifyListeners(ctx context.Context, pickEvent picking.PickEvent) {
+	log.DebugNoContext("Started notifying pick listeners", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String, "Num Listeners", len(d.listeners))
+
+	for _, listener := range d.listeners {
+		go func(l picking.PickListener) {
+			log.DebugNoContext("Notifying pick listener", "Draft Id", pickEvent.DraftId, "Pick", pickEvent.Pick.Pick.String)
+			if err := l.ReceivePickEvent(pickEvent); err != nil {
+				log.Warn(context.TODO(), "Removing dead listener", "Listener", l, "Error", err)
+				d.removeListener(ctx, l)
+			}
+		}(listener)
+	}
+	log.DebugNoContext("Finished notifying pick listeners", "Draft Id", pickEvent.DraftId)
+}
+
+func (d *DraftActor) removeListener(ctx context.Context, listener picking.PickListener) {
+	removalMessage := Message {
+		Content: RemovePickListenerMessage {
+			Listener: listener,
+		},
+	}
+	err := d.PostMessage(ctx, removalMessage)
+	if err != nil {
+		log.Warn(ctx, "Failed to remove draft listener", "Draft Id", d.draftState.Id, "Error", err)
+	}
+}
+
 func (d *DraftActor) close() {
 }
 
@@ -555,5 +608,6 @@ func (d *DraftActor) GetDraftState() (model.DraftModel) {
 }
 
 func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
+	message.context = ctx
 	return nil
 }

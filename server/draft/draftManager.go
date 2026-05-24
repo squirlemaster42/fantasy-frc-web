@@ -149,7 +149,7 @@ func (dm *DraftManager) ExecuteDraftStateTransition(ctx context.Context, draftId
 	}
 
 	log.Info(ctx, "Executing Draft State Transition", "Draft Id", draftId, "Requested State", requestedState)
-	err = transition.executeTransition(ctx, draft)
+	err = transition.executeTransition(ctx, model.DraftModel{})
 	if err != nil {
 		log.Warn(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		loadLock.Unlock()
