@@ -133,4 +133,4 @@ For production deployment to Linux servers, see [deploy/README.md](deploy/README
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
