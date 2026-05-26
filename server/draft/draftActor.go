@@ -74,7 +74,8 @@ type DraftActor struct {
 	inbox chan Message
 	draftStore model.DraftStore
 	draftState model.DraftModel
-	discordBus *discord.DiscordWebhook
+	discordStore model.DiscordStore
+	discordBus *discord.DiscordWebhookBus
 	tbaHandler *tbaHandler.TbaHandler
 	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
@@ -92,7 +93,7 @@ type Result struct {
 	Error error
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhook, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		draftStore: draftStore,
@@ -402,8 +403,187 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 	return Result{}
 }
 
+// TODO this function is still 180 lines. We need to split it up
 func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
-	return Result{}
+	pickingComplete := false
+
+	var err error
+	if !msg.Pick.Pick.Valid {
+		err = errors.New("no team entered")
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	// Check that we are still trying to make the current pick
+	currentPick := d.draftState.CurrentPick
+	if currentPick.Id != msg.Pick.Id {
+		log.Warn(ctx, "Pick attempt made against pick that is not the current pick", "Current Pick", currentPick.Id, "Attempted Pick", msg.Pick.Id)
+		return Result{
+			Error: errors.New("attempting to make pick that is not the current pick"),
+			Value: false,
+		}
+	}
+
+	if err != nil {
+		return Result {
+			Error: err,
+			Value: false,
+		}
+	}
+
+	validator := NewPickValidator(d.tbaHandler, d.draftStore, d.draftState.Id)
+	err = validator.ValidatePick(ctx, msg.Pick)
+	if err != nil {
+		return Result {
+			Error: err,
+			Value: false,
+		}
+	}
+
+	// TODO decide what we need to migrate out of the database layer
+	//If we have not found any errors indicating that the pick is invalid, make the pick
+	err = d.draftStore.MakePick(ctx, msg.Pick)
+	if err != nil {
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	// TODO probably migrate this out of the db layer
+	nextPickPlayer, err := d.draftStore.NextPick(ctx, d.draftState.Id)
+	if err != nil {
+		log.Warn(ctx, "failed to get next pick", "Pick Id", msg.Pick.Id, "Errors", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	//Make the next pick available if we havn't aleady made all picks
+	picks, err := d.draftStore.GetPicks(ctx, d.draftState.Id)
+
+	if err != nil {
+		log.Warn(ctx, "Failed to get picks", "Draft Id", d.draftState.Id, "Error", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	log.Info(ctx, "Checking if we should make another pick available", "Num picks", len(picks))
+	if len(picks) < 64 {
+		log.Info(ctx, "Making next pick available", "Draft Id", d.draftState.Id)
+		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
+		if err != nil {
+			log.Warn(ctx, "Failed to make pick available", "Draft Player Id", msg.Pick.Player, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+
+		currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
+		if err != nil {
+			log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", msg.Pick.Player, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+
+		currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
+		if err != nil {
+			log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", msg.Pick.Player, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+		currPickName := currPickUser.Username
+
+		nextPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
+		if err != nil {
+			log.Warn(ctx, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+
+		nextPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
+		if err != nil {
+			log.Warn(ctx, "Could not get next pick draft player name", "Draft Player Id", nextPickPlayer.Id, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+		nextPickName := nextPickUser.Username
+
+		draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
+		if err != nil {
+			log.Warn(ctx, "Could not get draft webhook", "Draft Id", d.draftState.Id, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+
+		event := discord.NextPickDiscordEvent{
+			PreviousPickedTeam:    msg.Pick.Pick.String,
+			PreviousPickName:      currPickName,
+			PreviousPickDiscordId: currPickDiscordId,
+			NextPickName:          nextPickName,
+			NextPickDiscordId:     nextPickDiscordId,
+			Webhook:               draftWebhook,
+			ExpirationTime: 	   expirationTime,
+		}
+		go func() {
+			err = d.discordBus.PostPickNotification(event)
+			if err != nil {
+				log.Warn(ctx, "Failed to post discord webhook", "Error", err)
+			}
+		}()
+	} else {
+		log.Info(ctx, "Draft Complete", "Draft Id", d.draftState.Id)
+		// Set draft to the teams playing state
+		// This isnt entirely correct becuase it doesnt account for skips
+		// But I dont care about that for this year
+		pickingComplete = true
+	}
+
+	if err != nil {
+		log.Info(ctx, "Failed to make pick", "Pick", msg.Pick.Pick.String, "Pick Id", msg.Pick.Id, "Player", msg.Pick.Player, "Error", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	if pickingComplete {
+		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", d.draftState.Id)
+		// TODO post message to this service. Need to figure out how we want this to work becuase that new message will be blocked
+		err = d.ExecuteDraftStateTransition(ctx, d.draftState.id, model.TEAMS_PLAYING)
+
+		if err != nil {
+			log.Warn(ctx, "Failed to execute draft state transition", "Draft Id", d.draftState.Id, "Error", err)
+		}
+
+		// TODO notify listeners
+		go draft.pickManager.NotifyListeners(picking.PickEvent{
+			Pick:    pick,
+			Success: err == nil,
+			Err:     err,
+			DraftId: d.draftState.Id,
+		})
+	}
+	return Result{
+		Value: true,
+	}
 }
 
 func (d *DraftActor) handleModifyExpiraitonTime(ctx context.Context, msg ModifyExpirationTimeMessage) Result {
