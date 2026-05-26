@@ -9,14 +9,24 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
-	SystemPrompt = `Respond with a single team number. Do not respond with anything else. Do not give an explanation for your pick, just give the team number.`
+	SystemPrompt = `Respond with a single team number. Do not respond with anything else. Do not give an explanation for your pick, just give the team number.
+
+You must not pick a team that has already been drafted. You must not pick a team that is not competing at the 2026 FIRST World Championship. Verify a team's attendance at the 2026 FIRST World Championship using The Blue Alliance (thebluealliance.com).
+
+You may use the following resources on the common internet to research team performance, statistics, event history, and current standings:
+- The Blue Alliance (thebluealliance.com) — comprehensive team profiles, event results, match data, and rankings
+- Statbotics (statbotics.io) — advanced statistics, EPA ratings, Elo ratings, and performance predictions
+- Chief Delphi (chiefdelphi.com) — FRC community forums, scouting discussions, and team analysis threads
+- FRC Events (frc-events.firstinspires.org) — official FIRST event registrations, schedules, and live results`
 )
 
 type DrafterPersona struct {
 	Model         string `json:"Model"`
+	Variant       string `json:"Variant"`
 	PersonaPrompt string `json:"PersonaPrompt"`
 }
 
@@ -27,17 +37,17 @@ func main() {
 	}
 
 	draft := Draft {
-		Id: 2,
+		Id: 36,
 	}
 
 	var owner *User
 	for _, user := range users {
-		if user.Username == "AgentEight" {
+		if user.Username == "AgentOne" {
 			owner = user
 		}
 	}
 
-	//owner, draft := initDraft(users)
+	// owner, draft := initDraft(users)
 	slog.Info("Created draft", "Id", draft.Id)
 
 	// Have play make picks in a random order. Some picks being valid and some being invalid
@@ -53,8 +63,11 @@ func main() {
 		}
 
 		if pickingPlayer == nil {
-			panic("failed to find picking player")
+			slog.Warn("failed to find picking player")
+			time.Sleep(2 * time.Minute)
+			continue
 		}
+		slog.Info("Picking Player", "PLayer", pickingPlayer.Username)
 
 		slog.Info("Starting pick round", "Picking player", pickingPlayer.Username, "Continue", sameSession)
 
@@ -71,7 +84,7 @@ func main() {
 		pickMade, errMsg := makePickRequest(draft.Id, pickingPlayer, nextPick)
 		if !pickMade {
 			slog.Error("Pick failed", "Error", errMsg)
-			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST California District Championship. You can use The Blue Alliance website to figure out what teams are at the event.", errMsg)
+			additionalPrompt = fmt.Sprintf("The previous pick was invalid. We got the following error message from the server: %s. Make sure that your team has not been picked yet and is at the 2026 FIRST World Championship. You can use The Blue Alliance website to figure out what teams are at the event.", errMsg)
 			sameSession = true
 			continue
 		}
@@ -106,9 +119,9 @@ func requestNextDraftPick(pickingPlayer *User, draftId int, sameSession bool, ad
 		additionalPrompt,
 	)
 
-	slog.Info("Prompting opencode for a pick", "Prompt", prompt)
+	slog.Info("Prompting opencode for a pick", "Model", pickingPlayer.Persona.Model, "Variant", pickingPlayer.Persona.Variant, "Prompt", prompt)
 
-	resp, err := callOpencode(prompt, flags...)
+	resp, err := callOpencode(prompt, pickingPlayer.Persona.Model, pickingPlayer.Persona.Variant, flags...)
 	if err != nil {
 		return -1, err
 	}
@@ -118,9 +131,15 @@ func requestNextDraftPick(pickingPlayer *User, draftId int, sameSession bool, ad
 	return strconv.Atoi(strings.TrimSpace(resp))
 }
 
-func callOpencode(prompt string, flags ...string) (string, error) {
+func callOpencode(prompt string, model string, variant string, flags ...string) (string, error) {
 	var args []string
 	args = append(args, "run")
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	if variant != "" {
+		args = append(args, "--variant", variant)
+	}
 	args = append(args, flags...)
 	args = append(args, prompt)
 	cmd := exec.Command("opencode", args...)

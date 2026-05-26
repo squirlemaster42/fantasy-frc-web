@@ -1,3 +1,3 @@
 # Security Policy
 
-Report security issues to Jakob :)
+Contact Jakob if you find an issue.

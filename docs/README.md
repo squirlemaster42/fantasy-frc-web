@@ -29,6 +29,7 @@ Welcome to the documentation for the Fantasy FRC web application.
 - [Scoring Visual Guide](./business-logic/scoring-visual.md) - Scoring system diagrams
 - [Draft States](./business-logic/draft-states.md) - Draft state machine
 - [Draft State Visual Guide](./business-logic/draft-states-visual.md) - Draft lifecycle diagrams
+- [Pick Validation](./business-logic/pick-validation.md) - Rules for valid team selections
 
 ### [🎮 User Guide](./user-guide/)
 - [Getting Started](./user-guide/getting-started.md) - How to play Fantasy FRC
@@ -42,10 +43,10 @@ Welcome to the documentation for the Fantasy FRC web application.
 
 ## 🎯 Quick Start
 1. **For Players**: Start with [Getting Started](./user-guide/getting-started.md) and [Draft Process](./user-guide/draft-process.md)
-3. **For Developers**: Start with [Development Setup](./development/setup.md)
-4. **For API Users**: See [Web Endpoints](./api/web-endpoints.md)
-5. **For Database Setup**: See [Database Schema](./database/schema.md)
-6. **For System Architecture**: See [System Overview](./architecture/system-overview.md)
+2. **For Developers**: Start with [Development Setup](./development/setup.md)
+3. **For API Users**: See [Web Endpoints](./api/web-endpoints.md)
+4. **For Database Setup**: See [Database Schema](./database/schema.md)
+5. **For System Architecture**: See [System Overview](./architecture/system-overview.md)
 
 ## 📊 System Overview
 
@@ -64,4 +65,4 @@ graph TD
     F --> I
 ```
 
-*Last updated: 2025-12-11*
+*Last updated: 2026-05-01*

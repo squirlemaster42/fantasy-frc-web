@@ -14,10 +14,11 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return errors.New("Id must be a valid team number")
 	}
 
-	avatar, err := h.AvatarStore.GetAvatar(teamNum)
+	avatar, err := h.AvatarStore.GetAvatar(c.Request().Context(), teamNum)
 	if err != nil {
 		return err
 	}
 
+	c.Response().Header().Set("Cache-Control", "private, max-age=604800")
 	return c.Blob(http.StatusOK, "image/png", avatar)
 }

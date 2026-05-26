@@ -1,8 +1,10 @@
 package login
 
+import "fmt"
 import "server/view"
+import "server/view/partials"
 
-templ LoginIndex(fromProtected bool, errorMessage string) {
+templ LoginIndex(fromProtected bool, errorMessage string, minPasswordLength int, csrfToken string) {
     <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
         <div class="max-w-md w-full" id="login-box">
             <!-- Login Card -->
@@ -16,14 +18,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
 
                     <!-- Error Message -->
                     if errorMessage != "" {
-                        <div class="bg-red-900/20 border border-red-700 text-red-300 px-4 py-3 rounded-lg mb-6 text-center">
-                            <div class="flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-                                </svg>
-                                { errorMessage }
-                            </div>
-                        </div>
+                        @partials.AlertBanner(errorMessage, "error")
                     }
 
                     <!-- Login Form -->
@@ -35,6 +30,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
                         method="post"
                         class="space-y-6"
                     >
+                        @partials.CSRFInput(csrfToken)
                         <!-- Username Field -->
                         <div>
                             <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
@@ -68,7 +64,7 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
                                     type="password"
                                     name="password"
                                     required
-                                    minlength="6"
+                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                     disabled?={ fromProtected }
                                     if fromProtected {
                                         value="disabled"
@@ -83,16 +79,28 @@ templ LoginIndex(fromProtected bool, errorMessage string) {
                         </div>
 
                         <!-- Sign In Button -->
-                        <button
-                            type="submit"
-                            disabled?={ fromProtected }
-                            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            Sign In
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                            </svg>
-                        </button>
+                        <div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
+                            <button
+                                type="submit"
+                                disabled?={ fromProtected }
+                                hx-disabled-elt="this"
+                                class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                <span x-show="!loading" class="flex items-center justify-center gap-2">
+                                    Sign In
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+                                    </svg>
+                                </span>
+                                <span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+                                    <svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Signing In...
+                                </span>
+                            </button>
+                        </div>
                     </form>
 
                     <!-- Footer -->

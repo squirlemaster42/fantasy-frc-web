@@ -239,7 +239,7 @@ Multiple locks prevent race conditions:
 type DraftManager struct {
     drafts map[int]*Draft
     loadLocks sync.Map      // Prevent concurrent draft loading
-    transitonLocks sync.Map // Prevent concurrent state changes
+    transitionLocks sync.Map // Prevent concurrent state changes
 }
 ```
 
@@ -347,4 +347,6 @@ Admin commands can force state transitions:
 
 ---
 
-*TODO: Add detailed timing configuration examples, WebSocket message formats, and administrative command documentation*
+*Last updated: 2026-05-01*
+
+*TODO: Add detailed timing configuration examples and administrative command documentation*

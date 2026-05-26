@@ -41,9 +41,9 @@ flowchart TD
     
     C --> G[Base: 3 pts for win]
     G --> H{Bonuses Achieved?}
-    H -->|Auto Bonus| I[+1 pt]
-    H -->|Barge Bonus| J[+1 pt]
-    H -->|Coral Bonus| K[+1 pt]
+    H -->|Game Bonus 1| I[+1 pt]
+    H -->|Game Bonus 2| J[+1 pt]
+    H -->|Game Bonus 3| K[+1 pt]
     
     D --> L[No base points]
     E --> M{Bracket Position?}
@@ -198,5 +198,7 @@ flowchart TD
 ```
 
 ---
+
+*Last updated: 2026-05-01*
 
 *Visual guide complements the detailed scoring algorithm documentation at [scoring.md](./scoring.md)*

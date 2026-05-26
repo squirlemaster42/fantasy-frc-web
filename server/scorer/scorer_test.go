@@ -30,7 +30,7 @@ func TestSortMatchOrder(t *testing.T) {
         "2024cur_qm52",
     }
 
-    s := NewScorer(nil, nil)
+    s := NewScorer(nil, nil, nil, nil)
     sorted := s.sortMatchesByPlayOrder(unsorted)
 
     standard := []string{
@@ -54,81 +54,81 @@ func TestSortMatchOrder(t *testing.T) {
 func TestScoreMatches(t *testing.T) {
     //We should not need a tba handler or database
     tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
-    scorer := NewScorer(tbaHandler, nil)
+    scorer := NewScorer(tbaHandler, nil, nil, nil)
 
-    match := tbaHandler.MakeMatchReq("2026casnv_qm1")
+    match := tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm1")
     scoredMatch, _ := scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 5, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_qm20")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm20")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 3, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_qm38")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm38")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 4, scoredMatch.RedScore)
     assert.Equal(t, 1, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_qm52")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm52")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 5, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_qm74")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm74")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 4, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_qm24")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm24")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 1, scoredMatch.RedScore)
     assert.Equal(t, 5, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026mawne_qm40")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026mawne_qm40")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 6, scoredMatch.RedScore)
     assert.Equal(t, 1, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_sf4m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_sf4m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 15, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_sf6m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_sf6m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 9, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2026casnv_f1m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2026casnv_f1m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 18, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2024cmptx_sf2m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2024cmptx_sf2m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 15, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2024cmptx_sf12m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2024cmptx_sf12m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 9, scoredMatch.RedScore)
     assert.Equal(t, 0, scoredMatch.BlueScore)
 
-    match = tbaHandler.MakeMatchReq("2024cmptx_f1m1")
+    match = tbaHandler.MakeMatchReq(t.Context(), "2024cmptx_f1m1")
     scoredMatch, _ = scorer.scoreMatch(match, true)
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
@@ -137,8 +137,8 @@ func TestScoreMatches(t *testing.T) {
 
 func TestGetAllianceSelectionScores (t *testing.T) {
     tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
-    alliances := tbaHandler.MakeEliminationAllianceRequest("2025mawor")
-    scorer := NewScorer(tbaHandler, nil)
+    alliances := tbaHandler.MakeEliminationAllianceRequest(t.Context(), "2025mawor")
+    scorer := NewScorer(tbaHandler, nil, nil, nil)
     allianceOneScores := scorer.GetAllianceSelectionScore(alliances[0])
     assert.EqualValues(t, 32 * 2, allianceOneScores["frc190"])
     assert.EqualValues(t, 31 * 2, allianceOneScores["frc1768"])

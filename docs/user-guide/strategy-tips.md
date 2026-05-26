@@ -313,4 +313,6 @@ Ready to dominate your Fantasy FRC league? These strategies could help you build
 
 ---
 
+*Last updated: 2026-05-01*
+
 *You're ready to dominate! [Create your account and join a draft today!](./getting-started.md)*

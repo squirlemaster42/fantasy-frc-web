@@ -51,13 +51,40 @@ go mod tidy
 go mod verify
 ```
 
+### Database Migrations
+
+Migrations are managed with [goose](https://github.com/pressly/goose) in the `database/` directory.
+
+```bash
+# Install goose CLI
+go install github.com/pressly/goose/v3/cmd/goose@latest
+
+# Create a new migration
+cd database && make create name=description_here
+
+# Run pending migrations locally
+cd database && make up
+
+# Check migration status
+cd database && make status
+
+# Rollback one migration
+cd database && make down
+
+# Test full up/down cycle in Docker
+cd database && make test
+```
+
+Migrations are **not** tied to the server application. They run manually or as a K8s Job.
+See `database/README.md` for full details.
+
 ## Code Style Guidelines
 
 ### General Conventions
 
-- **Go Version**: Go 1.24.0 with toolchain go1.24.0
+- **Go Version**: Go 1.26.2 with toolchain go1.26.2
 - **Logging**: Use custom logging with context
-- **Error Handling**: Use custom `assert` package for context-aware error handling
+- **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the enture project with the appropriate log level.
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
 
 ### Import Organization
@@ -88,6 +115,7 @@ import (
 ### Error Handling
 
 - Use the custom `assert` package for database operations and critical paths
+- **Never use `assert.Fatal` in authentication hot paths or user-facing handlers** — always return errors gracefully to avoid crashing the server on invalid user input
 - Provide context when creating assertions: `assert := assert.CreateAssertWithContext("Function Name")`
 - Add context to assertions: `assert.AddContext("User ID", userId)`
 - Use `slog` for non-critical errors and informational logging

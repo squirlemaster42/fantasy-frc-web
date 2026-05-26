@@ -1,7 +1,7 @@
 package background
 
 import (
-	"database/sql"
+	"context"
 	"errors"
 	"server/assert"
 	"server/draft"
@@ -12,16 +12,16 @@ import (
 )
 
 type DraftDaemon struct {
-	database      *sql.DB
+	draftStore    model.DraftStore
 	running       bool
 	mu            sync.Mutex
 	runningDrafts map[int]bool
 	draftManager  *draft.DraftManager
 }
 
-func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDaemon {
+func NewDraftDaemon(draftStore model.DraftStore, draftManager *draft.DraftManager) *DraftDaemon {
 	return &DraftDaemon{
-		database:      database,
+		draftStore:    draftStore,
 		running:       false,
 		runningDrafts: make(map[int]bool),
 		draftManager:  draftManager,
@@ -29,12 +29,12 @@ func NewDraftDaemon(database *sql.DB, draftManager *draft.DraftManager) *DraftDa
 }
 
 func (d *DraftDaemon) Start() error {
-	log.InfoNoContext("Attempting to start draft daemon")
+	log.Info(context.TODO(), "Attempting to start draft daemon")
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if !d.running {
 		d.running = true
-		log.InfoNoContext("Started draft daemon")
+		log.Info(context.TODO(), "Started draft daemon")
 		go d.Run()
 		return nil
 	} else {
@@ -48,7 +48,7 @@ func (d *DraftDaemon) Run() {
 		log.DebugNoContext("Starting iteration of the Draft Daemon")
 		err := d.checkForDraftsToStart()
 		if err != nil {
-			log.ErrorNoContext("Failed to start draft", "Error", err)
+			log.Error(context.TODO(), "Failed to start draft", "Error", err)
 		}
 		d.checkForPicksToSkip()
 
@@ -60,7 +60,7 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 	//Get all drafts that are in the waiting to start status
 	log.DebugNoContext("Checking for drafts to Start")
 	now := time.Now()
-	draftIds, err := model.GetDraftsToStart(d.database, now)
+	draftIds, err := d.draftStore.GetDraftsToStart(context.TODO(), now)
 	if err != nil && draftIds == nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 	}
 
 	if err != nil {
-		log.ErrorNoContext("Failed to get drafts to start", "Now", now, "Error", err)
+		log.Error(context.TODO(), "Failed to get drafts to start", "Now", now, "Error", err)
 	}
 
 	for _, draftId := range draftIds {
@@ -80,14 +80,14 @@ func (d *DraftDaemon) checkForDraftsToStart() error {
 		assert.AddContext("Draft Id", draftId)
 		draft, err := d.draftManager.GetDraft(draftId, false)
 		if err != nil {
-			log.WarnNoContext("Failed to load draft", "Draft Id", draftId, "Error", err)
+			log.Warn(context.TODO(), "Failed to load draft", "Draft Id", draftId, "Error", err)
 			continue
 		}
 		assert.AddContext("Draft Status", draft.GetStatus())
-		assert.RunAssert(draft.GetStatus() == model.WAITING_TO_START, "Invalid draft status to transition to picking")
-		err = d.draftManager.ExecuteDraftStateTransition(draftId, model.PICKING)
+		assert.RunAssert(context.TODO(), draft.GetStatus() == model.WAITING_TO_START, "Invalid draft status to transition to picking")
+		err = d.draftManager.ExecuteDraftStateTransition(context.TODO(), draftId, model.PICKING)
 		if err != nil {
-			log.ErrorNoContext("Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+			log.Error(context.TODO(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		}
 	}
 
@@ -109,7 +109,11 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		//Check if the current player if skipping their pick. If so we
 		//should skip them
 		log.DebugNoContext("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-		shouldSkip := model.ShouldSkipPick(d.database, curPick.Player)
+		shouldSkip, err := d.draftStore.ShouldSkipPick(context.TODO(), curPick.Player)
+		if err != nil {
+			log.Warn(context.TODO(), "Failed to check if player should be skipped", "Draft Id", draftId, "Player", curPick.Player, "Error", err)
+			shouldSkip = false
+		}
 		if shouldSkip {
 			log.DebugNoContext("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
 			err := d.draftManager.SkipCurrentPick(draftId)
@@ -123,7 +127,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 			//We want to skip the current pick and go to the next one
 			err := d.draftManager.SkipCurrentPick(draftId)
 			if err != nil {
-				log.WarnNoContext("Failed to skip pick", "Draft Id", draftId, "Current Pick", curPick.Id, "Error", err)
+				log.Warn(context.TODO(), "Failed to skip pick", "Draft Id", draftId, "Current Pick", curPick.Id, "Error", err)
 			}
 		} else {
 			log.DebugNoContext("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
@@ -136,7 +140,7 @@ func (d *DraftDaemon) AddDraft(draftId int) error {
 		return errors.New("draft already added to daemon")
 	}
 	d.runningDrafts[draftId] = true
-	log.InfoNoContext("Added draft to daemon", "Draft Id", draftId)
+	log.Info(context.TODO(), "Added draft to daemon", "Draft Id", draftId)
 	return nil
 }
 
@@ -153,7 +157,7 @@ func (d *DraftDaemon) IsRunning() bool {
 }
 
 func (d *DraftDaemon) Stop() error {
-	log.InfoNoContext("Stopped draft daemon")
+	log.Info(context.TODO(), "Stopped draft daemon")
 	d.running = false
 	return nil
 }

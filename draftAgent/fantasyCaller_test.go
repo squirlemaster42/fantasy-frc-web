@@ -15,25 +15,27 @@ func TestParseCurrentDraftPicks(t *testing.T) {
 
 	userEight := findPlayerByName(picks, "UserEight")
 	assert.NotNil(t, userEight, "UserEight should exist")
+	assert.Equal(t, 3, len(userEight.Picks), "UserEight should have 3 picks")
 	assert.Equal(t, "6989", userEight.Picks[0], "UserEight first pick should be 6989")
 	assert.Equal(t, "Skipped", userEight.Picks[1], "UserEight second pick should be Skipped")
 	assert.Equal(t, "Skipped", userEight.Picks[2], "UserEight third pick should be Skipped")
-	assert.Equal(t, "", userEight.Picks[3], "UserEight fourth pick should be empty")
 
 	userSix := findPlayerByName(picks, "UserSix")
 	assert.NotNil(t, userSix, "UserSix should exist")
+	assert.Equal(t, 3, len(userSix.Picks), "UserSix should have 3 picks")
 	assert.Equal(t, "2486", userSix.Picks[0], "UserSix first pick should be 2486")
 	assert.Equal(t, "2783", userSix.Picks[1], "UserSix second pick should be 2783")
 	assert.Equal(t, "Skipped", userSix.Picks[2], "UserSix third pick should be Skipped")
 
 	userTwo := findPlayerByName(picks, "UserTwo")
 	assert.NotNil(t, userTwo, "UserTwo should exist")
+	assert.Equal(t, 2, len(userTwo.Picks), "UserTwo should have 2 picks")
 	assert.Equal(t, "5847", userTwo.Picks[0], "UserTwo first pick should be 5847")
 	assert.Equal(t, "3015", userTwo.Picks[1], "UserTwo second pick should be 3015")
-	assert.Equal(t, "", userTwo.Picks[2], "UserTwo third pick should be empty (pending input)")
 
 	userOne := findPlayerByName(picks, "UserOne")
 	assert.NotNil(t, userOne, "UserOne should exist")
+	assert.Equal(t, 2, len(userOne.Picks), "UserOne should have 2 picks")
 	assert.Equal(t, "4611", userOne.Picks[0], "UserOne first pick should be 4611")
 	assert.Equal(t, "9077", userOne.Picks[1], "UserOne second pick should be 9077")
 }

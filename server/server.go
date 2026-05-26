@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"server/assets"
 	"server/authentication"
@@ -17,16 +18,18 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*echo.Echo, func(context.Context) error) {
-	log.InfoNoContext("Starting Server")
-	auth := authentication.NewAuth(h.Database)
+func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
+	log.Info(context.Background(), "Starting Server")
+	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
 
-	metrics.InitMetrics(h.Database)
+	if err := metrics.InitMetrics(database); err != nil {
+		log.Warn(context.Background(), "Failed to initialize metrics", "error", err)
+	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -49,25 +52,40 @@ func CreateServer(serverPort string, h handler.Handler, metricSecret string) (*e
 		cacheControlMiddleware,
 	)
 
+	app.Add(
+		http.MethodGet,
+		"/js/*",
+		echo.StaticDirectoryHandler(assets.JS(), false),
+		cacheControlMiddleware,
+	)
+
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(otelecho.Middleware("fantasy-frc-web"))
 	app.Use(metrics.MetricsMiddleware())
+	app.Use(middleware.SecurityHeaders(h.SecureHttpCookie))
+
+	csrf := middleware.NewCSRF(csrfSecret, h.SecureHttpCookie)
+	rateLimiter := middleware.NewRateLimiter(redisAddr, redisPassword, redisRateLimitDB)
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
 	app.GET("/login", h.HandleViewLogin, echomiddleware.Gzip())
-	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip())
+	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip(), rateLimiter.RateLimitLogin())
 	app.GET("/register", h.HandleViewRegister, echomiddleware.Gzip())
-	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip())
-	app.POST("/logout", h.HandleLogoutPost, echomiddleware.Gzip())
+	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip(), rateLimiter.RateLimitRegister())
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
 
-	protected := app.Group("/u", auth.Authenticate)
+	app.GET("/healthz", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	protected := app.Group("/u", auth.Authenticate, csrf.CSRF(), rateLimiter.RateLimitGeneral(postsPerMinute))
 	protected.Use(echomiddleware.Gzip())
+	protected.POST("/logout", h.HandleLogoutPost)
 	protected.GET("/home", h.HandleViewHome)
 	protected.GET("/createDraft", h.HandleViewCreateDraft)
 	protected.POST("/createDraft", h.HandleCreateDraftPost)

@@ -24,6 +24,13 @@ var (
 		},
 		[]string{"method", "route", "status_class"},
 	)
+	authenticatedRequestCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "authenticated_requests_total",
+			Help: "Total authenticated HTTP requests by route and method",
+		},
+		[]string{"method", "route"},
+	)
 )
 
 func MetricsMiddleware() echo.MiddlewareFunc {
@@ -58,4 +65,11 @@ func MetricsMiddleware() echo.MiddlewareFunc {
 			return err
 		}
 	}
+}
+
+func RecordAuthenticatedRequest(method, route string) {
+	if route == "" {
+		route = "unknown"
+	}
+	authenticatedRequestCount.WithLabelValues(method, route).Inc()
 }

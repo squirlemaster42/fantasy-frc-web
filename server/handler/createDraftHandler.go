@@ -3,49 +3,49 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/view/draft"
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle View Create Draft")
 	log.Info(c.Request().Context(), "Got request to serve the create draft page")
 
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
-
-	userUuid := model.GetUserBySessionToken(h.Database, userTok.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	draftModel := model.DraftModel{
 		Id: -1,
 	}
 	draftModel.StartTime = time.Now().Add(72 * time.Hour)
 	draftModel.EndTime = time.Now().Add(144 * time.Hour)
 
-	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, nil)
+	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
 	err = Render(c, draftCreate)
-	assert.NoError(err, "Handle View Draft Create Failed To Render")
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "Error", err)
+	}
 	return nil
 }
 
 func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	log.Info(c.Request().Context(), "Got request to create a draft")
-	assert := assert.CreateAssertWithContext("Handle Create Draft Post")
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
 	interval := c.FormValue("interval")
 	startTime := c.FormValue("startTime")
 	endTime := c.FormValue("endTime")
-	//event := c.FormValue("event")
-	sessionToken, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get session cookie")
+
+	userUuid := c.Get("userUuid").(uuid.UUID)
 
 	intInterval, err := strconv.Atoi(interval)
 
@@ -55,12 +55,21 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 
 	layout := "2006-01-02T15:04:05"
 	parsedStartTime, err := time.Parse(layout, startTime)
-	assert.NoError(err, "Failed to parse start time")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to parse start time", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid start time format")
+	}
 	parsedEndTime, err := time.Parse(layout, endTime)
-	assert.NoError(err, "Failed to parse end time")
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to parse end time", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid end time format")
+	}
 
-	userUuid := model.GetUserBySessionToken(h.Database, sessionToken.Value)
-	username := model.GetUsername(h.Database, userUuid)
+	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 
 	draftModel := model.DraftModel{
 		Owner: model.User{
@@ -76,7 +85,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Created Draft for user", "User", username)
 
-	draftId, err := model.CreateDraft(h.Database, &draftModel)
+	draftId, err := h.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")

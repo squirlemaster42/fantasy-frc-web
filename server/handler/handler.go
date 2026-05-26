@@ -1,17 +1,21 @@
 package handler
 
 import (
-	"database/sql"
 	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
+	"server/model"
 	"server/scorer"
 	"server/tbaHandler"
+
+	"github.com/labstack/echo/v4"
 )
 
 type Handler struct {
-	Database            *sql.DB
+	DraftStore          model.DraftStore
+	UserStore           model.UserStore
+	TeamStore           model.TeamStore
 	TbaHandler          tbaHandler.TbaHandler
 	DraftManager        *draft.DraftManager
 	DraftDaemon         *background.DraftDaemon
@@ -20,5 +24,12 @@ type Handler struct {
 	TbaWebhookSecret    string
 	TbaVerificationCode string
 	DiscordBus          *discord.DiscordWebhookBus
-    SecureHttpCookie    bool
+	SecureHttpCookie    bool
+	MinPasswordLength   int
+	CsrfSecret          string
+}
+
+func (h *Handler) csrfToken(c echo.Context) string {
+	tok, _ := c.Get("csrfToken").(string)
+	return tok
 }

@@ -22,10 +22,9 @@ Points earned in qualification matches.
 - **Win**: 3 points to winning alliance
 - **Loss/Tie**: 0 points
 
-**2025 Game Bonuses** (per match):
-- **Auto Bonus**: +1 point if achieved
-- **Barge Bonus**: +1 point if achieved  
-- **Coral Bonus**: +1 point if achieved
+**Current Season Game Bonuses** (per match):
+- Bonuses vary by year's game rules (e.g., Auto, Barge, Coral for the current season)
+- Typically +1 point per bonus objective achieved
 
 **Example:**
 ```mermaid
@@ -53,7 +52,7 @@ Points earned in elimination matches (Quarterfinals, Semifinals, Finals).
 - **Lower Bracket**: Match sets 5, 6, 9, 10, 12, 13
 
 **Einstein Multiplier:**
-- All playoff scores at Einstein event (`2025cmptx`) are **doubled**
+- All playoff scores at the Einstein Championship event (e.g., `*cmptx*`) are **doubled**
 
 ### 3. Alliance Score (`Alliance Score`)
 Points based on alliance selection position at championship events.
@@ -81,7 +80,7 @@ Special scoring for Einstein Championship matches.
 **Calculation:**
 - Uses same playoff scoring rules
 - All points are **doubled**
-- Only applies to matches at `2025cmptx` event
+- Only applies to Einstein Championship matches
 
 ## 🔢 Score Calculation Examples
 
@@ -143,7 +142,7 @@ sequenceDiagram
 2. **Quarterfinals** (`*_qf*`)
 3. **Semifinals** (`*_sf*`)
 4. **Finals** (`*_f*`)
-5. **Einstein Matches** (`*cmptx_*`)
+5. **Einstein Matches** (`*{year}cmptx_*`)
 
 ## 🏆 Player Score Calculation
 
@@ -159,12 +158,15 @@ Player Score = Σ(Team Total Scores for all picked teams)
 - **Snake draft order** ensures fair distribution
 - **Player ranking** based on total score of all 8 teams
 
-## 🎮 Game-Specific Rules (2025)
+## 🎮 Game-Specific Rules
 
 ### Bonus Eligibility
+Bonuses vary each season based on the current FRC game rules. Examples from recent seasons include:
 - **Auto Bonus**: Autonomous period objectives achieved
 - **Barge Bonus**: Barge-related objectives completed
 - **Coral Bonus**: Coral placement objectives met
+
+Refer to the current season's game manual for the exact bonus criteria.
 
 ### Disqualification Handling
 - **DQed Teams**: Receive 0 points for that match
@@ -174,18 +176,20 @@ Player Score = Σ(Team Total Scores for all picked teams)
 ## 📊 Data Sources and Events
 
 ### Supported Events
+Events are configured per season and typically include the championship division events plus Einstein. Example event keys follow the pattern `{year}{event_code}`:
+
 ```go
 Events() []string {
     return []string{
-        "2025arc", // Archimedes
-        "2025cur", // Curie
-        "2025dal", // Daly
-        "2025gal", // Galileo
-        "2025hop", // Hopper
-        "2025joh", // Johnson
-        "2025mil", // Milstein
-        "2025new", // Newton
-        "2025cmptx", // Einstein
+        "{year}arc", // Archimedes
+        "{year}cur", // Curie
+        "{year}dal", // Daly
+        "{year}gal", // Galileo
+        "{year}hop", // Hopper
+        "{year}joh", // Johnson
+        "{year}mil", // Milstein
+        "{year}new", // Newton
+        "{year}cmptx", // Einstein
     }
 }
 ```
@@ -203,7 +207,7 @@ Events() []string {
 SELECT
     CASE 
         WHEN mt.match_tbaId LIKE '%_qm%' THEN 'Qual Score'
-        WHEN mt.match_tbaId LIKE '%_cmptx%' THEN 'Einstein Score'
+        WHEN mt.match_tbaId LIKE '%cmptx%' THEN 'Einstein Score'
         ELSE 'Playoff Score' 
     END AS DisplayName,
     SUM(CASE 
@@ -261,5 +265,7 @@ GROUP BY DisplayName
 - Manual rescore initiated by administrators
 
 ---
+
+*Last updated: 2026-05-01*
 
 *TODO: Add historical scoring examples, edge case handling details, and performance optimization notes*

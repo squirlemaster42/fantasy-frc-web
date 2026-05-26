@@ -21,13 +21,11 @@ type AvatarStore struct {
 	tbaHandler tbaHandler.TbaHandler
 }
 
-func NewAvatarStore(tbaHander tbaHandler.TbaHandler) (AvatarStore, error) {
-	// TODO Set options from env file
-	// TODO We should not cache the avatars on the default db
+func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "",
-		DB:       0,
+		Addr:     redisAddr,
+		Password: redisPassword,
+		DB:       redisDB,
 		Protocol: 2,
 	})
 	ctx := context.Background()
@@ -47,28 +45,25 @@ func (a *AvatarStore) Close() error {
 	return a.client.Close()
 }
 
-// TODO Figure out if we should allow the user to pass a context
-// TODO Maybe we can pass the request context
-// TODO Need to figure out the implications of passing different contextes
-func (a *AvatarStore) storeAvatar(teamNum int, avatar []byte) error {
+func (a *AvatarStore) storeAvatar(ctx context.Context, teamNum int, avatar []byte) error {
 	// Store the avatar for 4 weeks
-	return a.client.Set(context.Background(), strconv.Itoa(teamNum), avatar, 4*7*24*time.Hour).Err()
+	return a.client.Set(ctx, strconv.Itoa(teamNum), avatar, 4*7*24*time.Hour).Err()
 }
 
-func (a *AvatarStore) checkCache(teamNum int) ([]byte, error) {
+func (a *AvatarStore) checkCache(ctx context.Context, teamNum int) ([]byte, error) {
 	if a.client == nil {
 		return nil, errors.New("Redis not found")
 	}
 
-	avatar, err := a.client.Get(context.Background(), strconv.Itoa(teamNum)).Result()
+	avatar, err := a.client.Get(ctx, strconv.Itoa(teamNum)).Result()
 	if err != nil {
 		return nil, err
 	}
 	return []byte(avatar), err
 }
 
-func (a *AvatarStore) getTbaAvatar(teamNum int) ([]byte, error) {
-	base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(fmt.Sprintf("frc%d", teamNum))
+func (a *AvatarStore) getTbaAvatar(ctx context.Context, teamNum int) ([]byte, error) {
+	base64Str, err := a.tbaHandler.MakeTeamAvatarRequest(ctx, fmt.Sprintf("frc%d", teamNum))
 	if err != nil {
 		return nil, err
 	}
@@ -80,21 +75,25 @@ func (a *AvatarStore) getTbaAvatar(teamNum int) ([]byte, error) {
 	return avatar, nil
 }
 
-func (a *AvatarStore) GetAvatar(teamNum int) ([]byte, error) {
+func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error) {
 	log.DebugNoContext("Loading avatar", "Team Num", teamNum)
-	avatar, err := a.checkCache(teamNum)
+	avatar, err := a.checkCache(ctx, teamNum)
 
 	if err == redis.Nil {
 		log.DebugNoContext("Avatar not in redis, loading from TBA", "Team Num", teamNum)
-		avatar, err = a.getTbaAvatar(teamNum)
-
-		err = a.storeAvatar(teamNum, avatar)
+		avatar, err = a.getTbaAvatar(ctx, teamNum)
 		if err != nil {
-			log.WarnNoContext("Failed to store avatar in redis", "Error", err)
+			log.Warn(ctx, "Failed to get avatar", "Team Num", teamNum, "Error", err)
+			return nil, err
+		}
+
+		err = a.storeAvatar(ctx, teamNum, avatar)
+		if err != nil {
+			log.Warn(ctx, "Failed to store avatar in redis", "Error", err)
 		}
 	} else if err != nil {
-		log.WarnNoContext("Failed to get cached avatar", "Team number", teamNum, "Error", err)
-		return a.getTbaAvatar(teamNum)
+		log.Warn(ctx, "Failed to get cached avatar", "Team number", teamNum, "Error", err)
+		return a.getTbaAvatar(ctx, teamNum)
 	} else {
 		log.DebugNoContext("Avatar in redis", "Team Num", teamNum)
 	}

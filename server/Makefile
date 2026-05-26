@@ -30,6 +30,14 @@ run-verbose: $(TAILWIND_BIN)
 generate:
 	go tool templ generate
 
+# Generate mocks for repository interfaces
+mocks:
+	go tool github.com/vektra/mockery/v2
+
+# Run tests
+test:
+	go test ./...
+
 # Production build (static binary with embedded assets)
 build: build-css generate
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o server .
@@ -40,18 +48,8 @@ build-linux: build-css generate
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o server .
 	@echo "Linux binary built successfully!"
 
-# Run database migrations
-migrate:
-	@echo "Running migrations..."
-	@./../deploy/scripts/migrate.sh
-
-# Install production binary to deploy location
-install: build
-	@cp server ../deploy/ansible/files/ 2>/dev/null || mkdir -p ../deploy/ansible/files && cp server ../deploy/ansible/files/
-	@echo "Binary copied to deploy/ansible/files/"
-
 # Full production build
 prod: build
 	@echo "Production build complete. Binary: server"
 
-.PHONY: build-css watch-css run build build-linux migrate install prod generate
+.PHONY: build-css watch-css run build build-linux prod generate mocks test

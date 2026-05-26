@@ -3,8 +3,9 @@ package team
 import "server/view"
 import "fmt"
 import "server/model"
+import "server/view/partials"
 
-templ TeamScoreIndex() {
+templ TeamScoreIndex(csrfToken string) {
     <div class="bg-slate-900 p-6 flex flex-col h-full">
         <div class="w-full max-w-[1400px] mx-auto flex-1 flex flex-col min-h-0">
             <!-- Header Section -->
@@ -31,6 +32,7 @@ templ TeamScoreIndex() {
                             method="post"
                             class="space-y-3"
                         >
+                            @partials.CSRFInput(csrfToken)
                             <div>
                                 <label class="block text-base font-medium text-slate-300 mb-2">Team Number</label>
                                 <div class="relative">
@@ -50,15 +52,27 @@ templ TeamScoreIndex() {
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-1 text-base"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                </svg>
-                                Get Scores
-                            </button>
+                            <div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
+                                <button
+                                    type="submit"
+                                    hx-disabled-elt="this"
+                                    class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg flex items-center justify-center gap-1 text-base"
+                                >
+                                    <span x-show="!loading" class="flex items-center justify-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-3">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                        Get Scores
+                                    </span>
+                                    <span x-show="loading" x-cloak class="flex items-center justify-center gap-1">
+                                        <svg class="animate-spin size-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Loading...
+                                    </span>
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -82,6 +96,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                 <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center overflow-hidden">
                     <img
                         src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
+                        alt={fmt.Sprintf("Team %s avatar", teamNumber)}
                         class="w-full h-full object-cover"
                         loading="lazy"
                     />
@@ -203,6 +218,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                         <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center overflow-hidden">
                             <img
                                 src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
+                                alt={fmt.Sprintf("Team %s avatar", teamNumber)}
                                 class="w-full h-full object-cover"
                                 loading="lazy"
                             />

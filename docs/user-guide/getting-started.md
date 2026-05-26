@@ -136,4 +136,6 @@ Currently, teams are locked after the draft. The challenge is in your initial dr
 
 ---
 
+*Last updated: 2026-05-01*
+
 *Ready to start your Fantasy FRC journey? [Create your account today!](../README.md#installation)*
