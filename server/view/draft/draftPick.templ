@@ -151,7 +151,7 @@ templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
                                 disabled?={!isCurrentPick}
                                 name="pickInput"
                                 title={"Expires at " + player.Picks[len(player.Picks) - 1].ExpirationTime.Format("01-02-2006 15:04:05")}
-                                class="w-full bg-slate-700 border border-slate-500 rounded px-3 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm font-mono"
+                                class="w-full bg-slate-700 border border-slate-500 rounded px-3 py-2 text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm font-mono"
                             />
                         </div>
                         {{lines++}}
