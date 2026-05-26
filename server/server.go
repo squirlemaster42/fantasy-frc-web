@@ -11,7 +11,11 @@ import (
 	"server/metrics"
 	"server/middleware"
 	"server/otel"
+	"server/types"
+	"server/view/errorpage"
 
+	"github.com/a-h/templ"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,6 +27,60 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
+
+	// Custom HTTP error handler: renders templ error pages for 404/403/500
+	app.HTTPErrorHandler = func(err error, c echo.Context) {
+		if c.Response().Committed {
+			return
+		}
+
+		code := http.StatusInternalServerError
+		if he, ok := err.(*echo.HTTPError); ok {
+			code = he.Code
+		}
+
+		// Log appropriately based on severity
+		switch {
+		case code >= 500:
+			log.Error(c.Request().Context(), "HTTP error", "code", code, "error", err)
+		case code >= 400:
+			log.Warn(c.Request().Context(), "HTTP error", "code", code, "error", err)
+		}
+
+		// Determine auth context for consistent navbar/footer rendering
+		fromProtected := false
+		username := ""
+		var pageData *types.PageData
+		if userUuidVal := c.Get(string(authentication.UserUuidKey)); userUuidVal != nil {
+			if userUuid, ok := userUuidVal.(uuid.UUID); ok {
+				fromProtected = true
+				name, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+				if err == nil {
+					username = name
+				}
+			}
+		}
+
+		// Select appropriate error page template
+		var page templ.Component
+		switch code {
+		case http.StatusNotFound:
+			page = errorpage.NotFound404(" | Page Not Found", fromProtected, username, pageData)
+		case http.StatusForbidden:
+			page = errorpage.Forbidden403(" | Access Denied", fromProtected, username, pageData)
+		case http.StatusInternalServerError:
+			page = errorpage.ServerError500(" | Server Error", fromProtected, username, pageData)
+		default:
+			// For other status codes, fall back to a generic error page
+			page = errorpage.ServerError500(" | Error", fromProtected, username, pageData)
+		}
+
+		// Render the templ component; if rendering itself fails, fall back to plain text
+		if renderErr := handler.RenderError(c, code, page); renderErr != nil {
+			log.Error(c.Request().Context(), "Failed to render error page", "error", renderErr)
+			_ = c.String(code, http.StatusText(code))
+		}
+	}
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
@@ -116,6 +174,11 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 	admin := protected.Group("/admin", auth.CheckAdmin)
 	admin.GET("/console", h.HandleAdminConsoleGet)
 	admin.POST("/processCommand", h.HandleRunCommand)
+
+	// Catch-all for unmatched routes on all HTTP methods
+	app.Any("/*", func(c echo.Context) error {
+		return echo.NewHTTPError(http.StatusNotFound)
+	})
 
 	return app, shutdown
 }
