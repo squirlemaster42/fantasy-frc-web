@@ -22,6 +22,7 @@ func NewDraftManager(tbaHandler *tbaHandler.TbaHandler, draftStore model.DraftSt
 		teamStore:    teamStore,
 		discordStore: discordStore,
 		tbaHandler:   tbaHandler,
+		// TODO duplicate state machine: DraftActor also sets up identical states; consolidate to single source of truth
 		states:       setupStates(context.TODO(), draftStore),
 		discordBus:   discordBus,
 	}

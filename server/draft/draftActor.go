@@ -74,9 +74,11 @@ type DraftActor struct {
 	inbox chan Message
 	draftStore model.DraftStore
 	draftState model.DraftModel
+	// TODO discordStore is never initialized in NewDraftActor; will panic on first use
 	discordStore model.DiscordStore
 	discordBus *discord.DiscordWebhookBus
 	tbaHandler *tbaHandler.TbaHandler
+	// TODO pickNotifier is stored but never used; remove or wire up
 	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
 	listeners    []picking.PickListener
@@ -100,6 +102,7 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 		tbaHandler: tbaHandler,
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
+		// TODO duplicate state machine: DraftManager also sets up identical states; consolidate to single source of truth
 		states: setupStates(ctx, draftStore),
 	}
 
@@ -269,6 +272,7 @@ func (d *DraftActor) handleMessage(message Message) Result {
 }
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
+	// TODO inconsistent error wrapping: some paths return raw db errors, others wrap in user-facing messages
 	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
 	if err != nil {
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
@@ -399,6 +403,7 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 		}
 	}
 	log.Info(ctx, "Executed draft state transition", "Draft Id", d.draftState.Id)
+	// TODO actor state is never updated after transition; d.draftState.Status is now stale
 
 	return Result{}
 }
@@ -426,6 +431,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 	}
 
+	// TODO dead code: err is guaranteed nil here (set to nil on line 410 and never changed)
 	if err != nil {
 		return Result {
 			Error: err,
@@ -451,6 +457,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 			Value: false,
 		}
 	}
+	// TODO cached draftState is not updated after MakePick; CurrentPick and Picks are stale
 
 	// TODO probably migrate this out of the db layer
 	nextPickPlayer, err := d.draftStore.NextPick(ctx, d.draftState.Id)
@@ -474,6 +481,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	}
 
 	log.Info(ctx, "Checking if we should make another pick available", "Num picks", len(picks))
+	// TODO magic number 64 is fragile; does not account for skips or variable player counts
 	if len(picks) < 64 {
 		log.Info(ctx, "Making next pick available", "Draft Id", d.draftState.Id)
 		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
@@ -567,6 +575,8 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	if pickingComplete {
 		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", d.draftState.Id)
 		// TODO post message to this service. Need to figure out how we want this to work becuase that new message will be blocked
+		// TODO compilation error: DraftActor has no method ExecuteDraftStateTransition (only DraftManager does)
+		// TODO compilation error: d.draftState.id should be Id
 		err = d.ExecuteDraftStateTransition(ctx, d.draftState.id, model.TEAMS_PLAYING)
 
 		if err != nil {
@@ -574,6 +584,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 
 		// TODO notify listeners
+		// TODO undefined variables: draft.pickManager and pick; this code does not compile
 		go draft.pickManager.NotifyListeners(picking.PickEvent{
 			Pick:    pick,
 			Success: err == nil,
@@ -605,10 +616,12 @@ func (d *DraftActor) handleModifyExpiraitonTime(ctx context.Context, msg ModifyE
 }
 
 func (d *DraftActor) handleAddPickListener(ctx context.Context, msg AddPickListenerMessage) Result {
+	// TODO not implemented: does not actually add the listener to d.listeners
 	return Result{}
 }
 
 func (d *DraftActor) handleRemovePickListener(ctx context.Context, msg RemovePickListenerMessage) Result {
+	// TODO not implemented: does not actually remove the listener from d.listeners
 	return Result{}
 }
 
@@ -682,10 +695,12 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 }
 
 func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDraftProfileMessage) Result {
+	// TODO not implemented
 	return Result{}
 }
 
 func (d *DraftActor) handleTransferDraftOwnership(ctx context.Context, msg TransferDraftOwnershipMessage) Result {
+	// TODO not implemented
 	return Result{}
 }
 
@@ -695,6 +710,7 @@ func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
 	}
 
 	if len(d.draftState.Picks) == 1 {
+		// TODO returns empty Pick with nil error, which callers treat as valid and assign to CurrentPick
 		return model.Pick{}, nil
 	}
 
@@ -702,6 +718,7 @@ func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
 }
 
 func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
+	// TODO risky logic: assertion on line 741 can panic with negative direction; empty DraftPlayer returned silently in edge cases
 	assert := assert.CreateAssertWithContext("Get Next Pick")
 	assert.AddContext("Draft Id", d.draftState.Id)
 	assert.AddContext("Current Pick", d.draftState.CurrentPick)
@@ -788,6 +805,7 @@ func (d *DraftActor) GetDraftState() (model.DraftModel) {
 }
 
 func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
+	// TODO broken: sets context but never sends message to d.inbox; method is non-functional
 	message.context = ctx
 	return nil
 }
