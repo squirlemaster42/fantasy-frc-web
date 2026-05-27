@@ -577,16 +577,16 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		// TODO post message to this service. Need to figure out how we want this to work becuase that new message will be blocked
 		// TODO compilation error: DraftActor has no method ExecuteDraftStateTransition (only DraftManager does)
 		// TODO compilation error: d.draftState.id should be Id
-		err = d.ExecuteDraftStateTransition(ctx, d.draftState.id, model.TEAMS_PLAYING)
-
-		if err != nil {
-			log.Warn(ctx, "Failed to execute draft state transition", "Draft Id", d.draftState.Id, "Error", err)
-		}
+		d.PostMessage(ctx, Message{
+			Content: StateTransitionMessage{
+				RequestedState: model.TEAMS_PLAYING,
+			},
+		})
 
 		// TODO notify listeners
 		// TODO undefined variables: draft.pickManager and pick; this code does not compile
-		go draft.pickManager.NotifyListeners(picking.PickEvent{
-			Pick:    pick,
+		go d.notifyListeners(ctx, picking.PickEvent{
+			Pick:    msg.Pick,
 			Success: err == nil,
 			Err:     err,
 			DraftId: d.draftState.Id,
