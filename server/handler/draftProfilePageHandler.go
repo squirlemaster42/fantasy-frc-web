@@ -50,8 +50,12 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		draftModel.EndTime = time.Now().Add(72 * time.Hour)
 	}
 
-	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
-	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, outstandingInvites)
+	outstandingInvites, err := h.DraftStore.GetOutstandingInvitesForDraft(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get outstanding invites", "Draft Id", draftId, "Error", err)
+		outstandingInvites = nil
+	}
+	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, outstandingInvites, h.csrfToken(c))
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
 }
@@ -198,36 +202,44 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
 	}
 
-	assert.NoError(err, "Failed to parse draft Id")
-
 	searchInput := c.FormValue("search")
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft after invite", "Draft Id", draftId, "Error", err)
 		return err
 	}
 
-	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
-	users, _ := model.SearchUsers(h.Database, searchInput, draftId)
+	outstandingInvites, err := h.DraftStore.GetOutstandingInvitesForDraft(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get outstanding invites after invite", "Draft Id", draftId, "Error", err)
+		outstandingInvites = nil
+	}
+	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to search users after invite", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+		users = nil
+	}
 
-	updatedPage := draftView.UpdateAllSections(draftModel.Players, outstandingInvites, users, draftId, isOwner)
+	updatedPage := draftView.UpdateAllSections(draftModel.Players, outstandingInvites, users, draftId, isOwner, h.csrfToken(c))
 	return Render(c, updatedPage)
 }
 
 func (h *Handler) HandleCancelInvite(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Uninvite Player")
-	userTok, err := c.Cookie("sessionToken")
-	assert.NoError(err, "Failed to get user token")
-
-	requestingUser := model.GetUserBySessionToken(h.Database, userTok.Value)
+	requestingUser := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
 	draftId, err := strconv.Atoi(draftIdStr)
-	assert.NoError(err, "Invalid draft id")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft id", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
 
 	inviteIdStr := c.FormValue("inviteId")
 	inviteId, err := strconv.Atoi(inviteIdStr)
-	assert.NoError(err, "Invalid invite id")
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid invite id", "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid invite ID")
+	}
 
 	// Check that the draft is in the correct state
 	draft, err := h.DraftManager.GetDraft(draftId, false)
@@ -245,23 +257,31 @@ func (h *Handler) HandleCancelInvite(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "You must own the draft to cancel an invite")
 	}
 
-	err = model.UninvitePlayer(h.Database, draftId, requestingUser, inviteId)
+	err = h.DraftStore.UninvitePlayer(c.Request().Context(), draftId, requestingUser, inviteId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel invite", "error", err, "draftId", draftId, "inviteId", inviteId)
 		return c.String(http.StatusInternalServerError, "Failed to cancel invite")
 	}
 
-	draftModel, err := model.GetDraft(h.Database, draftId)
+	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft after cancel", "error", err, "draftId", draftId)
 		return c.String(http.StatusInternalServerError, "Failed to get draft")
 	}
 
 	searchInput := c.FormValue("search")
-	users, _ := model.SearchUsers(h.Database, searchInput, draftId)
-	outstandingInvites := model.GetOutstandingInvitesForDraft(h.Database, draftId)
+	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to search users", "Draft Id", draftId, "Search Input", searchInput, "Error", err)
+		users = nil
+	}
+	outstandingInvites, err := h.DraftStore.GetOutstandingInvitesForDraft(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get outstanding invites", "Draft Id", draftId, "Error", err)
+		outstandingInvites = nil
+	}
 
-	updatedPage := draftView.UpdateAllSections(draftModel.Players, outstandingInvites, users, draftId, isOwner)
+	updatedPage := draftView.UpdateAllSections(draftModel.Players, outstandingInvites, users, draftId, isOwner, h.csrfToken(c))
 	return Render(c, updatedPage)
 }
 

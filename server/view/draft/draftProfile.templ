@@ -567,15 +567,16 @@ templ UpdateAfterInvite(
 	players []model.DraftPlayer,
 	isOwnerParam bool,
 	pendingInvites []model.DraftInvite,
+	csrfToken string,
 ) {
 	@PlayerList(players)
 
 	@PendingInvitesList(pendingInvites, draftId, isOwnerParam)
 
-	@PlayerSearchResults(users, draftId, isOwnerParam)
+	@PlayerSearchResults(users, draftId, isOwnerParam, csrfToken)
 }
 
-templ UpdateAllSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, users []model.User, draftId int, isOwner bool) {
+templ UpdateAllSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, users []model.User, draftId int, isOwner bool, csrfToken string) {
 	<div id="playerListContainer" hx-swap-oob="outerHTML:#playerListContainer">
 		<div
 			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
@@ -619,7 +620,7 @@ templ UpdateAllSections(players []model.DraftPlayer, pendingInvites []model.Draf
 
 	<div id="searchResults" hx-swap-oob="innerHTML:#searchResults">
 		<div>
-			@PlayerSearchResults(users, draftId, isOwner)
+			@PlayerSearchResults(users, draftId, isOwner, csrfToken)
 		</div>
 	</div>
 }

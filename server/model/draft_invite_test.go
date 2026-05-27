@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -19,7 +20,7 @@ func TestCancelInvite_Success(t *testing.T) {
 		WithArgs(42).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = CancelInvite(db, 42)
+	err = cancelInvite(context.Background(), db, 42)
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -34,7 +35,7 @@ func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 		WithArgs(99).
 		WillReturnError(sql.ErrConnDone)
 
-	err = CancelInvite(db, 99)
+	err = cancelInvite(context.Background(), db, 99)
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -56,7 +57,7 @@ func TestUninvitePlayer_Success(t *testing.T) {
 		WithArgs(10, 1).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err = UninvitePlayer(db, 1, ownerUuid, 10)
+	err = uninvitePlayer(context.Background(), db, 1, ownerUuid, 10)
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -74,7 +75,7 @@ func TestUninvitePlayer_NotOwner(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows([]string{"OwnerUserUuid"}).AddRow(ownerUuid.String()))
 
-	err = UninvitePlayer(db, 1, requesterUuid, 10)
+	err = uninvitePlayer(context.Background(), db, 1, requesterUuid, 10)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "is not the owner")
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -97,7 +98,7 @@ func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 		WithArgs(99, 1).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
-	err = UninvitePlayer(db, 1, ownerUuid, 99)
+	err = uninvitePlayer(context.Background(), db, 1, ownerUuid, 99)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 	assert.NoError(t, mock.ExpectationsWereMet())
@@ -117,7 +118,8 @@ func TestGetOutstandingInvitesForDraft(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(rows)
 
-	invites := GetOutstandingInvitesForDraft(db, 1)
+	invites, err := getOutstandingInvitesForDraft(context.Background(), db, 1)
+	assert.NoError(t, err)
 	assert.Len(t, invites, 2)
 	assert.Equal(t, "player1", invites[0].InvitedPlayerName)
 	assert.Equal(t, "player2", invites[1].InvitedPlayerName)
@@ -136,7 +138,8 @@ func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(rows)
 
-	invites := GetOutstandingInvitesForDraft(db, 1)
+	invites, err := getOutstandingInvitesForDraft(context.Background(), db, 1)
+	assert.NoError(t, err)
 	assert.Empty(t, invites)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -151,7 +154,7 @@ func TestGetInvite_ExcludesCanceled(t *testing.T) {
 		WithArgs(42).
 		WillReturnError(sql.ErrNoRows)
 
-	invite, err := GetInvite(db, 42)
+	invite, err := getInvite(context.Background(), db, 42)
 	assert.Error(t, err)
 	assert.Equal(t, sql.ErrNoRows, err)
 	assert.Zero(t, invite.Id)
@@ -171,7 +174,8 @@ func TestGetInvites_ExcludesCanceled(t *testing.T) {
 		WithArgs("550e8400-e29b-41d4-a716-446655440000").
 		WillReturnRows(rows)
 
-	invites := GetInvites(db, uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"))
+	invites, err := getInvites(context.Background(), db, uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"))
+	assert.NoError(t, err)
 	assert.Len(t, invites, 1)
 	assert.Equal(t, "inviter", invites[0].InvitingPlayerName)
 	assert.NoError(t, mock.ExpectationsWereMet())

@@ -175,18 +175,18 @@ func TestGetInvite_FunctionSignature(t *testing.T) {
 }
 
 func TestCancelInvite_FunctionSignature(t *testing.T) {
-	type cancelInviteFunc func(*sql.DB, int) error
-	var _ cancelInviteFunc = CancelInvite
+	type cancelInviteFunc func(context.Context, *sql.DB, int) error
+	var _ cancelInviteFunc = cancelInvite
 }
 
 func TestUninvitePlayer_FunctionSignature(t *testing.T) {
-	type uninvitePlayerFunc func(*sql.DB, int, uuid.UUID, int) error
-	var _ uninvitePlayerFunc = UninvitePlayer
+	type uninvitePlayerFunc func(context.Context, *sql.DB, int, uuid.UUID, int) error
+	var _ uninvitePlayerFunc = uninvitePlayer
 }
 
 func TestGetOutstandingInvitesForDraft_FunctionSignature(t *testing.T) {
-	type getOutstandingInvitesFunc func(*sql.DB, int) []DraftInvite
-	var _ getOutstandingInvitesFunc = GetOutstandingInvitesForDraft
+	type getOutstandingInvitesFunc func(context.Context, *sql.DB, int) ([]DraftInvite, error)
+	var _ getOutstandingInvitesFunc = getOutstandingInvitesForDraft
 }
 
 func TestCancelInvite_Behavior(t *testing.T) {

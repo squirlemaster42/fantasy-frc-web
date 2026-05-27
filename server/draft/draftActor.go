@@ -143,7 +143,8 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft mod
 	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
 	if err != nil {
 		log.Warn(ctx, "failed to make first pick available", "Draft Id", draft.Id, "Error", err)
- 	}
+		return err
+	}
 	err = tpt.draftStore.UpdateDraftStatus(ctx, draft.Id, model.PICKING)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft status", "Draft Id", draft.Id, "Error", err)

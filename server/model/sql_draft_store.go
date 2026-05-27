@@ -147,3 +147,15 @@ func (s *SQLDraftStore) RandomizePickOrder(ctx context.Context, draftId int) err
 func (s *SQLDraftStore) HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error) {
 	return hasBeenPicked(ctx, s.db, draftId, team)
 }
+
+func (s *SQLDraftStore) CancelInvite(ctx context.Context, inviteId int) error {
+	return cancelInvite(ctx, s.db, inviteId)
+}
+
+func (s *SQLDraftStore) UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	return uninvitePlayer(ctx, s.db, draftId, ownerUuid, inviteId)
+}
+
+func (s *SQLDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error) {
+	return getOutstandingInvitesForDraft(ctx, s.db, draftId)
+}

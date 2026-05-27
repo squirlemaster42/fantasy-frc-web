@@ -41,4 +41,7 @@ type DraftStore interface {
 	GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error)
 	RandomizePickOrder(ctx context.Context, draftId int) error
 	HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error)
+	CancelInvite(ctx context.Context, inviteId int) error
+	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error
+	GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error)
 }
