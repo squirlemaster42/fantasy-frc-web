@@ -52,7 +52,6 @@ type UpdateDraftProfileMessage struct {
 }
 
 type TransferDraftOwnershipMessage struct {
-	// TODO If we actually want this we should record who initiated the transfer
 	Initiator int
 	UpdatedOwnerId int
 }
@@ -74,8 +73,6 @@ type DraftActor struct {
 	inbox chan Message
 	draftStore model.DraftStore
 	draftState model.DraftModel
-	// TODO discordStore is never initialized in NewDraftActor; will panic on first use
-	discordStore model.DiscordStore
 	discordBus *discord.DiscordWebhookBus
 	tbaHandler *tbaHandler.TbaHandler
 	// TODO pickNotifier is stored but never used; remove or wire up
