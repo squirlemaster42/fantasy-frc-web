@@ -33,7 +33,7 @@ type Draft struct {
 
 const (
 	// target = "https://fantasy-frc.cfh.sh"
-	target = "http://localhost:8080"
+	target = "http://localhost:7331"
 )
 
 func main() {
