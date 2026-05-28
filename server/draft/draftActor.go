@@ -8,6 +8,7 @@ import (
 	"server/assert"
 	"server/discord"
 	"server/log"
+	"server/middleware"
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
@@ -73,6 +74,7 @@ type DraftActor struct {
 	inbox chan Message
 	draftStore model.DraftStore
 	draftState model.DraftModel
+	discordStore model.DiscordStore
 	discordBus *discord.DiscordWebhookBus
 	tbaHandler *tbaHandler.TbaHandler
 	// TODO pickNotifier is stored but never used; remove or wire up
@@ -92,11 +94,12 @@ type Result struct {
 	Error error
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
+		discordStore: discordStore,
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
 		// TODO duplicate state machine: DraftManager also sets up identical states; consolidate to single source of truth
@@ -222,13 +225,28 @@ func setupStates(ctx context.Context, draftStore model.DraftStore) map[model.Dra
 	return states
 }
 
+func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
+	message.context = ctx
+
+	select {
+	case d.inbox <- message:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout posting message to draft actor inbox")
+	}
+}
+
 func (d *DraftActor) run() {
 	for message := range d.inbox {
 		result := d.handleMessage(message)
 
-		select {
-		case message.Reply <- result:
-		case <- time.After(5 * time.Second):
+		if message.Reply != nil {
+			select {
+			case message.Reply <- result:
+			case <- time.After(5 * time.Second):
+			}
 		}
 	}
 
@@ -269,7 +287,7 @@ func (d *DraftActor) handleMessage(message Message) Result {
 }
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
-	// TODO inconsistent error wrapping: some paths return raw db errors, others wrap in user-facing messages
+	// TODO we need to update the accepted players in the draft state
 	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
 	if err != nil {
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
@@ -279,7 +297,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			}
 		}
 		return Result{
-			Error: err,
+			Error: fmt.Errorf("Could not accept invite. If this continued please contact support and provide this reference id: %s", middleware.GetCorrelationID(ctx)),
 		}
 	}
 
@@ -799,10 +817,4 @@ func GetDraftPlayerFromDraft(ctx context.Context, draft model.DraftModel, draftP
 
 func (d *DraftActor) GetDraftState() (model.DraftModel) {
 	return d.draftState
-}
-
-func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
-	// TODO broken: sets context but never sends message to d.inbox; method is non-functional
-	message.context = ctx
-	return nil
 }
