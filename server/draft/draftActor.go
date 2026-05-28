@@ -287,7 +287,7 @@ func (d *DraftActor) handleMessage(message Message) Result {
 }
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
-	// TODO we need to update the accepted players in the draft state
+	// TODO Way too much db stuff going on here
 	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
 	if err != nil {
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
@@ -352,7 +352,20 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			}
 		}
 	}
+
+	// TODO Figure out how to get the draft player id
+	// playerIdx := d.getPlayerIndex()
+
 	return Result{}
+}
+
+func (d *DraftActor) getPlayerIndex(userUuid uuid.UUID) int {
+	for i, player := range d.draftState.Players {
+		if player.User.UserUuid == userUuid {
+			return i
+		}
+	}
+	return -1
 }
 
 func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteMessage) Result {
