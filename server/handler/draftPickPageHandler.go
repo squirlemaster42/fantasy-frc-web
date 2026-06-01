@@ -46,15 +46,6 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "User attempted to make pick in invalid draft", "Draft Id", draftId, "User Uuid", userUuid)
-		return err
-	}
-
-	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
-
-	//Make the pick
 	draftPlayer, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		return err
@@ -63,6 +54,11 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	log.Info(c.Request().Context(), "DEBUG: HandlerPickRequest auth check", "Draft Id", draftId, "User Uuid", userUuid, "currPick.Id", currPick.Id, "currPick.Player", currPick.Player, "draftPlayer", draftPlayer, "isCurrentPick", currPick.Player == draftPlayer)
+
+	isCurrentPick := currPick.Player == draftPlayer
+
 	pickStruct := model.Pick{
 		Id:     currPick.Id,
 		Player: draftPlayer,
@@ -98,12 +94,16 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	pickUrl := fmt.Sprintf("/u/draft/%d/makePick", draftId)
 	notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
-	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
 	isOwner := draftModel.Owner.UserUuid == userUuid
 	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "Draft", draftId, "User Uuid", userUuid, "Error", err)
 		draftPlayerId = -1
+	}
+	currPick, err := h.DraftManager.GetCurrentPick(draftId)
+	isCurrentPick := err == nil && currPick.Player == draftPlayerId
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get current pick for isCurrentPick", "Draft", draftId, "Error", err)
 	}
 	isSkipping, err := h.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
 	if err != nil {

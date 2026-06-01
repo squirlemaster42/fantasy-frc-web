@@ -73,6 +73,24 @@ func (_m *MockDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, pla
 	return r0
 }
 
+// CancelInvite provides a mock function with given fields: ctx, inviteId
+func (_m *MockDraftStore) CancelInvite(ctx context.Context, inviteId int) error {
+	ret := _m.Called(ctx, inviteId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CancelInvite")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, inviteId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CancelOutstandingInvites provides a mock function with given fields: ctx, draftId
 func (_m *MockDraftStore) CancelOutstandingInvites(ctx context.Context, draftId int) error {
 	ret := _m.Called(ctx, draftId)
@@ -515,6 +533,36 @@ func (_m *MockDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, invit
 	return r0, r1
 }
 
+// GetOutstandingInvitesForDraft provides a mock function with given fields: ctx, draftId
+func (_m *MockDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]model.DraftInvite, error) {
+	ret := _m.Called(ctx, draftId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOutstandingInvitesForDraft")
+	}
+
+	var r0 []model.DraftInvite
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) ([]model.DraftInvite, error)); ok {
+		return rf(ctx, draftId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) []model.DraftInvite); ok {
+		r0 = rf(ctx, draftId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.DraftInvite)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPicks provides a mock function with given fields: ctx, draft
 func (_m *MockDraftStore) GetPicks(ctx context.Context, draft int) ([]model.Pick, error) {
 	ret := _m.Called(ctx, draft)
@@ -796,6 +844,24 @@ func (_m *MockDraftStore) SkipPick(ctx context.Context, pickId int) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
 		r0 = rf(ctx, pickId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UninvitePlayer provides a mock function with given fields: ctx, draftId, ownerUuid, inviteId
+func (_m *MockDraftStore) UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	ret := _m.Called(ctx, draftId, ownerUuid, inviteId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UninvitePlayer")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, uuid.UUID, int) error); ok {
+		r0 = rf(ctx, draftId, ownerUuid, inviteId)
 	} else {
 		r0 = ret.Error(0)
 	}

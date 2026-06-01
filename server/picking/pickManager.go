@@ -201,12 +201,10 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 			}
 			nextPickName := nextPickUser.Username
 
-			draftWebhook, err := p.discordStore.GetDraftWebhook(ctx, p.draftId)
-			if err != nil {
-				log.Warn(ctx, "Could not get draft webhook", "Draft Id", p.draftId, "Error", err)
-				return false, err
-			}
-
+		draftWebhook, err := p.discordStore.GetDraftWebhook(ctx, p.draftId)
+		if err != nil || draftWebhook == "" {
+			log.Warn(ctx, "No discord webhook configured, skipping discord notification", "Draft Id", p.draftId, "Error", err)
+		} else {
 			event := discord.NextPickDiscordEvent{
 				PreviousPickedTeam:    pick.Pick.String,
 				PreviousPickName:      currPickName,
@@ -214,7 +212,7 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 				NextPickName:          nextPickName,
 				NextPickDiscordId:     nextPickDiscordId,
 				Webhook:               draftWebhook,
-				ExpirationTime: 	   expirationTime,
+				ExpirationTime:        expirationTime,
 			}
 			go func() {
 				err = p.discordBus.PostPickNotification(event)
@@ -222,6 +220,7 @@ func (p *PickManager) MakePick(ctx context.Context, pick model.Pick) (bool, erro
 					log.Warn(ctx, "Failed to post discord webhook", "Error", err)
 				}
 			}()
+		}
 		} else {
 			log.Info(ctx, "Draft Complete", "Draft Id", p.draftId)
 			// Set draft to the teams playing state

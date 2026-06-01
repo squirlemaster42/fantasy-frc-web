@@ -6,359 +6,662 @@ import (
 	"server/model"
 	"server/view/partials"
 	"fmt"
+	"server/model"
+	"server/types"
 	"server/utils"
+	"server/view"
 )
 
-templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string) {
-    <form
-        class="flex flex-col lg:flex-row w-full gap-6 pl-4 pr-8 py-6 overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
-        hx-swap="outerHTML"
-        hx-post={utils.GetUpdateUrl(draft.Id)}
-        action=""
-        method="post"
-        enctype="multipart/form-data"
-    >
-        @partials.CSRFInput(csrfToken)
-        <!-- Draft Header Section -->
-        <div class="w-full lg:w-2/3 flex-shrink-0">
-            <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700 mb-6">
-                <div class="card-body p-6">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                        <div class="flex-1">
-                            <input
-                                disabled?={!isOwner}
-                                name="draftName"
-                                placeholder="Draft Name"
-                                value={draft.DisplayName}
-                                class="w-full bg-transparent text-3xl md:text-4xl font-bold text-blue-400 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-3 py-2"
-                            />
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span class="text-slate-400 font-medium">Status:</span>
-                            <div class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold" id="draftStatus">
-                                { string(draft.Status) }
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Description</label>
-                        <textarea
-                            disabled?={!isOwner}
-                            name="description"
-                            placeholder="Enter draft description..."
-                            class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                            rows="4"
-                        >{draft.Description}</textarea>
-                    </div>
-                </div>
-            </div>
-            <!-- Players Section -->
-            <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
-                <div class="card-body p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-slate-100">Players ({ fmt.Sprintf("%d", len(draft.Players)) })</h2>
-                        <div class="flex gap-2 text-sm">
-                            <div class="flex items-center gap-1">
-                                <div class="w-3 h-3 bg-slate-600 rounded-full"></div>
-                                <span class="text-slate-400">Joined</span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                                <div class="w-3 h-3 bg-red-600 rounded-full"></div>
-                                <span class="text-slate-400">Pending</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="playerList">
-                        for _, player := range draft.Players {
-                            if player.Pending {
-                                <div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
-                                    <div class="card-body p-4 text-center">
-                                        <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                            </svg>
-                                        </div>
-                                        <h3 class="font-semibold text-slate-100 mb-2">{player.User.Username}</h3>
-                                        <div class="text-xs text-red-400 font-medium mb-2">Pending Invitation</div>
-                                        if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
-                                            <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
-                                        }
-                                    </div>
-                                </div>
-                            } else {
-                                 <div class="relative card bg-slate-700 border border-slate-600 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
-                                    <div class="card-body p-4 text-center">
-                                        <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                            </svg>
-                                        </div>
-                                        <h3 class="relative font-semibold text-slate-100 mb-2 text-center">
-                                            if player.User.UserUuid == draft.Owner.UserUuid {
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="gold" class="absolute left-3 top-1/2 transform -translate-y-1/2 size-6">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
-                                                </svg>
-                                            }
-                                            {player.User.Username}
-                                        </h3>
-                                        <div class="text-xs text-green-400 font-medium mb-2">Joined</div>
-                                        if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
-                                            <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
-                                        }
-                                    </div>
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Sidebar Section -->
-        <div class="w-full lg:w-1/3 space-y-6 flex-shrink-0">
-            <!-- Settings Card -->
-            <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
-                <div class="card-body p-4">
-                    <h2 class="text-lg font-bold text-slate-100 mb-4">Draft Settings</h2>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-2">Time Between Picks (seconds)</label>
-                            <input
-                                disabled?={!isOwner}
-                                name="interval"
-                                value={fmt.Sprintf("%d", draft.Interval)}
-                                type="range"
-                                min="30"
-                                max="3600"
-                                step="30"
-                                class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                            />
-                            <div class="text-xs text-slate-400 mt-1">{ fmt.Sprintf("%d seconds", draft.Interval) }</div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-2">Start Time</label>
-                            <div class="relative">
-                                <input
-                                    disabled?={!isOwner}
-                                    name="startTime"
-                                    value={ draft.StartTime.Format("2006-01-02T15:04:05") }
-                                    type="datetime-local"
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-2">End Time</label>
-                            <div class="relative">
-                                <input
-                                    disabled?={!isOwner}
-                                    name="endTime"
-                                    value={ draft.EndTime.Format("2006-01-02T15:04:05") }
-                                    type="datetime-local"
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                        if isOwner && draft.Id != 0 && draft.Id != -1 {
-                            <div>
-                                <label class="block text-xs font-medium text-slate-300 mb-2">Discord Webhook</label>
-                                <input autocomplete="username" style="display:none" tabindex="-1" aria-hidden="true" />
-                                <input
-                                    disabled?={!isOwner}
-                                    name="discordWebhook"
-                                    value={draft.DiscordWebhook}
-                                    type="password"
-                                    autocomplete="new-password"
-                                    placeholder="Enter Discord webhook URL..."
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                />
-                            </div>
-                        }
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-slate-600">
-                        <button
-                            disabled?={!isOwner}
-                            type="submit"
-                            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm"
-                        >
-                            Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <!-- Invite Players Card -->
-            <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
-                <div class="card-body p-6">
-                    <h2 class="text-xl font-bold text-slate-100 mb-4">Invite Players</h2>
-                    if !isOwner {
-                        <div class="text-center py-8">
-                            <div class="text-slate-400 mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-slate-500">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                </svg>
-                            </div>
-                            <div class="text-rose-400 font-medium">Owner Access Required</div>
-                            <div class="text-slate-500 text-sm mt-1">Only the draft owner can invite players</div>
-                        </div>
-                    } else if draft.Id == 0 || draft.Id == -1 {
-                        <div class="text-center py-8">
-                            <div class="text-slate-400 mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-slate-500">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                            </div>
-                            <div class="text-rose-400 font-medium">Save Draft First</div>
-                            <div class="text-slate-500 text-sm mt-1">Save your draft to start inviting players</div>
-                        </div>
-                    } else if draft.Status != model.FILLING {
-                        <div class="text-center py-8">
-                            <div class="text-slate-400 mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-slate-500">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                            </div>
-                            <div class="text-rose-400 font-medium">Draft must be in filling status to invite players</div>
-                        </div>
-                    } else {
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-300 mb-2">Search Users</label>
-                                <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    type="search"
-                                    name="search"
-                                    autocomplete="off"
-                                    placeholder="Search users to invite..."
-                                    hx-post="/u/searchPlayers"
-                                    hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
-                                    hx-target="#searchResults"
-                                    hx-indicator=".htmx-indicator"
-                                    hx-swap="innerHTML"
-                                />
-                            </div>
-                            <div id="searchResults" class="min-h-[200px]">
-                                <!-- Search results will appear here -->
-                            </div>
-                        </div>
-                    }
-                </div>
-            </div>
-            if draft.Id != 0 && draft.Id != -1 {
-                <div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
-                    <div class="card-body p-6">
-                        @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner, csrfToken)
-                    </div>
-                </div>
-            }
-        </div>
-    </form>
+templ DraftProfileIndex(
+	draft model.DraftModel,
+	isOwner bool,
+	pendingInvites []model.DraftInvite,
+	csrfToken string,
+) {
+	<form
+		class="flex flex-col lg:flex-row w-full gap-6 pl-4 pr-8 py-6 overflow-x-hidden scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500"
+		hx-swap="outerHTML"
+		hx-post={utils.GetUpdateUrl(draft.Id)}
+		action=""
+		method="post"
+		enctype="multipart/form-data"
+	>
+		@partials.CSRFInput(csrfToken)
+
+		<!-- Draft Header Section -->
+		<div class="w-full lg:w-2/3 flex-shrink-0">
+			<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700 mb-6">
+				<div class="card-body p-6">
+					<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+						<div class="flex-1">
+							<input
+								disabled?={!isOwner}
+								name="draftName"
+								placeholder="Draft Name"
+								value={draft.DisplayName}
+								class="w-full bg-transparent text-3xl md:text-4xl font-bold text-blue-400 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-3 py-2"
+							/>
+						</div>
+
+						<div class="flex items-center gap-3">
+							<span class="text-slate-400 font-medium">Status:</span>
+
+							<div
+								class="badge badge-primary bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-semibold"
+								id="draftStatus"
+							>
+								{string(draft.Status)}
+							</div>
+						</div>
+					</div>
+
+					<div class="mb-4">
+						<label class="block text-sm font-medium text-slate-300 mb-2">
+							Description
+						</label>
+
+						<textarea
+							disabled?={!isOwner}
+							name="description"
+							placeholder="Enter draft description..."
+							class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+							rows="4"
+						>{draft.Description}</textarea>
+					</div>
+				</div>
+			</div>
+
+			<!-- Players Section -->
+			<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+				<div class="card-body p-6">
+					<div class="flex items-center justify-between mb-6">
+						<h2 class="text-2xl font-bold text-slate-100">
+							Players ({fmt.Sprintf("%d", len(draft.Players))})
+						</h2>
+
+						<div class="flex gap-2 text-sm">
+							<div class="flex items-center gap-1">
+								<div class="w-3 h-3 bg-slate-600 rounded-full"></div>
+								<span class="text-slate-400">Joined</span>
+							</div>
+
+							<div class="flex items-center gap-1">
+								<div class="w-3 h-3 bg-red-600 rounded-full"></div>
+								<span class="text-slate-400">Pending</span>
+							</div>
+						</div>
+					</div>
+
+					<div
+						class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+						id="playerList"
+					>
+						for _, player := range draft.Players {
+							if player.Pending {
+								<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
+									<div class="card-body p-4 text-center">
+										<div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+											</svg>
+										</div>
+
+										<h3 class="font-semibold text-slate-100 mb-2">
+											{player.User.Username}
+										</h3>
+
+										<div class="text-xs text-red-400 font-medium mb-2">
+											Pending Invitation
+										</div>
+
+										if player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1 {
+											<div class="text-xs text-slate-400">
+												Pick Order:
+												<span class="font-semibold text-slate-300">
+													{fmt.Sprintf("%d", player.PlayerOrder.Int16)}
+												</span>
+											</div>
+										}
+									</div>
+								</div>
+							} else {
+								<div class="relative card bg-slate-700 border border-slate-600 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
+									<div class="card-body p-4 text-center">
+										<div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+											<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
+												<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+											</svg>
+										</div>
+
+										<h3 class="relative font-semibold text-slate-100 mb-2 text-center">
+											if player.User.UserUuid == draft.Owner.UserUuid {
+												<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="gold" class="absolute left-3 top-1/2 transform -translate-y-1/2 size-6">
+													<path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+												</svg>
+											}
+
+											{player.User.Username}
+										</h3>
+
+										<div class="text-xs text-green-400 font-medium mb-2">
+											Joined
+										</div>
+
+										if player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1 {
+											<div class="text-xs text-slate-400">
+												Pick Order:
+												<span class="font-semibold text-slate-300">
+													{fmt.Sprintf("%d", player.PlayerOrder.Int16)}
+												</span>
+											</div>
+										}
+									</div>
+								</div>
+							}
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Sidebar Section -->
+		<div class="w-full lg:w-1/3 space-y-6 flex-shrink-0">
+
+			<!-- Settings Card -->
+			<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+				<div class="card-body p-4">
+					<h2 class="text-lg font-bold text-slate-100 mb-4">
+						Draft Settings
+					</h2>
+
+					<div class="space-y-4">
+						<div>
+							<label class="block text-xs font-medium text-slate-300 mb-2">
+								Time Between Picks (seconds)
+							</label>
+
+							<input
+								disabled?={!isOwner}
+								name="interval"
+								value={fmt.Sprintf("%d", draft.Interval)}
+								type="range"
+								min="30"
+								max="3600"
+								step="30"
+								class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+							/>
+
+							<div class="text-xs text-slate-400 mt-1">
+								{fmt.Sprintf("%d seconds", draft.Interval)}
+							</div>
+						</div>
+
+						<div>
+							<label class="block text-xs font-medium text-slate-300 mb-2">
+								Start Time
+							</label>
+
+							<div class="relative">
+								<input
+									disabled?={!isOwner}
+									name="startTime"
+									value={draft.StartTime.Format("2006-01-02T15:04:05")}
+									type="datetime-local"
+									class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+								/>
+
+								<div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						<div>
+							<label class="block text-xs font-medium text-slate-300 mb-2">
+								End Time
+							</label>
+
+							<div class="relative">
+								<input
+									disabled?={!isOwner}
+									name="endTime"
+									value={draft.EndTime.Format("2006-01-02T15:04:05")}
+									type="datetime-local"
+									class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-8 pr-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+								/>
+
+								<div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-slate-400">
+										<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+									</svg>
+								</div>
+							</div>
+						</div>
+
+						if isOwner && draft.Id != 0 && draft.Id != -1 {
+							<div>
+								<label class="block text-xs font-medium text-slate-300 mb-2">
+									Discord Webhook
+								</label>
+
+								<input autocomplete="username" style="display:none" tabindex="-1" aria-hidden="true" />
+
+								<input
+									disabled?={!isOwner}
+									name="discordWebhook"
+									value={draft.DiscordWebhook}
+									type="password"
+									autocomplete="new-password"
+									placeholder="Enter Discord webhook URL..."
+									class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+								/>
+							</div>
+						}
+					</div>
+
+					<div class="mt-4 pt-4 border-t border-slate-600">
+						<button
+							disabled?={!isOwner}
+							type="submit"
+							class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm"
+						>
+							Save Changes
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Invite Players Card -->
+			<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+				<div class="card-body p-6">
+					<h2 class="text-xl font-bold text-slate-100 mb-4">
+						Invite Players
+					</h2>
+
+					if !isOwner {
+						<div class="text-center py-8">
+							<div class="text-rose-400 font-medium">
+								Owner Access Required
+							</div>
+
+							<div class="text-slate-500 text-sm mt-1">
+								Only the draft owner can invite players
+							</div>
+						</div>
+					} else if draft.Id == 0 || draft.Id == -1 {
+						<div class="text-center py-8">
+							<div class="text-rose-400 font-medium">
+								Save Draft First
+							</div>
+
+							<div class="text-slate-500 text-sm mt-1">
+								Save your draft to start inviting players
+							</div>
+						</div>
+					} else if draft.Status != model.FILLING {
+						<div class="text-center py-8">
+							<div class="text-rose-400 font-medium">
+								Draft must be in filling status to invite players
+							</div>
+						</div>
+					} else {
+						<div class="space-y-4">
+
+							<div id="pendingInvitesContainer">
+								@PendingInvitesList(pendingInvites, draft.Id, isOwner)
+							</div>
+
+							<div>
+								<label class="block text-sm font-medium text-slate-300 mb-2">
+									Search Users
+								</label>
+
+								<input
+									id="searchInput"
+									class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+									type="search"
+									name="search"
+									autocomplete="off"
+									placeholder="Search users to invite..."
+									hx-post="/u/searchPlayers"
+									hx-trigger="input changed delay:500ms, keyup[key=='Enter'], load"
+									hx-target="#searchResults"
+									hx-indicator=".htmx-indicator"
+									hx-swap="innerHTML"
+								/>
+							</div>
+
+							<div id="searchResults" class="min-h-[200px]">
+							</div>
+						</div>
+					}
+				</div>
+			</div>
+
+			if draft.Id != 0 && draft.Id != -1 {
+				<div class="card bg-slate-800 shadow-lg rounded-2xl border border-slate-700">
+					<div class="card-body p-6">
+						@StartDraftButton(
+							fmt.Sprintf("/u/draft/%d/startDraft", draft.Id),
+							"",
+							isOwner,
+							csrfToken,
+						)
+					</div>
+				</div>
+			}
+		</div>
+	</form>
 }
 
-templ StartDraftButton(submitUrl string, err string, isOwner bool, csrfToken string) {
-    if err != "" {
-        <span class="text-red-400">{err}</span>
-    }
-    @partials.HtmxButton(submitUrl, "", "", "Are you sure? Starting the draft cannot be undone.", !isOwner, "w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2", "", "", "", csrfToken) {
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-        </svg>
-        Start Draft
-    }
+templ StartDraftButton(
+	submitUrl string,
+	err string,
+	isOwner bool,
+	csrfToken string,
+) {
+	if err != "" {
+		<span class="text-red-400">{err}</span>
+	}
+
+	@partials.HtmxButton(
+		submitUrl,
+		"",
+		"",
+		"Are you sure? Starting the draft cannot be undone.",
+		!isOwner,
+		"w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+		"",
+		"",
+		"",
+		csrfToken,
+	) {
+		<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+			<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+		</svg>
+
+		Start Draft
+	}
 }
 
-templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
-    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
-        @cmp
-    }
+templ PendingInvitesList(
+	invites []model.DraftInvite,
+	draftId int,
+	isOwner bool,
+) {
+	<div id="pendingInvitesList" class="space-y-2">
+		if len(invites) == 0 {
+			<div class="text-center py-2 text-slate-400 text-sm">
+				No pending invites
+			</div>
+		} else {
+			<div class="text-xs text-slate-400 mb-2">
+				{fmt.Sprintf("%d pending invitation(s)", len(invites))}
+			</div>
+
+			for _, invite := range invites {
+				<div class="flex items-center justify-between p-2 bg-slate-700/50 rounded-lg">
+					<div class="flex items-center gap-2">
+						<span class="text-sm text-slate-100">
+							{invite.InvitedPlayerName}
+						</span>
+					</div>
+
+					<div class="flex gap-2">
+						if isOwner {
+							<button
+								type="button"
+								hx-post={fmt.Sprintf("/u/draft/%d/cancelInvite", draftId)}
+								hx-swap="outerHTML"
+								name="inviteId"
+								value={fmt.Sprintf("%d", invite.Id)}
+								class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
+							>
+								Cancel
+							</button>
+						} else {
+							<button
+								type="button"
+								hx-post="/u/declineInvite"
+								hx-swap="outerHTML"
+								name="inviteId"
+								value={fmt.Sprintf("%d", invite.Id)}
+								class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200"
+							>
+								Decline
+							</button>
+						}
+					</div>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ DraftProfile(page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
+	@view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
+		@cmp
+	}
 }
 
 templ PlayerList(players []model.DraftPlayer) {
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="playerList" hx-swap-oob="outerHTML:#playerList">
-        for _, player := range players {
-            if player.Pending {
-                <div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
-                    <div class="card-body p-4 text-center">
-                        <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                            </svg>
-                        </div>
-                        <h3 class="font-semibold text-slate-100 mb-2">{player.User.Username}</h3>
-                        <div class="text-xs text-red-400 font-medium mb-2">Pending Invitation</div>
-                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
-                    </div>
-                </div>
-            } else {
-                <div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl hover:shadow-xl transition-all duration-200">
-                    <div class="card-body p-4 text-center">
-                        <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                            </svg>
-                        </div>
-                        <h3 class="font-semibold text-slate-100 mb-2">{player.User.Username}</h3>
-                        <div class="text-xs text-green-400 font-medium mb-2">Joined</div>
-                        <div class="text-xs text-slate-400">Pick Order: <span class="font-semibold text-slate-300">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
-                    </div>
-                </div>
-            }
-        }
-    </div>
+	<div
+		class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+		id="playerList"
+	>
+		for _, player := range players {
+			if player.Pending {
+				<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl">
+					<div class="card-body p-4 text-center">
+						<h3 class="font-semibold text-slate-100 mb-2">
+							{player.User.Username}
+						</h3>
+
+						<div class="text-xs text-red-400 font-medium mb-2">
+							Pending Invitation
+						</div>
+					</div>
+				</div>
+			} else {
+				<div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl">
+					<div class="card-body p-4 text-center">
+						<h3 class="font-semibold text-slate-100 mb-2">
+							{player.User.Username}
+						</h3>
+
+						<div class="text-xs text-green-400 font-medium mb-2">
+							Joined
+						</div>
+					</div>
+				</div>
+			}
+		}
+	</div>
 }
 
-templ PlayerSearchResults(users []model.User, draftId int, isOwner bool, csrfToken string) {
-    <div class="space-y-2" id="inviteTable">
-        if len(users) == 0 {
-            <div class="text-center py-4 text-slate-400">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 mx-auto mb-2 text-slate-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                </svg>
-                <div class="text-sm">No users found</div>
-            </div>
-        } else {
-            for _, user := range users {
-                <div class="flex items-center justify-between p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors duration-200">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-300">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                            </svg>
-                        </div>
-                        <span class="font-medium text-slate-100">{ user.Username }</span>
-                    </div>
-                    @partials.HtmxButton(
-                        fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
-                        "#inviteTable",
-                        "outerHTML",
-                        "",
-                        !isOwner,
-                        "bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
-                        "",
-                        "userUuid",
-                        fmt.Sprintf("%s", user.UserUuid),
-                        csrfToken,
-                    ) {
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
-                        </svg>
-                        Invite
-                    }
-                </div>
-            }
-        }
-    </div>
+templ PlayerSearchResults(
+	users []model.User,
+	draftId int,
+	isOwner bool,
+	csrfToken string,
+) {
+	<div class="space-y-2" id="inviteTable">
+		if len(users) == 0 {
+			<div class="text-center py-4 text-slate-400">
+				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 mx-auto mb-2 text-slate-500">
+					<path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+				</svg>
+
+				<div class="text-sm">
+					No users found
+				</div>
+			</div>
+		} else {
+			for _, user := range users {
+				<div class="flex items-center justify-between p-3 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors duration-200">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 bg-slate-600 rounded-full flex items-center justify-center">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-300">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+							</svg>
+						</div>
+
+						<span class="font-medium text-slate-100">
+							{user.Username}
+						</span>
+					</div>
+
+					@partials.HtmxButton(
+						fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
+						"#inviteTable",
+						"outerHTML",
+						"",
+						!isOwner,
+						"bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
+						"",
+						"userUuid",
+						fmt.Sprintf("%s", user.UserUuid),
+						csrfToken,
+					) {
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+						</svg>
+
+						Invite
+					}
+				</div>
+			}
+		}
+	</div>
 }
 
-templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool, csrfToken string) {
-    @PlayerList(players)
-    @PlayerSearchResults(users, draftId, isOwner, csrfToken)
+templ UpdateDraftPlayers(
+	players []model.DraftPlayer,
+	pendingInvites []model.DraftInvite,
+	users []model.User,
+	draftId int,
+	isOwner bool,
+	csrfToken string,
+) {
+	@PlayerList(players)
+
+	@PendingInvitesList(
+		pendingInvites,
+		draftId,
+		isOwner,
+	)
+
+	@PlayerSearchResults(
+		users,
+		draftId,
+		isOwner,
+		csrfToken,
+	)
+}
+
+templ UpdateAfterInvite(
+	users []model.User,
+	draftId int,
+	players []model.DraftPlayer,
+	isOwnerParam bool,
+	pendingInvites []model.DraftInvite,
+	csrfToken string,
+) {
+	@PlayerList(players)
+
+	@PendingInvitesList(pendingInvites, draftId, isOwnerParam)
+
+	@PlayerSearchResults(users, draftId, isOwnerParam, csrfToken)
+}
+
+templ UpdateAllSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, users []model.User, draftId int, isOwner bool, csrfToken string) {
+	<div id="playerListContainer" hx-swap-oob="outerHTML:#playerListContainer">
+		<div
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+			id="playerList"
+		>
+			for _, player := range players {
+				if player.Pending {
+					<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-red-400 font-medium mb-2">
+								Pending Invitation
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-green-400 font-medium mb-2">
+								Joined
+							</div>
+						</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+
+	<div id="pendingInvitesContainer" hx-swap-oob="outerHTML:#pendingInvitesContainer">
+		<div>
+			@PendingInvitesList(pendingInvites, draftId, isOwner)
+		</div>
+	</div>
+
+	<div id="searchResults" hx-swap-oob="innerHTML:#searchResults">
+		<div>
+			@PlayerSearchResults(users, draftId, isOwner, csrfToken)
+		</div>
+	</div>
+}
+
+templ UpdatePlayerSections(players []model.DraftPlayer, pendingInvites []model.DraftInvite, draftId int, isOwner bool) {
+	<div id="playerListContainer" hx-swap-oob="outerHTML:#playerListContainer">
+		<div
+			class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+			id="playerList"
+		>
+			for _, player := range players {
+				if player.Pending {
+					<div class="card bg-red-900/20 border border-red-700 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-red-400 font-medium mb-2">
+								Pending Invitation
+							</div>
+						</div>
+					</div>
+				} else {
+					<div class="card bg-slate-700 border border-slate-600 shadow-lg rounded-xl">
+						<div class="card-body p-4 text-center">
+							<h3 class="font-semibold text-slate-100 mb-2">
+								{player.User.Username}
+							</h3>
+
+							<div class="text-xs text-green-400 font-medium mb-2">
+								Joined
+							</div>
+						</div>
+					</div>
+				}
+			}
+		</div>
+	</div>
+
+	<div id="pendingInvitesContainer" hx-swap-oob="outerHTML:#pendingInvitesContainer">
+		@PendingInvitesList(pendingInvites, draftId, isOwner)
+	</div>
 }

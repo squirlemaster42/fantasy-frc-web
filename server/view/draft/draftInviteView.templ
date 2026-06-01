@@ -5,16 +5,17 @@ import "server/model"
 import "server/view/partials"
 import "fmt"
 
-templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string, csrfToken string) {
+templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
     if hasError {
         @partials.AlertBanner(errorMessage, "error")
     }
 
     <div class="overflow-y-auto ml-6 mr-6 pt-6" id="pendingTable">
         if len(invites) == 0 {
-            @partials.EmptyState("No Pending Invitations", "You'll see draft invitations here when someone invites you to join.") {
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-            }
+            <div class="text-center py-12">
+                <div class="text-slate-400 text-lg mb-2">No pending invitations</div>
+                <div class="text-slate-500 text-sm">You'll see draft invitations here when someone invites you to join</div>
+            </div>
         } else {
             <div class="mb-6 text-center">
                 <h2 class="text-2xl font-bold text-slate-100 mb-2">Draft Invitations</h2>
@@ -40,40 +41,32 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
                             </div>
 
                             <div class="flex gap-3">
-                                @partials.HtmxButton(
-                                    "/u/acceptInvite",
-                                    "#pendingTable",
-                                    "outerHTML",
-                                    "",
-                                    false,
-                                    "btn btn-primary bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2",
-                                    "",
-                                    "inviteId",
-                                    fmt.Sprintf("%d", invite.Id),
-                                    csrfToken,
-                                ) {
+                                <button
+                                    hx-target="#pendingTable"
+                                    hx-swap="outerHTML"
+                                    name="inviteId"
+                                    value={ fmt.Sprintf("%d", invite.Id) }
+                                    hx-post="/u/acceptInvite"
+                                    class="btn btn-primary bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2"
+                                >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                                     </svg>
                                     Accept
-                                }
-                                @partials.HtmxButton(
-                                    "/u/declineInvite",
-                                    "#pendingTable",
-                                    "outerHTML",
-                                    "",
-                                    false,
-                                    "btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2",
-                                    "",
-                                    "inviteId",
-                                    fmt.Sprintf("%d", invite.Id),
-                                    csrfToken,
-                                ) {
+                                </button>
+                                <button
+                                    hx-target="#pendingTable"
+                                    hx-swap="outerHTML"
+                                    name="inviteId"
+                                    value={ fmt.Sprintf("%d", invite.Id) }
+                                    hx-post="/u/declineInvite"
+                                    class="btn bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2"
+                                >
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                     Decline
-                                }
+                                </button>
                             </div>
                         </div>
                     </div>

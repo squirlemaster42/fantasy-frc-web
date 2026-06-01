@@ -352,6 +352,10 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
                         FROM USERS
                         INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
                         WHERE DRAFTINVITES.DRAFTID = $1
+                        	AND (
+                        	    DRAFTINVITES.CANCELED = 'f'
+                        	    OR DRAFTINVITES.CANCELED IS NULL
+                        	)
                     ) U
                 )`
 

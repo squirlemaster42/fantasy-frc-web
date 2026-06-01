@@ -28,7 +28,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	draftModel.StartTime = time.Now().Add(72 * time.Hour)
 	draftModel.EndTime = time.Now().Add(144 * time.Hour)
 
-	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
+	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, nil, h.csrfToken(c))
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
 	err = Render(c, draftCreate)
 	if err != nil {
