@@ -26,7 +26,7 @@ Defines users and their drafting personas:
         "Password": "UserOne",
         "DraftPersona": {
             "Model": "Test",
-            "PersonaPrompt": "You are an expert at picking teams for a fantasy First Robotics competition draft..."
+            "PersonaPrompt": "You are an expert at picking teams for a fantasy First Robotics Competition draft..."
         }
     }
 ]
