@@ -86,3 +86,4 @@ go test -race ./...
 
 - Tailwind CSS CLI is automatically downloaded if not present
 - Production build creates a static binary with embedded assets
+- Tests create test accounts. to use these you need to set the min assword length shorter in your env file
