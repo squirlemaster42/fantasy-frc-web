@@ -76,11 +76,12 @@ type DraftActor struct {
 	draftState model.DraftModel
 	discordStore model.DiscordStore
 	discordBus *discord.DiscordWebhookBus
+	// TODO Does tba handler need to be a pointer?
 	tbaHandler *tbaHandler.TbaHandler
 	// TODO pickNotifier is stored but never used; remove or wire up
 	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
-	listeners    []picking.PickListener
+	listeners []picking.PickListener
 }
 
 type Message struct {
@@ -102,7 +103,6 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 		discordStore: discordStore,
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
-		// TODO duplicate state machine: DraftManager also sets up identical states; consolidate to single source of truth
 		states: setupStates(ctx, draftStore),
 	}
 

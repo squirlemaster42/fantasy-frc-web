@@ -202,7 +202,7 @@ func (h *Handler) HandleUpcomingMatchEvent(messageData json.RawMessage) {
 	for _, event := range draftMap {
 		if len(event.IdsToTeams) > 0 {
 			log.Info(context.TODO(), "Posting pre match notification webhook")
-			err := h.DiscordBus.PostPreMatchNotification(*event)
+			err := h.DiscordWebhookBus.PostPreMatchNotification(*event)
 			if err != nil {
 				log.Error(context.TODO(), "Failed to post pre match notification webhook", "Error", err)
 			}

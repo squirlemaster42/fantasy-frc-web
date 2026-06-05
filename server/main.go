@@ -118,7 +118,7 @@ func main() {
 		secureHttpCookie = true
 	}
 
-	discordBus := discord.NewBus()
+	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
 	userStore := model.NewSQLUserStore(database)
 	teamStore := model.NewSQLTeamStore(database)
@@ -126,9 +126,9 @@ func main() {
 	matchStore := model.NewSQLMatchStore(database)
 	matchTeamStore := model.NewSQLMatchTeamStore(database)
 
-	draftManager := draft.NewDraftManager(tbaHandler, draftStore, teamStore, discordStore, discordBus)
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus)
 	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(draftStore, draftManager)
+	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start()
 	if err != nil {
 		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
@@ -172,10 +172,10 @@ func main() {
 		UserStore:         userStore,
 		TeamStore:         teamStore,
 		TbaHandler:        *tbaHandler,
-		DraftManager:      draftManager,
+		DraftActorMap: draftActorMap,
 		Scorer:            scorer,
 		AvatarStore:       &avatarStore,
-		DiscordBus:        discordBus,
+		DiscordWebhookBus: discordWebhookBus,
 		SecureHttpCookie:  secureHttpCookie,
 		MinPasswordLength: minPasswordLength,
 		CsrfSecret:        csrfSecret,

@@ -17,13 +17,13 @@ type Handler struct {
 	UserStore           model.UserStore
 	TeamStore           model.TeamStore
 	TbaHandler          tbaHandler.TbaHandler
-	DraftManager        *draft.DraftManager
+	DraftActorMap 		*draft.DraftActorMap
 	DraftDaemon         *background.DraftDaemon
 	Scorer              *scorer.Scorer
 	AvatarStore         *cache.AvatarStore
 	TbaWebhookSecret    string
 	TbaVerificationCode string
-	DiscordBus          *discord.DiscordWebhookBus
+	DiscordWebhookBus   *discord.DiscordWebhookBus
 	SecureHttpCookie    bool
 	MinPasswordLength   int
 	CsrfSecret          string

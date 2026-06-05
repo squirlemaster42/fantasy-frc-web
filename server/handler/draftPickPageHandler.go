@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"server/draft"
 	"server/log"
 	"server/model"
 	"server/picking"
-	"server/view/draft"
+	draftView "server/view/draft"
 	"strconv"
 	"strings"
 	"time"
@@ -46,25 +47,24 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 	log.Info(c.Request().Context(), "Got request for player to make pick in draft", "User Uuid", userUuid, "Pick", pick, "Draft Id", draftId)
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
-		log.Warn(c.Request().Context(), "User attempted to make pick in invalid draft", "Draft Id", draftId, "User Uuid", userUuid)
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
 		return err
 	}
+	draftState := draftActor.GetDraftState()
 
-	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
+	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
 
-	//Make the pick
+	// Make the pick
+	// TODO we could move this to the actor so we dont have to call the db
 	draftPlayer, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		return err
 	}
-	currPick, err := h.DraftManager.GetCurrentPick(draftId)
-	if err != nil {
-		return err
-	}
+
 	pickStruct := model.Pick{
-		Id:     currPick.Id,
+		Id:     draftState.CurrentPick.Id,
 		Player: draftPlayer,
 		Pick: sql.NullString{
 			Valid:  true,
@@ -81,7 +81,23 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         pickError := errors.New("you must be the picking player to make a pick")
         return h.renderPickPage(c, draftId, userUuid, pickError, false)
 	}
-	pickError := h.DraftManager.MakePick(draftId, pickStruct)
+	replyChan := make(chan draft.Result)
+	message := draft.Message {
+		Content: draft.PickMessage{
+			Pick: pickStruct,
+		},
+		Reply: replyChan,
+	}
+	draftActor.PostMessage(context.TODO(), message)
+	var pickError error
+	select {
+	case result := <- message.Reply:
+		if result.Error != nil {
+			pickError = result.Error
+		}
+	case <- time.After(5 * time.Second):
+		log.Warn(c.Request().Context(), "making pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
+	}
 	if pickError != nil {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", err)
 	}
@@ -90,16 +106,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
-	cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
-		log.Warn(c.Request().Context(), "User is attempting to render pick page for invalid draft", "Draft", draftId, "User Uuid", userUuid)
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return err
 	}
-	draftModel := *cachedDraft.Model
+	draftState := draftActor.GetDraftState()
 	pickUrl := fmt.Sprintf("/u/draft/%d/makePick", draftId)
 	notifierUrl := fmt.Sprintf("/u/draft/%d/pickNotifier", draftId)
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
-	isCurrentPick := draftModel.NextPick.User.UserUuid == userUuid
-	isOwner := draftModel.Owner.UserUuid == userUuid
+	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
+	isOwner := draftState.Owner.UserUuid == userUuid
 	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "Draft", draftId, "User Uuid", userUuid, "Error", err)
@@ -112,8 +129,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	}
 	log.Debug(c.Request().Context(), "Loaded if picks should be skipped", "DraftPlayer", draftPlayerId, "Is Skipping", isSkipping)
 
-	pickPageModel := draft.PickPage{
-		Draft:         draftModel,
+	pickPageModel := draftView.PickPage{
+		Draft:         draftState,
 		PickUrl:       pickUrl,
 		NotifierUrl:   notifierUrl,
 		IsCurrentPick: isCurrentPick,
@@ -122,14 +139,14 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 		SkipUrl:       skipUrl,
 	}
 
-	pickPageIndex := draft.DraftPickIndex(pickPageModel, h.csrfToken(c))
+	pickPageIndex := draftView.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
 		username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 		if err != nil {
 			log.Warn(c.Request().Context(), "Failed to get username", "Error", err)
 			username = ""
 		}
-		pickPageView := draft.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
+		pickPageView := draftView.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
 		return Render(c, pickPageView)
 	} else {
 		return Render(c, pickPageIndex)
@@ -232,7 +249,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			draftModel := *cachedDraft.Model
 
 			var html strings.Builder
-			pickPage := draft.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
+			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
 			err = pickPage.Render(context.TODO(), &html)
 			if err != nil {
 				log.Warn(ctx, "Failed to render picks for notifier", "Error", err)
