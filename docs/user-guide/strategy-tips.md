@@ -8,7 +8,7 @@ Ready to dominate your Fantasy FRC league? These strategies could help you build
 ## 🎯 Core Strategy Principles
 
 ### 1. Alliance Selection is King
-**Why it matters:** Alliance selection scores are often the biggest point contributor for any team.
+**Why it matters:** Alliance selection scores are often the biggest point contributor for any team
 
 **Key Insights:**
 - **Alliance captains** can earn 100+ points just from being selected
