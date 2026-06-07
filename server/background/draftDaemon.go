@@ -113,6 +113,16 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 			continue
 		}
 		draftState := draftActor.GetDraftState()
+
+		// Remove draft from daemon if it's no longer in PICKING status
+		if draftState.Status != model.PICKING {
+			log.Info(context.TODO(), "Draft no longer in PICKING status, removing from daemon", "Draft Id", draftId, "Status", draftState.Status)
+			if err := d.RemoveDraft(draftId); err != nil {
+				log.Warn(context.TODO(), "Failed to remove draft from daemon", "Draft Id", draftId, "Error", err)
+			}
+			continue
+		}
+
 		skipped := false
 
 		//Check if the current player if skipping their pick. If so we
@@ -132,7 +142,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		now := time.Now()
 		if draftState.CurrentPick.ExpirationTime.Before(now) && !skipped {
 			log.DebugNoContext("Pick expired", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
-			skipped = draft.SkipCurrentPick(context.TODO(), draftActor, draftId, draftState.CurrentPick.Id)
+			draft.SkipCurrentPick(context.TODO(), draftActor, draftId, draftState.CurrentPick.Id)
 		} else {
 			log.DebugNoContext("Pick is not expired yet", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
 		}

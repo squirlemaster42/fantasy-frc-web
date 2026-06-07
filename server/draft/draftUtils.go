@@ -15,7 +15,11 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 		},
 		Reply: replyChan,
 	}
-	draftActor.PostMessage(context.TODO(), message)
+	err := draftActor.PostMessage(context.TODO(), message)
+	if err != nil {
+		log.Warn(ctx, "Failed to post skip message to draft actor", "Draft Id", draftId, "Error", err)
+		return false
+	}
 	select {
 	case result := <- message.Reply:
 		if result.Error != nil || !result.Value.(bool) {

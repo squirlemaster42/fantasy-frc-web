@@ -67,7 +67,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
-	err = h.DraftManager.SkipCurrentPick(draftId)
+	err = h.DraftActorMap.SkipCurrentPick(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to skip pick", "Draft Id", draftId, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to skip pick: %s", err.Error()), false))
@@ -110,7 +110,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Extending pick", "Extension time", duration)
-	err = h.DraftManager.ModifyCurrentPickExpirationTime(draftId, duration)
+	err = h.DraftActorMap.ModifyCurrentPickExpirationTime(c.Request().Context(), draftId, duration)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to extend time: %s", err.Error()), false))
@@ -145,7 +145,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 	tbaId := "frc" + teamStr
 
-	currentPick, err := h.DraftManager.GetCurrentPick(draftId)
+	currentPick, err := h.DraftActorMap.GetCurrentPick(c.Request().Context(), draftId)
 	if currentPick.Id == 0 || err != nil {
 		return Render(c, draftView.AdminMessage("No current pick found for this draft", false))
 	}
@@ -157,7 +157,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		PickTime: sql.NullTime{Time: time.Now(), Valid: true},
 	}
 
-	err = h.DraftManager.MakePick(draftId, pick)
+	err = h.DraftActorMap.MakePick(c.Request().Context(), draftId, pick)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to make admin pick", "Draft Id", draftId, "Team", teamStr, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to make pick: %s", err.Error()), false))
@@ -185,7 +185,7 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
-	err = h.DraftManager.UndoLastPick(draftId)
+	err = h.DraftActorMap.UndoLastPick(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to undo pick", "Draft Id", draftId, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to undo pick: %s", err.Error()), false))

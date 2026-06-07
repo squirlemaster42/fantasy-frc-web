@@ -2,13 +2,25 @@ package picking
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"server/log"
+	"server/metrics"
+	"server/model"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type PickEvent struct {
+	Success bool
+	Err     error
+	Pick    model.Pick
+	DraftId int
+}
+
+type PickListener interface {
+	ReceivePickEvent(pickEvent PickEvent) error
+}
 
 //We need to store a set of connected clients
 //and what draft they are looking at
@@ -21,7 +33,7 @@ import (
 //the current pick.
 
 type PickNotifier struct {
-	Database *sql.DB
+	mu       sync.RWMutex
 	Watchers map[int][]Watcher //map the draft id to the group watching that draft
 }
 
@@ -31,28 +43,39 @@ type Watcher struct {
 }
 
 func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+
 	watcher := Watcher{
 		WatcherId:     uuid.New(),
-		NotifierQueue: make(chan bool, 10), //This can probably be smaller?
+		NotifierQueue: make(chan bool, 10),
 	}
 
 	pn.Watchers[draftId] = append(pn.Watchers[draftId], watcher)
+	metrics.IncrementWebSocketListener()
 	return &watcher
 }
 
 func (pn *PickNotifier) UnregisterWatcher(watcher *Watcher) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+
 	for key, watchers := range pn.Watchers {
 		index := -1
 		for i, w := range watchers {
 			if w.WatcherId == watcher.WatcherId {
 				index = i
+				break
 			}
 		}
 		if index >= 0 {
 			log.Info(context.TODO(), "Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
 			pn.Watchers[key] = removeWatcher(watchers, index)
-		} else {
-			log.Warn(context.TODO(), "Failed to unregister watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
+			metrics.DecrementWebSocketListener()
+			// Clean up empty draft entries to prevent memory leaks
+			if len(pn.Watchers[key]) == 0 {
+				delete(pn.Watchers, key)
+			}
 		}
 	}
 }
@@ -63,22 +86,36 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 }
 
 func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
-	log.Info(context.TODO(), "Received Pick Event", "Pick Id", pickEvent.Pick.Id)
-	for _, watcher := range pn.Watchers[pickEvent.DraftId] {
+	pn.mu.RLock()
+	watchers := make([]Watcher, len(pn.Watchers[pickEvent.DraftId]))
+	copy(watchers, pn.Watchers[pickEvent.DraftId])
+	pn.mu.RUnlock()
+
+	log.Info(context.TODO(), "Received Pick Event", "Pick Id", pickEvent.Pick.Id, "Draft Id", pickEvent.DraftId, "Num Watchers", len(watchers))
+	for _, watcher := range watchers {
 		select {
 		case watcher.NotifierQueue <- true:
 			// Sent successfully
 		case <-time.After(5 * time.Second):
-			log.Warn(context.TODO(), "Timeout sending to watcher", "Watcher Id", watcher.WatcherId)
-			return errors.New("timeout sending to watcher")
+			log.Warn(context.TODO(), "Timeout sending to watcher, skipping", "Watcher Id", watcher.WatcherId)
+			// Continue notifying remaining watchers; do not return error
 		}
 	}
 	return nil
 }
 
 func (pn *PickNotifier) NotifyWatchers(draftId int) {
-	log.Info(context.TODO(), "Notifying Watchers", "Draft Id", draftId)
-	for _, watcher := range pn.Watchers[draftId] {
-		watcher.NotifierQueue <- true
+	pn.mu.RLock()
+	watchers := make([]Watcher, len(pn.Watchers[draftId]))
+	copy(watchers, pn.Watchers[draftId])
+	pn.mu.RUnlock()
+
+	log.Info(context.TODO(), "Notifying Watchers", "Draft Id", draftId, "Num Watchers", len(watchers))
+	for _, watcher := range watchers {
+		select {
+		case watcher.NotifierQueue <- true:
+		case <-time.After(5 * time.Second):
+			log.Warn(context.TODO(), "Timeout notifying watcher", "Watcher Id", watcher.WatcherId)
+		}
 	}
 }

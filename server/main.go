@@ -19,6 +19,7 @@ import (
 	"server/log"
 	"server/metrics"
 	"server/model"
+	"server/picking"
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
@@ -126,7 +127,11 @@ func main() {
 	matchStore := model.NewSQLMatchStore(database)
 	matchTeamStore := model.NewSQLMatchTeamStore(database)
 
-	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus)
+	pickNotifier := &picking.PickNotifier{
+		Watchers: make(map[int][]picking.Watcher),
+	}
+
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier)
 	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start()
