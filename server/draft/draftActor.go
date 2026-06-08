@@ -80,7 +80,7 @@ type DraftActor struct {
 	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
 	shutdown bool
-	mu sync.Mutex
+	mu sync.RWMutex
 }
 
 type Message struct {
@@ -234,9 +234,9 @@ func setupStates(ctx context.Context, draftStore model.DraftStore) map[model.Dra
 }
 
 func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
-	d.mu.Lock()
+	d.mu.RLock()
 	shutdown := d.shutdown
-	d.mu.Unlock()
+	d.mu.RUnlock()
 	if shutdown {
 		return errors.New("draft actor is shutting down")
 	}
@@ -255,6 +255,11 @@ func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 
 func (d *DraftActor) run() {
 	for message := range d.inbox {
+		if _, isShutdown := message.Content.(ShutdownMessage); isShutdown {
+			d.close()
+			break
+		}
+
 		result := d.handleMessage(message)
 
 		if message.Reply != nil {
@@ -262,11 +267,6 @@ func (d *DraftActor) run() {
 			case message.Reply <- result:
 			case <- time.After(5 * time.Second):
 			}
-		}
-
-		if _, isShutdown := message.Content.(ShutdownMessage); isShutdown {
-			d.close()
-			break
 		}
 	}
 }
@@ -369,9 +369,6 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		}
 	}
 
-	// TODO Figure out how to get the draft player id
-	// playerIdx := d.getPlayerIndex()
-
 	return Result{}
 }
 
@@ -439,16 +436,8 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 		}
 	}
 	log.Info(ctx, "Executed draft state transition", "Draft Id", d.draftState.Id)
-
-	// Reload draft state so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
-		log.Warn(ctx, "Failed to reload draft after state transition", "Draft Id", d.draftState.Id, "Error", err)
-		return Result{
-			Error: err,
-		}
-	}
-	d.draftState = updatedDraft
+	// Update cached status directly — state transitions only change the status column
+	d.draftState.Status = msg.RequestedState
 
 	return Result{}
 }
@@ -657,6 +646,12 @@ func (d *DraftActor) handleShutdown(ctx context.Context, msg ShutdownMessage) Re
 }
 
 func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentPickMessage) Result {
+	// TODO: Wrap SkipPick and MakePickAvailable in a database transaction to prevent partial failure.
+	// If SkipPick succeeds but MakePickAvailable fails, the draft will be stuck with a skipped pick and no next pick.
+	// This requires refactoring skipPick() and makePickAvailable() in model/draft.go to accept a DBTX interface
+	// (works with both *sql.DB and *sql.Tx), then adding a new DraftStore method like:
+	//   SkipAndMakeNextPickAvailable(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime) (newPickId, error)
+	// which runs both operations inside a single sql.Tx.
 	nextPickPlayer := d.getNextPick(ctx)
 	err := d.draftStore.SkipPick(ctx, d.draftState.CurrentPick.Id)
 	if err != nil {
@@ -696,6 +691,10 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 }
 
 func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMessage) Result {
+	// TODO: Wrap DeletePick and ResetPick in a database transaction to prevent partial failure.
+	// If DeletePick succeeds but ResetPick fails, the draft will be stuck with the current pick deleted
+	// and the previous pick not reset. Same pattern as skip: refactor deletePick() and resetPick()
+	// in model/draft.go to accept a DBTX interface, then add an UndoLastPick() transactional method.
 	// Use the database to get the previous pick reliably
 	previousPick, err := d.draftStore.GetPreviousPick(ctx, d.draftState.Id, d.draftState.CurrentPick.Id)
 	if err != nil {
@@ -756,15 +755,13 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 		}
 	}
 
-	// Reload draft state after update
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
-		log.Warn(ctx, "Failed to reload draft after profile update", "Draft Id", d.draftState.Id, "Error", err)
-		return Result{
-			Error: err,
-		}
-	}
-	d.draftState = updatedDraft
+	// Update cached fields directly — we know exactly what changed
+	d.draftState.DisplayName = msg.Name
+	d.draftState.Description = msg.Description
+	d.draftState.Interval = msg.Interval
+	d.draftState.StartTime = msg.StartTime
+	d.draftState.EndTime = msg.EndTime
+	d.draftState.DiscordWebhook = msg.DiscordWebhook
 
 	return Result{}
 }
@@ -795,6 +792,7 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 
 	var nextPlayer model.DraftPlayer
 
+	// Only two players is an edge case so we just hard code it
 	if len(d.draftState.Picks) < 2 {
 		for _, player := range d.draftState.Players {
 			if int(player.PlayerOrder.Int16) == len(d.draftState.Picks) {
@@ -820,11 +818,7 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 	}
 
 	nextIndex := lastPlayer.PlayerOrder.Int16 + direction
-	if nextIndex < 0 || int(nextIndex) >= len(d.draftState.Players) {
-		log.Error(ctx, "Next pick is out of bounds", "Draft Id", d.draftState.Id, "Next Index", nextIndex, "Num Players", len(d.draftState.Players))
-		return model.DraftPlayer{}
-	}
-
+	assert.RunAssert(ctx, nextIndex < 0 || int(nextIndex) >= len(d.draftState.Players), "next pick is out of bounds")
 	nextPlayer = d.draftState.Players[nextIndex]
 	return nextPlayer
 }

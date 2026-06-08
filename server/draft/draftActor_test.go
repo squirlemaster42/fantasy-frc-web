@@ -146,7 +146,6 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 	mockStore.On("UpdateDraft", mock.Anything, mock.Anything).Return(nil).Once()
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId, DisplayName: "Updated"}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
@@ -155,6 +154,10 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 		DisplayName: "Updated",
 	})
 	assert.NoError(t, err)
+
+	// Verify cached state was updated directly without re-querying
+	draft, _ := actorMap.GetDraft(context.Background(), draftId)
+	assert.Equal(t, "Updated", draft.DisplayName)
 	mockStore.AssertExpectations(t)
 }
 
@@ -166,15 +169,15 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 		Status: model.FILLING,
 	}, nil).Once()
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.WAITING_TO_START).Return(nil).Once()
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:     draftId,
-		Status: model.WAITING_TO_START,
-	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
 	err := actorMap.ExecuteDraftStateTransition(context.Background(), draftId, model.WAITING_TO_START)
 	assert.NoError(t, err)
+
+	// Verify cached state was updated directly without re-querying
+	draft, _ := actorMap.GetDraft(context.Background(), draftId)
+	assert.Equal(t, model.WAITING_TO_START, draft.Status)
 	mockStore.AssertExpectations(t)
 }
 

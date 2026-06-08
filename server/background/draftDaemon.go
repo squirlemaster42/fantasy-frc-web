@@ -114,15 +114,6 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		}
 		draftState := draftActor.GetDraftState()
 
-		// Remove draft from daemon if it's no longer in PICKING status
-		if draftState.Status != model.PICKING {
-			log.Info(context.TODO(), "Draft no longer in PICKING status, removing from daemon", "Draft Id", draftId, "Status", draftState.Status)
-			if err := d.RemoveDraft(draftId); err != nil {
-				log.Warn(context.TODO(), "Failed to remove draft from daemon", "Draft Id", draftId, "Error", err)
-			}
-			continue
-		}
-
 		skipped := false
 
 		//Check if the current player if skipping their pick. If so we
