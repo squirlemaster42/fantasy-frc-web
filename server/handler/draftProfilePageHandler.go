@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"server/draft"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
@@ -118,8 +119,13 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		DiscordWebhook: discordWebhook,
 	}
 
-	err = h.DraftActorMap.UpdateDraft(c.Request().Context(), draftModel)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return err
+	}
 
+	err = draft.UpdateDraft(c.Request().Context(), draftActor, draftModel)
 	if err != nil {
 		return err
 	}
@@ -176,11 +182,12 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	// Check that the draft is in the correct state
-	draftModel, err := h.DraftActorMap.GetDraft(c.Request().Context(), draftId)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to load draft", "Draft Id", draftId, "Error", err)
 		return err
 	}
+	draftModel := draft.GetDraft(draftActor)
 
 	if draftModel.Status != model.FILLING {
 		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to invite players")
@@ -237,13 +244,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draftModel, err := h.DraftActorMap.GetDraft(c.Request().Context(), draftId)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false, h.csrfToken(c))
 		return Render(c, page)
 	}
+	draftModel := draft.GetDraft(draftActor)
 
 	if draftModel.Owner.UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "Draft Id", draftId, "User", requestingUser)
@@ -278,7 +286,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
-	err = h.DraftActorMap.ExecuteDraftStateTransition(c.Request().Context(), draftId, model.WAITING_TO_START)
+	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.WAITING_TO_START)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err

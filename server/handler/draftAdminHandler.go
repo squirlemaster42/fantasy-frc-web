@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"server/draft"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
@@ -67,10 +68,16 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
-	err = h.DraftActorMap.SkipCurrentPick(c.Request().Context(), draftId)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to skip pick", "Draft Id", draftId, "Error", err)
-		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to skip pick: %s", err.Error()), false))
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return Render(c, draftView.AdminMessage("Draft not found", false))
+	}
+
+	skipped := draft.SkipCurrentPick(c.Request().Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	if !skipped {
+		log.Warn(c.Request().Context(), "Failed to skip pick", "Draft Id", draftId)
+		return Render(c, draftView.AdminMessage("Failed to skip pick", false))
 	}
 
 	return Render(c, draftView.AdminMessage("Pick skipped successfully", true))
@@ -110,7 +117,13 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Extending pick", "Extension time", duration)
-	err = h.DraftActorMap.ModifyCurrentPickExpirationTime(c.Request().Context(), draftId, duration)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return Render(c, draftView.AdminMessage("Draft not found", false))
+	}
+
+	err = draft.ModifyCurrentPickExpirationTime(c.Request().Context(), draftActor, duration)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to extend pick time", "Draft Id", draftId, "Duration", duration, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to extend time: %s", err.Error()), false))
@@ -145,8 +158,14 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 	tbaId := "frc" + teamStr
 
-	currentPick, err := h.DraftActorMap.GetCurrentPick(c.Request().Context(), draftId)
-	if currentPick.Id == 0 || err != nil {
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return Render(c, draftView.AdminMessage("Draft not found", false))
+	}
+
+	currentPick := draft.GetCurrentPick(draftActor)
+	if currentPick.Id == 0 {
 		return Render(c, draftView.AdminMessage("No current pick found for this draft", false))
 	}
 
@@ -157,7 +176,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		PickTime: sql.NullTime{Time: time.Now(), Valid: true},
 	}
 
-	err = h.DraftActorMap.MakePick(c.Request().Context(), draftId, pick)
+	err = draft.MakePick(c.Request().Context(), draftActor, pick)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to make admin pick", "Draft Id", draftId, "Team", teamStr, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to make pick: %s", err.Error()), false))
@@ -185,7 +204,13 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Permission denied", false))
 	}
 
-	err = h.DraftActorMap.UndoLastPick(c.Request().Context(), draftId)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return Render(c, draftView.AdminMessage("Draft not found", false))
+	}
+
+	err = draft.UndoLastPick(c.Request().Context(), draftActor)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to undo pick", "Draft Id", draftId, "Error", err)
 		return Render(c, draftView.AdminMessage(fmt.Sprintf("Failed to undo pick: %s", err.Error()), false))

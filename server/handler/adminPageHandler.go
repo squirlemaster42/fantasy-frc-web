@@ -401,16 +401,17 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaH
 	}
 
 	// Fetch the draft
-	draftModel, err := draftActorMap.GetDraft(ctx, draftId)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
+	draftModel := draft.GetDraft(draftActor)
 
 	oldName := draftModel.DisplayName
 	draftModel.DisplayName = newName
 
 	// Update the draft
-	err = draftActorMap.UpdateDraft(ctx, draftModel)
+	err = draft.UpdateDraft(ctx, draftActor, draftModel)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft name", "Draft Id", draftId, "Error", err)
 		return "Failed to update draft name"
@@ -435,7 +436,12 @@ func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	err = draftActorMap.UndoLastPick(ctx, draftId)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	err = draft.UndoLastPick(ctx, draftActor)
 	if err != nil {
 		return err.Error()
 	}

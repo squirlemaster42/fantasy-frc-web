@@ -65,8 +65,11 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
-	err := actorMap.SkipCurrentPick(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
 	assert.NoError(t, err)
+
+	skipped := SkipCurrentPick(context.Background(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	assert.True(t, skipped)
 	mockStore.AssertExpectations(t)
 }
 
@@ -81,8 +84,10 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, pickId, mock.Anything).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	assert.NoError(t, err)
 
-	err := actorMap.ModifyCurrentPickExpirationTime(context.Background(), draftId, 30*time.Minute)
+	err = ModifyCurrentPickExpirationTime(context.Background(), draftActor, 30*time.Minute)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
@@ -97,9 +102,10 @@ func TestDraftActorMap_GetCurrentPick(t *testing.T) {
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-
-	pick, err := actorMap.GetCurrentPick(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
 	assert.NoError(t, err)
+
+	pick := GetCurrentPick(draftActor)
 	assert.Equal(t, expectedPick.Id, pick.Id)
 	mockStore.AssertExpectations(t)
 }
@@ -121,8 +127,10 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	assert.NoError(t, err)
 
-	err := actorMap.UndoLastPick(context.Background(), draftId)
+	err = UndoLastPick(context.Background(), draftActor)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
@@ -134,9 +142,10 @@ func TestDraftActorMap_GetDraft(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(expectedDraft, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-
-	draft, err := actorMap.GetDraft(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
 	assert.NoError(t, err)
+
+	draft := GetDraft(draftActor)
 	assert.Equal(t, expectedDraft.DisplayName, draft.DisplayName)
 	mockStore.AssertExpectations(t)
 }
@@ -148,15 +157,17 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.On("UpdateDraft", mock.Anything, mock.Anything).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	assert.NoError(t, err)
 
-	err := actorMap.UpdateDraft(context.Background(), model.DraftModel{
+	err = UpdateDraft(context.Background(), draftActor, model.DraftModel{
 		Id:          draftId,
 		DisplayName: "Updated",
 	})
 	assert.NoError(t, err)
 
 	// Verify cached state was updated directly without re-querying
-	draft, _ := actorMap.GetDraft(context.Background(), draftId)
+	draft := GetDraft(draftActor)
 	assert.Equal(t, "Updated", draft.DisplayName)
 	mockStore.AssertExpectations(t)
 }
@@ -171,12 +182,14 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.WAITING_TO_START).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	assert.NoError(t, err)
 
-	err := actorMap.ExecuteDraftStateTransition(context.Background(), draftId, model.WAITING_TO_START)
+	err = ExecuteDraftStateTransition(context.Background(), draftActor, model.WAITING_TO_START)
 	assert.NoError(t, err)
 
 	// Verify cached state was updated directly without re-querying
-	draft, _ := actorMap.GetDraft(context.Background(), draftId)
+	draft := GetDraft(draftActor)
 	assert.Equal(t, model.WAITING_TO_START, draft.Status)
 	mockStore.AssertExpectations(t)
 }
@@ -188,7 +201,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier)
 
 	draftId := 1
-	watcher := actorMap.RegisterWatcher(draftId)
+	watcher := RegisterWatcher(actorMap, draftId)
 	assert.NotNil(t, watcher)
 	assert.NotNil(t, watcher.NotifierQueue)
 
@@ -204,7 +217,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 		t.Fatal("watcher should have received event")
 	}
 
-	actorMap.UnregisterWatcher(watcher)
+	UnregisterWatcher(actorMap, watcher)
 
 	// After unregister, watcher should not receive new events
 	select {
@@ -328,10 +341,12 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime_StalePickId(t *testing.T)
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	assert.NoError(t, err)
 
 	// First, test successful modification
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, currentPickId, mock.Anything).Return(nil).Once()
-	err := actorMap.ModifyCurrentPickExpirationTime(context.Background(), draftId, 30*time.Minute)
+	err = ModifyCurrentPickExpirationTime(context.Background(), draftActor, 30*time.Minute)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 
@@ -363,7 +378,7 @@ func TestDraftActor_Shutdown(t *testing.T) {
 	assert.NotNil(t, actor)
 
 	// Shutdown the actor
-	err = actorMap.ShutdownActor(context.Background(), draftId)
+	err = ShutdownActor(actorMap, context.Background(), draftId)
 	assert.NoError(t, err)
 
 	// Verify actor is removed from map

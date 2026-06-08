@@ -687,7 +687,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 
 	go d.notifyListeners(ctx, event)
 
-	return Result{}
+	return Result{Value: true}
 }
 
 func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMessage) Result {

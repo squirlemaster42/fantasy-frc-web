@@ -8,7 +8,6 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
-	"server/picking"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
@@ -181,8 +180,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		return nil
 	}
 
-	watcher := h.DraftActorMap.RegisterWatcher(draftId)
-	_ = (*picking.Watcher)(watcher) // ensure import is used
+	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		log.Warn(ctx, "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		conn.Close()
+		return nil
+	}
+
+	watcher := draft.RegisterWatcher(h.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "Draft Id", draftId)
 		conn.Close()
@@ -215,7 +220,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		h.DraftActorMap.UnregisterWatcher(watcher)
+		draft.UnregisterWatcher(h.DraftActorMap, watcher)
 		conn.Close()
 		<-done
 	}()
@@ -236,11 +241,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			}
 		case <-watcher.NotifierQueue:
 			log.Info(ctx, "Received pick event notification, re-rendering picks", "Draft Id", draftId)
-			draftModel, err := h.DraftActorMap.GetDraft(ctx, draftId)
-			if err != nil {
-				log.Warn(ctx, "Attempting to notify draft that does not exist", "Draft Id", draftId)
-				continue
-			}
+			draftModel := draft.GetDraft(draftActor)
 
 			var html strings.Builder
 			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
