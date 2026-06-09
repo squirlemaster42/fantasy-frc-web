@@ -18,8 +18,8 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
-	log.Info(context.Background(), "Starting Server")
+func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
+	log.Info(ctx, "Starting Server")
 	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
 	app.IPExtractor = echo.ExtractIPDirect()
@@ -27,8 +27,8 @@ func CreateServer(serverPort string, h handler.Handler, database *sql.DB, metric
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")
 
-	if err := metrics.InitMetrics(database); err != nil {
-		log.Warn(context.Background(), "Failed to initialize metrics", "error", err)
+	if err := metrics.InitMetrics(ctx, database); err != nil {
+		log.Warn(ctx, "Failed to initialize metrics", "error", err)
 	}
 
 	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {

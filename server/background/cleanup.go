@@ -22,21 +22,21 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 		database: database,
 		interval: interval,
 		running:  false,
-        startLock: &sync.Mutex{},
+		startLock: &sync.Mutex{},
 	}
 }
 
-func (c *CleanupService) Start() error {
+func (c *CleanupService) Start(ctx context.Context) error {
 	c.startLock.Lock()
 	defer c.startLock.Unlock()
 	if c.running {
 		return errors.New("clean up service already running")
 	}
 	c.running = true
-	log.Info(context.Background(), "Started cleanup service")
+	log.Info(ctx, "Started cleanup service")
 	go func() {
 		for c.running {
-			c.cleanExpiredSessionTokens(context.TODO())
+			c.cleanExpiredSessionTokens(ctx)
 			time.Sleep(time.Duration(c.interval) * time.Minute)
 		}
 	}()

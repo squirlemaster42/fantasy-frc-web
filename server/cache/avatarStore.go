@@ -21,14 +21,13 @@ type AvatarStore struct {
 	tbaHandler tbaHandler.TbaHandler
 }
 
-func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
+func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,
 		DB:       redisDB,
 		Protocol: 2,
 	})
-	ctx := context.Background()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		return AvatarStore{

@@ -22,6 +22,44 @@ type DiscordWebhookBus struct {
 	wg         sync.WaitGroup
 }
 
+func NewBus() *DiscordWebhookBus {
+	d := &DiscordWebhookBus{
+		client: &http.Client{
+			Timeout: 15 * time.Second,
+		},
+		preMatchCh: make(chan PreMatchDiscordEvent, 100),
+		stopCh:     make(chan struct{}),
+	}
+	d.wg.Add(1)
+	go d.worker()
+	return d
+}
+
+func (d *DiscordWebhookBus) Stop() {
+	close(d.stopCh)
+	d.wg.Wait()
+}
+
+func (d *DiscordWebhookBus) worker() {
+	defer d.wg.Done()
+	for {
+		select {
+		case event := <-d.preMatchCh:
+			d.sendPreMatchNotification(context.Background(), event)
+		case <-d.stopCh:
+			// Drain remaining events before stopping.
+			for {
+				select {
+				case event := <-d.preMatchCh:
+					d.sendPreMatchNotification(context.Background(), event)
+				default:
+					return
+				}
+			}
+		}
+	}
+}
+
 type DiscordWebhook struct {
 	Username        string          `json:"username"`
 	Content         string          `json:"content"`
@@ -48,44 +86,6 @@ type NextPickDiscordEvent struct {
 	NextPickDiscordId     sql.NullString
 	Webhook               string
 	ExpirationTime        time.Time
-}
-
-func NewBus() *DiscordWebhookBus {
-	d := &DiscordWebhookBus{
-		client: &http.Client{
-			Timeout: 15 * time.Second,
-		},
-		preMatchCh: make(chan PreMatchDiscordEvent, 100),
-		stopCh:     make(chan struct{}),
-	}
-	d.wg.Add(1)
-	go d.worker()
-	return d
-}
-
-func (d *DiscordWebhookBus) Stop() {
-	close(d.stopCh)
-	d.wg.Wait()
-}
-
-func (d *DiscordWebhookBus) worker() {
-	defer d.wg.Done()
-	for {
-		select {
-		case event := <-d.preMatchCh:
-			d.sendPreMatchNotification(context.TODO(), event)
-		case <-d.stopCh:
-			// Drain remaining events before stopping.
-			for {
-				select {
-				case event := <-d.preMatchCh:
-					d.sendPreMatchNotification(context.TODO(), event)
-				default:
-					return
-				}
-			}
-		}
-	}
 }
 
 func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
@@ -199,7 +199,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Warn(context.TODO(), "Failed to create post pick notification request", "Error", err)
+		log.Warn(context.Background(), "Failed to create post pick notification request", "Error", err)
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")

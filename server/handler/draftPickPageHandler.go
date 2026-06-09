@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -166,7 +165,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		return nil
 	}
 
-	watcher := draft.RegisterWatcher(h.DraftActorMap, draftId)
+	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "Draft Id", draftId)
 		conn.Close()
@@ -199,7 +198,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		draft.UnregisterWatcher(h.DraftActorMap, watcher)
+		draft.UnregisterWatcher(ctx, h.DraftActorMap, watcher)
 		conn.Close()
 		<-done
 	}()
@@ -224,7 +223,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 			var html strings.Builder
 			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
-			err = pickPage.Render(context.TODO(), &html)
+			err = pickPage.Render(ctx, &html)
 			if err != nil {
 				log.Warn(ctx, "Failed to render picks for notifier", "Error", err)
 				continue

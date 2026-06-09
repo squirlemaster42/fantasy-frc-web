@@ -201,7 +201,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier)
 
 	draftId := 1
-	watcher := RegisterWatcher(actorMap, draftId)
+	watcher := RegisterWatcher(context.Background(), actorMap, draftId)
 	assert.NotNil(t, watcher)
 	assert.NotNil(t, watcher.NotifierQueue)
 
@@ -217,7 +217,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 		t.Fatal("watcher should have received event")
 	}
 
-	UnregisterWatcher(actorMap, watcher)
+	UnregisterWatcher(context.Background(), actorMap, watcher)
 
 	// After unregister, watcher should not receive new events
 	select {
@@ -291,8 +291,8 @@ func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Clean up
-	notifier.UnregisterWatcher(watcher1)
-	notifier.UnregisterWatcher(watcher2)
+	notifier.UnregisterWatcher(context.Background(), watcher1)
+	notifier.UnregisterWatcher(context.Background(), watcher2)
 }
 
 func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
@@ -315,7 +315,7 @@ func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
 		t.Fatal("watcher should have received event")
 	}
 
-	notifier.UnregisterWatcher(watcher)
+	notifier.UnregisterWatcher(context.Background(), watcher)
 
 	// After unregister, watcher should not receive new events
 	// (the event will be sent to zero watchers, which is fine)
@@ -441,7 +441,7 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 			defer wg.Done()
 			watcher := notifier.RegisterWatcher(draftId)
 			time.Sleep(10 * time.Millisecond)
-			notifier.UnregisterWatcher(watcher)
+			notifier.UnregisterWatcher(context.Background(), watcher)
 		}()
 	}
 

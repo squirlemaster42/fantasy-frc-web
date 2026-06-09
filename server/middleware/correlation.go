@@ -38,6 +38,14 @@ func GetCorrelationID(ctx context.Context) string {
 	return ""
 }
 
+func CopyContextWithCorrelationID(rootCtx, reqCtx context.Context) context.Context {
+	corrID := GetCorrelationID(reqCtx)
+	if corrID != "" {
+		return context.WithValue(rootCtx, correlationIDKey, corrID)
+	}
+	return rootCtx
+}
+
 func LogWithContext(ctx context.Context) *slog.Logger {
 	logger := slog.Default()
 	if ctx == nil {
