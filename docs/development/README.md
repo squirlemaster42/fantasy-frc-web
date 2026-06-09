@@ -1,6 +1,6 @@
 # Development Documentation
 
-Complete guides for Fantasy FRC development environment, testing, and contribution.
+Complete guides for Fantasy FRC development environment, testing, and contribution
 
 ## 📚 Documentation
 
