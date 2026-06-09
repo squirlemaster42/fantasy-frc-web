@@ -113,6 +113,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 			continue
 		}
 		draftState := draftActor.GetDraftState()
+
 		skipped := false
 
 		//Check if the current player if skipping their pick. If so we
@@ -132,7 +133,7 @@ func (d *DraftDaemon) checkForPicksToSkip() {
 		now := time.Now()
 		if draftState.CurrentPick.ExpirationTime.Before(now) && !skipped {
 			log.DebugNoContext("Pick expired", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
-			skipped = draft.SkipCurrentPick(context.TODO(), draftActor, draftId, draftState.CurrentPick.Id)
+			draft.SkipCurrentPick(context.TODO(), draftActor, draftId, draftState.CurrentPick.Id)
 		} else {
 			log.DebugNoContext("Pick is not expired yet", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
 		}

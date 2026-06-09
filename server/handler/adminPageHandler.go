@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -123,22 +124,7 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 		return "Not Enough Players Have Accepted The Draft"
 	}
 
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.StateTransitionMessage{
-			RequestedState: model.WAITING_TO_START,
-		},
-		Reply: replyChan,
-	}
-	draftActor.PostMessage(ctx, message)
-	select {
-	case result := <- message.Reply:
-		if result.Error != nil {
-			err = result.Error
-		}
-	case <- time.After(5 * time.Second):
-		log.Warn(ctx, "State transition timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
-	}
+	err = draft.ExecuteDraftStateTransition(ctx, draftActor, model.WAITING_TO_START)
 
 	if err != nil {
 		log.Error(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
@@ -189,18 +175,23 @@ func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 		},
 		Reply: replyChan,
 	}
-	draftActor.PostMessage(ctx, message)
-	select {
-	case result := <- message.Reply:
-		if result.Error != nil || !result.Value.(bool) {
-			log.Warn(ctx, "Skipping current pick in draft failed", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id, "Error", result.Error)
+	err = draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post skip message to draft actor", "Draft Id", draftId, "Error", err)
+	} else {
+		select {
+		case result := <- message.Reply:
+			if result.Error != nil {
+				log.Warn(ctx, "Skipping current pick in draft failed", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id, "Error", result.Error)
+				err = result.Error
+				skipped = false
+			} else {
+				skipped = true
+			}
+		case <- time.After(5 * time.Second):
+			log.Warn(ctx, "Skipping current pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
 			skipped = false
-		} else {
-			skipped = true
 		}
-	case <- time.After(5 * time.Second):
-		log.Warn(ctx, "Skipping current pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
-		skipped = false
 	}
 	if err != nil {
 		return "Failed to skip player: " + err.Error()
@@ -263,14 +254,20 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler t
 		},
 		Reply: replyChan,
 	}
-	draftActor.PostMessage(ctx, message)
-	select {
-	case result := <- message.Reply:
-		if result.Error != nil || !result.Value.(bool) {
-			log.Warn(ctx, "Extending pick expiration time failed", "Draft Id", draftId, "Pick Id", pickId, "Error", result.Error)
+	err = draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post modify expiration time message", "Draft Id", draftId, "Error", err)
+	} else {
+		select {
+		case result := <- message.Reply:
+			if result.Error != nil {
+				log.Warn(ctx, "Extending pick expiration time failed", "Draft Id", draftId, "Pick Id", pickId, "Error", result.Error)
+				err = result.Error
+			}
+		case <- time.After(5 * time.Second):
+			log.Warn(ctx, "Extending pick expiration time timed out", "Draft Id", draftId)
+			err = errors.New("timeout extending pick expiration time")
 		}
-	case <- time.After(5 * time.Second):
-		log.Warn(ctx, "Extending pick expiration time timed out", "Draft Id", draftId)
 	}
 
 	if err != nil {
@@ -336,7 +333,11 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 		},
 		Reply: replyChan,
 	}
-	draftActor.PostMessage(context.TODO(), message)
+	err = draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post pick message", "Draft Id", draftId, "Error", err)
+		return err.Error()
+	}
 	var pickError error
 	select {
 	case result := <- message.Reply:
@@ -349,7 +350,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 	}
 	if pickError != nil {
 		log.Warn(ctx, "Could Not Make Pick", "Current Pick", "Pick", tbaId, "Error", err)
-		return err.Error()
+		return pickError.Error()
 	}
 
 	return fmt.Sprintf("Successfully picked team %s", teamStr)
@@ -381,16 +382,17 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaH
 	}
 
 	// Fetch the draft
-	draft, err := draftManager.GetDraft(draftId, true)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
+	draftModel := draft.GetDraft(draftActor)
 
-	oldName := draft.Model.DisplayName
-	draft.Model.DisplayName = newName
+	oldName := draftModel.DisplayName
+	draftModel.DisplayName = newName
 
 	// Update the draft
-	err = draftManager.UpdateDraft(*draft.Model)
+	err = draft.UpdateDraft(ctx, draftActor, draftModel)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft name", "Draft Id", draftId, "Error", err)
 		return "Failed to update draft name"
@@ -415,12 +417,17 @@ func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	err = draftManager.UndoLastPick(draftId)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	err = draft.UndoLastPick(ctx, draftActor)
 	if err != nil {
 		return err.Error()
 	}
 
-	return "Successfully undid pick. Player %s now has until %s to make their pick"
+	return "Successfully undid pick"
 }
 
 var commands = map[string]Command{

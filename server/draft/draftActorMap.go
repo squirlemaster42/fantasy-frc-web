@@ -20,13 +20,13 @@ type DraftActorMap struct {
 	pickNotifier *picking.PickNotifier
 }
 
-func NewDraftActorMap(draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordStore model.DiscordStore, discordWebhookBus *discord.DiscordWebhookBus) (*DraftActorMap) {
+func NewDraftActorMap(draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordStore model.DiscordStore, discordWebhookBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) *DraftActorMap {
 	return &DraftActorMap{
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordStore: discordStore,
 		discordWebhookBus: discordWebhookBus,
-		// TODO how do we new up this? pickNotifier: pickNotifier,
+		pickNotifier: pickNotifier,
 	}
 }
 
@@ -36,17 +36,19 @@ func (d *DraftActorMap) GetActor(ctx context.Context, draftId int) (*DraftActor,
 		d.getLoadLock(draftId).Lock()
 		defer d.getLoadLock(draftId).Unlock()
 
-		actor, ok := d.actorMap.Load(draftId)
+		actor, ok = d.actorMap.Load(draftId)
 		if ok {
 			// Actor was loaded by another process before we got the lock
 			// We dont want to load it again
 			return actor.(*DraftActor), nil
 		}
 
-		actor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier)
+		newActor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier)
 		if err != nil {
 			return nil, err
 		}
+		d.actorMap.Store(draftId, newActor)
+		return newActor, nil
 	}
 	return actor.(*DraftActor), nil
 }

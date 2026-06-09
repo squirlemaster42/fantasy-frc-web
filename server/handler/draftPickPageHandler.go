@@ -8,7 +8,6 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
-	"server/picking"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
@@ -76,30 +75,15 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 		},
 	}
 
+	var pickError error
 	if pick == "frc" || !isCurrentPick {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid)
-        pickError := errors.New("you must be the picking player to make a pick")
+        pickError = errors.New("you must be the picking player to make a pick")
         return h.renderPickPage(c, draftId, userUuid, pickError, false)
 	}
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.PickMessage{
-			Pick: pickStruct,
-		},
-		Reply: replyChan,
-	}
-	draftActor.PostMessage(context.TODO(), message)
-	var pickError error
-	select {
-	case result := <- message.Reply:
-		if result.Error != nil {
-			pickError = result.Error
-		}
-	case <- time.After(5 * time.Second):
-		log.Warn(c.Request().Context(), "making pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
-	}
+	pickError = draft.MakePick(c.Request().Context(), draftActor, pickStruct)
 	if pickError != nil {
-		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", err)
+		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", pickError)
 	}
 
 	return h.renderPickPage(c, draftId, userUuid, pickError, false)
@@ -153,20 +137,6 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	}
 }
 
-type WebSocketListener struct {
-	messageQueue chan picking.PickEvent
-}
-
-func (w *WebSocketListener) ReceivePickEvent(pickEvent picking.PickEvent) error {
-	select {
-	case w.messageQueue <- pickEvent:
-		return nil
-	case <-time.After(5 * time.Second):
-		log.Warn(context.TODO(), "Timeout sending pick event to websocket listener", "Listener", w)
-		return errors.New("timeout sending to listener")
-	}
-}
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -189,10 +159,19 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		return nil
 	}
 
-	wsl := WebSocketListener{
-		messageQueue: make(chan picking.PickEvent, 10),
+	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		log.Warn(ctx, "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		conn.Close()
+		return nil
 	}
-	h.DraftManager.AddPickListener(draftId, &wsl)
+
+	watcher := draft.RegisterWatcher(h.DraftActorMap, draftId)
+	if watcher == nil {
+		log.Error(ctx, "Failed to register watcher for draft", "Draft Id", draftId)
+		conn.Close()
+		return nil
+	}
 
 	done := make(chan struct{})
 	go func() {
@@ -220,7 +199,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		h.DraftManager.RemovePickListener(draftId, &wsl)
+		draft.UnregisterWatcher(h.DraftActorMap, watcher)
 		conn.Close()
 		<-done
 	}()
@@ -239,14 +218,9 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 				log.Warn(ctx, "Failed to write ping message", "Draft Id", draftId, "Error", err)
 				return nil
 			}
-		case msg := <-wsl.messageQueue:
-			log.Info(ctx, "Writing pick event to client", "Event", msg)
-			cachedDraft, err := h.DraftManager.GetDraft(draftId, false)
-			if err != nil {
-				log.Warn(ctx, "Attempting to notify draft that does not exist", "Draft Id", draftId)
-				continue
-			}
-			draftModel := *cachedDraft.Model
+		case <-watcher.NotifierQueue:
+			log.Info(ctx, "Received pick event notification, re-rendering picks", "Draft Id", draftId)
+			draftModel := draft.GetDraft(draftActor)
 
 			var html strings.Builder
 			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)

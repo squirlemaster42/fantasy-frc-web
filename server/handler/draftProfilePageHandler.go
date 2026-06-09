@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"server/draft"
 	"server/log"
 	"server/model"
 	draftView "server/view/draft"
@@ -118,8 +119,13 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		DiscordWebhook: discordWebhook,
 	}
 
-	err = h.DraftManager.UpdateDraft(draftModel)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+		return err
+	}
 
+	err = draft.UpdateDraft(c.Request().Context(), draftActor, draftModel)
 	if err != nil {
 		return err
 	}
@@ -176,17 +182,18 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	// Check that the draft is in the correct state
-	draft, err := h.DraftManager.GetDraft(draftId, false)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to load draft", "Draft Id", draftId, "Error", err)
 		return err
 	}
+	draftModel := draft.GetDraft(draftActor)
 
-	if draft.GetStatus() != model.FILLING {
+	if draftModel.Status != model.FILLING {
 		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to invite players")
 	}
 
-	isOwner := userUuid == draft.GetOwner().UserUuid
+	isOwner := userUuid == draftModel.Owner.UserUuid
 	if !isOwner {
 		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
@@ -207,7 +214,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return nil
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err = h.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
 	}
@@ -237,15 +244,16 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draft, err := h.DraftManager.GetDraft(draftId, true)
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not load draft", "Draft Id", draftId, "Error", err)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false, h.csrfToken(c))
 		return Render(c, page)
 	}
+	draftModel := draft.GetDraft(draftActor)
 
-	if draft.GetOwner().UserUuid != requestingUser {
+	if draftModel.Owner.UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "Draft Id", draftId, "User", requestingUser)
 		c.Response().Status = http.StatusUnauthorized
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false, h.csrfToken(c))
@@ -254,7 +262,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	// Check that eight players have accepted the draft
 	numAccepted := 0
-	for _, p := range draft.Model.Players {
+	for _, p := range draftModel.Players {
 		if !p.Pending {
 			numAccepted++
 		}
@@ -278,7 +286,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
-	err = h.DraftManager.ExecuteDraftStateTransition(c.Request().Context(), draftId, model.WAITING_TO_START)
+	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.WAITING_TO_START)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err
