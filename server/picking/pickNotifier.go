@@ -19,7 +19,7 @@ type PickEvent struct {
 }
 
 type PickListener interface {
-	ReceivePickEvent(pickEvent PickEvent) error
+	ReceivePickEvent(ctx context.Context, pickEvent PickEvent) error
 }
 
 //We need to store a set of connected clients
@@ -85,7 +85,7 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 	return w[:len(w)-1]
 }
 
-func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
+func (pn *PickNotifier) ReceivePickEvent(ctx context.Context, pickEvent PickEvent) error {
 	pn.mu.RLock()
 	watchers := make([]Watcher, len(pn.Watchers[pickEvent.DraftId]))
 	copy(watchers, pn.Watchers[pickEvent.DraftId])
@@ -97,20 +97,20 @@ func (pn *PickNotifier) ReceivePickEvent(pickEvent PickEvent) error {
 		case watcher.NotifierQueue <- true:
 			// Sent successfully
 		case <-time.After(5 * time.Second):
-			log.Warn(context.TODO(), "Timeout sending to watcher, skipping", "Watcher Id", watcher.WatcherId)
+			log.Warn(ctx, "Timeout sending to watcher, skipping", "Watcher Id", watcher.WatcherId)
 			// Continue notifying remaining watchers; do not return error
 		}
 	}
 	return nil
 }
 
-func (pn *PickNotifier) NotifyWatchers(draftId int) {
+func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
 	pn.mu.RLock()
 	watchers := make([]Watcher, len(pn.Watchers[draftId]))
 	copy(watchers, pn.Watchers[draftId])
 	pn.mu.RUnlock()
 
-	log.Info(context.TODO(), "Notifying Watchers", "Draft Id", draftId, "Num Watchers", len(watchers))
+	log.Info(ctx, "Notifying Watchers", "Draft Id", draftId, "Num Watchers", len(watchers))
 	for _, watcher := range watchers {
 		select {
 		case watcher.NotifierQueue <- true:

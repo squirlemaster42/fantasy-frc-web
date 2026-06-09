@@ -828,7 +828,7 @@ func (d *DraftActor) notifyListeners(ctx context.Context, pickEvent picking.Pick
 
 	if d.pickNotifier != nil {
 		go func() {
-			if err := d.pickNotifier.ReceivePickEvent(pickEvent); err != nil {
+			if err := d.pickNotifier.ReceivePickEvent(ctx, pickEvent); err != nil {
 				log.Warn(ctx, "PickNotifier returned error", "Draft Id", pickEvent.DraftId, "Error", err)
 			}
 		}()

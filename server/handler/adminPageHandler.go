@@ -124,26 +124,7 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 		return "Not Enough Players Have Accepted The Draft"
 	}
 
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.StateTransitionMessage{
-			RequestedState: model.WAITING_TO_START,
-		},
-		Reply: replyChan,
-	}
-	err = draftActor.PostMessage(ctx, message)
-	if err != nil {
-		log.Error(ctx, "Failed to post state transition message", "Draft Id", draftId, "Error", err)
-	} else {
-		select {
-		case result := <- message.Reply:
-			if result.Error != nil {
-				err = result.Error
-			}
-		case <- time.After(5 * time.Second):
-			log.Warn(ctx, "State transition timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
-		}
-	}
+	err = draft.ExecuteDraftStateTransition(ctx, draftActor, model.WAITING_TO_START)
 
 	if err != nil {
 		log.Error(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
@@ -369,7 +350,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 	}
 	if pickError != nil {
 		log.Warn(ctx, "Could Not Make Pick", "Current Pick", "Pick", tbaId, "Error", err)
-		return err.Error()
+		return pickError.Error()
 	}
 
 	return fmt.Sprintf("Successfully picked team %s", teamStr)

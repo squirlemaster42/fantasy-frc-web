@@ -207,7 +207,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 
 	// Verify watcher receives events before unregister
 	event := picking.PickEvent{DraftId: draftId, Pick: model.Pick{Id: 1}}
-	err := notifier.ReceivePickEvent(event)
+	err := notifier.ReceivePickEvent(context.Background(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -287,7 +287,7 @@ func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
 	}
 
 	// Should not return error even if watchers are slow
-	err := notifier.ReceivePickEvent(event)
+	err := notifier.ReceivePickEvent(context.Background(), event)
 	assert.NoError(t, err)
 
 	// Clean up
@@ -305,7 +305,7 @@ func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
 
 	// Verify watcher receives events before unregister
 	event := picking.PickEvent{DraftId: draftId, Pick: model.Pick{Id: 1}}
-	err := notifier.ReceivePickEvent(event)
+	err := notifier.ReceivePickEvent(context.Background(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -319,7 +319,7 @@ func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
 
 	// After unregister, watcher should not receive new events
 	// (the event will be sent to zero watchers, which is fine)
-	err = notifier.ReceivePickEvent(event)
+	err = notifier.ReceivePickEvent(context.Background(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -454,7 +454,7 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 				DraftId: draftId,
 				Pick:    model.Pick{Id: i},
 			}
-			err := notifier.ReceivePickEvent(event)
+			err := notifier.ReceivePickEvent(context.Background(), event)
 			assert.NoError(t, err)
 		}()
 	}

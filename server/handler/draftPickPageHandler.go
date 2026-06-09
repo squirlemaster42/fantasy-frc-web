@@ -81,28 +81,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
         pickError = errors.New("you must be the picking player to make a pick")
         return h.renderPickPage(c, draftId, userUuid, pickError, false)
 	}
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.PickMessage{
-			Pick: pickStruct,
-		},
-		Reply: replyChan,
-	}
-	err = draftActor.PostMessage(c.Request().Context(), message)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to post pick message", "Draft Id", draftId, "Error", err)
-		pickError = err
-	} else {
-		select {
-		case result := <- message.Reply:
-			if result.Error != nil {
-				pickError = result.Error
-			}
-		case <- time.After(5 * time.Second):
-			log.Warn(c.Request().Context(), "making pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
-			pickError = errors.New("timeout making pick")
-		}
-	}
+	pickError = draft.MakePick(c.Request().Context(), draftActor, pickStruct)
 	if pickError != nil {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "Current Pick", isCurrentPick, "Pick", pick, "User Uuid", userUuid, "Error", pickError)
 	}
