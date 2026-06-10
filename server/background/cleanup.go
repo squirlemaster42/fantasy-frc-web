@@ -64,7 +64,7 @@ func (c *CleanupService) cleanExpiredSessionTokens(ctx context.Context) {
 			log.Warn(ctx, "CleanExpiredSessionTokens: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.ExecContext(ctx, )
+	_, err = stmt.ExecContext(ctx)
 	assert.NoError(ctx, err, "Failed To Cleanup Session Tokens")
 	log.Info(ctx, "Finished iteration of cleanup service")
 }

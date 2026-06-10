@@ -1,7 +1,6 @@
 package draft
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -23,12 +22,12 @@ func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
 	// First call creates the actor
-	actor1, err := actorMap.GetActor(context.Background(), draftId)
+	actor1, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor1)
 
 	// Second call returns cached actor
-	actor2, err := actorMap.GetActor(context.Background(), draftId)
+	actor2, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 	assert.Equal(t, actor1, actor2)
 
@@ -42,7 +41,7 @@ func TestDraftActorMap_GetActor_ReturnsError(t *testing.T) {
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
-	actor, err := actorMap.GetActor(context.Background(), draftId)
+	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.Error(t, err)
 	assert.Nil(t, actor)
 	mockStore.AssertExpectations(t)
@@ -65,10 +64,10 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	skipped := SkipCurrentPick(context.Background(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
 	assert.True(t, skipped)
 	mockStore.AssertExpectations(t)
 }
@@ -84,10 +83,10 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, pickId, mock.Anything).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	err = ModifyCurrentPickExpirationTime(context.Background(), draftActor, 30*time.Minute)
+	err = ModifyCurrentPickExpirationTime(t.Context(), draftActor, 30*time.Minute)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
@@ -102,7 +101,7 @@ func TestDraftActorMap_GetCurrentPick(t *testing.T) {
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
 	pick := GetCurrentPick(draftActor)
@@ -127,10 +126,10 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	err = UndoLastPick(context.Background(), draftActor)
+	err = UndoLastPick(t.Context(), draftActor)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
@@ -142,7 +141,7 @@ func TestDraftActorMap_GetDraft(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(expectedDraft, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
 	draft := GetDraft(draftActor)
@@ -157,10 +156,10 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.On("UpdateDraft", mock.Anything, mock.Anything).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	err = UpdateDraft(context.Background(), draftActor, model.DraftModel{
+	err = UpdateDraft(t.Context(), draftActor, model.DraftModel{
 		Id:          draftId,
 		DisplayName: "Updated",
 	})
@@ -182,10 +181,10 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.WAITING_TO_START).Return(nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	err = ExecuteDraftStateTransition(context.Background(), draftActor, model.WAITING_TO_START)
+	err = ExecuteDraftStateTransition(t.Context(), draftActor, model.WAITING_TO_START)
 	assert.NoError(t, err)
 
 	// Verify cached state was updated directly without re-querying
@@ -201,13 +200,13 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier)
 
 	draftId := 1
-	watcher := RegisterWatcher(context.Background(), actorMap, draftId)
+	watcher := RegisterWatcher(t.Context(), actorMap, draftId)
 	assert.NotNil(t, watcher)
 	assert.NotNil(t, watcher.NotifierQueue)
 
 	// Verify watcher receives events before unregister
 	event := picking.PickEvent{DraftId: draftId, Pick: model.Pick{Id: 1}}
-	err := notifier.ReceivePickEvent(context.Background(), event)
+	err := notifier.ReceivePickEvent(t.Context(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -217,7 +216,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 		t.Fatal("watcher should have received event")
 	}
 
-	UnregisterWatcher(context.Background(), actorMap, watcher)
+	UnregisterWatcher(t.Context(), actorMap, watcher)
 
 	// After unregister, watcher should not receive new events
 	select {
@@ -244,7 +243,7 @@ func TestDraftActor_handleMessage_UnknownType(t *testing.T) {
 func TestDraftActor_handleDeclineInvite_NotSupported(t *testing.T) {
 	actor := &DraftActor{}
 
-	result := actor.handleDeclineInvite(context.Background(), DeclineInviteMessage{})
+	result := actor.handleDeclineInvite(t.Context(), DeclineInviteMessage{})
 
 	assert.Error(t, result.Error)
 	assert.Contains(t, result.Error.Error(), "not yet supported")
@@ -253,7 +252,7 @@ func TestDraftActor_handleDeclineInvite_NotSupported(t *testing.T) {
 func TestDraftActor_handleTransferDraftOwnership_NotSupported(t *testing.T) {
 	actor := &DraftActor{}
 
-	result := actor.handleTransferDraftOwnership(context.Background(), TransferDraftOwnershipMessage{})
+	result := actor.handleTransferDraftOwnership(t.Context(), TransferDraftOwnershipMessage{})
 
 	assert.Error(t, result.Error)
 	assert.Contains(t, result.Error.Error(), "not yet supported")
@@ -287,12 +286,12 @@ func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
 	}
 
 	// Should not return error even if watchers are slow
-	err := notifier.ReceivePickEvent(context.Background(), event)
+	err := notifier.ReceivePickEvent(t.Context(), event)
 	assert.NoError(t, err)
 
 	// Clean up
-	notifier.UnregisterWatcher(context.Background(), watcher1)
-	notifier.UnregisterWatcher(context.Background(), watcher2)
+	notifier.UnregisterWatcher(t.Context(), watcher1)
+	notifier.UnregisterWatcher(t.Context(), watcher2)
 }
 
 func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
@@ -305,7 +304,7 @@ func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
 
 	// Verify watcher receives events before unregister
 	event := picking.PickEvent{DraftId: draftId, Pick: model.Pick{Id: 1}}
-	err := notifier.ReceivePickEvent(context.Background(), event)
+	err := notifier.ReceivePickEvent(t.Context(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -315,11 +314,11 @@ func TestPickNotifier_UnregisterWatcher_CleansUpEmptyEntries(t *testing.T) {
 		t.Fatal("watcher should have received event")
 	}
 
-	notifier.UnregisterWatcher(context.Background(), watcher)
+	notifier.UnregisterWatcher(t.Context(), watcher)
 
 	// After unregister, watcher should not receive new events
 	// (the event will be sent to zero watchers, which is fine)
-	err = notifier.ReceivePickEvent(context.Background(), event)
+	err = notifier.ReceivePickEvent(t.Context(), event)
 	assert.NoError(t, err)
 
 	select {
@@ -341,12 +340,12 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime_StalePickId(t *testing.T)
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(context.Background(), draftId)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
 	// First, test successful modification
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, currentPickId, mock.Anything).Return(nil).Once()
-	err = ModifyCurrentPickExpirationTime(context.Background(), draftActor, 30*time.Minute)
+	err = ModifyCurrentPickExpirationTime(t.Context(), draftActor, 30*time.Minute)
 	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 
@@ -359,7 +358,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime_StalePickId(t *testing.T)
 			CurrentPick: model.Pick{Id: currentPickId},
 		},
 	}
-	result := actor.handleModifyExpirationTime(context.Background(), ModifyExpirationTimeMessage{
+	result := actor.handleModifyExpirationTime(t.Context(), ModifyExpirationTimeMessage{
 		PickId:    stalePickId,
 		Extension: 30 * time.Minute,
 	})
@@ -373,12 +372,12 @@ func TestDraftActor_Shutdown(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	actor, err := actorMap.GetActor(context.Background(), draftId)
+	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 
 	// Shutdown the actor
-	err = ShutdownActor(actorMap, context.Background(), draftId)
+	err = ShutdownActor(actorMap, t.Context(), draftId)
 	assert.NoError(t, err)
 
 	// Verify actor is removed from map
@@ -387,7 +386,7 @@ func TestDraftActor_Shutdown(t *testing.T) {
 
 	// Posting a message to a shutdown actor should return an error
 	msg := Message{Content: StateTransitionMessage{RequestedState: model.FILLING}}
-	err = actor.PostMessage(context.Background(), msg)
+	err = actor.PostMessage(t.Context(), msg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "shutting down")
 }
@@ -407,7 +406,7 @@ func TestDraftActorMap_ConcurrentGetActor(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			actor, err := actorMap.GetActor(context.Background(), draftId)
+			actor, err := actorMap.GetActor(t.Context(), draftId)
 			assert.NoError(t, err)
 			assert.NotNil(t, actor)
 			mu.Lock()
@@ -441,7 +440,7 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 			defer wg.Done()
 			watcher := notifier.RegisterWatcher(draftId)
 			time.Sleep(10 * time.Millisecond)
-			notifier.UnregisterWatcher(context.Background(), watcher)
+			notifier.UnregisterWatcher(t.Context(), watcher)
 		}()
 	}
 
@@ -454,7 +453,7 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 				DraftId: draftId,
 				Pick:    model.Pick{Id: i},
 			}
-			err := notifier.ReceivePickEvent(context.Background(), event)
+			err := notifier.ReceivePickEvent(t.Context(), event)
 			assert.NoError(t, err)
 		}()
 	}
@@ -474,7 +473,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 		CurrentPick: model.Pick{Id: 42},
 	}, nil).Once()
 
-	actor, err := NewDraftActor(context.Background(), draftId, mockStore, nil, nil, nil, nil)
+	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 
@@ -505,7 +504,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 					Reply:   replyChan,
 				}
 			}
-			err := actor.PostMessage(context.Background(), msg)
+			err := actor.PostMessage(t.Context(), msg)
 			if err != nil {
 				return
 			}
@@ -528,19 +527,19 @@ func TestDraftActor_getPreviousPick_Errors(t *testing.T) {
 	}
 
 	// No picks
-	pick, err := actor.getPreviousPick(context.Background())
+	pick, err := actor.getPreviousPick(t.Context())
 	assert.Error(t, err)
 	assert.Equal(t, model.Pick{}, pick)
 
 	// Only one pick
 	actor.draftState.Picks = []model.Pick{{Id: 1}}
-	pick, err = actor.getPreviousPick(context.Background())
+	pick, err = actor.getPreviousPick(t.Context())
 	assert.Error(t, err)
 	assert.Equal(t, model.Pick{}, pick)
 
 	// Two picks - should return the first
 	actor.draftState.Picks = []model.Pick{{Id: 1}, {Id: 2}}
-	pick, err = actor.getPreviousPick(context.Background())
+	pick, err = actor.getPreviousPick(t.Context())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, pick.Id)
 }

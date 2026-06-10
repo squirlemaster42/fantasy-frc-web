@@ -13,7 +13,6 @@ import (
 	"os"
 	"server/discord"
 	"server/log"
-	"server/middleware"
 	"server/swagger"
 	"server/utils"
 	"strconv"
@@ -68,33 +67,31 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 		return nil
 	}
 
-	webhookCtx := middleware.CopyContextWithCorrelationID(context.Background(), c.Request().Context())
-
 	if event.MessageType == "verification" {
-		h.HandleVerificationEvent(webhookCtx, event.MessageData)
+		h.HandleVerificationEvent(c.Request().Context(), event.MessageData)
 		return c.NoContent(http.StatusOK)
 	}
 
 	log.Info(c.Request().Context(), "Routing event", "Message Type", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		go h.HandleUpcomingMatchEvent(webhookCtx, event.MessageData)
+		go h.HandleUpcomingMatchEvent(c.Request().Context(), event.MessageData)
 	case "match_score":
-		go h.HandleMatchScoreEvent(webhookCtx, event.MessageData)
+		go h.HandleMatchScoreEvent(c.Request().Context(), event.MessageData)
 	case "match_video":
-		h.HandleMatchVideoEvent(webhookCtx, event.MessageData)
+		h.HandleMatchVideoEvent(c.Request().Context(), event.MessageData)
 	case "starting_comp_level":
-		h.HandleCompLevelStartingEvent(webhookCtx, event.MessageData)
+		h.HandleCompLevelStartingEvent(c.Request().Context(), event.MessageData)
 	case "alliance_selection":
-		go h.HandleAllianceSelectionEvent(webhookCtx, event.MessageData)
+		go h.HandleAllianceSelectionEvent(c.Request().Context(), event.MessageData)
 	case "awards_posted":
-		h.HandleAwardsPostedEvent(webhookCtx, event.MessageData)
+		h.HandleAwardsPostedEvent(c.Request().Context(), event.MessageData)
 	case "schedule_updated":
-		h.HandleEventScheduleUpdatedEvent(webhookCtx, event.MessageData)
+		h.HandleEventScheduleUpdatedEvent(c.Request().Context(), event.MessageData)
 	case "ping":
-		h.HandlePingEvent(webhookCtx, event.MessageData)
+		h.HandlePingEvent(c.Request().Context(), event.MessageData)
 	case "broadcast":
-		h.HandleBroadcastEvent(webhookCtx, event.MessageData)
+		h.HandleBroadcastEvent(c.Request().Context(), event.MessageData)
 	default:
 		log.Warn(c.Request().Context(), "Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
 	}
