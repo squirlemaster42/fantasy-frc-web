@@ -18,7 +18,7 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 		},
 		Reply: replyChan,
 	}
-	err := draftActor.PostMessage(context.TODO(), message)
+	err := draftActor.PostMessage(ctx, message)
 	if err != nil {
 		log.Warn(ctx, "Failed to post skip message to draft actor", "Draft Id", draftId, "Error", err)
 		return false
@@ -186,17 +186,17 @@ func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) er
 	return nil
 }
 
-func RegisterWatcher(actorMap *DraftActorMap, draftId int) *picking.Watcher {
+func RegisterWatcher(ctx context.Context, actorMap *DraftActorMap, draftId int) *picking.Watcher {
 	if actorMap.pickNotifier == nil {
-		log.Warn(context.TODO(), "PickNotifier is nil, cannot register watcher")
+		log.Warn(ctx, "PickNotifier is nil, cannot register watcher")
 		return nil
 	}
 	return actorMap.pickNotifier.RegisterWatcher(draftId)
 }
 
-func UnregisterWatcher(actorMap *DraftActorMap, watcher *picking.Watcher) {
+func UnregisterWatcher(ctx context.Context, actorMap *DraftActorMap, watcher *picking.Watcher) {
 	if actorMap.pickNotifier == nil || watcher == nil {
 		return
 	}
-	actorMap.pickNotifier.UnregisterWatcher(watcher)
+	actorMap.pickNotifier.UnregisterWatcher(ctx, watcher)
 }

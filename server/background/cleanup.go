@@ -22,21 +22,21 @@ func NewCleanupService(database *sql.DB, interval int) *CleanupService {
 		database: database,
 		interval: interval,
 		running:  false,
-        startLock: &sync.Mutex{},
+		startLock: &sync.Mutex{},
 	}
 }
 
-func (c *CleanupService) Start() error {
+func (c *CleanupService) Start(ctx context.Context) error {
 	c.startLock.Lock()
 	defer c.startLock.Unlock()
 	if c.running {
 		return errors.New("clean up service already running")
 	}
 	c.running = true
-	log.Info(context.Background(), "Started cleanup service")
+	log.Info(ctx, "Started cleanup service")
 	go func() {
 		for c.running {
-			c.cleanExpiredSessionTokens(context.TODO())
+			c.cleanExpiredSessionTokens(ctx)
 			time.Sleep(time.Duration(c.interval) * time.Minute)
 		}
 	}()
@@ -64,7 +64,7 @@ func (c *CleanupService) cleanExpiredSessionTokens(ctx context.Context) {
 			log.Warn(ctx, "CleanExpiredSessionTokens: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.ExecContext(ctx, )
+	_, err = stmt.ExecContext(ctx)
 	assert.NoError(ctx, err, "Failed To Cleanup Session Tokens")
 	log.Info(ctx, "Finished iteration of cleanup service")
 }

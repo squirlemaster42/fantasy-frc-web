@@ -31,6 +31,9 @@ import (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	assert := assert.CreateAssertWithContext("Main")
 
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
@@ -44,11 +47,11 @@ func main() {
 		log.SetLevel(log.LevelDebug)
 	}
 
-	log.Info(context.Background(), "-------- Starting Fantasy FRC --------")
+	log.Info(ctx, "-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Info(context.Background(), "No .env file loaded, using environment variables")
+		log.Info(ctx, "No .env file loaded, using environment variables")
 	}
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
@@ -103,19 +106,19 @@ func main() {
 		}
 	}
 
-	log.Info(context.Background(), "Extracted Env Vars")
-	database, err := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	log.Info(ctx, "Extracted Env Vars")
+	database, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
-		log.Error(context.Background(), "Failed to register database connection", "error", err)
+		log.Error(ctx, "Failed to register database connection", "error", err)
 		os.Exit(1)
 	}
-	log.Info(context.Background(), "Registered Database Connection")
+	log.Info(ctx, "Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
 	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
 	if err != nil {
-		log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
 		secureHttpCookie = true
 	}
 
@@ -134,33 +137,33 @@ func main() {
 	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier)
 	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
-	err = draftDaemon.Start()
+	err = draftDaemon.Start(ctx)
 	if err != nil {
-		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
+		log.Warn(ctx, "Failed to start draft daemon", "Error", err)
 		panic("failed to start draft manager")
 	}
 
 	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts, err := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
+	drafts, err := draftStore.GetDraftsInStatus(ctx, model.PICKING)
 	if err != nil {
-		log.Warn(context.Background(), "Could not get any drafts in picking status", "Error", err)
+		log.Warn(ctx, "Could not get any drafts in picking status", "Error", err)
 	} else {
 		for _, draftId := range drafts {
-			err = draftDaemon.AddDraft(draftId)
+			err = draftDaemon.AddDraft(ctx, draftId)
 			if err != nil {
-				log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+				log.Warn(ctx, "Failed to add draft to manager in init", "Error", err)
 			}
 		}
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
 	if !*skipScoring {
-		log.Info(context.Background(), "Started Scorer")
-		scorer.RunScorer()
+		log.Info(ctx, "Started Scorer")
+		scorer.RunScorer(ctx)
 	}
 
 	cleanupService := background.NewCleanupService(database, 60)
-	err = cleanupService.Start()
+	err = cleanupService.Start(ctx)
 	if err != nil {
 		slog.Error("Failed to start cleanup service", "Error", err)
 	}
@@ -169,8 +172,8 @@ func main() {
 		redisAddr = "localhost:6379"
 	}
 
-	avatarStore, err := cache.NewAvatarStore(*tbaHandler, redisAddr, redisPassword, redisAvatarDB)
-	assert.NoError(context.Background(), err, "Failed to create avatar store")
+	avatarStore, err := cache.NewAvatarStore(ctx, *tbaHandler, redisAddr, redisPassword, redisAvatarDB)
+	assert.NoError(ctx, err, "Failed to create avatar store")
 
 	handler := handler.Handler{
 		DraftStore:        draftStore,
@@ -189,23 +192,23 @@ func main() {
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		log.Warn(context.Background(), "Unable to open tba webhook secret file", "Error", err)
+		log.Warn(ctx, "Unable to open tba webhook secret file", "Error", err)
 	} else {
 		body, err := io.ReadAll(file)
 		if err != nil {
-			log.Warn(context.Background(), "Failed to read tba webhook file body", "Error", err)
+			log.Warn(ctx, "Failed to read tba webhook file body", "Error", err)
 		} else {
 			handler.TbaVerificationCode = string(body)
 		}
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
+	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
 
 	go func() {
 		err := app.Start(":" + serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			assert.NoError(context.Background(), err, "Failed to start server")
+			assert.NoError(ctx, err, "Failed to start server")
 		}
 	}()
 
@@ -214,18 +217,20 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	<-shutdownChan
 
-	log.Info(context.Background(), "Shutting down gracefully...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	log.Info(ctx, "Shutting down gracefully...")
+	cancel()
 
-	if err := app.Shutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown server gracefully", "error", err)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := app.Shutdown(shutdownCtx); err != nil {
+		log.Warn(ctx, "Failed to shutdown server gracefully", "error", err)
 	}
-	if err := otelShutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown OpenTelemetry tracer", "error", err)
+	if err := otelShutdown(shutdownCtx); err != nil {
+		log.Warn(ctx, "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
 	metrics.ShutdownMetrics()
 	if err := database.Close(); err != nil {
-		log.Warn(context.Background(), "Failed to close database connection", "error", err)
+		log.Warn(ctx, "Failed to close database connection", "error", err)
 	}
 }
