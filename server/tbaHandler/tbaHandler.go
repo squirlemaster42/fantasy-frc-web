@@ -38,6 +38,10 @@ func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
 	return handler
 }
 
+func (t *TbaHandler) SetClient(client *http.Client) {
+	t.client = client
+}
+
 func (t *TbaHandler) checkCache(ctx context.Context, url string) ([]byte, string, error) {
 	assert := assert.CreateAssertWithContext("Check Tba Cache")
 	assert.AddContext("Url", url)

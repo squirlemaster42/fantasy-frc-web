@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -121,4 +122,59 @@ func TestSearchPlayers(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
+}
+
+// Layer 2 HTML body assertions for draft profile page
+
+func TestHandleViewDraftProfile_HTML(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/profile", "", "test-session")
+	c.SetParamNames("id")
+	c.SetParamValues("42")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id:          42,
+		DisplayName: "Test Draft",
+		Description: "A test draft",
+		Status:      model.FILLING,
+		Interval:    60,
+		StartTime:   time.Now().Add(1 * time.Hour),
+		EndTime:     time.Now().Add(72 * time.Hour),
+		Owner:       model.User{UserUuid: userUuid, Username: "testuser"},
+		Players: []model.DraftPlayer{
+			{User: model.User{Username: "testuser"}, Pending: false},
+			{User: model.User{Username: "player2"}, Pending: true},
+		},
+	}, nil)
+
+	h := &Handler{
+		DraftStore: mockDraftStore,
+		UserStore:  mockUserStore,
+	}
+
+	err := h.HandleViewDraftProfile(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "Test Draft")
+	assert.Contains(t, body, "A test draft")
+	assert.Contains(t, body, string(model.FILLING))
+	assert.Contains(t, body, `name="draftName"`)
+	assert.Contains(t, body, `name="description"`)
+	assert.Contains(t, body, `name="interval"`)
+	assert.Contains(t, body, `name="startTime"`)
+	assert.Contains(t, body, `name="endTime"`)
+	assert.Contains(t, body, `hx-post="/u/draft/42/updateDraft"`)
+	assert.Contains(t, body, "Save Changes")
+	assert.Contains(t, body, "Invite Players")
+	assert.Contains(t, body, "Start Draft")
+	assert.Contains(t, body, "testuser")
+	assert.Contains(t, body, "player2")
+	assert.Contains(t, body, `<!doctype html>`)
+	assert.Contains(t, body, `hx-boost="true"`)
 }
