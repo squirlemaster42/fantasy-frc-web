@@ -38,6 +38,17 @@ mocks:
 test:
 	go test ./...
 
+# Layer 1: Component HTML tests
+test-view:
+	go test ./view/... -v
+
+# Layer 3: E2E browser tests (requires Chrome + Docker)
+test-e2e:
+	go test ./e2e/... -v
+
+# Run all tests
+test-all: test test-view test-e2e
+
 # Production build (static binary with embedded assets)
 build: build-css generate
 	CGO_ENABLED=0 go build -ldflags="-s -w" -o server .

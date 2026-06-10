@@ -523,6 +523,17 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 			}
 		}
 
+		// Reload draft state after making next pick available so NextPick is current
+		updatedDraft, err = d.draftStore.GetDraft(ctx, d.draftState.Id)
+		if err != nil {
+			log.Warn(ctx, "Failed to reload draft after making next pick available", "Draft Id", d.draftState.Id, "Error", err)
+			return Result{
+				Error: err,
+				Value: false,
+			}
+		}
+		d.draftState = updatedDraft
+
 		currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
 		if err != nil {
 			log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", msg.Pick.Player, "Error", err)

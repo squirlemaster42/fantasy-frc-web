@@ -328,7 +328,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
 	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
-        EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
+        EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6 * interval '1 second', $7) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
 	assert.AddContext("Owner", draft.Owner)
 	assert.AddContext("Display Name", draft.DisplayName)
@@ -431,10 +431,16 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	// Get Current Pick
 	currentPick, err := getCurrentPick(ctx, database, draftId)
 	if err != nil {
-		log.Warn(ctx, "Failed to get current pick for draft", "Draft Id", draftId, "Error", err)
-		return DraftModel{}, errors.New("failed to get current pick for draft")
+		if errors.Is(err, sql.ErrNoRows) {
+			// Draft has no picks yet (e.g., FILLING state)
+			draftModel.CurrentPick = Pick{}
+		} else {
+			log.Warn(ctx, "Failed to get current pick for draft", "Draft Id", draftId, "Error", err)
+			return DraftModel{}, errors.New("failed to get current pick for draft")
+		}
+	} else {
+		draftModel.CurrentPick = currentPick
 	}
-	draftModel.CurrentPick = currentPick
 
 	picks, err := getPicks(ctx, database, draftId)
 	if err != nil {
@@ -596,7 +602,7 @@ func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 
 func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
 	log.Info(ctx, "model.UpdateDraft: starting", "Draft Id", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5 * interval '1 second', DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
