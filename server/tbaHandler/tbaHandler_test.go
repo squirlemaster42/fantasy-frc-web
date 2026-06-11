@@ -1,9 +1,13 @@
 package tbaHandler
 
 import (
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
@@ -86,4 +90,69 @@ func TestTeamEventStatusRequest(t *testing.T) {
     if (event.LastMatchKey == "") {
         t.Fatalf("There should be a last match")
     }
+}
+
+type mockAllianceTransport struct {
+	requestCount     int
+	emptyResponses   int
+	responseBody     string
+}
+
+func (m *mockAllianceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	m.requestCount++
+	body := m.responseBody
+	if m.requestCount <= m.emptyResponses {
+		body = "[]"
+	}
+	headers := make(http.Header)
+	headers.Set("Etag", "mock-etag")
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     headers,
+		Request:    req,
+	}, nil
+}
+
+func TestEliminationAllianceRequestRetrySuccess(t *testing.T) {
+	validAlliance := `[{"name":"Alliance 1","picks":["frc254","frc1690"]},{"name":"Alliance 2","picks":["frc1114","frc2056"]}]`
+	mock := &mockAllianceTransport{
+		emptyResponses: 2,
+		responseBody:   validAlliance,
+	}
+
+	handler := NewHandler("test-token", nil)
+	handler.client = &http.Client{Transport: mock}
+
+	start := time.Now()
+	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	elapsed := time.Since(start)
+
+	assert.Equal(t, 3, mock.requestCount, "Expected 3 requests (2 empty + 1 success)")
+	assert.Equal(t, 2, len(alliances), "Expected 2 alliances after retry")
+	assert.Equal(t, "Alliance 1", alliances[0].Name)
+	assert.Equal(t, "frc254", alliances[0].Picks[0])
+
+	// Exponential backoff: 1s + 2s = 3s minimum
+	assert.True(t, elapsed >= 3*time.Second, "Expected at least 3s of backoff delay")
+}
+
+func TestEliminationAllianceRequestRetryExhausted(t *testing.T) {
+	mock := &mockAllianceTransport{
+		emptyResponses: 10,
+		responseBody:   "[]",
+	}
+
+	handler := NewHandler("test-token", nil)
+	handler.client = &http.Client{Transport: mock}
+
+	start := time.Now()
+	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	elapsed := time.Since(start)
+
+	assert.Equal(t, 6, mock.requestCount, "Expected 6 requests (initial + 5 retries)")
+	assert.Equal(t, 0, len(alliances), "Expected empty alliances after all retries exhausted")
+
+	// Exponential backoff: 1s + 2s + 4s + 8s + 16s = 31s minimum
+	assert.True(t, elapsed >= 31*time.Second, "Expected at least 31s of backoff delay")
 }
