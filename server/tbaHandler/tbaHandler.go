@@ -292,18 +292,35 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string
 }
 
 // MakeEliminationAllianceRequest requests the elimination alliances for an event from The Blue Alliance.
+// Retries with exponential backoff when TBA returns an empty alliance list (up to 5 retries).
 func (t *TbaHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance {
 	url := BASE_URL + "event/" + eventId + "/alliances"
 	endpoint := "/event/{event}/alliances"
-	var alliances []swagger.EliminationAlliance
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &alliances)
 
-	if err != nil {
-		log.Error(ctx, "Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
-		return nil
+	const maxRetries = 5
+	var alliances []swagger.EliminationAlliance
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		jsonData := t.makeRequest(ctx, url, endpoint)
+		err := json.Unmarshal(jsonData, &alliances)
+
+		if err != nil {
+			log.Error(ctx, "Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+			return nil
+		}
+
+		if len(alliances) > 0 {
+			return alliances
+		}
+
+		if attempt < maxRetries {
+			backoff := time.Duration(1<<attempt) * time.Second
+			log.Info(ctx, "TBA returned empty alliances, retrying", "Event", eventId, "Attempt", attempt+1, "Backoff", backoff)
+			time.Sleep(backoff)
+		}
 	}
 
+	log.Warn(ctx, "TBA returned empty alliances after all retries", "Event", eventId, "Attempts", maxRetries+1)
 	return alliances
 }
 
