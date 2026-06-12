@@ -328,7 +328,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
 	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
-        EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
+        EndTime, Status) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
 	assert.AddContext("Owner", draft.Owner)
 	assert.AddContext("Display Name", draft.DisplayName)
@@ -345,7 +345,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 		}
 	}()
 	var draftId int
-	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Status).Scan(&draftId)
 	if err != nil {
 		return -1, err
 	}
@@ -392,7 +392,6 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
         COALESCE(Status, '') As Status,
         StartTime,
         EndTime,
-        extract('epoch' from Interval)::int As Interval,
         OwnerUserUuid,
 		COALESCE(DiscordWebhook, '')
     From Drafts Where Id = $1;`
@@ -418,7 +417,6 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		&draftModel.Status,
 		&draftModel.StartTime,
 		&draftModel.EndTime,
-		&draftModel.Interval,
 		&ownerId,
 		&draftModel.DiscordWebhook,
 	)
@@ -432,9 +430,9 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	currentPick, err := getCurrentPick(ctx, database, draftId)
 	if err != nil {
 		log.Warn(ctx, "Failed to get current pick for draft", "Draft Id", draftId, "Error", err)
-		return DraftModel{}, errors.New("failed to get current pick for draft")
-	}
-	draftModel.CurrentPick = currentPick
+	} else {
+        draftModel.CurrentPick = currentPick
+    }
 
 	picks, err := getPicks(ctx, database, draftId)
 	if err != nil {

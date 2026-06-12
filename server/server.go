@@ -66,14 +66,15 @@ func CreateServer(ctx context.Context, serverPort string, h handler.Handler, dat
 	app.Use(middleware.SecurityHeaders(h.SecureHttpCookie))
 
 	csrf := middleware.NewCSRF(csrfSecret, h.SecureHttpCookie)
-	rateLimiter := middleware.NewRateLimiter(redisAddr, redisPassword, redisRateLimitDB)
+    // TODO we need to figure out how we actually want to do rate limiting so that we dont break local dev. Maybe we can just make the expiration times configurable
+	// rateLimiter := middleware.NewRateLimiter(redisAddr, redisPassword, redisRateLimitDB)
 
 	//Setup Routes
 	app.GET("/", h.HandleViewLanding, echomiddleware.Gzip())
 	app.GET("/login", h.HandleViewLogin, echomiddleware.Gzip())
-	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip(), rateLimiter.RateLimitLogin())
+	app.POST("/login", h.HandleLoginPost, echomiddleware.Gzip())
 	app.GET("/register", h.HandleViewRegister, echomiddleware.Gzip())
-	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip(), rateLimiter.RateLimitRegister())
+	app.POST("/register", h.HandlerRegisterPost, echomiddleware.Gzip())
 	app.POST("/tbaWebhook", h.ConsumeTbaWebhook, echomiddleware.Gzip())
 
 	metricAuth := authentication.NewMetricAuth(metricSecret)
@@ -83,7 +84,7 @@ func CreateServer(ctx context.Context, serverPort string, h handler.Handler, dat
 		return c.String(http.StatusOK, "ok")
 	})
 
-	protected := app.Group("/u", auth.Authenticate, csrf.CSRF(), rateLimiter.RateLimitGeneral(postsPerMinute))
+	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
 	protected.POST("/logout", h.HandleLogoutPost)
 	protected.GET("/home", h.HandleViewHome)

@@ -87,7 +87,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 
 	draftId, err := h.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
+		log.Error(c.Request().Context(), "Failed to create draft", "Interval", intInterval, "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")
 	}
 	log.Info(c.Request().Context(), "Draft created. Redirecting to /u/draft/:draftId:/profile", "Draft Id", draftId)
