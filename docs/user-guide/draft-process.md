@@ -124,12 +124,6 @@ Round 3: Player 1 → Player 2 → Player 3 → ... → Player 8
 
 ## ⏰ Time Management
 
-### Pick Timer
-- **Default time**: 60-120 seconds per pick
-- **Timer display**: Visible countdown in draft room
-- **Warning at 10 seconds**: Visual/audio alert
-- **Auto-skip**: If time expires, system picks highest-ranked available team
-
 ### Best Practices
 - **Research beforehand**: Don't start researching during your pick
 - **Have a list**: Pre-select your top choices for each round
