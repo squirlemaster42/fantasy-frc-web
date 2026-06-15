@@ -3,7 +3,7 @@
 > **AI-Generated Documentation**
 > This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team.
 
-This guide walks you through everything you need to know about drafting in Fantasy FRC.
+This guide walks you through everything you need to know about drafting in Fantasy FRC
 
 ## 🎯 Draft Overview
 
@@ -123,12 +123,6 @@ Round 3: Player 1 → Player 2 → Player 3 → ... → Player 8
 - **Final touches**: Complete your roster strategy
 
 ## ⏰ Time Management
-
-### Pick Timer
-- **Default time**: 60-120 seconds per pick
-- **Timer display**: Visible countdown in draft room
-- **Warning at 10 seconds**: Visual/audio alert
-- **Auto-skip**: If time expires, system picks highest-ranked available team
 
 ### Best Practices
 - **Research beforehand**: Don't start researching during your pick
