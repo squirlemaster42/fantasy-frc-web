@@ -424,6 +424,15 @@ func acceptInvite(user *User) {
 		} else {
 			r++
 			time.Sleep(500 * time.Millisecond)
+			resp, err = user.Client.Get(fmt.Sprintf("%s/u/viewInvites", target))
+			if err != nil {
+				panic(err)
+			}
+			body, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				panic(err)
+			}
 			id, found = getInviteId(string(body))
 		}
 	}
@@ -511,7 +520,7 @@ func sendAcceptInvite(user *User, inviteId int) string {
 }
 
 func getInviteId(body string) (int, bool) {
-	prefix := "<button hx-target=\"#pendingTable\" hx-swap=\"outerHTML\" name=\"inviteId\" value=\""
+	prefix := "name=\"inviteId\" value=\""
 	if strings.Count(body, prefix) == 0 {
 		return -1, false
 	}
