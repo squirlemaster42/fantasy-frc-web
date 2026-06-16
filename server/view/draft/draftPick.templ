@@ -25,7 +25,7 @@ templ DraftPickIndex (pickPageModel PickPage, csrfToken string) {
                 x-data="{ loading: false, status: '' }"
                 @htmx:before-request="loading = true; status = 'Validating with The Blue Alliance...'"
                 @htmx:after-request="loading = false; status = ''"
-                @htmx:response-error="loading = false; status = 'Something went wrong. Please try again.'"
+                @htmx:response-error="loading = false; status = ''"
             >
                 <form
                     hx-swap="outerHTML transition:true"

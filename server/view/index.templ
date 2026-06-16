@@ -18,11 +18,13 @@ templ Index(page string, fromProtected bool, username string, data *types.PageDa
 			<link rel="stylesheet" href="/css/styles.css"/>
 			<title>Fantasy FRC{ page }</title>
 			<script src="/js/htmx.min.js"></script>
-            <script src="/js/ws.js"></script>
-            <script defer src="/js/alpine.min.js"></script>
-            <script defer src="/js/app.js"></script>
+			<script src="/js/ws.js"></script>
+			<script defer src="/js/alpine.min.js"></script>
+			<script defer src="/js/toast.js"></script>
+			<script defer src="/js/app.js"></script>
         </head>
         <body class="simple-transition flex flex-col h-screen bg-slate-900" hx-boost="true">
+            @partials.ToastContainer()
             <header>
                 @partials.Navbar(fromProtected, username, page, data)
             </header>

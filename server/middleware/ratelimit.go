@@ -64,11 +64,17 @@ func (r *RateLimiter) RateLimitRegister() echo.MiddlewareFunc {
 }
 
 func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc {
+	window := time.Minute
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip safe methods (page loads, WebSocket upgrades)
 			method := c.Request().Method
 			if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
+				return next(c)
+			}
+
+			// Skip server-to-server webhooks
+			if c.Request().URL.Path == "/tbaWebhook" {
 				return next(c)
 			}
 
@@ -81,12 +87,12 @@ func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc
 				key = fmt.Sprintf("rate_limit:general:%s", c.RealIP())
 			}
 
-			allowed, _, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, time.Minute)
+			allowed, _, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, window)
 			if err != nil {
 				return next(c) // Fail open
 			}
 			if !allowed {
-				c.Response().Header().Set("Retry-After", "60")
+				c.Response().Header().Set("Retry-After", strconv.FormatInt(int64(window.Seconds()), 10))
 				return c.NoContent(http.StatusTooManyRequests)
 			}
 			return next(c)

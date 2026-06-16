@@ -71,6 +71,7 @@ func main() {
 	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
 	redisAvatarDBVar := os.Getenv("REDIS_AVATAR_DB")
 	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
+	rateLimitEnabledVar := os.Getenv("RATE_LIMIT_ENABLED")
 
 	if csrfSecret == "" {
 		panic("CSRF_SECRET environment variable is required")
@@ -105,6 +106,14 @@ func main() {
 		parsed, err := strconv.ParseInt(postsPerMinuteVar, 10, 64)
 		if err == nil && parsed > 0 {
 			postsPerMinute = parsed
+		}
+	}
+
+	rateLimitEnabled := true
+	if rateLimitEnabledVar != "" {
+		parsed, err := strconv.ParseBool(rateLimitEnabledVar)
+		if err == nil {
+			rateLimitEnabled = parsed
 		}
 	}
 
@@ -221,7 +230,20 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute, trustProxy, allowedOrigin)
+	app, otelShutdown := CreateServer(ctx, ServerConfig{
+		ServerPort:       serverPort,
+		Handler:          handler,
+		Database:         database,
+		MetricSecret:     metricSecret,
+		CsrfSecret:       csrfSecret,
+		RedisAddr:        redisAddr,
+		RedisPassword:    redisPassword,
+		RedisRateLimitDB: redisRateLimitDB,
+		PostsPerMinute:   postsPerMinute,
+		RateLimitEnabled: rateLimitEnabled,
+		TrustProxy:       trustProxy,
+		AllowedOrigin:    allowedOrigin,
+	})
 
 	go func() {
 		err := app.Start(":" + serverPort)
