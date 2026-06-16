@@ -86,6 +86,7 @@ type NextPickDiscordEvent struct {
 	NextPickDiscordId     sql.NullString
 	Webhook               string
 	ExpirationTime        time.Time
+	DraftComplete         bool
 }
 
 func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
@@ -158,37 +159,50 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		}
 	}
 
-	var allowedUserMentions []string
-	nextIdentifier := event.NextPickName
-	if event.NextPickDiscordId.Valid {
-		nextPickId := event.NextPickDiscordId.String
-		// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
-		_, err := strconv.ParseUint(nextPickId, 10, 64)
-		if len(nextPickId) >= 17 && err == nil {
-			nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)
-			allowedUserMentions = []string{
-				nextPickId,
+	var webhook DiscordWebhook
+	if event.DraftComplete {
+		webhook = DiscordWebhook{
+			Username: "Pick Notifier",
+			Content: fmt.Sprintf(
+				"%s has picked %s. The draft is complete!",
+				previousIdentifier,
+				strings.Trim(event.PreviousPickedTeam, "frc"),
+			),
+			AllowedMentions: AllowedMentions{},
+		}
+	} else {
+		var allowedUserMentions []string
+		nextIdentifier := event.NextPickName
+		if event.NextPickDiscordId.Valid {
+			nextPickId := event.NextPickDiscordId.String
+			// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
+			_, err := strconv.ParseUint(nextPickId, 10, 64)
+			if len(nextPickId) >= 17 && err == nil {
+				nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)
+				allowedUserMentions = []string{
+					nextPickId,
+				}
 			}
 		}
-	}
 
-	message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%d:f>."
-	if previousIdentifier == nextIdentifier {
-		message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%d:f>."
-	}
+		message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%d:f>."
+		if previousIdentifier == nextIdentifier {
+			message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%d:f>."
+		}
 
-	webhook := DiscordWebhook{
-		Username: "Pick Notifier",
-		Content: fmt.Sprintf(
-			message,
-			previousIdentifier,
-			strings.Trim(event.PreviousPickedTeam, "frc"),
-			nextIdentifier,
-			event.ExpirationTime.Unix(),
-		),
-		AllowedMentions: AllowedMentions{
-			Users: allowedUserMentions,
-		},
+		webhook = DiscordWebhook{
+			Username: "Pick Notifier",
+			Content: fmt.Sprintf(
+				message,
+				previousIdentifier,
+				strings.Trim(event.PreviousPickedTeam, "frc"),
+				nextIdentifier,
+				event.ExpirationTime.Unix(),
+			),
+			AllowedMentions: AllowedMentions{
+				Users: allowedUserMentions,
+			},
+		}
 	}
 
 	jsonData, err := json.Marshal(webhook)

@@ -555,26 +555,48 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 				Value: false,
 			}
 		}
+	} else {
+		log.Info(ctx, "Draft Complete", "Draft Id", d.draftState.Id)
+		pickingComplete = true
+	}
 
-		currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
-		if err != nil {
-			log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", msg.Pick.Player, "Error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
+	currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
+	if err != nil {
+		log.Warn(ctx, "Could not get current pick draft player id", "Draft Player Id", msg.Pick.Player, "Error", err)
+		return Result{
+			Error: err,
+			Value: false,
 		}
+	}
 
-		currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
-		if err != nil {
-			log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", msg.Pick.Player, "Error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
+	currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
+	if err != nil {
+		log.Warn(ctx, "Could not get current pick draft player name", "Draft Player Id", msg.Pick.Player, "Error", err)
+		return Result{
+			Error: err,
+			Value: false,
 		}
-		currPickName := currPickUser.Username
+	}
+	currPickName := currPickUser.Username
 
+	draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
+	if err != nil {
+		log.Warn(ctx, "Could not get draft webhook", "Draft Id", d.draftState.Id, "Error", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	event := discord.NextPickDiscordEvent{
+		PreviousPickedTeam:    msg.Pick.Pick.String,
+		PreviousPickName:      currPickName,
+		PreviousPickDiscordId: currPickDiscordId,
+		Webhook:               draftWebhook,
+		DraftComplete:         pickingComplete,
+	}
+
+	if len(picks) < 64 {
 		nextPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
 		if err != nil {
 			log.Warn(ctx, "Could not get next pick draft player id", "Draft Player Id", nextPickPlayer.Id, "Error", err)
@@ -594,34 +616,18 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 		nextPickName := nextPickUser.Username
 
-		draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
-		if err != nil {
-			log.Warn(ctx, "Could not get draft webhook", "Draft Id", d.draftState.Id, "Error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-
-		event := discord.NextPickDiscordEvent{
-			PreviousPickedTeam:    msg.Pick.Pick.String,
-			PreviousPickName:      currPickName,
-			PreviousPickDiscordId: currPickDiscordId,
-			NextPickName:          nextPickName,
-			NextPickDiscordId:     nextPickDiscordId,
-			Webhook:               draftWebhook,
-			ExpirationTime: 	   expirationTime,
-		}
-		go func() {
-			err = d.discordBus.PostPickNotification(event)
-			if err != nil {
-				log.Warn(ctx, "Failed to post discord webhook", "Error", err)
-			}
-		}()
-	} else {
-		log.Info(ctx, "Draft Complete", "Draft Id", d.draftState.Id)
-		pickingComplete = true
+		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+		event.NextPickName = nextPickName
+		event.NextPickDiscordId = nextPickDiscordId
+		event.ExpirationTime = expirationTime
 	}
+
+	go func() {
+		err = d.discordBus.PostPickNotification(event)
+		if err != nil {
+			log.Warn(ctx, "Failed to post discord webhook", "Error", err)
+		}
+	}()
 
 	if pickingComplete {
 		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", d.draftState.Id)
