@@ -3,6 +3,9 @@ package draft
 import (
 	"context"
 	"errors"
+
+	"github.com/google/uuid"
+
 	"server/log"
 	"server/model"
 	"server/picking"
@@ -184,6 +187,47 @@ func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) er
 	actorMap.actorMap.Delete(draftId)
 	log.Info(ctx, "Evicted draft actor from map", "Draft Id", draftId)
 	return nil
+}
+
+func InvitePlayer(ctx context.Context, draftActor *DraftActor, invite model.DraftInvite) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: InvitePlayerMessage{
+			Invite: invite,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout inviting player")
+	}
+}
+
+func AcceptInvite(ctx context.Context, draftActor *DraftActor, inviteId int, acceptingUserUuid uuid.UUID) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: AcceptInviteMessage{
+			InviteId:          inviteId,
+			AcceptingUserUuid: acceptingUserUuid,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout accepting invite")
+	}
 }
 
 func RegisterWatcher(ctx context.Context, actorMap *DraftActorMap, draftId int) *picking.Watcher {

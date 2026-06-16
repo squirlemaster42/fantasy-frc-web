@@ -241,7 +241,12 @@ func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 		return errors.New("draft actor is shutting down")
 	}
 
-	message.context = ctx
+	// Detach from HTTP request so actor work survives request completion
+	detachedCtx := context.Background()
+	if corrID := middleware.GetCorrelationID(ctx); corrID != "" {
+		detachedCtx = middleware.WithCorrelationID(detachedCtx, corrID)
+	}
+	message.context = detachedCtx
 
 	select {
 	case d.inbox <- message:
@@ -369,6 +374,16 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		}
 	}
 
+	// Reload draft state so cached model is not stale
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		log.Warn(ctx, "Failed to reload draft after accepting invite", "Draft Id", d.draftState.Id, "Error", err)
+		return Result{
+			Error: err,
+		}
+	}
+	d.draftState = updatedDraft
+
 	return Result{}
 }
 
@@ -400,6 +415,16 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 			Error: err,
 		}
 	}
+
+	// Reload draft state so cached model is not stale
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		log.Warn(ctx, "Failed to reload draft after inviting player", "Draft Id", d.draftState.Id, "Error", err)
+		return Result{
+			Error: err,
+		}
+	}
+	d.draftState = updatedDraft
 
 	return Result{}
 }
@@ -436,8 +461,16 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 		}
 	}
 	log.Info(ctx, "Executed draft state transition", "Draft Id", d.draftState.Id)
-	// Update cached status directly — state transitions only change the status column
-	d.draftState.Status = msg.RequestedState
+
+	// Reload draft state so cached model is not stale
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		log.Warn(ctx, "Failed to reload draft after state transition", "Draft Id", d.draftState.Id, "Error", err)
+		return Result{
+			Error: err,
+		}
+	}
+	d.draftState = updatedDraft
 
 	return Result{}
 }

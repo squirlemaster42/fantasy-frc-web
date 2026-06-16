@@ -198,7 +198,10 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "You must own the draft to invite a player")
 	}
 
-	_, err = h.DraftStore.InvitePlayer(c.Request().Context(), draftId, invitingUserUuid, invitedUserUuid)
+	err = draft.InvitePlayer(c.Request().Context(), draftActor, model.DraftInvite{
+		InvitingUserUuid: invitingUserUuid,
+		InvitedUserUuid:  invitedUserUuid,
+	})
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to invite player", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to invite player")
@@ -214,11 +217,8 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 		return nil
 	}
 
-	draftModel, err = h.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "User attempted to invite player to invalid draft", "Draft Id", draftId, "User Uuid", userUuid, "Error", err)
-	}
-
+	// Reload draft model from actor cache (updated by InvitePlayer)
+	draftModel = draft.GetDraft(draftActor)
 	players := draftModel.Players
 
 	updatedPage := draftView.UpdateAfterInvite(users, draftId, players, isOwner, h.csrfToken(c))

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
+	"server/draft"
 	"server/log"
 	draftView "server/view/draft"
 )
@@ -68,35 +69,17 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
 	log.Info(c.Request().Context(), "Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
 
-	// If more than 8 players are invites then we cancel the other outstanding invites
-	// Maybe we need an active bool
-	// Check that accepting this invite will not lead to more than eight players being in the draft
-	numPlayers, err := h.DraftStore.GetNumPlayersInInvitedDraft(c.Request().Context(), inviteId)
+	// Route through the draft actor so the cached state stays in sync
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), invite.DraftId)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get num players in invited draft", "error", err, "inviteId", inviteId)
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", invite.DraftId, "Error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
-	if numPlayers >= 8 {
-		if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), invite.DraftId); err != nil {
-			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
-		}
-		return renderInviteTable(h, c, true, "Too many players are already in the draft. Please contect the draft owner if you think this is an error.", false)
-	}
 
-	draftId, playerId, err := h.DraftStore.AcceptInvite(c.Request().Context(), inviteId)
+	err = draft.AcceptInvite(c.Request().Context(), draftActor, inviteId, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to accept invite", "error", err, "inviteId", inviteId)
-		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
-	}
-	if err := h.DraftStore.AddPlayerToDraft(c.Request().Context(), draftId, playerId); err != nil {
-		log.Error(c.Request().Context(), "Failed to add player to draft", "error", err, "draftId", draftId, "playerId", playerId)
-		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
-	}
-
-	if numPlayers >= 7 {
-		if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), invite.DraftId); err != nil {
-			log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", invite.DraftId)
-		}
+		return renderInviteTable(h, c, true, err.Error(), false)
 	}
 
 	return renderInviteTable(h, c, false, "", false)
