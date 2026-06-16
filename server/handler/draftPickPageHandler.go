@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -136,14 +137,31 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	}
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+func (h *Handler) newUpgrader() *websocket.Upgrader {
+	return &websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			if h.AllowedOrigin != "" {
+				return origin == h.AllowedOrigin
+			}
+			host := r.Host
+			return strings.HasPrefix(origin, "http://"+host) ||
+				strings.HasPrefix(origin, "https://"+host) ||
+				strings.HasPrefix(origin, "http://localhost:") ||
+				strings.HasPrefix(origin, "https://localhost:")
+		},
+	}
 }
 
 func (h *Handler) PickNotifier(c echo.Context) error {
 	ctx := c.Request().Context()
 
+	upgrader := h.newUpgrader()
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		log.Warn(ctx, "Failed to upgrade websocket connection", "Error", err)

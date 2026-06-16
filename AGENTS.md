@@ -199,3 +199,5 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int
 ### Environment Variables
 
 - `TRUST_PROXY` (bool, default `false`): When `true`, configures the Echo server to extract the client IP from the `X-Forwarded-For` header (required when running behind a reverse proxy such as nginx or a Kubernetes ingress). When `false` (default), the server uses the direct connection IP. **Never set to `true` unless the application is behind a trusted proxy**, otherwise clients can spoof their IP address.
+
+- `ALLOWED_ORIGIN` (string, required when `TRUST_PROXY=true`): The exact origin allowed for WebSocket connections (e.g., `https://fantasy-frc.example.com`). When set, the server validates the `Origin` header on WebSocket upgrade requests against this value. **Must be set in production when `TRUST_PROXY=true`** to prevent cross-origin WebSocket abuse. When `TRUST_PROXY` is `false` and `ALLOWED_ORIGIN` is unset, the server falls back to allowing same-origin and `localhost` requests for local development.

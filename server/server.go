@@ -18,7 +18,7 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64, trustProxy bool) (*echo.Echo, func(context.Context) error) {
+func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64, trustProxy bool, allowedOrigin string) (*echo.Echo, func(context.Context) error) {
 	log.Info(ctx, "Starting Server")
 	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()

@@ -27,6 +27,7 @@ type Handler struct {
 	SecureHttpCookie    bool
 	MinPasswordLength   int
 	CsrfSecret          string
+	AllowedOrigin       string
 }
 
 func (h *Handler) csrfToken(c echo.Context) string {

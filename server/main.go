@@ -64,6 +64,7 @@ func main() {
 	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	csrfSecret := os.Getenv("CSRF_SECRET")
 	trustProxyVar := os.Getenv("TRUST_PROXY")
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
 	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
@@ -128,6 +129,15 @@ func main() {
 		trustProxy = false
 	}
 	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
+
+	if trustProxy && allowedOrigin == "" {
+		panic("ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
+	}
+	if allowedOrigin != "" {
+		log.Info(ctx, "WebSocket origin validation configured", "ALLOWED_ORIGIN", allowedOrigin)
+	} else {
+		log.Info(ctx, "WebSocket origin validation using development fallback (localhost/same-origin)")
+	}
 
 	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
@@ -194,6 +204,7 @@ func main() {
 		SecureHttpCookie:  secureHttpCookie,
 		MinPasswordLength: minPasswordLength,
 		CsrfSecret:        csrfSecret,
+		AllowedOrigin:     allowedOrigin,
 	}
 
 	// Load the tba webhook secret
@@ -210,7 +221,7 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute, trustProxy)
+	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute, trustProxy, allowedOrigin)
 
 	go func() {
 		err := app.Start(":" + serverPort)
