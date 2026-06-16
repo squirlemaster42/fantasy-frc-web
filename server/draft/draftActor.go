@@ -685,7 +685,8 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	// (works with both *sql.DB and *sql.Tx), then adding a new DraftStore method like:
 	//   SkipAndMakeNextPickAvailable(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime) (newPickId, error)
 	// which runs both operations inside a single sql.Tx.
-	nextPickPlayer := d.getNextPick(ctx)
+	pickingComplete := false
+
 	err := d.draftStore.SkipPick(ctx, d.draftState.CurrentPick.Id)
 	if err != nil {
 		log.Warn(ctx, "Failed to skip current pick", "Current pick", d.draftState.CurrentPick.Id, "Error", err)
@@ -693,12 +694,20 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 			Error: err,
 		}
 	}
-	_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
-	if err != nil {
-		log.Warn(ctx, "Failed to make pick available when skipping current pick", "Current pick", d.draftState.CurrentPick.Id, "Error", err)
-		return Result{
-			Error: err,
+
+	// Only make the next pick available if the draft is not already complete
+	if len(d.draftState.Picks) < 64 {
+		nextPickPlayer := d.getNextPick(ctx)
+		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+		if err != nil {
+			log.Warn(ctx, "Failed to make pick available when skipping current pick", "Current pick", d.draftState.CurrentPick.Id, "Error", err)
+			return Result{
+				Error: err,
+			}
 		}
+	} else {
+		log.Info(ctx, "Draft complete after skipping last pick", "Draft Id", d.draftState.Id)
+		pickingComplete = true
 	}
 
 	// Reload draft state after skip so cached model is not stale
@@ -710,6 +719,18 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 		}
 	}
 	d.draftState = updatedDraft
+
+	if pickingComplete {
+		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", d.draftState.Id)
+		err := d.PostMessage(ctx, Message{
+			Content: StateTransitionMessage{
+				RequestedState: model.TEAMS_PLAYING,
+			},
+		})
+		if err != nil {
+			log.Warn(ctx, "Failed to post state transition message after skip", "Draft Id", d.draftState.Id, "Error", err)
+		}
+	}
 
 	event := picking.PickEvent{
 		Pick:    model.Pick{},

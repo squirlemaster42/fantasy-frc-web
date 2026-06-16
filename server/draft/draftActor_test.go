@@ -72,6 +72,55 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
+func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	pickId := 42
+
+	// Build 64 picks so the draft is at the final pick
+	picks := make([]model.Pick, 64)
+	for i := range picks {
+		picks[i] = model.Pick{Id: i + 1}
+	}
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId},
+		Picks:       picks,
+	}, nil).Once()
+	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	// MakePickAvailable should NOT be called when the draft is already at 64 picks
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId},
+		Picks:       picks,
+	}, nil).Once()
+	// State transition to TEAMS_PLAYING after the last pick
+	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.TEAMS_PLAYING,
+		CurrentPick: model.Pick{Id: pickId},
+		Picks:       picks,
+	}, nil).Once()
+
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	assert.True(t, skipped)
+
+	// Give the actor a moment to process the state transition message
+	// it posts internally after the skip.
+	time.Sleep(100 * time.Millisecond)
+
+	mockStore.AssertExpectations(t)
+}
+
 func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
