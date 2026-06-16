@@ -14,7 +14,7 @@ import (
 )
 
 type Scorer struct {
-	tbaHandler       *tbaHandler.TbaHandler
+	tbaHandler       *tbaHandler.TBAHandler
 	matchStore       model.MatchStore
 	matchTeamStore   model.MatchTeamStore
 	teamStore        model.TeamStore
@@ -22,7 +22,7 @@ type Scorer struct {
 	queue            *MatchQueue
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TBAHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
 	return &Scorer{
 		tbaHandler:       tbaHandler,
 		matchStore:       matchStore,
@@ -61,7 +61,9 @@ func (s *Scorer) scoreMatch(ctx context.Context, match swagger.Match, rescore bo
 	}
 	scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
 	scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
-	scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
+	scoredMatch.DqedTeams = append(match.Alliances.Red.DqTeamKeys, match.Alliances.Red.SurrogateTeamKeys...)
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.DqTeamKeys...)
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
 
 	log.DebugNoContext("Scored Match", "Match", scoredMatch.String())
 
@@ -290,12 +292,13 @@ func (s *Scorer) updateMatchInDB(ctx context.Context, dbMatch model.Match) error
 	if err != nil {
 		return err
 	}
-	var errs []error
+	errs := make([]error, 0, len(dbMatch.BlueAlliance)+len(dbMatch.RedAlliance))
 	for _, team := range dbMatch.BlueAlliance {
-		errs = append(errs, s.matchTeamStore.AssocateTeam(ctx, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams)))
+		errs = append(errs, s.matchTeamStore.AssociateTeam(ctx, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams)))
 	}
+
 	for _, team := range dbMatch.RedAlliance {
-		errs = append(errs, s.matchTeamStore.AssocateTeam(ctx, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
+		errs = append(errs, s.matchTeamStore.AssociateTeam(ctx, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
 	}
 	return errors.Join(errs...)
 }
@@ -351,10 +354,12 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 		}
 		log.DebugNoContext("Scoring match", "Match", dbMatchPtr.String())
 
-		dbMatch, _ := s.scoreMatch(ctx, match, true)
-		err = s.updateMatchInDB(ctx, dbMatch)
-		if err != nil {
-			log.Warn(ctx, "Failed to update match in db", "Match Id", dbMatch.TbaId, "Error", err)
+		dbMatch, shouldUpdate := s.scoreMatch(ctx, match, true)
+		if shouldUpdate {
+			err = s.updateMatchInDB(ctx, dbMatch)
+			if err != nil {
+				log.Warn(ctx, "Failed to update match in db", "Match Id", dbMatch.TbaId, "Error", err)
+			}
 		}
 	}
 }

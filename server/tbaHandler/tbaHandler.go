@@ -21,14 +21,14 @@ const (
 	BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )
 
-type TbaHandler struct {
+type TBAHandler struct {
 	tbaToken string
 	database *sql.DB
 	client   *http.Client
 }
 
-func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
-	handler := &TbaHandler{
+func NewHandler(tbaToken string, database *sql.DB) *TBAHandler {
+	handler := &TBAHandler{
 		tbaToken: tbaToken,
 		database: database,
 		client: &http.Client{
@@ -38,7 +38,7 @@ func NewHandler(tbaToken string, database *sql.DB) *TbaHandler {
 	return handler
 }
 
-func (t *TbaHandler) checkCache(ctx context.Context, url string) ([]byte, string, error) {
+func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string, error) {
 	assert := assert.CreateAssertWithContext("Check Tba Cache")
 	assert.AddContext("Url", url)
 
@@ -68,7 +68,7 @@ func (t *TbaHandler) checkCache(ctx context.Context, url string) ([]byte, string
 	return body, etag, err
 }
 
-func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {
+func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {
 	assert := assert.CreateAssertWithContext("Cache Tba Data")
 	assert.AddContext("Url", url)
 	assert.AddContext("Etag", etag)
@@ -97,7 +97,7 @@ func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, bod
 // makeRequest makes a request to The Blue Alliance API.
 // url: The full URL to request
 // endpoint: The endpoint template for metrics (e.g., "/team/{team}/event/{event}/matches")
-func (t *TbaHandler) makeRequest(ctx context.Context, url string, endpoint string) []byte {
+func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint string) []byte {
 	log.Debug(ctx, "Making TBA request", "Url", url, "Endpoint", endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -158,13 +158,16 @@ func (t *TbaHandler) makeRequest(ctx context.Context, url string, endpoint strin
 		return nil
 	}
 
-	t.cacheData(ctx, url, resp.Header["Etag"][0], body)
+	etag = resp.Header.Get("Etag")
+	if etag != "" {
+		t.cacheData(ctx, url, etag, body)
+	}
 
 	return body
 }
 
 // MakeMatchListReq requests the list of matches for a team at an event from The Blue Alliance.
-func (t *TbaHandler) MakeMatchListReq(ctx context.Context, teamId string, eventId string) []swagger.Match {
+func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventId string) []swagger.Match {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
 	endpoint := "/team/{team}/event/{event}/matches"
 	jsonData := t.makeRequest(ctx, url, endpoint)
@@ -180,7 +183,7 @@ func (t *TbaHandler) MakeMatchListReq(ctx context.Context, teamId string, eventI
 }
 
 // MakeEventListReq requests the list of events for a team from The Blue Alliance.
-func (t *TbaHandler) MakeEventListReq(ctx context.Context, teamId string) []string {
+func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) []string {
 	url := BASE_URL + "team/" + teamId + "/events/2026/keys"
 	endpoint := "/team/{team}/events/{year}/keys"
 	var events []string
@@ -196,7 +199,7 @@ func (t *TbaHandler) MakeEventListReq(ctx context.Context, teamId string) []stri
 }
 
 // MakeMatchReq requests a single match from The Blue Alliance.
-func (t *TbaHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.Match {
+func (t *TBAHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.Match {
 	url := BASE_URL + "match/" + matchId
 	endpoint := "/match/{match}"
 	var match swagger.Match
@@ -212,7 +215,7 @@ func (t *TbaHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.M
 }
 
 // MakeMatchKeysRequest requests the match keys for a team at an event from The Blue Alliance.
-func (t *TbaHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, eventId string) []string {
+func (t *TBAHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, eventId string) []string {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
 	endpoint := "/team/{team}/event/{event}/matches/keys"
 	var keys []string
@@ -228,7 +231,7 @@ func (t *TbaHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, ev
 }
 
 // MakeEventMatchKeysRequest requests the match keys for an event from The Blue Alliance.
-func (t *TbaHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string {
+func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string {
 	url := BASE_URL + "event/" + eventId + "/matches/keys"
 	endpoint := "/event/{event}/matches/keys"
 	var keys []string
@@ -244,7 +247,7 @@ func (t *TbaHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId stri
 }
 
 // MakeMatchKeysYearRequest requests the match keys for a team in a specific year from The Blue Alliance.
-func (t *TbaHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) []string {
+func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) []string {
 	url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
 	endpoint := "/team/{team}/matches/{year}/keys"
 	var matches []string
@@ -260,7 +263,7 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string
 }
 
 // MakeTeamEventStatusRequest requests the team event status from The Blue Alliance.
-func (t *TbaHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId string, eventId string) swagger.TeamEventStatus {
+func (t *TBAHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId string, eventId string) swagger.TeamEventStatus {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
 	endpoint := "/team/{team}/event/{event}/status"
 	var event swagger.TeamEventStatus
@@ -276,7 +279,7 @@ func (t *TbaHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId stri
 }
 
 // MakeTeamsAtEventRequest requests the teams at an event from The Blue Alliance.
-func (t *TbaHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team {
+func (t *TBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team {
 	url := BASE_URL + "event/" + eventId + "/teams/simple"
 	endpoint := "/event/{event}/teams/simple"
 	var teams []swagger.Team
@@ -293,7 +296,7 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string
 
 // MakeEliminationAllianceRequest requests the elimination alliances for an event from The Blue Alliance.
 // Retries with exponential backoff when TBA returns an empty alliance list (up to 5 retries).
-func (t *TbaHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance {
+func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance {
 	url := BASE_URL + "event/" + eventId + "/alliances"
 	endpoint := "/event/{event}/alliances"
 
@@ -325,7 +328,7 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 }
 
 // MakeTeamAvatarRequest requests the team avatar/media from The Blue Alliance.
-func (t *TbaHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
+func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
 	url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
 	endpoint := "/team/{team}/media/{year}"
 	var media []swagger.TeamMedia

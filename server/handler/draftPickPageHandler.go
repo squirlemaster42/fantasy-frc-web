@@ -18,6 +18,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// ServePickPage renders the draft pick page for the authenticated user.
 func (h *Handler) ServePickPage(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Serving pick page", "Ip", c.RealIP())
 	userUuid := c.Get("userUuid").(uuid.UUID)
@@ -30,6 +31,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 	return h.renderPickPage(c, draftId, userUuid, nil, true)
 }
 
+// HandlerPickRequest validates that the current player is allowed to make a pick and processes it.
 func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	//We need to validate that the curent player is allowed to make a pick for the draft
 	//they are on. We then need to make that pick at the draft that they are on
@@ -143,11 +145,12 @@ func (h *Handler) newUpgrader() *websocket.Upgrader {
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
-			if origin == "" {
-				return true
-			}
 			if h.AllowedOrigin != "" {
 				return origin == h.AllowedOrigin
+			}
+			// No explicit origin configured: allow same-origin and localhost for local dev
+			if origin == "" {
+				return true
 			}
 			host := r.Host
 			return strings.HasPrefix(origin, "http://"+host) ||
@@ -158,6 +161,7 @@ func (h *Handler) newUpgrader() *websocket.Upgrader {
 	}
 }
 
+// PickNotifier upgrades the HTTP connection to a WebSocket and streams live pick updates.
 func (h *Handler) PickNotifier(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -165,7 +169,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		log.Warn(ctx, "Failed to upgrade websocket connection", "Error", err)
-		return nil
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	draftIdStr := c.Param("id")
@@ -173,21 +177,21 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to parse draft id string", "Draft Id String", draftIdStr, "Error", err)
 		conn.Close()
-		return nil
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "Draft Id", draftId, "Error", err)
 		conn.Close()
-		return nil
+		return c.NoContent(http.StatusNotFound)
 	}
 
 	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "Draft Id", draftId)
 		conn.Close()
-		return nil
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	done := make(chan struct{})
@@ -260,6 +264,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	}
 }
 
+// HandleSkipPickToggle toggles whether the current player's pick should be skipped.
 func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")

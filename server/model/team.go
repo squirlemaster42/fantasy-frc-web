@@ -146,7 +146,7 @@ func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 	return matches, nil
 }
 
-func ValidPick(ctx context.Context, draftStore DraftStore, teamStore TeamStore, handler *tbaHandler.TbaHandler, tbaId string, draftId int) (bool, error) {
+func ValidPick(ctx context.Context, draftStore DraftStore, teamStore TeamStore, handler *tbaHandler.TBAHandler, tbaId string, draftId int) (bool, error) {
 	if tbaId == "" {
 		return false, errors.New("no team entered")
 	}

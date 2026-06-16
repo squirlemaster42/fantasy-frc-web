@@ -18,10 +18,10 @@ import (
 // Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
 	client     *redis.Client
-	tbaHandler tbaHandler.TbaHandler
+	tbaHandler tbaHandler.TBAHandler
 }
 
-func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
+func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,
@@ -41,6 +41,9 @@ func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TbaHandler, redisA
 }
 
 func (a *AvatarStore) Close() error {
+	if a.client == nil {
+		return nil
+	}
 	return a.client.Close()
 }
 

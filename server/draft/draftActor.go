@@ -76,7 +76,7 @@ type DraftActor struct {
 	discordStore model.DiscordStore
 	discordBus *discord.DiscordWebhookBus
 	// TODO Does tba handler need to be a pointer?
-	tbaHandler *tbaHandler.TbaHandler
+	tbaHandler *tbaHandler.TBAHandler
 	pickNotifier *picking.PickNotifier
 	states map[model.DraftState]*state
 	shutdown bool
@@ -100,10 +100,10 @@ type invalidStateTransitionError struct {
 }
 
 func (e *invalidStateTransitionError) Error() string {
-	return fmt.Sprintf("Invalid state tranition where current state was %s and requested state was %s", e.currentState, e.requestedState)
+	return fmt.Sprintf("Invalid state transition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TBAHandler, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		draftStore: draftStore,
@@ -382,7 +382,9 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			Error: err,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	return Result{}
 }
@@ -424,7 +426,9 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 			Error: err,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	return Result{}
 }
@@ -439,7 +443,7 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 
 	state, stateFound := d.states[d.draftState.Status]
 	assert.AddContext("Current Draft State", state)
-	assert.RunAssert(ctx, stateFound, "Current draft state is not registed in state machine")
+	assert.RunAssert(ctx, stateFound, "Current draft state is not registered in state machine")
 	log.Debug(ctx, "Found draft state", "Draft Id", d.draftState.Id, "State", state.state)
 	transition, transitionFound := state.transitions[msg.RequestedState]
 	if !transitionFound {
@@ -470,7 +474,9 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 			Error: err,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	return Result{}
 }
@@ -522,7 +528,9 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 			Value: false,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	nextPickPlayer, err := d.draftStore.NextPick(ctx, d.draftState.Id)
 	if err != nil {
@@ -623,8 +631,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	}
 
 	go func() {
-		err = d.discordBus.PostPickNotification(event)
-		if err != nil {
+		if err := d.discordBus.PostPickNotification(event); err != nil {
 			log.Warn(ctx, "Failed to post discord webhook", "Error", err)
 		}
 	}()
@@ -672,7 +679,9 @@ func (d *DraftActor) handleModifyExpirationTime(ctx context.Context, msg ModifyE
 			Error: errors.New("failed to update pick expiration time"),
 		}
 	}
+	d.mu.Lock()
 	d.draftState.CurrentPick.ExpirationTime = newExpirationTime
+	d.mu.Unlock()
 
 	return Result{
 		Value: newExpirationTime,
@@ -691,6 +700,13 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	// (works with both *sql.DB and *sql.Tx), then adding a new DraftStore method like:
 	//   SkipAndMakeNextPickAvailable(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime) (newPickId, error)
 	// which runs both operations inside a single sql.Tx.
+	if msg.CurrentPickId != d.draftState.CurrentPick.Id {
+		log.Warn(ctx, "Stale skip request rejected", "Message PickId", msg.CurrentPickId, "Current PickId", d.draftState.CurrentPick.Id)
+		return Result{
+			Error: errors.New("pick has changed since skip was requested"),
+		}
+	}
+
 	pickingComplete := false
 
 	err := d.draftStore.SkipPick(ctx, d.draftState.CurrentPick.Id)
@@ -724,7 +740,9 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 			Error: err,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	if pickingComplete {
 		log.Info(ctx, "Update status to TEAMS_PLAYING", "Draft Id", d.draftState.Id)
@@ -793,7 +811,9 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 			Error: err,
 		}
 	}
+	d.mu.Lock()
 	d.draftState = updatedDraft
+	d.mu.Unlock()
 
 	return Result{}
 }
@@ -816,12 +836,14 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	}
 
 	// Update cached fields directly — we know exactly what changed
+	d.mu.Lock()
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
 	d.draftState.Interval = msg.Interval
 	d.draftState.StartTime = msg.StartTime
 	d.draftState.EndTime = msg.EndTime
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
+	d.mu.Unlock()
 
 	return Result{}
 }
@@ -911,6 +933,8 @@ func GetDraftPlayerFromDraft(ctx context.Context, draft model.DraftModel, draftP
 	return model.DraftPlayer{}
 }
 
-func (d *DraftActor) GetDraftState() (model.DraftModel) {
+func (d *DraftActor) GetDraftState() model.DraftModel {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	return d.draftState
 }

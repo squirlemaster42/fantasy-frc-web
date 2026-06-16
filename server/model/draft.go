@@ -619,7 +619,7 @@ func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
     sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statment")
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "InvitePlayer: Failed to close statement", "error", err)
@@ -885,7 +885,7 @@ func makePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int,
 	assert.AddContext("Available Time", availableTime)
 	assert.AddContext("Expiration Time", expirationTime)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statment")
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "MakePickAvailable: Failed to close statement", "error", err)

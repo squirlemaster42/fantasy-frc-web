@@ -16,7 +16,7 @@ type Handler struct {
 	DraftStore          model.DraftStore
 	UserStore           model.UserStore
 	TeamStore           model.TeamStore
-	TbaHandler          tbaHandler.TbaHandler
+	TBAHandler          tbaHandler.TBAHandler
 	DraftActorMap 		*draft.DraftActorMap
 	DraftDaemon         *background.DraftDaemon
 	Scorer              *scorer.Scorer

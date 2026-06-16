@@ -48,7 +48,7 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 			return c.NoContent(http.StatusRequestEntityTooLarge)
 		}
 		log.Error(c.Request().Context(), "Failed to read request body", "Error", err)
-		return nil
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	// Validate HMAC BEFORE processing any events
@@ -64,7 +64,7 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	err = json.Unmarshal(body, &event)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to decode webhook message", "Error", err, "Message", string(body))
-		return nil
+		return c.NoContent(http.StatusBadRequest)
 	}
 
 	if event.MessageType == "verification" {

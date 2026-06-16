@@ -164,6 +164,50 @@ func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration 
 	}
 }
 
+// comparePlayoffMatch parses and compares two playoff match strings (e.g. "f1m1", "sf2m1").
+// The prefixLen is the number of characters to skip after the underscore before the match number.
+func comparePlayoffMatch(matchA, matchB string, prefixLen int) (bool, error) {
+	splitMatchA := strings.Split(matchA, "_")
+	splitMatchB := strings.Split(matchB, "_")
+	if len(splitMatchA) != 2 {
+		return false, fmt.Errorf("match A string %q was invalid", matchA)
+	}
+	if len(splitMatchB) != 2 {
+		return false, fmt.Errorf("match B string %q was invalid", matchB)
+	}
+	splitMatchA = strings.Split(splitMatchA[1][prefixLen:], "m")
+	splitMatchB = strings.Split(splitMatchB[1][prefixLen:], "m")
+	if len(splitMatchA) != 2 {
+		return false, fmt.Errorf("match A string %q was invalid", matchA)
+	}
+	if len(splitMatchB) != 2 {
+		return false, fmt.Errorf("match B string %q was invalid", matchB)
+	}
+	matchANum, err := strconv.Atoi(splitMatchA[0])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[0], err)
+	}
+	matchBNum, err := strconv.Atoi(splitMatchB[0])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[0], err)
+	}
+
+	if matchANum != matchBNum {
+		return matchANum < matchBNum, nil
+	}
+
+	matchANum, err = strconv.Atoi(splitMatchA[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[1], err)
+	}
+	matchBNum, err = strconv.Atoi(splitMatchB[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[1], err)
+	}
+
+	return matchANum < matchBNum, nil
+}
+
 // Return true if matchA comes before matchB
 func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool, error) {
 	matchALevel, err := getMatchLevel(matchA)
@@ -216,87 +260,11 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 	}
 
 	if matchALevel == "f" {
-		splitMatchA := strings.Split(matchA, "_")
-		splitMatchB := strings.Split(matchB, "_")
-		if len(splitMatchA) != 2 {
-			return false, fmt.Errorf("match A string %q was invalid", matchA)
-		}
-		if len(splitMatchB) != 2 {
-			return false, fmt.Errorf("match B string %q was invalid", matchB)
-		}
-		splitMatchA = strings.Split(splitMatchA[1][1:], "m")
-		splitMatchB = strings.Split(splitMatchB[1][1:], "m")
-		if len(splitMatchA) != 2 {
-			return false, fmt.Errorf("match A string %q was invalid", matchA)
-		}
-		if len(splitMatchB) != 2 {
-			return false, fmt.Errorf("match B string %q was invalid", matchB)
-		}
-		matchANum, err := strconv.Atoi(splitMatchA[0])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[0], err)
-		}
-		matchBNum, err := strconv.Atoi(splitMatchB[0])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[0], err)
-		}
-
-		if matchANum != matchBNum {
-			return matchANum < matchBNum, nil
-		}
-
-		matchANum, err = strconv.Atoi(splitMatchA[1])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[1], err)
-		}
-		matchBNum, err = strconv.Atoi(splitMatchB[1])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[1], err)
-		}
-
-		return matchANum < matchBNum, nil
+		return comparePlayoffMatch(matchA, matchB, 1)
 	}
 
 	if matchALevel == "sf" {
-		splitMatchA := strings.Split(matchA, "_")
-		splitMatchB := strings.Split(matchB, "_")
-		if len(splitMatchA) != 2 {
-			return false, fmt.Errorf("match A string %q was invalid", matchA)
-		}
-		if len(splitMatchB) != 2 {
-			return false, fmt.Errorf("match B string %q was invalid", matchB)
-		}
-		splitMatchA = strings.Split(splitMatchA[1][2:], "m")
-		splitMatchB = strings.Split(splitMatchB[1][2:], "m")
-		if len(splitMatchA) != 2 {
-			return false, fmt.Errorf("match A string %q was invalid", matchA)
-		}
-		if len(splitMatchB) != 2 {
-			return false, fmt.Errorf("match B string %q was invalid", matchB)
-		}
-		matchANum, err := strconv.Atoi(splitMatchA[0])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[0], err)
-		}
-		matchBNum, err := strconv.Atoi(splitMatchB[0])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[0], err)
-		}
-
-		if matchANum != matchBNum {
-			return matchANum < matchBNum, nil
-		}
-
-		matchANum, err = strconv.Atoi(splitMatchA[1])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match A num %q: %w", splitMatchA[1], err)
-		}
-		matchBNum, err = strconv.Atoi(splitMatchB[1])
-		if err != nil {
-			return false, fmt.Errorf("failed to parse match B num %q: %w", splitMatchB[1], err)
-		}
-
-		return matchANum < matchBNum, nil
+		return comparePlayoffMatch(matchA, matchB, 2)
 	}
 
 	return false, fmt.Errorf("unknown match type %q", matchALevel)

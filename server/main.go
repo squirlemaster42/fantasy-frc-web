@@ -205,7 +205,7 @@ func main() {
 		DraftStore:        draftStore,
 		UserStore:         userStore,
 		TeamStore:         teamStore,
-		TbaHandler:        *tbaHandler,
+		TBAHandler:        *tbaHandler,
 		DraftActorMap: draftActorMap,
 		Scorer:            scorer,
 		AvatarStore:       &avatarStore,
@@ -221,6 +221,7 @@ func main() {
 	if err != nil {
 		log.Warn(ctx, "Unable to open tba webhook secret file", "Error", err)
 	} else {
+		defer file.Close()
 		body, err := io.ReadAll(file)
 		if err != nil {
 			log.Warn(ctx, "Failed to read tba webhook file body", "Error", err)

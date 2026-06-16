@@ -187,8 +187,10 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 
 // This can probably clean up session that expired more than a month ago or something
 // Actually it can probably be sooner than that because expire tokens should never be reissued
+const sessionDuration = "10 days"
+
 func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
-	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
+	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now() AT TIME ZONE 'UTC' + $3);`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -198,7 +200,7 @@ func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
-	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
+	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil), sessionDuration)
 	if err != nil {
 		return fmt.Errorf("failed to register session: %w", err)
 	}
@@ -224,7 +226,7 @@ func unregisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 }
 
 func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
-	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now() AT TIME ZONE 'UTC' <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -264,7 +266,7 @@ func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (boo
 
 func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	//We want to make sure we only update the session token that the user logged in with
-	query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
+	query := `Update UserSessions Set expirationTime = now() AT TIME ZONE 'UTC' + $3 Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -274,7 +276,7 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 	}()
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
-	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
+	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil), sessionDuration)
 	if err != nil {
 		return fmt.Errorf("failed to update session expiration: %w", err)
 	}
@@ -284,7 +286,7 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 // Check if the session token is in the database and that it is not expired
 func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken string) (bool, error) {
 	//I think <= is fine, it probably doesn't matter though
-	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now() AT TIME ZONE 'UTC' <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoErrorCF(ctx, err, "failed to prepare statement")
 	defer func() {

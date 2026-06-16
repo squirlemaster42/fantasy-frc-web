@@ -20,7 +20,7 @@ func (m *MatchTeam) String() string {
 		m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
-func assocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
+func associateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
 	team, err := getTeam(ctx, database, teamTbaId)
 	if err != nil {
 		return fmt.Errorf("failed to get team: %w", err)
@@ -42,7 +42,7 @@ func assocateTeam(ctx context.Context, database *sql.DB, matchTbaId string, team
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "AssocateTeam: Failed to close statement", "error", err)
+			log.Warn(ctx, "AssociateTeam: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, teamTbaId, matchTbaId, alliance, isDqed)
