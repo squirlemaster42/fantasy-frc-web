@@ -195,3 +195,7 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int
 - Validate user input before database operations
 - Use prepared statements to prevent SQL injection
 - Implement proper authentication and authorization
+
+### Environment Variables
+
+- `TRUST_PROXY` (bool, default `false`): When `true`, configures the Echo server to extract the client IP from the `X-Forwarded-For` header (required when running behind a reverse proxy such as nginx or a Kubernetes ingress). When `false` (default), the server uses the direct connection IP. **Never set to `true` unless the application is behind a trusted proxy**, otherwise clients can spoof their IP address.

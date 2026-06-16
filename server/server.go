@@ -18,11 +18,17 @@ import (
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
-func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64) (*echo.Echo, func(context.Context) error) {
+func CreateServer(ctx context.Context, serverPort string, h handler.Handler, database *sql.DB, metricSecret string, csrfSecret string, redisAddr string, redisPassword string, redisRateLimitDB int, postsPerMinute int64, trustProxy bool) (*echo.Echo, func(context.Context) error) {
 	log.Info(ctx, "Starting Server")
 	auth := authentication.NewAuth(h.UserStore)
 	app := echo.New()
-	app.IPExtractor = echo.ExtractIPDirect()
+	if trustProxy {
+		app.IPExtractor = echo.ExtractIPFromXFFHeader(echo.TrustLoopback(true))
+		log.Info(ctx, "IP extractor configured to trust proxy (X-Forwarded-For)")
+	} else {
+		app.IPExtractor = echo.ExtractIPDirect()
+		log.Info(ctx, "IP extractor configured for direct access (no proxy)")
+	}
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer("fantasy-frc-web")

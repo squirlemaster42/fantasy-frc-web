@@ -63,6 +63,7 @@ func main() {
 	metricSecret := os.Getenv("METRIC_SECRET")
 	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	csrfSecret := os.Getenv("CSRF_SECRET")
+	trustProxyVar := os.Getenv("TRUST_PROXY")
 	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
@@ -121,6 +122,12 @@ func main() {
 		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
 		secureHttpCookie = true
 	}
+
+	trustProxy, err := strconv.ParseBool(trustProxyVar)
+	if err != nil {
+		trustProxy = false
+	}
+	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
 
 	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
@@ -203,7 +210,7 @@ func main() {
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
+	app, otelShutdown := CreateServer(ctx, serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute, trustProxy)
 
 	go func() {
 		err := app.Start(":" + serverPort)
