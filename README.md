@@ -118,9 +118,6 @@ make generate
 
 # Production build
 make build
-
-# Build for Linux deployment
-make build-linux
 ```
 
 ## Deployment
