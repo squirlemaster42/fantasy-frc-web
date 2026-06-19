@@ -126,7 +126,7 @@ For production deployment to Linux servers, see [deploy/README.md](deploy/README
 
 ## Optional Dependencies
 
-- **Redis**: Used for caching team avatars. If not available, avatars are fetched directly from The Blue Alliance API. Also can be used for rate limiting (multiple servers not yet supported). 
+- **Redis**: Used for caching team avatars.
 
 ## License
 
