@@ -13,7 +13,7 @@ import (
 )
 
 func RegisterDatabaseConnection(ctx context.Context, username string, password string, ip string, dbName string, opts ...otelsql.Option) (*sql.DB, error) {
-	log.Info(ctx, "Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
+	log.Info(ctx, "Setting up DB connection", "username", username, "ip", ip, "databaseName", dbName)
 	connStr := createConnectionString(username, password, ip, dbName)
 
 	attrs := append(

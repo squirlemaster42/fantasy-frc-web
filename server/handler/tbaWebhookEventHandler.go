@@ -38,7 +38,7 @@ func validMAC(message []byte, messageMAC string, key []byte) bool {
 }
 
 func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
-	log.Info(c.Request().Context(), "Received webhook message")
+	log.Debug(c.Request().Context(), "Received webhook message")
 	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, 1<<20) // 1 MB
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
@@ -47,8 +47,8 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 			log.Warn(c.Request().Context(), "Webhook payload too large")
 			return c.NoContent(http.StatusRequestEntityTooLarge)
 		}
-		log.Error(c.Request().Context(), "Failed to read request body", "Error", err)
-		return nil
+		log.Error(c.Request().Context(), "Failed to read request body", "error", err)
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
 	// Validate HMAC BEFORE processing any events
@@ -56,44 +56,46 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	valid := validMAC(body, messageMac, []byte(h.TbaWebhookSecret))
 
 	if !valid {
-		log.Warn(c.Request().Context(), "Webhook event authentication failed", "Message", string(body))
+		log.Warn(c.Request().Context(), "Webhook event authentication failed", "message", string(body))
 		return c.NoContent(http.StatusOK)
 	}
 
 	var event TbaWebsocketEvent
 	err = json.Unmarshal(body, &event)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to decode webhook message", "Error", err, "Message", string(body))
-		return nil
+		log.Error(c.Request().Context(), "Failed to decode webhook message", "error", err, "message", string(body))
+		return c.NoContent(http.StatusInternalServerError)
 	}
 
+	detachedCtx := log.DetachCorrelationID(c.Request().Context())
+
 	if event.MessageType == "verification" {
-		h.HandleVerificationEvent(c.Request().Context(), event.MessageData)
+		h.HandleVerificationEvent(detachedCtx, event.MessageData)
 		return c.NoContent(http.StatusOK)
 	}
 
-	log.Info(c.Request().Context(), "Routing event", "Message Type", event.MessageType)
+	log.Debug(c.Request().Context(), "Routing event", "messageType", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		go h.HandleUpcomingMatchEvent(c.Request().Context(), event.MessageData)
+		go h.HandleUpcomingMatchEvent(detachedCtx, event.MessageData)
 	case "match_score":
-		go h.HandleMatchScoreEvent(c.Request().Context(), event.MessageData)
+		go h.HandleMatchScoreEvent(detachedCtx, event.MessageData)
 	case "match_video":
-		h.HandleMatchVideoEvent(c.Request().Context(), event.MessageData)
+		h.HandleMatchVideoEvent(detachedCtx, event.MessageData)
 	case "starting_comp_level":
-		h.HandleCompLevelStartingEvent(c.Request().Context(), event.MessageData)
+		h.HandleCompLevelStartingEvent(detachedCtx, event.MessageData)
 	case "alliance_selection":
-		go h.HandleAllianceSelectionEvent(c.Request().Context(), event.MessageData)
+		go h.HandleAllianceSelectionEvent(detachedCtx, event.MessageData)
 	case "awards_posted":
-		h.HandleAwardsPostedEvent(c.Request().Context(), event.MessageData)
+		h.HandleAwardsPostedEvent(detachedCtx, event.MessageData)
 	case "schedule_updated":
-		h.HandleEventScheduleUpdatedEvent(c.Request().Context(), event.MessageData)
+		h.HandleEventScheduleUpdatedEvent(detachedCtx, event.MessageData)
 	case "ping":
-		h.HandlePingEvent(c.Request().Context(), event.MessageData)
+		h.HandlePingEvent(detachedCtx, event.MessageData)
 	case "broadcast":
-		h.HandleBroadcastEvent(c.Request().Context(), event.MessageData)
+		h.HandleBroadcastEvent(detachedCtx, event.MessageData)
 	default:
-		log.Warn(c.Request().Context(), "Unknown websocket event detected", "MessageType", event.MessageType, "Message", event.MessageData)
+		log.Warn(c.Request().Context(), "Unknown websocket event detected", "messageType", event.MessageType, "message", event.MessageData)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -108,11 +110,11 @@ type MatchScoreNotification struct {
 }
 
 func (h *Handler) HandleMatchScoreEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received match score event", "Message", messageData)
+	log.Debug(ctx, "Received match score event", "message", messageData)
 	var scoreNotification MatchScoreNotification
 	err := json.Unmarshal(messageData, &scoreNotification)
 	if err != nil {
-		log.Warn(ctx, "Failed to decode match score notification", "Error", err, "Message", messageData)
+		log.Warn(ctx, "Failed to decode match score notification", "error", err, "message", messageData)
 		return
 	}
 	h.Scorer.AddMatchToScore(scoreNotification.Match)
@@ -126,11 +128,11 @@ type AllianceSelectionNotification struct {
 }
 
 func (h *Handler) HandleAllianceSelectionEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received alliance selection event", "Message", messageData)
+	log.Debug(ctx, "Received alliance selection event", "message", messageData)
 	var notification AllianceSelectionNotification
 	err := json.Unmarshal(messageData, &notification)
 	if err != nil {
-		log.Warn(ctx, "Failed to decode alliance selection notification", "Error", err, "Message", messageData)
+		log.Warn(ctx, "Failed to decode alliance selection notification", "error", err, "message", messageData)
 		return
 	}
 	h.Scorer.ScoreAllianceSelection(ctx, notification.EventKey)
@@ -150,7 +152,7 @@ type UpcomingMatchEvent struct {
 func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json.RawMessage) {
 	var tbaEvent UpcomingMatchEvent
 	if err := json.Unmarshal(messageData, &tbaEvent); err != nil {
-		log.Warn(ctx, "Failed to decode upcoming match event data", "Error", err)
+		log.Warn(ctx, "Failed to decode upcoming match event data", "error", err)
 		return
 	}
 
@@ -162,7 +164,7 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 	rows, err := h.DraftStore.GetDraftPickRows(ctx, tbaEvent.TeamKeys)
 
 	if err != nil {
-		log.Warn(ctx, "Failed to get picked rows", "Error", err)
+		log.Error(ctx, "Failed to get picked rows", "error", err)
 		return
 	}
 
@@ -204,7 +206,7 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 			log.Info(ctx, "Posting pre match notification webhook")
 			err := h.DiscordWebhookBus.PostPreMatchNotification(*event)
 			if err != nil {
-				log.Error(ctx, "Failed to post pre match notification webhook", "Error", err)
+				log.Error(ctx, "Failed to post pre match notification webhook", "error", err)
 			}
 		}
 	}
@@ -219,7 +221,7 @@ type MatchVideoNotification struct {
 }
 
 func (h *Handler) HandleMatchVideoEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received match video event", "Message", messageData)
+	log.Debug(ctx, "Received match video event", "message", messageData)
 }
 
 type CompLevelStartingEvent struct {
@@ -230,7 +232,7 @@ type CompLevelStartingEvent struct {
 }
 
 func (h *Handler) HandleCompLevelStartingEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received comp level starting event", "Message", messageData)
+	log.Debug(ctx, "Received comp level starting event", "message", messageData)
 }
 
 type AwardsPostedEvent struct {
@@ -241,7 +243,7 @@ type AwardsPostedEvent struct {
 }
 
 func (h *Handler) HandleAwardsPostedEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received awards posted event", "Message", messageData)
+	log.Debug(ctx, "Received awards posted event", "message", messageData)
 }
 
 type EventScheduleUpdatedEvent struct {
@@ -251,7 +253,7 @@ type EventScheduleUpdatedEvent struct {
 }
 
 func (h *Handler) HandleEventScheduleUpdatedEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received event schedule updated event", "Message", messageData)
+	log.Debug(ctx, "Received event schedule updated event", "message", messageData)
 }
 
 type PingEvent struct {
@@ -260,7 +262,7 @@ type PingEvent struct {
 }
 
 func (h *Handler) HandlePingEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received ping event", "Message", messageData)
+	log.Debug(ctx, "Received ping event", "message", messageData)
 }
 
 type BroadcastEvent struct {
@@ -270,7 +272,7 @@ type BroadcastEvent struct {
 }
 
 func (h *Handler) HandleBroadcastEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received broadcast event", "Message", messageData)
+	log.Debug(ctx, "Received broadcast event", "message", messageData)
 }
 
 type VerificationEvent struct {
@@ -278,12 +280,12 @@ type VerificationEvent struct {
 }
 
 func (h *Handler) HandleVerificationEvent(ctx context.Context, messageData json.RawMessage) {
-	log.Info(ctx, "Received Verification Event", "Message", messageData)
+	log.Debug(ctx, "Received Verification Event", "message", messageData)
 
 	var event VerificationEvent
 	err := json.Unmarshal(messageData, &event)
 	if err != nil {
-		log.Warn(ctx, "Failed to decode verification event", "Error", err, "Message", messageData)
+		log.Warn(ctx, "Failed to decode verification event", "error", err, "message", messageData)
 		return
 	}
 
@@ -294,9 +296,9 @@ func (h *Handler) HandleVerificationEvent(ctx context.Context, messageData json.
 	if os.IsNotExist(err) {
 		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaVerificationCode), 0600)
 		if err != nil {
-			log.Warn(ctx, "Failed to write tba webhook file body", "Error", err)
+			log.Error(ctx, "Failed to write tba webhook file body", "error", err)
 		}
 	} else if err != nil {
-		log.Warn(ctx, "Failed to check if webhook file exists", "Error", err)
+		log.Error(ctx, "Failed to check if webhook file exists", "error", err)
 	}
 }

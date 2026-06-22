@@ -57,7 +57,7 @@ func (t *TbaHandler) checkCache(ctx context.Context, url string) ([]byte, string
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "checkCache: Failed to close statement", "error", err)
+			log.Error(ctx, "checkCache: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -70,7 +70,7 @@ func (t *TbaHandler) checkCache(ctx context.Context, url string) ([]byte, string
 
 func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {
 	assert := assert.CreateAssertWithContext("Cache Tba Data")
-	assert.AddContext("Url", url)
+	assert.AddContext("url", url)
 	assert.AddContext("Etag", etag)
 
 	// Dont cache the data if we dont have a database
@@ -85,13 +85,13 @@ func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, bod
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "cacheData: Failed to close statement", "error", err)
+			log.Error(ctx, "cacheData: Failed to close statement", "error", err)
 		}
 	}()
 
 	_, err = stmt.ExecContext(ctx, url, etag, body)
 	if err != nil {
-		log.Error(ctx, "Failed to cache tba data", "Error", err)
+		log.Error(ctx, "Failed to cache tba data", "error", err)
 	}
 }
 
@@ -99,23 +99,25 @@ func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, bod
 // url: The full URL to request
 // endpoint: The endpoint template for metrics (e.g., "/team/{team}/event/{event}/matches")
 func (t *TbaHandler) makeRequest(ctx context.Context, url string, endpoint string) []byte {
-	log.Debug(ctx, "Making TBA request", "Url", url, "Endpoint", endpoint)
+	log.Debug(ctx, "Making TBA request", "url", url, "endpoint", endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Error(ctx, "Failed to construct tba request", "Error", err)
+		log.Error(ctx, "Failed to construct tba request", "error", err)
 		return nil
 	}
 
-	log.Debug(ctx, "Checking cache for tba data", "Url", url)
+	log.PropagateCorrelationID(ctx, req)
+
+	log.Debug(ctx, "Checking cache for tba data", "url", url)
 	body, etag, err := t.checkCache(ctx, url)
 
 	if err == nil {
-		log.Debug(ctx, "Found cached data", "Url", url, "Etag", etag)
+		log.Debug(ctx, "Found cached data", "url", url, "etag", etag)
 		req.Header.Add("If-None-Match", etag)
 		metrics.RecordTbaCacheHit("hit")
 	} else {
-		log.Warn(ctx, "Did not find cached tba data", "Url", url, "Error", err)
+		log.Debug(ctx, "Did not find cached tba data", "url", url, "error", err)
 		metrics.RecordTbaCacheHit("miss")
 	}
 
@@ -125,7 +127,7 @@ func (t *TbaHandler) makeRequest(ctx context.Context, url string, endpoint strin
 	duration := time.Since(start)
 
 	if err != nil {
-		log.Error(ctx, "Failed to run tba request", "Error", err)
+		log.Error(ctx, "Failed to run tba request", "error", err)
 		metrics.RecordTbaRequest(endpoint, 0, duration)
 		return nil
 	}
@@ -133,29 +135,40 @@ func (t *TbaHandler) makeRequest(ctx context.Context, url string, endpoint strin
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			log.Warn(ctx, "Failed to close tba request", "Url", url, "Error", err)
+			log.Error(ctx, "Failed to close tba request", "url", url, "error", err)
 		}
 	}()
 
-	log.Debug(ctx, "Got response from tba", "Status", resp.Status)
+	log.Debug(ctx, "Got response from tba", "statusCode", resp.Status)
 	switch resp.StatusCode {
 	case http.StatusNotModified:
-		log.Debug(ctx, "Got not modified from tba, using cache data", "Url", url)
+		log.Debug(ctx, "Got not modified from tba, using cache data", "url", url)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		metrics.RecordTbaCacheHit("not_modified")
 		return body
 	case http.StatusNotFound:
+		log.Debug(ctx, "TBA returned 404", "url", url)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		return nil
 	default:
-		log.Debug(ctx, "Request to Tba returned", "Url", url, "Status", resp.StatusCode)
+		if resp.StatusCode >= http.StatusInternalServerError {
+			log.Error(ctx, "TBA returned server error", "url", url, "statusCode", resp.StatusCode)
+			metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
+			return nil
+		}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			log.Warn(ctx, "TBA returned rate limit", "url", url, "statusCode", resp.StatusCode)
+			metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
+			return nil
+		}
+		log.Debug(ctx, "Request to Tba returned", "url", url, "statusCode", resp.StatusCode)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		metrics.RecordTbaCacheHit("miss")
 	}
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(ctx, "Failed to read tba request body", "Error", err)
+		log.Error(ctx, "Failed to read tba request body", "error", err)
 		return nil
 	}
 
@@ -173,7 +186,7 @@ func (t *TbaHandler) MakeMatchListReq(ctx context.Context, teamId string, eventI
 	err := json.Unmarshal(jsonData, &matches)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse match list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.Error(ctx, "Failed to parse match list from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
 		return nil
 	}
 
@@ -189,7 +202,7 @@ func (t *TbaHandler) MakeEventListReq(ctx context.Context, teamId string) []stri
 	err := json.Unmarshal(jsonData, &events)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse event list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+		log.Error(ctx, "Failed to parse event list from tba", "messageData", jsonData, "team", teamId, "error", err)
 		return nil
 	}
 
@@ -205,7 +218,7 @@ func (t *TbaHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.M
 	err := json.Unmarshal(jsonData, &match)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse match from tba", "Message Data", jsonData, "Match", matchId, "Error", err)
+		log.Error(ctx, "Failed to parse match from tba", "messageData", jsonData, "match", matchId, "error", err)
 		return swagger.Match{}
 	}
 
@@ -221,7 +234,7 @@ func (t *TbaHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, ev
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse match key list from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.Error(ctx, "Failed to parse match key list from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
 		return nil
 	}
 
@@ -237,7 +250,7 @@ func (t *TbaHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId stri
 	err := json.Unmarshal(jsonData, &keys)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse event match key list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+		log.Error(ctx, "Failed to parse event match key list from tba", "messageData", jsonData, "event", eventId, "error", err)
 		return nil
 	}
 
@@ -253,7 +266,7 @@ func (t *TbaHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string
 	err := json.Unmarshal(jsonData, &matches)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse match key year list from tba", "Message Data", jsonData, "Team", teamId, "Error", err)
+		log.Error(ctx, "Failed to parse match key year list from tba", "messageData", jsonData, "team", teamId, "error", err)
 		return nil
 	}
 
@@ -269,7 +282,7 @@ func (t *TbaHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId stri
 	err := json.Unmarshal(jsonData, &event)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse event status from tba", "Message Data", jsonData, "Team", teamId, "Event", eventId, "Error", err)
+		log.Error(ctx, "Failed to parse event status from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
 		return swagger.TeamEventStatus{}
 	}
 
@@ -285,7 +298,7 @@ func (t *TbaHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string
 	err := json.Unmarshal(jsonData, &teams)
 
 	if err != nil {
-		log.Error(ctx, "Failed to parse teams at event list from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+		log.Error(ctx, "Failed to parse teams at event list from tba", "messageData", jsonData, "event", eventId, "error", err)
 		return nil
 	}
 
@@ -306,7 +319,7 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 		err := json.Unmarshal(jsonData, &alliances)
 
 		if err != nil {
-			log.Error(ctx, "Failed to parse elimination alliances from tba", "Message Data", jsonData, "Event", eventId, "Error", err)
+			log.Error(ctx, "Failed to parse elimination alliances from tba", "messageData", jsonData, "event", eventId, "error", err)
 			return nil
 		}
 
@@ -316,12 +329,12 @@ func (t *TbaHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 
 		if attempt < maxRetries {
 			backoff := time.Duration(1<<attempt) * time.Second
-			log.Info(ctx, "TBA returned empty alliances, retrying", "Event", eventId, "Attempt", attempt+1, "Backoff", backoff)
+			log.Debug(ctx, "TBA returned empty alliances, retrying", "event", eventId, "attempt", attempt+1, "backoff", backoff)
 			time.Sleep(backoff)
 		}
 	}
 
-	log.Warn(ctx, "TBA returned empty alliances after all retries", "Event", eventId, "Attempts", maxRetries+1)
+	log.Warn(ctx, "TBA returned empty alliances after all retries", "event", eventId, "attempts", maxRetries+1)
 	return alliances
 }
 
