@@ -79,7 +79,8 @@ func (t *TbaHandler) cacheData(ctx context.Context, url string, etag string, bod
 		return
 	}
 
-	query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3);`
+	query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3)
+		On Conflict (url) Do Update Set etag = excluded.etag, responseBody = excluded.responseBody;`
 	stmt, err := t.database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
