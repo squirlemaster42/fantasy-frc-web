@@ -21,6 +21,7 @@ type DraftDaemon struct {
 }
 
 func NewDraftDaemon(draftStore model.DraftStore, draftActorMap *draft.DraftActorMap) *DraftDaemon {
+	assert.AssertCF(context.Background(), draftActorMap != nil, "DraftActorMap cannot be nil")
 	return &DraftDaemon{
 		draftStore:    draftStore,
 		running:       false,

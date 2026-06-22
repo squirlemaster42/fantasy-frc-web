@@ -5,7 +5,6 @@ import (
 	"encoding/base32"
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/view/login"
 	"unicode"
@@ -23,7 +22,10 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 	loginIndex := login.LoginIndex(false, "", h.MinPasswordLength, csrfToken)
 	login := login.Login(" | Login", false, loginIndex)
 	err = Render(c, login)
-	assert.NoErrorCF(c.Request().Context(), err, "Handle View Login Failed To Render")
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View Login Failed To Render", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	return nil
 }
 
@@ -106,9 +108,11 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password", h.MinPasswordLength, csrfToken)
 	err = Render(c, loginIndex)
-	assert.NoErrorCF(c.Request().Context(), err, "Failed To Render Login Page With Error")
-
-	return err
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed To Render Login Page With Error", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -140,7 +144,10 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 	registerIndex := login.RegisterIndex(false, "", h.MinPasswordLength, csrfToken)
 	register := login.Register(" | Register", false, registerIndex)
 	err = Render(c, register)
-	assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	return nil
 }
 
@@ -175,8 +182,10 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		}
 		register := login.RegisterIndex(false, "Username Taken", h.MinPasswordLength, csrfToken)
 		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
@@ -190,8 +199,10 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		}
 		register := login.RegisterIndex(false, "Passwords Do Not Match", h.MinPasswordLength, csrfToken)
 		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
@@ -205,8 +216,10 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		}
 		register := login.RegisterIndex(false, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength), h.MinPasswordLength, csrfToken)
 		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
@@ -231,8 +244,10 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		}
 		register := login.RegisterIndex(false, "Password must contain at least one uppercase letter, one lowercase letter, and one digit", h.MinPasswordLength, csrfToken)
 		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 

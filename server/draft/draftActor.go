@@ -849,6 +849,7 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 	assert := assert.CreateAssertWithContext("Get Next Pick")
 	assert.AddContext("Draft Id", d.draftState.Id)
 	assert.AddContext("Current Pick", d.draftState.CurrentPick)
+	assert.RunAssert(ctx, len(d.draftState.Players) > 0, "Draft has no players when finding next pick")
 
 	var nextPlayer model.DraftPlayer
 
@@ -859,6 +860,7 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 				nextPlayer = player
 			}
 		}
+		assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
 		return nextPlayer
 	}
 
@@ -878,8 +880,9 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 	}
 
 	nextIndex := lastPlayer.PlayerOrder.Int16 + direction
-	assert.RunAssert(ctx, nextIndex < 0 || int(nextIndex) >= len(d.draftState.Players), "next pick is out of bounds")
+	assert.RunAssert(ctx, nextIndex >= 0 && int(nextIndex) < len(d.draftState.Players), "next pick is out of bounds")
 	nextPlayer = d.draftState.Players[nextIndex]
+	assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
 	return nextPlayer
 }
 

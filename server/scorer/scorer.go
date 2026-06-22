@@ -3,7 +3,6 @@ package scorer
 import (
 	"context"
 	"errors"
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/swagger"
@@ -238,7 +237,6 @@ var ALLIANCE_SCORES = map[int][]int16{
 }
 
 func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int16 {
-	assert.CreateAssertWithContext("Get Alliance Selection Score")
 	scores := make(map[string]int16)
 
 	splitAllianceName := strings.Split(alliance.Name, " ")

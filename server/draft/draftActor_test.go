@@ -1,6 +1,7 @@
 package draft
 
 import (
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -54,12 +55,18 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: pickId},
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
 	}, nil).Once()
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
 	mockStore.On("MakePickAvailable", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: pickId},
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
@@ -83,11 +90,16 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		picks[i] = model.Pick{Id: i + 1}
 	}
 
+	players := []model.DraftPlayer{
+		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+	}
+
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id:          draftId,
 		Status:      model.PICKING,
 		CurrentPick: model.Pick{Id: pickId},
 		Picks:       picks,
+		Players:     players,
 	}, nil).Once()
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
 	// MakePickAvailable should NOT be called when the draft is already at 64 picks
@@ -96,6 +108,7 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Status:      model.PICKING,
 		CurrentPick: model.Pick{Id: pickId},
 		Picks:       picks,
+		Players:     players,
 	}, nil).Once()
 	// State transition to TEAMS_PLAYING after the last pick
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
@@ -104,6 +117,7 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Status:      model.TEAMS_PLAYING,
 		CurrentPick: model.Pick{Id: pickId},
 		Picks:       picks,
+		Players:     players,
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)

@@ -192,8 +192,10 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 		Or currUser.IsAdmin = true
     Order By Drafts.Id Asc;`
 
+	assert := assert.CreateAssertWithContext("Get Drafts For User")
+	assert.AddContext("User Uuid", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoErrorCF(ctx, err, "Failed to prepare statement")
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		err := stmt.Close()
 		if err != nil {
@@ -242,7 +244,6 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
                     GROUP BY UserUuid, USERNAME
                     ORDER BY MAX(PLAYERORDER);`
 
-	assert := assert.CreateAssertWithContext("GetDraftsForUser")
 	playerStmt, err := database.PrepareContext(ctx, playerQuery)
 	assert.NoError(ctx, err, "Failed to prepare player statement")
 	defer func() {
@@ -337,6 +338,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 	assert.AddContext("End Time", draft.EndTime)
 	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
+	assert.RunAssert(ctx, draft.Owner.UserUuid != uuid.Nil, "Draft owner uuid is nil")
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
@@ -711,6 +713,8 @@ func cancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int
 }
 
 func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite, error) {
+	assert := assert.CreateAssertWithContext("Get Invite")
+	assert.AddContext("Invite Id", inviteId)
 	query := `SELECT
             di.Id,
             u.username,
@@ -722,7 +726,7 @@ func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoErrorCF(ctx, err, "Failed to prepare statement")
+	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Warn(ctx, "GetInvite: Failed to close statement", "error", err)
@@ -1011,6 +1015,7 @@ func nextPick(ctx context.Context, database *sql.DB, draftId int) (DraftPlayer, 
 		log.Warn(ctx, "Attempting to find next pick for invalid draft", "Draft Id", draftId, "Error", err)
 		return DraftPlayer{}, err
 	}
+	assert.RunAssert(ctx, len(draft.Players) > 0, "Draft has no players when finding next pick")
 	var nextPlayer DraftPlayer
 
 	//I dont think we need to account for the case where there are only two players
@@ -1412,6 +1417,7 @@ func getDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 		playerScores = append(playerScores, draftPlayer)
 	}
 
+	assert.RunAssert(ctx, len(picks) == len(usernames), "Picks and usernames maps have inconsistent lengths")
 	return playerScores, nil
 }
 
