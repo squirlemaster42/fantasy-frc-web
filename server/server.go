@@ -24,6 +24,7 @@ type ServerConfig struct {
 	Database         *sql.DB
 	MetricSecret     string
 	CsrfSecret       string
+	JwtSigningKey    []byte
 	RedisAddr        string
 	RedisPassword    string
 	RedisRateLimitDB int
