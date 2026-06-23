@@ -119,6 +119,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	})
 
 	authHandler := apihandler.NewAuthHandler(cfg.Handler.ApiKeyStore, cfg.JwtSigningKey)
+	apiHandler := apihandler.NewHandler(cfg.Handler.DraftStore, cfg.Handler.UserStore, cfg.Handler.ApiKeyStore, cfg.Handler.TeamStore, cfg.Handler.DraftActorMap)
 	apiV1 := app.Group("/api/v1")
 	if rateLimiter != nil {
 		apiV1.Use(rateLimiter.RateLimitGeneral(cfg.PostsPerMinute))
@@ -127,6 +128,33 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	apiV1Protected := apiV1.Group("")
 	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
+
+	// Users
+	apiV1Protected.GET("/users/search", apiHandler.SearchUsers)
+
+	// Drafts
+	apiV1Protected.GET("/drafts", apiHandler.ListDrafts)
+	apiV1Protected.POST("/drafts", apiHandler.CreateDraft)
+	apiV1Protected.GET("/drafts/:id", apiHandler.GetDraft)
+	apiV1Protected.PATCH("/drafts/:id", apiHandler.UpdateDraft)
+	apiV1Protected.POST("/drafts/:id/start", apiHandler.StartDraft)
+	apiV1Protected.GET("/drafts/:id/picks", apiHandler.ListPicks)
+	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick)
+	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip)
+	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore)
+	apiV1Protected.GET("/team/score", apiHandler.GetTeamScore)
+
+	// Invites
+	apiV1Protected.GET("/invites", apiHandler.ListInvites)
+	apiV1Protected.POST("/drafts/:id/invites", apiHandler.CreateInvite)
+	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite)
+	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite)
+
+	// Admin
+	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick)
+	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime)
+	apiV1Protected.POST("/drafts/:id/admin/make-pick", apiHandler.AdminMakePick)
+	apiV1Protected.POST("/drafts/:id/admin/undo-pick", apiHandler.AdminUndoPick)
 
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())

@@ -671,6 +671,31 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 	return draftId, userUuid, nil
 }
 
+func declineInvite(ctx context.Context, database *sql.DB, inviteId int) error {
+	query := `UPDATE DraftInvites Set Canceled = TRUE Where id = $1 And Accepted = FALSE;`
+	assert := assert.CreateAssertWithContext("Decline Invite")
+	assert.AddContext("Invite Id", inviteId)
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare draft statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Warn(ctx, "DeclineInvite: Failed to close statement", "error", err)
+		}
+	}()
+	result, err := stmt.ExecContext(ctx, inviteId)
+	if err != nil {
+		return fmt.Errorf("failed to decline invite: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check decline result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return errors.New("invite already accepted or does not exist")
+	}
+	return nil
+}
+
 func addPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player uuid.UUID) error {
 	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
 	assert := assert.CreateAssertWithContext("Accept Invite")
