@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	apihandler "server/api/handler"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -115,6 +116,13 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	app.GET("/healthz", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
+
+	authHandler := apihandler.NewAuthHandler(cfg.Handler.ApiKeyStore, cfg.JwtSigningKey)
+	apiV1 := app.Group("/api/v1")
+	if rateLimiter != nil {
+		apiV1.Use(rateLimiter.RateLimitGeneral(cfg.PostsPerMinute))
+	}
+	apiV1.POST("/auth/token", authHandler.Token)
 
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
