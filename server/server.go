@@ -145,6 +145,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	protected.GET("/team/:id/avatar", cfg.Handler.GetTeamAvatar)
 	protected.GET("/userProfile", cfg.Handler.HandleViewUserProfile)
 	protected.POST("/userProfile", cfg.Handler.HandleUpdateUserProfile)
+	protected.GET("/integrations", cfg.Handler.HandleViewIntegrations)
+	protected.POST("/integrations", cfg.Handler.HandleCreateIntegration)
+	protected.POST("/integrations/:id/revoke", cfg.Handler.HandleRevokeIntegration)
 
 	admin := protected.Group("/admin", auth.CheckAdmin)
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
