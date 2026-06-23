@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	apihandler "server/api/handler"
+	apimiddleware "server/api/middleware"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -123,6 +124,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		apiV1.Use(rateLimiter.RateLimitGeneral(cfg.PostsPerMinute))
 	}
 	apiV1.POST("/auth/token", authHandler.Token)
+
+	apiV1Protected := apiV1.Group("")
+	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
 
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
