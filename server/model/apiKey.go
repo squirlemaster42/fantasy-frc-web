@@ -20,7 +20,7 @@ type ApiKey struct {
 	UserUuid    uuid.UUID
 	ClientId    string
 	DisplayName string
-	Scopes      []string
+	Scopes      StringArray
 	Revoked     bool
 	CreatedAt   time.Time
 	LastUsedAt  sql.NullTime
