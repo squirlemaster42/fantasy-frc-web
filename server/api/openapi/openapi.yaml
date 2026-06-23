@@ -1,0 +1,991 @@
+openapi: 3.1.0
+info:
+  title: Fantasy FRC API
+  description: |
+    Machine-to-machine API for automating Fantasy FRC drafts.
+
+    Authentication uses a short-lived JWT obtained by exchanging a client id
+    and secret via `POST /api/v1/auth/token`. Include the JWT in the
+    `Authorization: Bearer <token>` header on all other requests.
+  version: 1.0.0
+  contact:
+    name: Fantasy FRC
+servers:
+  - url: /api/v1
+    description: API v1
+
+security: []
+
+paths:
+  /auth/token:
+    post:
+      operationId: createToken
+      summary: Exchange client credentials for a JWT
+      description: |
+        Create a short-lived access token from an integration's client id and
+        client secret. Tokens expire after 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Access token created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/search:
+    get:
+      operationId: searchUsers
+      summary: Search users
+      description: |
+        Search for users who can be invited to a draft. When `draft_id` is
+        provided, users already in the draft or already invited are excluded.
+        Only the draft owner may use `draft_id`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search string matched against usernames
+        - name: draft_id
+          in: query
+          schema:
+            type: integer
+          description: Draft to exclude existing players/invitees from
+      responses:
+        '200':
+          description: List of matching users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts:
+    get:
+      operationId: listDrafts
+      summary: List drafts for the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of drafts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Draft'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: createDraft
+      summary: Create a new draft
+      description: The authenticated user becomes the owner of the new draft.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDraftRequest'
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+
+    get:
+      operationId: getDraft
+      summary: Get a single draft
+      description: Requires membership in the draft.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Draft details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateDraft
+      summary: Update draft metadata
+      description: Only the draft owner may update a draft.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDraftRequest'
+      responses:
+        '200':
+          description: Updated draft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/start:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: startDraft
+      summary: Start a draft
+      description: |
+        Transitions a draft from FILLING to WAITING_TO_START. Requires exactly
+        8 accepted players and owner permission.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Draft started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Draft'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/invites:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: createInvite
+      summary: Invite a user to a draft
+      description: Only the draft owner may invite players.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        '204':
+          description: Invite created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/picks:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    get:
+      operationId: listPicks
+      summary: List all picks in a draft
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of picks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pick'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: makePick
+      summary: Make a pick
+      description: |
+        Submit a team number as the current picking player. The team number
+        will be prefixed with `frc`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MakePickRequest'
+      responses:
+        '200':
+          description: Pick made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pick'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/skip:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: toggleSkip
+      summary: Toggle whether the authenticated player is skipped
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkipPickRequest'
+      responses:
+        '204':
+          description: Skip preference updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/score:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    get:
+      operationId: getDraftScore
+      summary: Get the score breakdown for a draft
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Draft score
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DraftScore'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/admin/skip-pick:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: adminSkipPick
+      summary: Skip the current pick
+      description: Owner only.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pick skipped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/admin/extend-time:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: adminExtendTime
+      summary: Extend the current pick's expiration time
+      description: Owner only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminExtendTimeRequest'
+      responses:
+        '200':
+          description: Pick time extended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/admin/make-pick:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: adminMakePick
+      summary: Make a pick on behalf of the current player
+      description: Owner only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminMakePickRequest'
+      responses:
+        '200':
+          description: Pick made
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /drafts/{id}/admin/undo-pick:
+    parameters:
+      - $ref: '#/components/parameters/DraftId'
+    post:
+      operationId: adminUndoPick
+      summary: Undo the last pick
+      description: Owner only.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Pick undone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /invites:
+    get:
+      operationId: listInvites
+      summary: List invites for the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invite'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /invites/{id}/accept:
+    parameters:
+      - $ref: '#/components/parameters/InviteId'
+    post:
+      operationId: acceptInvite
+      summary: Accept an invite
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Invite accepted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /invites/{id}/decline:
+    parameters:
+      - $ref: '#/components/parameters/InviteId'
+    post:
+      operationId: declineInvite
+      summary: Decline an invite
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Invite declined
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /team/score:
+    get:
+      operationId: getTeamScore
+      summary: Get scores for a team
+      parameters:
+        - name: team_number
+          in: query
+          required: true
+          schema:
+            type: string
+          description: FRC team number (without the frc prefix)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Team score data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamScore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/token
+
+  parameters:
+    DraftId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Draft ID
+    InviteId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Invite ID
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+        message:
+          type: string
+          description: Human-readable error description
+
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+        - client_id
+        - client_secret
+      properties:
+        grant_type:
+          type: string
+          enum:
+            - client_credentials
+        client_id:
+          type: string
+        client_secret:
+          type: string
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum:
+            - Bearer
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+
+    UserSummary:
+      type: object
+      required:
+        - uuid
+        - username
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        username:
+          type: string
+
+    UserSearchResponse:
+      type: object
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummary'
+
+    DraftState:
+      type: string
+      enum:
+        - Filling
+        - Waiting to Start
+        - Picking
+        - Teams Playing
+        - Complete
+
+    CreateDraftRequest:
+      type: object
+      required:
+        - display_name
+        - interval
+        - start_time
+        - end_time
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+        interval:
+          type: integer
+          description: Number of seconds per pick
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    UpdateDraftRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        description:
+          type: string
+        interval:
+          type: integer
+          description: Number of seconds per pick
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    Draft:
+      type: object
+      required:
+        - id
+        - display_name
+        - description
+        - interval
+        - start_time
+        - end_time
+        - owner
+        - status
+        - players
+      properties:
+        id:
+          type: integer
+        display_name:
+          type: string
+        description:
+          type: string
+        interval:
+          type: integer
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        owner:
+          $ref: '#/components/schemas/UserSummary'
+        status:
+          $ref: '#/components/schemas/DraftState'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/DraftPlayer'
+        next_pick:
+          $ref: '#/components/schemas/DraftPlayer'
+
+    DraftPlayer:
+      type: object
+      required:
+        - id
+        - user
+        - player_order
+        - pending
+        - score
+      properties:
+        id:
+          type: integer
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        player_order:
+          type: integer
+        pending:
+          type: boolean
+        score:
+          type: integer
+        picks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pick'
+
+    Pick:
+      type: object
+      required:
+        - id
+        - player_id
+        - available_time
+        - expiration_time
+        - skipped
+        - score
+      properties:
+        id:
+          type: integer
+        player_id:
+          type: integer
+        team_key:
+          type: string
+          description: TBA team key, e.g. frc254
+        pick_time:
+          type: string
+          format: date-time
+        available_time:
+          type: string
+          format: date-time
+        expiration_time:
+          type: string
+          format: date-time
+        skipped:
+          type: boolean
+        score:
+          type: integer
+
+    MakePickRequest:
+      type: object
+      required:
+        - team_number
+      properties:
+        team_number:
+          type: integer
+
+    SkipPickRequest:
+      type: object
+      required:
+        - skipping
+      properties:
+        skipping:
+          type: boolean
+
+    DraftScore:
+      type: object
+      required:
+        - draft_id
+        - status
+        - players
+      properties:
+        draft_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/DraftState'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/DraftPlayer'
+
+    CreateInviteRequest:
+      type: object
+      required:
+        - user_uuid
+      properties:
+        user_uuid:
+          type: string
+          format: uuid
+
+    Invite:
+      type: object
+      required:
+        - id
+        - draft_id
+        - draft_name
+        - invited_user_uuid
+        - inviting_user_uuid
+        - inviting_player_name
+        - sent_time
+        - accepted
+      properties:
+        id:
+          type: integer
+        draft_id:
+          type: integer
+        draft_name:
+          type: string
+        invited_user_uuid:
+          type: string
+          format: uuid
+        inviting_user_uuid:
+          type: string
+          format: uuid
+        inviting_player_name:
+          type: string
+        sent_time:
+          type: string
+          format: date-time
+        accepted_time:
+          type: string
+          format: date-time
+        accepted:
+          type: boolean
+
+    AdminActionResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    AdminExtendTimeRequest:
+      type: object
+      required:
+        - duration
+      properties:
+        duration:
+          type: string
+          description: Go duration string, e.g. 30m, 1h
+
+    AdminMakePickRequest:
+      type: object
+      required:
+        - team_number
+      properties:
+        team_number:
+          type: integer
+
+    TeamScore:
+      type: object
+      required:
+        - team_number
+        - scores
+        - matches
+      properties:
+        team_number:
+          type: string
+        scores:
+          type: object
+        matches:
+          type: array
+          items:
+            type: object
