@@ -78,7 +78,7 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 
 func (d *DraftDaemon) checkForDraftsToStart(ctx context.Context) error {
 	log.Debug(ctx, "Checking for drafts to Start")
-	now := time.Now()
+	now := time.Now().UTC()
 	draftIds, err := d.draftStore.GetDraftsToStart(ctx, now)
 	if err != nil && draftIds == nil {
 		return err
@@ -154,7 +154,7 @@ func (d *DraftDaemon) checkForPicksToSkip(ctx context.Context) {
 		}
 
 		log.Debug(ctx, "Checking expiration time", "Draft Id", draftId, "Current Pick Player", draftState.CurrentPick.Player)
-		now := time.Now()
+		now := time.Now().UTC()
 		if draftState.CurrentPick.ExpirationTime.Before(now) && !skipped {
 			log.Debug(ctx, "Pick expired", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
 			draft.SkipCurrentPick(ctx, draftActor, draftId, draftState.CurrentPick.Id)

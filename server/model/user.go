@@ -199,7 +199,7 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	assert := assert.CreateAssertWithContext("Register Session")
 	assert.AddContext("User Uuid", userUuid)
-	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamp + '10 days');`
+	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamptz + '10 days');`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -237,7 +237,7 @@ func unregisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 
 func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
 	assert := assert.CreateAssertWithContext("Get User By Session Token")
-	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamptz <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -281,7 +281,7 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 	assert := assert.CreateAssertWithContext("Update Session Expiration")
 	assert.AddContext("User Uuid", userUuid)
 	//We want to make sure we only update the session token that the user logged in with
-	query := `Update UserSessions Set expirationTime = now()::timestamp + '10 days' Where userUuid = $1 And sessionToken = $2;`
+	query := `Update UserSessions Set expirationTime = now()::timestamptz + '10 days' Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
@@ -302,7 +302,7 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken string) (bool, error) {
 	assert := assert.CreateAssertWithContext("Validate Session Token")
 	//I think <= is fine, it probably doesn't matter though
-	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamp <= expirationTime;`
+	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamptz <= expirationTime;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {

@@ -71,7 +71,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 		},
 		PickTime: sql.NullTime{
 			Valid: true,
-			Time:  time.Now(),
+			Time:  time.Now().UTC(),
 		},
 	}
 

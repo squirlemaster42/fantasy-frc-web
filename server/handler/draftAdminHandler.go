@@ -173,7 +173,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		Id:       currentPick.Id,
 		Player:   currentPick.Player,
 		Pick:     sql.NullString{String: tbaId, Valid: true},
-		PickTime: sql.NullTime{Time: time.Now(), Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
 	}
 
 	err = draft.MakePick(c.Request().Context(), draftActor, pick)

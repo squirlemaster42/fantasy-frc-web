@@ -629,7 +629,7 @@ func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 	}()
 
 	var inviteId int
-	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now(), false).Scan(&inviteId)
+	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), false).Scan(&inviteId)
 	if err != nil {
 		return -1, err
 	}
@@ -648,7 +648,7 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 			log.Warn(ctx, "AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.ExecContext(ctx, true, time.Now(), inviteId)
+	_, err = stmt.ExecContext(ctx, true, time.Now().UTC(), inviteId)
 	if err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to accept invite: %w", err)
 	}
@@ -1144,7 +1144,7 @@ func getCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, e
                 p.PickTime,
                 p.Skipped,
                 p.AvailableTime,
-                p.ExpirationTime At Time Zone 'America/New_York'
+                p.ExpirationTime
             From Picks p
             Inner Join (
                 Select
@@ -1227,7 +1227,7 @@ func getPreviousPick(ctx context.Context, database *sql.DB, draftId int, current
                 p.PickTime,
                 p.Skipped,
                 p.AvailableTime,
-                p.ExpirationTime At Time Zone 'America/New_York'
+                p.ExpirationTime
             From Picks p
             Inner Join DraftPlayers dp On p.Player = dp.Id
             Where dp.DraftId = $1 And p.Id < $2

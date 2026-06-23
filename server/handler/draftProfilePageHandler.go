@@ -6,6 +6,7 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/utils"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
@@ -42,13 +43,13 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	if draftModel.StartTime.IsZero() {
-		log.Info(c.Request().Context(), "Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now())
-		draftModel.StartTime = time.Now().Add(1 * time.Hour)
+		log.Info(c.Request().Context(), "Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now().UTC())
+		draftModel.StartTime = time.Now().UTC().Add(1 * time.Hour)
 	}
 
 	if draftModel.EndTime.IsZero() {
-		log.Info(c.Request().Context(), "Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now())
-		draftModel.EndTime = time.Now().Add(72 * time.Hour)
+		log.Info(c.Request().Context(), "Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now().UTC())
+		draftModel.EndTime = time.Now().UTC().Add(72 * time.Hour)
 	}
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
@@ -79,16 +80,18 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	}
 
 	layout := "2006-01-02T15:04:05"
-	parsedStartTime, err := time.Parse(layout, startTime)
+	parsedStartTime, err := time.ParseInLocation(layout, startTime, utils.EasternLocation)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse start time", "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid start time")
 	}
-	parsedEndTime, err := time.Parse(layout, endTime)
+	parsedStartTime = parsedStartTime.UTC()
+	parsedEndTime, err := time.ParseInLocation(layout, endTime, utils.EasternLocation)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse end time", "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid end time")
 	}
+	parsedEndTime = parsedEndTime.UTC()
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 

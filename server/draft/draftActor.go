@@ -152,7 +152,7 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft mod
 		log.Warn(ctx, "failed to get next pick when transitioning to picking", "Draft Id", draft.Id, "Error", err)
 		return err
 	}
-	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
 	if err != nil {
 		log.Warn(ctx, "failed to make first pick available", "Draft Id", draft.Id, "Error", err)
  	}
@@ -546,8 +546,8 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	log.Info(ctx, "Checking if we should make another pick available", "Num picks", len(picks))
 	if len(picks) < 64 {
 		log.Info(ctx, "Making next pick available", "Draft Id", d.draftState.Id)
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
-		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
+		expirationTime := utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME)
+		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), expirationTime)
 		if err != nil {
 			log.Warn(ctx, "Failed to make pick available", "Draft Player Id", msg.Pick.Player, "Error", err)
 			return Result{
@@ -616,7 +616,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 		nextPickName := nextPickUser.Username
 
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+		expirationTime := utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME)
 		event.NextPickName = nextPickName
 		event.NextPickDiscordId = nextPickDiscordId
 		event.ExpirationTime = expirationTime
@@ -704,7 +704,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	// Only make the next pick available if the draft is not already complete
 	if len(d.draftState.Picks) < 64 {
 		nextPickPlayer := d.getNextPick(ctx)
-		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
 		if err != nil {
 			log.Warn(ctx, "Failed to make pick available when skipping current pick", "Current pick", d.draftState.CurrentPick.Id, "Error", err)
 			return Result{
@@ -774,7 +774,7 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 	}
 
 	// Set the expiration time to 3 hours from now
-	newExpirationTime := time.Now().Add(3 * time.Hour)
+	newExpirationTime := time.Now().UTC().Add(3 * time.Hour)
 
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
 	err = d.draftStore.ResetPick(ctx, previousPick.Id, newExpirationTime)
