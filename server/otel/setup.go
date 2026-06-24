@@ -2,7 +2,7 @@ package otel
 
 import (
 	"context"
-	"log/slog"
+	"server/log"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
@@ -18,7 +18,7 @@ func InitTracer(serviceName string) func(context.Context) error {
 	// Create OTLP HTTP exporter
 	exporter, err := otlptracehttp.New(ctx)
 	if err != nil {
-		slog.Error("Failed to create OTLP exporter", "error", err)
+		log.Error(ctx, "Failed to create OTLP exporter", "error", err)
 		return func(ctx context.Context) error { return nil }
 	}
 

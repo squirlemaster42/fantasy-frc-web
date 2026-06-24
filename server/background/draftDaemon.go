@@ -65,10 +65,6 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 		tickCtx, cancel := context.WithTimeout(ctx, 55*time.Second)
 
 		log.Debug(tickCtx, "Starting iteration of the Draft Daemon")
-		// err := d.checkForDraftsToStart(tickCtx)
-		// if err != nil {
-		//     log.Error(tickCtx, "Failed to check for drafts to start", "Error", err)
-		// }
 		d.checkForPicksToSkip(tickCtx)
 
 		cancel()
@@ -91,31 +87,31 @@ func (d *DraftDaemon) checkForPicksToSkip(ctx context.Context) {
 
 		draftActor, err := d.draftActorMap.GetActor(ctx, draftId)
 		if err != nil {
-			log.Warn(ctx, "Failed to get draft actor", "Draft Id", draftId, "Error", err)
+			log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 			continue
 		}
 		draftState := draftActor.GetDraftState()
 
 		skipped := false
 
-		log.Debug(ctx, "Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", draftState.CurrentPick.Player)
+		log.Debug(ctx, "Checking if player wants to be skipped", "draftId", draftId, "currentPickPlayer", draftState.CurrentPick.Player)
 		shouldSkip, err := d.draftStore.ShouldSkipPick(ctx, draftState.CurrentPick.Player)
 		if err != nil {
-			log.Warn(ctx, "Failed to check if player should be skipped", "Draft Id", draftId, "Player", draftState.CurrentPick.Player, "Error", err)
+			log.Error(ctx, "Failed to check if player should be skipped", "draftId", draftId, "player", draftState.CurrentPick.Player, "error", err)
 			shouldSkip = false
 		}
 		if shouldSkip {
-			log.Debug(ctx, "Skipping player", "Pick Id", draftState.CurrentPick.Id, "Player", draftState.CurrentPick.Player)
+			log.Debug(ctx, "Skipping player", "pickId", draftState.CurrentPick.Id, "player", draftState.CurrentPick.Player)
 			skipped = draft.SkipCurrentPick(ctx, draftActor, draftId, draftState.CurrentPick.Id)
 		}
 
-		log.Debug(ctx, "Checking expiration time", "Draft Id", draftId, "Current Pick Player", draftState.CurrentPick.Player)
-		now := time.Now().UTC()
+		log.Debug(ctx, "Checking expiration time", "draftId", draftId, "currentPickPlayer", draftState.CurrentPick.Player)
+		now := time.Now()
 		if draftState.CurrentPick.ExpirationTime.Before(now) && !skipped {
-			log.Debug(ctx, "Pick expired", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
+			log.Debug(ctx, "Pick expired", "pickId", draftState.CurrentPick.Id, "expirationTime", draftState.CurrentPick.ExpirationTime, "now", now)
 			draft.SkipCurrentPick(ctx, draftActor, draftId, draftState.CurrentPick.Id)
 		} else {
-			log.Debug(ctx, "Pick is not expired yet", "Pick Id", draftState.CurrentPick.Id, "Expiration Time", draftState.CurrentPick.ExpirationTime, "Now", now)
+			log.Debug(ctx, "Pick is not expired yet", "pickId", draftState.CurrentPick.Id, "expirationTime", draftState.CurrentPick.ExpirationTime, "now", now)
 		}
 	}
 }
@@ -127,7 +123,7 @@ func (d *DraftDaemon) AddDraft(ctx context.Context, draftId int) error {
 		return errors.New("draft already added to daemon")
 	}
 	d.runningDrafts[draftId] = true
-	log.Info(ctx, "Added draft to daemon", "Draft Id", draftId)
+	log.Info(ctx, "Added draft to daemon", "draftId", draftId)
 	return nil
 }
 
@@ -138,7 +134,7 @@ func (d *DraftDaemon) RemoveDraft(ctx context.Context, draftId int) error {
 		return errors.New("draft not in daemon")
 	}
 	d.runningDrafts[draftId] = false
-	log.Info(ctx, "Removed draft from daemon", "Draft Id", draftId)
+	log.Info(ctx, "Removed draft from daemon", "draftId", draftId)
 	return nil
 }
 

@@ -23,19 +23,23 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 	}
 	err := draftActor.PostMessage(ctx, message)
 	if err != nil {
-		log.Warn(ctx, "Failed to post skip message to draft actor", "Draft Id", draftId, "Error", err)
+		log.Error(ctx, "Failed to post skip message to draft actor", "draftId", draftId, "error", err)
 		return false
 	}
 	select {
 	case result := <-message.Reply:
 		if result.Error != nil || !result.Value.(bool) {
-			log.Warn(ctx, "Skipping current pick in draft failed", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id, result.Error)
+			if result.Error != nil {
+				log.Error(ctx, "Skipping current pick in draft failed", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id, "error", result.Error)
+			} else {
+				log.Warn(ctx, "Skipping current pick in draft returned false", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
+			}
 			skipped = false
 		} else {
 			skipped = true
 		}
 	case <-time.After(5 * time.Second):
-		log.Warn(ctx, "Skipping current pick in draft timed out", "Draft Id", draftId, "Current Pick Id", draftActor.GetDraftState().CurrentPick.Id)
+		log.Warn(ctx, "Skipping current pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
 		skipped = false
 	}
 	return skipped
@@ -179,11 +183,11 @@ func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) er
 	select {
 	case <-message.Reply:
 	case <-time.After(5 * time.Second):
-		log.Warn(ctx, "Shutdown message timed out", "Draft Id", draftId)
+		log.Warn(ctx, "Shutdown message timed out", "draftId", draftId)
 	}
 
 	actorMap.actorMap.Delete(draftId)
-	log.Info(ctx, "Evicted draft actor from map", "Draft Id", draftId)
+	log.Info(ctx, "Evicted draft actor from map", "draftId", draftId)
 	return nil
 }
 
