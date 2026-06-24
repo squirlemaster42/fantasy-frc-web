@@ -91,6 +91,10 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 		api.BadRequest(c.Response(), "start_time and end_time are required")
 		return nil
 	}
+	if !req.StartTime.Before(req.EndTime) {
+		api.BadRequest(c.Response(), "start_time must be before end_time")
+		return nil
+	}
 
 	draftModel := model.DraftModel{
 		Owner: model.User{
@@ -156,7 +160,7 @@ func (h *Handler) UpdateDraft(c echo.Context) error {
 	} else {
 		update.DisplayName = draftModel.DisplayName
 	}
-	if req.Description != "" || req.DisplayName != "" {
+	if req.Description != "" {
 		update.Description = req.Description
 	} else {
 		update.Description = draftModel.Description
@@ -175,6 +179,11 @@ func (h *Handler) UpdateDraft(c echo.Context) error {
 		update.EndTime = req.EndTime.UTC()
 	} else {
 		update.EndTime = draftModel.EndTime
+	}
+
+	if !update.StartTime.Before(update.EndTime) {
+		api.BadRequest(c.Response(), "start_time must be before end_time")
+		return nil
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
@@ -436,13 +445,19 @@ func (h *Handler) GetDraftScore(c echo.Context) error {
 // GetTeamScore returns scores for a specific FRC team.
 func (h *Handler) GetTeamScore(c echo.Context) error {
 	ctx := c.Request().Context()
-	teamNumber := c.QueryParam("team_number")
-	if teamNumber == "" {
+	teamNumberStr := c.QueryParam("team_number")
+	if teamNumberStr == "" {
 		api.BadRequest(c.Response(), "team_number is required")
 		return nil
 	}
 
-	tbaId := "frc" + teamNumber
+	teamNumber, err := strconv.Atoi(teamNumberStr)
+	if err != nil || teamNumber <= 0 {
+		api.BadRequest(c.Response(), "team_number must be a positive integer")
+		return nil
+	}
+
+	tbaId := "frc" + strconv.Itoa(teamNumber)
 	scores, err := h.TeamStore.GetScore(ctx, tbaId)
 	if err != nil {
 		log.Error(ctx, "Failed to get team score", "Team", tbaId, "Error", err)
@@ -457,10 +472,20 @@ func (h *Handler) GetTeamScore(c echo.Context) error {
 		return nil
 	}
 
-	return respondJSON(c, http.StatusOK, map[string]any{
-		"team_number": teamNumber,
-		"scores":      scores,
-		"matches":     matches,
+	matchResponse := make([]apimodel.MatchScore, 0, len(matches))
+	for _, m := range matches {
+		matchResponse = append(matchResponse, apimodel.MatchScore{
+			MatchTbaId: m.MatchTbaId,
+			Alliance:   m.Alliance,
+			Score:      m.Score,
+			IsDqed:     m.IsDqed,
+		})
+	}
+
+	return respondJSON(c, http.StatusOK, apimodel.TeamScoreResponse{
+		TeamNumber: teamNumber,
+		Scores:     scores,
+		Matches:    matchResponse,
 	})
 }
 
@@ -484,6 +509,11 @@ func (h *Handler) SearchUsers(c echo.Context) error {
 			api.BadRequest(c.Response(), "Invalid draft_id")
 			return nil
 		}
+	}
+
+	if draftId == 0 && search == "" {
+		api.BadRequest(c.Response(), "draft_id or q is required")
+		return nil
 	}
 
 	// If a draft id is provided, ensure the requester is the owner.

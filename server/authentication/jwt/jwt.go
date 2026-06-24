@@ -25,9 +25,12 @@ const (
 	Algorithm = "HS256"
 )
 
+const minSigningKeyLength = 32
+
 var (
 	ErrInvalidToken = errors.New("invalid token")
 	ErrExpiredToken = errors.New("token expired")
+	ErrWeakKey      = errors.New("signing key must be at least 32 bytes")
 )
 
 // Claims represents the JWT payload.
@@ -48,8 +51,8 @@ type header struct {
 
 // Sign creates a new JWT for the given user that expires after duration.
 func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration) (string, error) {
-	if len(signingKey) == 0 {
-		return "", errors.New("signing key is required")
+	if len(signingKey) < minSigningKeyLength {
+		return "", ErrWeakKey
 	}
 
 	now := time.Now().UTC()
@@ -89,8 +92,8 @@ func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration) (string
 
 // Validate parses and validates a JWT, returning the user UUID from the subject claim.
 func Validate(tokenString string, signingKey []byte) (uuid.UUID, error) {
-	if len(signingKey) == 0 {
-		return uuid.UUID{}, errors.New("signing key is required")
+	if len(signingKey) < minSigningKeyLength {
+		return uuid.UUID{}, ErrWeakKey
 	}
 
 	parts := strings.Split(tokenString, ".")

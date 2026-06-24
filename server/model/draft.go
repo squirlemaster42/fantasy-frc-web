@@ -179,7 +179,8 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
         displayName,
         owners.UserUuid As ownerId,
         owners.Username As OwnerUsername,
-        COALESCE(status, '0') As Status
+        COALESCE(status, '0') As Status,
+        COALESCE(EXTRACT(EPOCH FROM Drafts.Interval), 0)::int As Interval
     From Drafts
     Left Join DraftPlayers On DraftPlayers.DraftId = Drafts.Id
     Left Join DraftInvites On DraftInvites.DraftId = Drafts.Id And Drafts.Status = $1
@@ -258,7 +259,8 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 		var ownerId uuid.UUID
 		var ownerUsername string
 		var status DraftState
-		err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+		var interval int
+		err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status, &interval)
 		if err != nil {
 			return nil, err
 		}
@@ -270,8 +272,9 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 				UserUuid: ownerId,
 				Username: ownerUsername,
 			},
-			Status:  status,
-			Players: make([]DraftPlayer, 0),
+			Status:   status,
+			Interval: interval,
+			Players:  make([]DraftPlayer, 0),
 		}
 
 		pick := Pick{}
@@ -329,7 +332,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
 	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
-        EndTime, Status) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
+        EndTime, Interval, Status) Values ($1, $2, $3, $4, $5, make_interval(secs => $6), $7) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
 	assert.AddContext("Owner", draft.Owner)
 	assert.AddContext("Display Name", draft.DisplayName)
@@ -347,7 +350,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 		}
 	}()
 	var draftId int
-	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Status).Scan(&draftId)
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.Status).Scan(&draftId)
 	if err != nil {
 		return -1, err
 	}
@@ -395,7 +398,8 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
         StartTime,
         EndTime,
         OwnerUserUuid,
-		COALESCE(DiscordWebhook, '')
+		COALESCE(DiscordWebhook, ''),
+		COALESCE(EXTRACT(EPOCH FROM Interval), 0)::int As Interval
     From Drafts Where Id = $1;`
 
 	assert := assert.CreateAssertWithContext("Get Draft")
@@ -421,6 +425,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		&draftModel.EndTime,
 		&ownerId,
 		&draftModel.DiscordWebhook,
+		&draftModel.Interval,
 	)
 	log.Info(ctx, "model.GetDraft: query completed", "Draft Id", draftId, "Error", err)
 	if err != nil {
@@ -596,7 +601,7 @@ func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 
 func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
 	log.Info(ctx, "model.UpdateDraft: starting", "Draft Id", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = make_interval(secs => $5), DiscordWebhook = $6 Where Id = $7;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)

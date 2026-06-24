@@ -30,7 +30,6 @@ type ApiKey struct {
 type ApiKeyStore interface {
 	CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string) (*ApiKey, string, error)
 	ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, error)
-	GetApiKey(ctx context.Context, id uuid.UUID) (*ApiKey, error)
 	GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]ApiKey, error)
 	RevokeApiKey(ctx context.Context, id uuid.UUID, userUuid uuid.UUID) error
 }
@@ -128,42 +127,6 @@ func (s *SQLApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, cl
 	return userUuid, nil
 }
 
-func (s *SQLApiKeyStore) GetApiKey(ctx context.Context, id uuid.UUID) (*ApiKey, error) {
-	assert := assert.CreateAssertWithContext("GetApiKey")
-	assert.AddContext("Id", id)
-
-	query := `SELECT Id, UserUuid, ClientId, DisplayName, Scopes, Revoked, CreatedAt, LastUsedAt
-			  FROM UserApiKeys
-			  WHERE Id = $1;`
-	stmt, err := s.db.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "failed to prepare statement")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetApiKey: Failed to close statement", "error", err)
-		}
-	}()
-
-	var key ApiKey
-	err = stmt.QueryRowContext(ctx, id).Scan(
-		&key.Id,
-		&key.UserUuid,
-		&key.ClientId,
-		&key.DisplayName,
-		&key.Scopes,
-		&key.Revoked,
-		&key.CreatedAt,
-		&key.LastUsedAt,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("failed to get api key: %w", err)
-	}
-
-	return &key, nil
-}
-
 func (s *SQLApiKeyStore) GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]ApiKey, error) {
 	assert := assert.CreateAssertWithContext("GetApiKeysForUser")
 	assert.AddContext("UserUuid", userUuid)
@@ -251,8 +214,10 @@ func (s *SQLApiKeyStore) updateLastUsedAt(ctx context.Context, clientId string) 
 		return err
 	}
 	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "updateLastUsedAt: Failed to close statement", "error", err)
+		if stmt != nil {
+			if err := stmt.Close(); err != nil {
+				log.Warn(ctx, "updateLastUsedAt: Failed to close statement", "error", err)
+			}
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, clientId)

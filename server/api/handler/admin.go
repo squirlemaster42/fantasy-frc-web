@@ -94,15 +94,16 @@ func (h *Handler) AdminExtendTime(c echo.Context) error {
 		return nil
 	}
 
-	if err := draft.ModifyCurrentPickExpirationTime(ctx, draftActor, req.Duration); err != nil {
-		log.Warn(ctx, "Failed to extend pick time", "DraftId", draftId, "Duration", req.Duration, "Error", err)
+	duration := req.Duration.Duration()
+	if err := draft.ModifyCurrentPickExpirationTime(ctx, draftActor, duration); err != nil {
+		log.Warn(ctx, "Failed to extend pick time", "DraftId", draftId, "Duration", duration, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
 		return nil
 	}
 
 	return respondJSON(c, http.StatusOK, apimodel.AdminActionResponse{
 		Success: true,
-		Message: "Pick time extended by " + req.Duration.String(),
+		Message: "Pick time extended by " + duration.String(),
 	})
 }
 

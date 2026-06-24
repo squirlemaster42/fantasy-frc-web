@@ -121,9 +121,6 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	authHandler := apihandler.NewAuthHandler(cfg.Handler.ApiKeyStore, cfg.JwtSigningKey)
 	apiHandler := apihandler.NewHandler(cfg.Handler.DraftStore, cfg.Handler.UserStore, cfg.Handler.ApiKeyStore, cfg.Handler.TeamStore, cfg.Handler.DraftActorMap)
 	apiV1 := app.Group("/api/v1")
-	if rateLimiter != nil {
-		apiV1.Use(rateLimiter.RateLimitGeneral(cfg.PostsPerMinute))
-	}
 	apiV1.POST("/auth/token", authHandler.Token)
 
 	apiV1Protected := apiV1.Group("")
@@ -142,7 +139,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick)
 	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip)
 	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore)
-	apiV1Protected.GET("/team/score", apiHandler.GetTeamScore)
+
+	// Public team score
+	apiV1.GET("/team/score", apiHandler.GetTeamScore)
 
 	// Invites
 	apiV1Protected.GET("/invites", apiHandler.ListInvites)

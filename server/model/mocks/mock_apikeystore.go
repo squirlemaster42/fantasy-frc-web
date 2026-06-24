@@ -59,28 +59,6 @@ func (_m *MockApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, 
 	return r0, r1
 }
 
-func (_m *MockApiKeyStore) GetApiKey(ctx context.Context, id uuid.UUID) (*model.ApiKey, error) {
-	ret := _m.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetApiKey")
-	}
-
-	var r0 *model.ApiKey
-	var r1 error
-
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*model.ApiKey, error)); ok {
-		return rf(ctx, id)
-	}
-
-	if ret.Get(0) != nil {
-		r0 = ret.Get(0).(*model.ApiKey)
-	}
-	r1 = ret.Error(1)
-
-	return r0, r1
-}
-
 func (_m *MockApiKeyStore) GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]model.ApiKey, error) {
 	ret := _m.Called(ctx, userUuid)
 

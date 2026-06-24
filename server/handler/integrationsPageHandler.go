@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"server/log"
+	"server/model"
 	"server/view/integrations"
 
 	"github.com/google/uuid"
@@ -90,6 +92,9 @@ func (h *Handler) HandleRevokeIntegration(c echo.Context) error {
 	}
 
 	if err := h.ApiKeyStore.RevokeApiKey(ctx, keyId, userUuid); err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return c.String(http.StatusNotFound, "Integration not found")
+		}
 		log.Error(ctx, "Failed to revoke api key", "KeyId", keyId, "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}

@@ -169,10 +169,11 @@ func mapInvite(i model.DraftInvite) apimodel.InviteResponse {
 }
 
 // respondJSON is a small helper that logs on encoding failure.
+// If encoding fails after headers have already been sent, we log the error
+// but do not attempt a second write.
 func respondJSON(c echo.Context, status int, payload any) error {
 	if err := c.JSON(status, payload); err != nil {
 		log.Error(c.Request().Context(), "Failed to encode JSON response", "Error", err)
-		api.InternalError(c.Response())
 	}
 	return nil
 }

@@ -578,10 +578,8 @@ paths:
           in: query
           required: true
           schema:
-            type: string
+            type: integer
           description: FRC team number (without the frc prefix)
-      security:
-        - bearerAuth: []
       responses:
         '200':
           description: Team score data
@@ -591,8 +589,6 @@ paths:
                 $ref: '#/components/schemas/TeamScore'
         '400':
           $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -982,10 +978,29 @@ components:
         - matches
       properties:
         team_number:
-          type: string
+          type: integer
         scores:
           type: object
+          additionalProperties:
+            type: integer
         matches:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/MatchScore'
+
+    MatchScore:
+      type: object
+      required:
+        - match_tba_id
+        - alliance
+        - score
+        - is_dqed
+      properties:
+        match_tba_id:
+          type: string
+        alliance:
+          type: string
+        score:
+          type: integer
+        is_dqed:
+          type: boolean

@@ -9,16 +9,15 @@ import (
 type ErrorCode string
 
 const (
-	ErrInvalidRequest  ErrorCode = "INVALID_REQUEST"
-	ErrInvalidClient   ErrorCode = "INVALID_CLIENT"
-	ErrInvalidGrant    ErrorCode = "INVALID_GRANT"
-	ErrUnauthorized    ErrorCode = "UNAUTHORIZED"
-	ErrForbidden       ErrorCode = "FORBIDDEN"
-	ErrNotFound        ErrorCode = "NOT_FOUND"
-	ErrConflict        ErrorCode = "CONFLICT"
-	ErrValidation      ErrorCode = "VALIDATION_ERROR"
-	ErrInternal        ErrorCode = "INTERNAL_ERROR"
-	ErrMethodNotAllowed ErrorCode = "METHOD_NOT_ALLOWED"
+	ErrInvalidRequest ErrorCode = "INVALID_REQUEST"
+	ErrInvalidClient  ErrorCode = "INVALID_CLIENT"
+	ErrInvalidGrant   ErrorCode = "INVALID_GRANT"
+	ErrUnauthorized   ErrorCode = "UNAUTHORIZED"
+	ErrForbidden      ErrorCode = "FORBIDDEN"
+	ErrNotFound       ErrorCode = "NOT_FOUND"
+	ErrConflict       ErrorCode = "CONFLICT"
+	ErrValidation     ErrorCode = "VALIDATION_ERROR"
+	ErrInternal       ErrorCode = "INTERNAL_ERROR"
 )
 
 // ErrorResponse is the standard REST error envelope.

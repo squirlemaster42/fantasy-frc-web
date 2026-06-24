@@ -65,6 +65,21 @@ func TestValidateWrongAlgorithm(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvalidToken)
 }
 
+func TestSignWeakKey(t *testing.T) {
+	key := []byte("short")
+	userUuid := uuid.New()
+
+	_, err := Sign(userUuid, key, 15*time.Minute)
+	assert.ErrorIs(t, err, ErrWeakKey)
+}
+
+func TestValidateWeakKey(t *testing.T) {
+	key := []byte("short")
+
+	_, err := Validate("any.token.here", key)
+	assert.ErrorIs(t, err, ErrWeakKey)
+}
+
 func TestGenerateClientIDAndSecret(t *testing.T) {
 	clientId, err := GenerateClientID()
 	assert.NoError(t, err)

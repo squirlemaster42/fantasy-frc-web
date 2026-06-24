@@ -45,7 +45,9 @@ func (a StringArray) Value() (driver.Value, error) {
 
 	parts := make([]string, len(a))
 	for i, s := range a {
-		parts[i] = `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+		s = strings.ReplaceAll(s, `\`, `\\`)
+		s = strings.ReplaceAll(s, `"`, `\"`)
+		parts[i] = `"` + s + `"`
 	}
 	return "{" + strings.Join(parts, ",") + "}", nil
 }

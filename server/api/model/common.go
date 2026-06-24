@@ -1,7 +1,5 @@
 package apimodel
 
-import "time"
-
 // DraftState is the JSON representation of a draft's lifecycle state.
 type DraftState string
 
@@ -18,6 +16,3 @@ type UserSummary struct {
 	Uuid     string `json:"uuid"`
 	Username string `json:"username"`
 }
-
-// Timestamps formats RFC3339 for JSON responses.
-type Timestamp = time.Time

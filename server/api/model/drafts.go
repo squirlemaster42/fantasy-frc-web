@@ -72,3 +72,18 @@ type DraftScoreResponse struct {
 	Status  DraftState            `json:"status"`
 	Players []DraftPlayerResponse `json:"players"`
 }
+
+// MatchScore is a single match result for a team.
+type MatchScore struct {
+	MatchTbaId string `json:"match_tba_id"`
+	Alliance   string `json:"alliance"`
+	Score      int    `json:"score"`
+	IsDqed     bool   `json:"is_dqed"`
+}
+
+// TeamScoreResponse is returned by GET /api/v1/team/score.
+type TeamScoreResponse struct {
+	TeamNumber int            `json:"team_number"`
+	Scores     map[string]int `json:"scores"`
+	Matches    []MatchScore   `json:"matches"`
+}

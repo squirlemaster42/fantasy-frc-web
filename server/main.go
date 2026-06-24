@@ -9,6 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
+	"github.com/joho/godotenv"
+
 	"server/assert"
 	"server/background"
 	"server/cache"
@@ -23,11 +29,6 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
-	"strconv"
-	"syscall"
-	"time"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -79,6 +80,10 @@ func main() {
 	}
 	if jwtSigningKey == "" {
 		panic("JWT_SIGNING_KEY environment variable is required")
+	}
+	if len(jwtSigningKey) < 32 {
+		log.Error(ctx, "JWT_SIGNING_KEY must be at least 32 bytes")
+		os.Exit(1)
 	}
 
 	minPasswordLength := 12
