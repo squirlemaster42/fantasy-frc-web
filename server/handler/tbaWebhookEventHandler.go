@@ -67,33 +67,31 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
-	detachedCtx := log.DetachCorrelationID(c.Request().Context())
-
 	if event.MessageType == "verification" {
-		h.HandleVerificationEvent(detachedCtx, event.MessageData)
+		h.HandleVerificationEvent(c.Request().Context(), event.MessageData)
 		return c.NoContent(http.StatusOK)
 	}
 
 	log.Debug(c.Request().Context(), "Routing event", "messageType", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		go h.HandleUpcomingMatchEvent(detachedCtx, event.MessageData)
+		go h.HandleUpcomingMatchEvent(c.Request().Context(), event.MessageData)
 	case "match_score":
-		go h.HandleMatchScoreEvent(detachedCtx, event.MessageData)
+		go h.HandleMatchScoreEvent(c.Request().Context(), event.MessageData)
 	case "match_video":
-		h.HandleMatchVideoEvent(detachedCtx, event.MessageData)
+		h.HandleMatchVideoEvent(c.Request().Context(), event.MessageData)
 	case "starting_comp_level":
-		h.HandleCompLevelStartingEvent(detachedCtx, event.MessageData)
+		h.HandleCompLevelStartingEvent(c.Request().Context(), event.MessageData)
 	case "alliance_selection":
-		go h.HandleAllianceSelectionEvent(detachedCtx, event.MessageData)
+		go h.HandleAllianceSelectionEvent(c.Request().Context(), event.MessageData)
 	case "awards_posted":
-		h.HandleAwardsPostedEvent(detachedCtx, event.MessageData)
+		h.HandleAwardsPostedEvent(c.Request().Context(), event.MessageData)
 	case "schedule_updated":
-		h.HandleEventScheduleUpdatedEvent(detachedCtx, event.MessageData)
+		h.HandleEventScheduleUpdatedEvent(c.Request().Context(), event.MessageData)
 	case "ping":
-		h.HandlePingEvent(detachedCtx, event.MessageData)
+		h.HandlePingEvent(c.Request().Context(), event.MessageData)
 	case "broadcast":
-		h.HandleBroadcastEvent(detachedCtx, event.MessageData)
+		h.HandleBroadcastEvent(c.Request().Context(), event.MessageData)
 	default:
 		log.Warn(c.Request().Context(), "Unknown websocket event detected", "messageType", event.MessageType, "message", event.MessageData)
 	}
