@@ -65,59 +65,15 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 		tickCtx, cancel := context.WithTimeout(ctx, 55*time.Second)
 
 		log.Debug(tickCtx, "Starting iteration of the Draft Daemon")
-		err := d.checkForDraftsToStart(tickCtx)
-		if err != nil {
-			log.Error(tickCtx, "Failed to check for drafts to start", "Error", err)
-		}
+		// err := d.checkForDraftsToStart(tickCtx)
+		// if err != nil {
+		//     log.Error(tickCtx, "Failed to check for drafts to start", "Error", err)
+		// }
 		d.checkForPicksToSkip(tickCtx)
 
 		cancel()
 		time.Sleep(1 * time.Minute)
 	}
-}
-
-func (d *DraftDaemon) checkForDraftsToStart(ctx context.Context) error {
-	log.Debug(ctx, "Checking for drafts to Start")
-	now := time.Now().UTC()
-	draftIds, err := d.draftStore.GetDraftsToStart(ctx, now)
-	if err != nil && draftIds == nil {
-		return err
-	}
-
-	if len(draftIds) > 0 {
-		log.Debug(ctx, "Found drafts to start", "Count", len(draftIds))
-	} else {
-		log.Debug(ctx, "Found no drafts to start")
-	}
-
-	if err != nil {
-		log.Error(ctx, "Failed to get drafts to start", "Now", now, "Error", err)
-	}
-
-	for _, draftId := range draftIds {
-		assert := assert.CreateAssertWithContext("Check For Drafts To Start")
-		assert.AddContext("Draft Id", draftId)
-		draftActor, err := d.draftActorMap.GetActor(ctx, draftId)
-		if err != nil {
-			log.Warn(ctx, "Failed to get draft actor", "Draft Id", draftId, "Error", err)
-			continue
-		}
-		draftState := draftActor.GetDraftState()
-		assert.AddContext("Draft Status", draftState.Status)
-		assert.RunAssert(ctx, draftState.Status == model.WAITING_TO_START, "Invalid draft status to transition to picking")
-
-		message := draft.Message{
-			Content: draft.StateTransitionMessage{
-				RequestedState: model.PICKING,
-			},
-		}
-		err = draftActor.PostMessage(ctx, message)
-		if err != nil {
-			log.Error(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
-		}
-	}
-
-	return nil
 }
 
 func (d *DraftDaemon) checkForPicksToSkip(ctx context.Context) {

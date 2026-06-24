@@ -121,8 +121,6 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 			Name:           draftModel.DisplayName,
 			Description:    draftModel.Description,
 			Interval:       draftModel.Interval,
-			StartTime:      draftModel.StartTime,
-			EndTime:        draftModel.EndTime,
 			DiscordWebhook: draftModel.DiscordWebhook,
 		},
 		Reply: replyChan,

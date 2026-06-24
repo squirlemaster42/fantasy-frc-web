@@ -6,11 +6,9 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
-	"server/utils"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -42,16 +40,6 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
-	if draftModel.StartTime.IsZero() {
-		log.Info(c.Request().Context(), "Found draft without a start time setting to an hour from now", "Draft Id", draftId, "Now", time.Now().UTC())
-		draftModel.StartTime = time.Now().UTC().Add(1 * time.Hour)
-	}
-
-	if draftModel.EndTime.IsZero() {
-		log.Info(c.Request().Context(), "Found draft without an end time setting to three days from now", "Draft Id", draftId, "Now", time.Now().UTC())
-		draftModel.EndTime = time.Now().UTC().Add(72 * time.Hour)
-	}
-
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	return Render(c, draftView)
@@ -69,8 +57,6 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
 	interval := c.FormValue("interval")
-	startTime := c.FormValue("startTime")
-	endTime := c.FormValue("endTime")
 	discordWebhook := c.FormValue("discordWebhook")
 
 	intInterval, err := strconv.Atoi(interval)
@@ -78,20 +64,6 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Failed to parse interval", "Error", err)
 		return c.String(http.StatusBadRequest, "Invalid interval")
 	}
-
-	layout := "2006-01-02T15:04:05"
-	parsedStartTime, err := time.ParseInLocation(layout, startTime, utils.EasternLocation)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse start time", "Error", err)
-		return c.String(http.StatusBadRequest, "Invalid start time")
-	}
-	parsedStartTime = parsedStartTime.UTC()
-	parsedEndTime, err := time.ParseInLocation(layout, endTime, utils.EasternLocation)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse end time", "Error", err)
-		return c.String(http.StatusBadRequest, "Invalid end time")
-	}
-	parsedEndTime = parsedEndTime.UTC()
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 
@@ -117,8 +89,6 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		DisplayName:    draftName,
 		Description:    description,
 		Interval:       intInterval,
-		StartTime:      parsedStartTime,
-		EndTime:        parsedEndTime,
 		DiscordWebhook: discordWebhook,
 	}
 
@@ -289,7 +259,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Requesting draft state change to picking", "Draft Id", draftId)
-	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.WAITING_TO_START)
+	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.PICKING)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
 		return err

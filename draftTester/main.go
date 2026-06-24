@@ -99,13 +99,6 @@ func initDraft(users []*User) (*User, Draft) {
 	//Start Draft
 	startDraft(owner, draft.Id)
 
-	//Check that draft is in the correct status
-	currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
-	if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
-		slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
-		panic("draft status is not correct")
-	}
-
 	// Wait for draft start time to hit and make sure draft goes into picking
 	waitUntilDraftState(owner, draft.Id, "Picking", 300*time.Second)
 	return owner, draft

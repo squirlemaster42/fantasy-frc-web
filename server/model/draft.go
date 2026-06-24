@@ -30,8 +30,6 @@ type DraftModel struct {
 	DisplayName    string
 	Description    string
 	Interval       int //Number of seconds to pick
-	StartTime      time.Time
-	EndTime        time.Time
 	DiscordWebhook string
 	Owner          User
 	Status         DraftState
@@ -51,8 +49,8 @@ func (d *DraftModel) String() string {
 		stringBuilder.WriteString(" \n}")
 	}
 
-	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n StartTime: %s\n EndTime: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
-		d.Id, d.DisplayName, d.Description, d.Interval, d.StartTime.String(), d.EndTime.String(), d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String())
+	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
+		d.Id, d.DisplayName, d.Description, d.Interval, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String())
 }
 
 type DraftPlayer struct {
@@ -328,14 +326,11 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 }
 
 func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
-	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, StartTime,
-        EndTime, Status) Values ($1, $2, $3, $4, $5, $6) RETURNING Id;`
+	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, Status) Values ($1, $2, $3, $4) RETURNING Id;`
 	assert := assert.CreateAssertWithContext("Create Draft")
 	assert.AddContext("Owner", draft.Owner)
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
-	assert.AddContext("Start Time", draft.StartTime)
-	assert.AddContext("End Time", draft.EndTime)
 	assert.AddContext("Status", draft.Status)
 	assert.AddContext("Description", draft.Description)
 	assert.RunAssert(ctx, draft.Owner.UserUuid != uuid.Nil, "Draft owner uuid is nil")
@@ -347,7 +342,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 		}
 	}()
 	var draftId int
-	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.StartTime, draft.EndTime, draft.Status).Scan(&draftId)
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status).Scan(&draftId)
 	if err != nil {
 		return -1, err
 	}
@@ -392,8 +387,6 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
         DisplayName,
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
-        StartTime,
-        EndTime,
         OwnerUserUuid,
 		COALESCE(DiscordWebhook, '')
     From Drafts Where Id = $1;`
@@ -417,8 +410,6 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		&draftModel.DisplayName,
 		&draftModel.Description,
 		&draftModel.Status,
-		&draftModel.StartTime,
-		&draftModel.EndTime,
 		&ownerId,
 		&draftModel.DiscordWebhook,
 	)
@@ -596,12 +587,10 @@ func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 
 func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
 	log.Info(ctx, "model.UpdateDraft: starting", "Draft Id", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, StartTime = $3, EndTime = $4, Interval = $5, DiscordWebhook = $6 Where Id = $7;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, Interval = $3, DiscordWebhook = $4 Where Id = $5;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
-	assert.AddContext("Start Time", draft.StartTime)
-	assert.AddContext("End Time", draft.EndTime)
 	assert.AddContext("Description", draft.Description)
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare statement")
@@ -611,7 +600,7 @@ func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error
 		}
 	}()
 	log.Info(ctx, "model.UpdateDraft: executing query", "Draft Id", draft.Id)
-	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.StartTime, draft.EndTime, draft.Interval, draft.DiscordWebhook, draft.Id)
+	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.Interval, draft.DiscordWebhook, draft.Id)
 	log.Info(ctx, "model.UpdateDraft: query completed", "Draft Id", draft.Id, "Error", err)
 	return err
 }
@@ -1419,47 +1408,4 @@ func getDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 
 	assert.RunAssert(ctx, len(picks) == len(usernames), "Picks and usernames maps have inconsistent lengths")
 	return playerScores, nil
-}
-
-func getDraftsToStart(ctx context.Context, database *sql.DB, cutoffDate time.Time) ([]int, error) {
-	assert := assert.CreateAssertWithContext("Get Drafts To Start")
-	assert.AddContext("Cutoff Date", cutoffDate)
-
-	query := `
-    Select
-        Id
-    From Drafts d
-    Where d.StartTime < $1
-    And d.Status = $2
-    `
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare statement")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetDraftsToStart: Failed to close statement", "error", err)
-		}
-	}()
-	rows, err := stmt.QueryContext(ctx, cutoffDate, WAITING_TO_START)
-
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Warn(ctx, "GetDraftsToStart: Failed to close rows", "error", err)
-		}
-	}()
-
-	var draftIds []int
-	for rows.Next() {
-		var draftId int
-		err = rows.Scan(&draftId)
-		if err != nil {
-			//Return the draft ids so that we can at least process those
-			return draftIds, err
-		}
-		draftIds = append(draftIds, draftId)
-	}
-
-	return draftIds, nil
 }
