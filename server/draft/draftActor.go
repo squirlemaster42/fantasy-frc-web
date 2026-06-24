@@ -43,8 +43,6 @@ type UpdateDraftProfileMessage struct {
 	Name           string
 	Description    string
 	Interval       int
-	StartTime      time.Time
-	EndTime        time.Time
 	DiscordWebhook string
 }
 
@@ -146,15 +144,15 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft mod
 	if err != nil {
 		return err
 	}
-		nextPickPlayer, err := tpt.draftStore.NextPick(ctx, draft.Id)
-		if err != nil {
-			log.Error(ctx, "failed to get next pick when transitioning to picking", "draftId", draft.Id, "error", err)
-			return err
-		}
-		_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
-		if err != nil {
-			log.Error(ctx, "failed to make first pick available", "draftId", draft.Id, "error", err)
-  		}
+	nextPickPlayer, err := tpt.draftStore.NextPick(ctx, draft.Id)
+	if err != nil {
+		log.Error(ctx, "failed to get next pick when transitioning to picking", "draftId", draft.Id, "error", err)
+		return err
+	}
+	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+	if err != nil {
+		log.Error(ctx, "failed to make first pick available", "draftId", draft.Id, "error", err)
+	}
 	err = tpt.draftStore.UpdateDraftStatus(ctx, draft.Id, model.PICKING)
 	if err != nil {
 		log.Error(ctx, "Failed to update draft status", "draftId", draft.Id, "error", err)
@@ -197,15 +195,7 @@ func setupStates(ctx context.Context, draftStore model.DraftStore) map[model.Dra
 		state:       model.FILLING,
 		transitions: make(map[model.DraftState]stateTransition),
 	}
-	states[model.FILLING].transitions[model.WAITING_TO_START] = &ToStartTransition{
-		draftStore: draftStore,
-	}
-
-	states[model.WAITING_TO_START] = &state{
-		state:       model.WAITING_TO_START,
-		transitions: make(map[model.DraftState]stateTransition),
-	}
-	states[model.WAITING_TO_START].transitions[model.PICKING] = &ToPickingTransition{
+	states[model.FILLING].transitions[model.PICKING] = &ToPickingTransition{
 		draftStore: draftStore,
 	}
 
@@ -615,7 +605,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 		nextPickName := nextPickUser.Username
 
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+		expirationTime := utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME)
 		event.NextPickName = nextPickName
 		event.NextPickDiscordId = nextPickDiscordId
 		event.ExpirationTime = expirationTime
@@ -705,7 +695,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	// Only make the next pick available if the draft is not already complete
 	if len(d.draftState.Picks) < 64 {
 		nextPickPlayer := d.getNextPick(ctx)
-		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
+		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
 		if err != nil {
 			log.Error(ctx, "Failed to make pick available when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
 			return Result{
@@ -777,7 +767,7 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 	}
 
 	// Set the expiration time to 3 hours from now
-	newExpirationTime := time.Now().Add(3 * time.Hour)
+	newExpirationTime := time.Now().UTC().Add(3 * time.Hour)
 
 	// Reset the previous pick (null out pick and pickTime, and set new expiration)
 	err = d.draftStore.ResetPick(ctx, previousPick.Id, newExpirationTime)
@@ -806,8 +796,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	draftModel.DisplayName = msg.Name
 	draftModel.Description = msg.Description
 	draftModel.Interval = msg.Interval
-	draftModel.StartTime = msg.StartTime
-	draftModel.EndTime = msg.EndTime
 	draftModel.DiscordWebhook = msg.DiscordWebhook
 
 	err := d.draftStore.UpdateDraft(ctx, &draftModel)
@@ -822,8 +810,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
 	d.draftState.Interval = msg.Interval
-	d.draftState.StartTime = msg.StartTime
-	d.draftState.EndTime = msg.EndTime
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
 
 	return Result{}

@@ -9,7 +9,6 @@ import (
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -41,16 +40,6 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
-	if draftModel.StartTime.IsZero() {
-		log.Debug(c.Request().Context(), "Found draft without a start time setting to an hour from now", "draftId", draftId)
-		draftModel.StartTime = time.Now().Add(1 * time.Hour)
-	}
-
-	if draftModel.EndTime.IsZero() {
-		log.Debug(c.Request().Context(), "Found draft without an end time setting to three days from now", "draftId", draftId)
-		draftModel.EndTime = time.Now().Add(72 * time.Hour)
-	}
-
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
 	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
 	if err := Render(c, draftView); err != nil {
@@ -72,26 +61,12 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
 	interval := c.FormValue("interval")
-	startTime := c.FormValue("startTime")
-	endTime := c.FormValue("endTime")
 	discordWebhook := c.FormValue("discordWebhook")
 
 	intInterval, err := strconv.Atoi(interval)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse interval", "error", err)
 		return c.String(http.StatusBadRequest, "Invalid interval")
-	}
-
-	layout := "2006-01-02T15:04:05"
-	parsedStartTime, err := time.Parse(layout, startTime)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse start time", "error", err)
-		return c.String(http.StatusBadRequest, "Invalid start time")
-	}
-	parsedEndTime, err := time.Parse(layout, endTime)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse end time", "error", err)
-		return c.String(http.StatusBadRequest, "Invalid end time")
 	}
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
@@ -118,8 +93,6 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		DisplayName:    draftName,
 		Description:    description,
 		Interval:       intInterval,
-		StartTime:      parsedStartTime,
-		EndTime:        parsedEndTime,
 		DiscordWebhook: discordWebhook,
 	}
 
@@ -299,7 +272,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	log.Debug(c.Request().Context(), "Requesting draft state change to picking", "draftId", draftId)
-	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.WAITING_TO_START)
+	err = draft.ExecuteDraftStateTransition(c.Request().Context(), draftActor, model.PICKING)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "draftId", draftId, "error", err)
 		return err

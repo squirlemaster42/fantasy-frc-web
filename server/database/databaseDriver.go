@@ -51,5 +51,5 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 }
 
 func createConnectionString(username string, password string, ip string, dbName string) string {
-	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable"
+	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
 }

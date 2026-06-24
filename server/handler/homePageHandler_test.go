@@ -57,7 +57,7 @@ func TestHandleViewCreateDraft(t *testing.T) {
 
 func TestHandleCreateDraftPost(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodPost, "/u/createDraft", "draftName=Test+Draft&description=A+test+draft&interval=60&startTime=2026-05-11T12:00:00&endTime=2026-05-12T12:00:00", "test-session")
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/createDraft", "draftName=Test+Draft&description=A+test+draft&interval=60", "test-session")
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)

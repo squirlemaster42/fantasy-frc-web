@@ -322,7 +322,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 		},
 		PickTime: sql.NullTime{
 			Valid: true,
-			Time:  time.Now(),
+			Time:  time.Now().UTC(),
 		},
 	}
 
