@@ -101,7 +101,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 
 	rows, err := db.QueryContext(ctx, query, float64(queryThresholdMs)/1000.0, maxQueries)
 	if err != nil {
-		log.Warn(ctx, "Failed to query pg_stat_statements", "error", err)
+		log.Error(ctx, "Failed to query pg_stat_statements", "error", err)
 		return
 	}
 	defer rows.Close()
@@ -118,7 +118,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 
 		err := rows.Scan(&queryText, &calls, &meanTime, &totalTime, &rowsCount)
 		if err != nil {
-			log.Warn(ctx, "Failed to scan pg_stat_statements row", "error", err)
+			log.Error(ctx, "Failed to scan pg_stat_statements row", "error", err)
 			continue
 		}
 

@@ -69,7 +69,7 @@ func (pn *PickNotifier) UnregisterWatcher(ctx context.Context, watcher *Watcher)
 			}
 		}
 		if index >= 0 {
-			log.Info(ctx, "Unregistered watcher", "Index", index, "Key", key, "Watcher Id", watcher.WatcherId)
+			log.Debug(ctx, "Unregistered watcher", "index", index, "draftId", key, "watcherId", watcher.WatcherId)
 			pn.Watchers[key] = removeWatcher(watchers, index)
 			metrics.DecrementWebSocketListener()
 			// Clean up empty draft entries to prevent memory leaks
@@ -91,13 +91,13 @@ func (pn *PickNotifier) ReceivePickEvent(ctx context.Context, pickEvent PickEven
 	copy(watchers, pn.Watchers[pickEvent.DraftId])
 	pn.mu.RUnlock()
 
-	log.Info(ctx, "Received Pick Event", "Pick Id", pickEvent.Pick.Id, "Draft Id", pickEvent.DraftId, "Num Watchers", len(watchers))
+	log.Debug(ctx, "Received Pick Event", "pickId", pickEvent.Pick.Id, "draftId", pickEvent.DraftId, "numWatchers", len(watchers))
 	for _, watcher := range watchers {
 		select {
 		case watcher.NotifierQueue <- true:
 			// Sent successfully
 		case <-time.After(5 * time.Second):
-			log.Warn(ctx, "Timeout sending to watcher, skipping", "Watcher Id", watcher.WatcherId)
+			log.Warn(ctx, "Timeout sending to watcher, skipping", "watcherId", watcher.WatcherId)
 			// Continue notifying remaining watchers; do not return error
 		}
 	}
@@ -110,12 +110,12 @@ func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
 	copy(watchers, pn.Watchers[draftId])
 	pn.mu.RUnlock()
 
-	log.Info(ctx, "Notifying Watchers", "Draft Id", draftId, "Num Watchers", len(watchers))
+	log.Debug(ctx, "Notifying Watchers", "draftId", draftId, "numWatchers", len(watchers))
 	for _, watcher := range watchers {
 		select {
 		case watcher.NotifierQueue <- true:
 		case <-time.After(5 * time.Second):
-			log.Warn(ctx, "Timeout notifying watcher", "Watcher Id", watcher.WatcherId)
+			log.Warn(ctx, "Timeout notifying watcher", "watcherId", watcher.WatcherId)
 		}
 	}
 }

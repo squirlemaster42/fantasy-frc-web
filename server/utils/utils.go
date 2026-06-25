@@ -89,6 +89,18 @@ func ParseArgString(argStr string) (map[string]string, error) {
 
 var PICK_TIME time.Duration = 1 * time.Hour
 
+// EasternLocation is the canonical America/New_York timezone used for all
+// draft scheduling, pick windows, and user-facing time display.
+var EasternLocation *time.Location
+
+func init() {
+	var err error
+	EasternLocation, err = time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Fatal(context.Background(), "Failed to load Eastern timezone", "Error", err)
+	}
+}
+
 type TimeRange struct {
 	startHour int
 	endHour   int
@@ -127,6 +139,8 @@ var ALLOWED_TIMES = map[time.Weekday]TimeRange{
 }
 
 func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration time.Duration) time.Time {
+	// All pick scheduling is done in Eastern time.
+	t = t.In(EasternLocation)
 	log.Info(ctx, "Getting Expiration Time", "Current Time", t)
 	expirationTime := t.Add(expirationDuration)
 	validTime := ALLOWED_TIMES[expirationTime.Weekday()]
@@ -135,17 +149,17 @@ func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration 
 	//If the expiration time is in the pick window and we are currently in the pick window
 	if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour &&
 		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Info(ctx, "Expiration Time and Current Time in Window")
+		log.Debug(ctx, "Expiration Time and Current Time in Window")
 		return expirationTime
 	}
 
 	//If the expiration time is not in the pick window but the current time is
 	if (expirationTime.Hour() < validTime.startHour || expirationTime.Hour() > validTime.endHour) &&
 		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Info(ctx, "Expiration Time not in window and Current Time in Window")
+		log.Debug(ctx, "Expiration Time not in window and Current Time in Window")
 		nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
 		diff := int(expirationDuration.Hours()) - (validTime.endHour - t.Hour())
-		expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), nextDay.Location())
+		expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), EasternLocation)
 		return expirationTime.Add(time.Duration(diff) * time.Hour)
 	}
 
@@ -154,13 +168,13 @@ func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration 
 	//expirationDuration after the start of that window
 	//To find the next window we get the window for the current day
 	//If we are before that window we take that one, if not we take the next one
-	log.Info(ctx, "Current Time not in Window")
+	log.Debug(ctx, "Current Time not in Window")
 	if t.Hour() > validTime.endHour {
 		//If we are after the window move the valid time to the next day
 		validTime = ALLOWED_TIMES[nextDay.Weekday()]
-		return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(expirationDuration)
+		return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, EasternLocation).Add(expirationDuration)
 	} else {
-		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, nextDay.Location()).Add(expirationDuration)
+		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, EasternLocation).Add(expirationDuration)
 	}
 }
 

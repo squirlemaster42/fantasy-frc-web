@@ -120,8 +120,8 @@ ExpirationTime = 17:00 + interval
 ### Time Zone Considerations
 
 - All times stored in UTC
-- Business hours applied in server's configured time zone
-- Display times converted to user's local time zone
+- Business hours applied in America/New_York (Eastern)
+- Display times rendered in America/New_York (Eastern)
 
 ## Skip Mechanisms
 

@@ -13,7 +13,7 @@ import (
 )
 
 func RegisterDatabaseConnection(ctx context.Context, username string, password string, ip string, dbName string, opts ...otelsql.Option) (*sql.DB, error) {
-	log.Info(ctx, "Setting up DB connection", "User", username, "Ip", ip, "Database Name", dbName)
+	log.Info(ctx, "Setting up DB connection", "username", username, "ip", ip, "databaseName", dbName)
 	connStr := createConnectionString(username, password, ip, dbName)
 
 	attrs := append(
@@ -51,5 +51,5 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 }
 
 func createConnectionString(username string, password string, ip string, dbName string) string {
-	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable"
+	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
 }

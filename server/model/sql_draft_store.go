@@ -136,10 +136,6 @@ func (s *SQLDraftStore) GetDraftsInStatus(ctx context.Context, status DraftState
 	return getDraftsInStatus(ctx, s.db, status)
 }
 
-func (s *SQLDraftStore) GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error) {
-	return getDraftsToStart(ctx, s.db, cutoffDate)
-}
-
 func (s *SQLDraftStore) RandomizePickOrder(ctx context.Context, draftId int) error {
 	return randomizePickOrder(ctx, s.db, draftId)
 }

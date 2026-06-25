@@ -17,7 +17,7 @@ import (
 
 func TestCreateConnectionString(t *testing.T) {
 	connStr := createConnectionString("user", "pass", "localhost", "mydb")
-	assert.Equal(t, "postgresql://user:pass@localhost/mydb?sslmode=disable", connStr)
+	assert.Equal(t, "postgresql://user:pass@localhost/mydb?sslmode=disable&timezone=UTC", connStr)
 }
 
 func TestRegisterDatabaseConnection(t *testing.T) {
