@@ -241,22 +241,22 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 		Id:     draftId,
 		Status: model.FILLING,
 	}, nil).Once()
-	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.WAITING_TO_START).Return(nil).Once()
+	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.PICKING).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id:     draftId,
-		Status: model.WAITING_TO_START,
+		Status: model.PICKING,
 	}, nil).Once()
 
 	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
-	err = ExecuteDraftStateTransition(t.Context(), draftActor, model.WAITING_TO_START)
+	err = ExecuteDraftStateTransition(t.Context(), draftActor, model.PICKING)
 	assert.NoError(t, err)
 
 	// Verify cached state was reloaded after transition
 	draft := GetDraft(draftActor)
-	assert.Equal(t, model.WAITING_TO_START, draft.Status)
+	assert.Equal(t, model.PICKING, draft.Status)
 	mockStore.AssertExpectations(t)
 }
 
