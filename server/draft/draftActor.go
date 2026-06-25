@@ -297,7 +297,6 @@ func (d *DraftActor) handleMessage(message Message) Result {
 }
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
-	// TODO Way too much db stuff going on here
 	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
 	if err != nil {
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
