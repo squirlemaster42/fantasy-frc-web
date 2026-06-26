@@ -97,7 +97,7 @@ func init() {
 	var err error
 	EasternLocation, err = time.LoadLocation("America/New_York")
 	if err != nil {
-		log.Fatal("Failed to load Eastern timezone", "Error", err)
+		log.Fatal(context.Background(), "Failed to load Eastern timezone", "Error", err)
 	}
 }
 
