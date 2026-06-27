@@ -46,7 +46,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
                                 if draft.NextPick.User.Username != "" {
                                     <div class="badge badge-primary bg-blue-600 text-white rounded-full text-xs px-3 py-1 font-semibold whitespace-nowrap">{draft.NextPick.User.Username}</div>
                                 } else {
-                                    <div class="badge badge-ghost bg-slate-600 text-slate-400 rounded-full text-xs px-3 py-1 font-medium">
+                                    <div class="badge badge-ghost bg-slate-600 text-slate-300 rounded-full text-xs px-3 py-1 font-medium">
                                         N/A
                                     </div>
                                 }
