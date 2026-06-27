@@ -14,150 +14,146 @@ import (
 type DraftDaemon struct {
 	draftStore    model.DraftStore
 	running       bool
-	mu            sync.Mutex
+	mu            sync.RWMutex
+	cancel        context.CancelFunc
 	runningDrafts map[int]bool
-	draftManager  *draft.DraftManager
+	draftActorMap *draft.DraftActorMap
 }
 
-func NewDraftDaemon(draftStore model.DraftStore, draftManager *draft.DraftManager) *DraftDaemon {
+func NewDraftDaemon(draftStore model.DraftStore, draftActorMap *draft.DraftActorMap) *DraftDaemon {
+	assert.AssertCF(context.Background(), draftActorMap != nil, "DraftActorMap cannot be nil")
 	return &DraftDaemon{
 		draftStore:    draftStore,
 		running:       false,
 		runningDrafts: make(map[int]bool),
-		draftManager:  draftManager,
+		draftActorMap: draftActorMap,
 	}
 }
 
-func (d *DraftDaemon) Start() error {
-	log.Info(context.TODO(), "Attempting to start draft daemon")
+func (d *DraftDaemon) Start(ctx context.Context) error {
+	log.Info(ctx, "Attempting to start draft daemon")
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if !d.running {
-		d.running = true
-		log.Info(context.TODO(), "Started draft daemon")
-		go d.Run()
-		return nil
-	} else {
+	if d.running {
+		d.mu.Unlock()
 		return errors.New("daemon already started")
 	}
+	d.running = true
+	// Create a daemon context that preserves trace values but isn't tied to parent lifecycle
+	daemonCtx := context.WithoutCancel(ctx)
+	daemonCtx, d.cancel = context.WithCancel(daemonCtx)
+	d.mu.Unlock()
+
+	log.Info(daemonCtx, "Started draft daemon")
+	go d.Run(daemonCtx)
+	return nil
 }
 
-func (d *DraftDaemon) Run() {
-	for d.running {
-		//Get current picks for the running drafts
-		log.DebugNoContext("Starting iteration of the Draft Daemon")
-		err := d.checkForDraftsToStart()
-		if err != nil {
-			log.Error(context.TODO(), "Failed to start draft", "Error", err)
+func (d *DraftDaemon) Run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "Draft daemon shutting down")
+			return
+		default:
 		}
-		d.checkForPicksToSkip()
 
+		if !d.IsRunning() {
+			return
+		}
+
+		// Create a per-tick context with timeout so one slow operation doesn't block the daemon
+		tickCtx, cancel := context.WithTimeout(ctx, 55*time.Second)
+
+		log.Debug(tickCtx, "Starting iteration of the Draft Daemon")
+		d.checkForPicksToSkip(tickCtx)
+
+		cancel()
 		time.Sleep(1 * time.Minute)
 	}
 }
 
-func (d *DraftDaemon) checkForDraftsToStart() error {
-	//Get all drafts that are in the waiting to start status
-	log.DebugNoContext("Checking for drafts to Start")
-	now := time.Now()
-	draftIds, err := d.draftStore.GetDraftsToStart(context.TODO(), now)
-	if err != nil && draftIds == nil {
-		return err
+func (d *DraftDaemon) checkForPicksToSkip(ctx context.Context) {
+	d.mu.RLock()
+	runningDraftsCopy := make(map[int]bool, len(d.runningDrafts))
+	for k, v := range d.runningDrafts {
+		runningDraftsCopy[k] = v
 	}
+	d.mu.RUnlock()
 
-	if len(draftIds) > 0 {
-		log.DebugNoContext("Found drafts to start")
-	} else {
-		log.DebugNoContext("Found no drafts to start")
-	}
-
-	if err != nil {
-		log.Error(context.TODO(), "Failed to get drafts to start", "Now", now, "Error", err)
-	}
-
-	for _, draftId := range draftIds {
-		assert := assert.CreateAssertWithContext("Check For Drafts To Start")
-		assert.AddContext("Draft Id", draftId)
-		draft, err := d.draftManager.GetDraft(draftId, false)
-		if err != nil {
-			log.Warn(context.TODO(), "Failed to load draft", "Draft Id", draftId, "Error", err)
-			continue
-		}
-		assert.AddContext("Draft Status", draft.GetStatus())
-		assert.RunAssert(context.TODO(), draft.GetStatus() == model.WAITING_TO_START, "Invalid draft status to transition to picking")
-		err = d.draftManager.ExecuteDraftStateTransition(context.TODO(), draftId, model.PICKING)
-		if err != nil {
-			log.Error(context.TODO(), "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
-		}
-	}
-
-	return nil
-}
-
-func (d *DraftDaemon) checkForPicksToSkip() {
-	for draftId, running := range d.runningDrafts {
+	for draftId, running := range runningDraftsCopy {
 		if !running {
 			continue
 		}
 
-		curPick, err := d.draftManager.GetCurrentPick(draftId)
+		draftActor, err := d.draftActorMap.GetActor(ctx, draftId)
 		if err != nil {
+			log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 			continue
 		}
+		draftState := draftActor.GetDraftState()
+
 		skipped := false
 
-		//Check if the current player if skipping their pick. If so we
-		//should skip them
-		log.DebugNoContext("Checking if player wants to be skipped", "Draft Id", draftId, "Current Pick Player", curPick.Player)
-		shouldSkip, err := d.draftStore.ShouldSkipPick(context.TODO(), curPick.Player)
+		log.Debug(ctx, "Checking if player wants to be skipped", "draftId", draftId, "currentPickPlayer", draftState.CurrentPick.Player)
+		shouldSkip, err := d.draftStore.ShouldSkipPick(ctx, draftState.CurrentPick.Player)
 		if err != nil {
-			log.Warn(context.TODO(), "Failed to check if player should be skipped", "Draft Id", draftId, "Player", curPick.Player, "Error", err)
+			log.Error(ctx, "Failed to check if player should be skipped", "draftId", draftId, "player", draftState.CurrentPick.Player, "error", err)
 			shouldSkip = false
 		}
 		if shouldSkip {
-			log.DebugNoContext("Skipping player", "Pick Id", curPick.Id, "Player", curPick.Player)
-			err := d.draftManager.SkipCurrentPick(draftId)
-			skipped = err == nil
+			log.Debug(ctx, "Skipping player", "pickId", draftState.CurrentPick.Id, "player", draftState.CurrentPick.Player)
+			skipped = draft.SkipCurrentPick(ctx, draftActor, draftId, draftState.CurrentPick.Id)
 		}
 
-		log.DebugNoContext("Checking expiration time", "Draft Id", draftId, "Current Pick Player", curPick.Player)
+		log.Debug(ctx, "Checking expiration time", "draftId", draftId, "currentPickPlayer", draftState.CurrentPick.Player)
 		now := time.Now()
-		if curPick.ExpirationTime.Before(now) && !skipped {
-			log.DebugNoContext("Pick expired", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
-			//We want to skip the current pick and go to the next one
-			err := d.draftManager.SkipCurrentPick(draftId)
-			if err != nil {
-				log.Warn(context.TODO(), "Failed to skip pick", "Draft Id", draftId, "Current Pick", curPick.Id, "Error", err)
-			}
+		if draftState.CurrentPick.ExpirationTime.Before(now) && !skipped {
+			log.Debug(ctx, "Pick expired", "pickId", draftState.CurrentPick.Id, "expirationTime", draftState.CurrentPick.ExpirationTime, "now", now)
+			draft.SkipCurrentPick(ctx, draftActor, draftId, draftState.CurrentPick.Id)
 		} else {
-			log.DebugNoContext("Pick is not expired yet", "Pick Id", curPick.Id, "Expiration Time", curPick.ExpirationTime, "Now", now)
+			log.Debug(ctx, "Pick is not expired yet", "pickId", draftState.CurrentPick.Id, "expirationTime", draftState.CurrentPick.ExpirationTime, "now", now)
 		}
 	}
 }
 
-func (d *DraftDaemon) AddDraft(draftId int) error {
+func (d *DraftDaemon) AddDraft(ctx context.Context, draftId int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if d.runningDrafts[draftId] {
 		return errors.New("draft already added to daemon")
 	}
 	d.runningDrafts[draftId] = true
-	log.Info(context.TODO(), "Added draft to daemon", "Draft Id", draftId)
+	log.Info(ctx, "Added draft to daemon", "draftId", draftId)
 	return nil
 }
 
-func (d *DraftDaemon) RemoveDraft(draftId int) error {
+func (d *DraftDaemon) RemoveDraft(ctx context.Context, draftId int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	if !d.runningDrafts[draftId] {
 		return errors.New("draft not in daemon")
 	}
 	d.runningDrafts[draftId] = false
+	log.Info(ctx, "Removed draft from daemon", "draftId", draftId)
 	return nil
 }
 
 func (d *DraftDaemon) IsRunning() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	return d.running
 }
 
-func (d *DraftDaemon) Stop() error {
-	log.Info(context.TODO(), "Stopped draft daemon")
+func (d *DraftDaemon) Stop(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.running {
+		return errors.New("daemon not running")
+	}
+	log.Info(ctx, "Stopped draft daemon")
 	d.running = false
+	if d.cancel != nil {
+		d.cancel()
+	}
 	return nil
 }

@@ -1,4 +1,5 @@
 *.env
+*.env.*
 .idea/*
 .idea/fantasy-frc-web.iml
 /.idea
@@ -8,4 +9,5 @@ server/view/*/*.txt
 server/view/*.go
 server/view/*.txt
 server/assets/css/tailwind.css
+server/server
 deploy/k8s/secret.yaml

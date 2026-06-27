@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,17 +17,18 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/tbaHandler"
 	"server/utils"
 	"server/view/admin"
 )
 
 type Command interface {
-	ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string
+	ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string
 }
 
 type PingCommand struct{}
 
-func (p *PingCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
+func (p *PingCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
 	if len(argStr) > 0 {
 		return "Ping does not take any inputs"
 	}
@@ -35,7 +37,7 @@ func (p *PingCommand) ProcessCommand(ctx context.Context, draftStore model.Draft
 
 type PopulateTeamsCommand struct{}
 
-func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
+func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
 	if len(argStr) > 0 {
 		return "PopulateTeams does not take any inputs"
 	}
@@ -43,21 +45,20 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, draftStore mo
 	log.Info(ctx, "Populating Teams")
 	count := 0
 
-	tbaHandler := draftManager.GetTbaHandler()
 	for _, event := range utils.Events() {
-		log.Debug(ctx, "Creating teams for event", "Event", event)
+		log.Debug(ctx, "Creating teams for event", "event", event)
 		teams := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
 		for _, t := range teams {
-			log.Debug(ctx, "Checking if team is needed", "Team", t.Key, "Event", event)
+			log.Debug(ctx, "Checking if team is needed", "team", t.Key, "event", event)
 			team, err := teamStore.GetTeam(ctx, t.Key)
 			if err != nil {
-				log.Error(ctx, "Failed to get team", "Team", t.Key, "Error", err)
+				log.Error(ctx, "Failed to get team", "team", t.Key, "error", err)
 				continue
 			}
 			if team == nil {
-				log.Debug(ctx, "Creating team", "Team", t.Key, "Event", event)
+				log.Debug(ctx, "Creating team", "team", t.Key, "event", event)
 				if err := teamStore.CreateTeam(ctx, t.Key, ""); err != nil {
-					log.Error(ctx, "Failed to create team", "Team", t.Key, "Error", err)
+					log.Error(ctx, "Failed to create team", "team", t.Key, "error", err)
 					continue
 				}
 				count++
@@ -65,13 +66,13 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, draftStore mo
 		}
 	}
 
-	log.Info(ctx, "Finished populating teams", "Count", count)
+	log.Info(ctx, "Finished populating teams", "count", count)
 	return fmt.Sprintf("Successfully populated %d teams", count)
 }
 
 type ListDraftsCommand struct{}
 
-func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
 	//Parse command inputs
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
@@ -95,7 +96,7 @@ func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, draftStore model
 
 type StartDraftCommand struct{}
 
-func (s *StartDraftCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -103,14 +104,17 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, draftStore model
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	draft, err := draftStore.GetDraft(ctx, draftId)
+
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {
+		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 		return "Draft Id Does Not Match A Valid Draft"
 	}
+	draftState := draftActor.GetDraftState()
 
 	//Check that eight players have accepted the draft
 	numAccepted := 0
-	for _, player := range draft.Players {
+	for _, player := range draftState.Players {
 		if !player.Pending {
 			numAccepted += 1
 		}
@@ -120,23 +124,25 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, draftStore model
 		return "Not Enough Players Have Accepted The Draft"
 	}
 
-	err = draftManager.ExecuteDraftStateTransition(ctx, draftId, model.WAITING_TO_START)
+	err = draft.ExecuteDraftStateTransition(ctx, draftActor, model.WAITING_TO_START)
+
 	if err != nil {
-		log.Error(ctx, "Failed to execute draft state transition", "Draft Id", draftId, "Error", err)
+		log.Error(ctx, "Failed to execute draft state transition", "draftId", draftId, "error", err)
 		return err.Error()
 	}
 
-	// Need to start draft watch dog
+	// TODO Need to start draft watch dog
 	return "Draft Started"
 }
 
 type ViewWebhookKey struct{}
 
-func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draft *draft.DraftManager, argStr string) string {
+func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		return "Failed to open file: " + err.Error()
 	}
+	defer file.Close()
 	body, err := io.ReadAll(file)
 	if err != nil {
 		return "Failed to read file: " + err.Error()
@@ -147,8 +153,8 @@ func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, draftStore model.Dr
 
 type SkipPickCommand struct{}
 
-func (s *SkipPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
-	log.Info(ctx, "Calling skip command", "Args", argStr)
+func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
+	log.Info(ctx, "Calling skip command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -156,18 +162,53 @@ func (s *SkipPickCommand) ProcessCommand(ctx context.Context, draftStore model.D
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	err = draftManager.SkipCurrentPick(draftId)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	replyChan := make(chan draft.Result)
+	skipped := false
+	message := draft.Message {
+		Content: draft.SkipCurrentPickMessage {
+			CurrentPickId: draftActor.GetDraftState().CurrentPick.Id,
+		},
+		Reply: replyChan,
+	}
+	err = draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post skip message to draft actor", "draftId", draftId, "error", err)
+	} else {
+		select {
+		case result := <- message.Reply:
+			if result.Error != nil {
+				log.Error(ctx, "Skipping current pick in draft failed", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id, "error", result.Error)
+				err = result.Error
+				skipped = false
+			} else {
+				skipped = true
+			}
+		case <- time.After(5 * time.Second):
+			log.Warn(ctx, "Skipping current pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
+			skipped = false
+		}
+	}
 	if err != nil {
 		return "Failed to skip player: " + err.Error()
 	}
 
-	return "Player was skipped"
+	if skipped {
+		return "Player was skipped"
+	} else {
+		return "Did not get confirmation of skip. Verify draft state"
+	}
 }
 
 type ModifyPickTimeCommand struct{}
 
-func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
-	log.Info(ctx, "Calling modify pick time command", "Args", argStr)
+func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
+	log.Info(ctx, "Calling modify pick time command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -180,6 +221,16 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, draftStore m
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
+	pickIdStr, ok := argMap["pickId"]
+	if !ok {
+		return "Missing required argument: -pickId=<pickid>"
+	}
+
+	pickId, err := strconv.Atoi(pickIdStr)
+	if err != nil {
+		return "Pick Id Could Not Be Converted To An Int"
+	}
+
 	durationStr, ok := argMap["time"]
 	if !ok {
 		return "Missing required argument: -time=<duration>"
@@ -190,9 +241,38 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, draftStore m
 		return "Invalid duration format. Use format like: 45m, 1h30m, 2h15m30s"
 	}
 
-	err = draftManager.ModifyCurrentPickExpirationTime(draftId, duration)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {
-		log.Warn(ctx, "Update draft pick expiration time failed", "Draft Id", draftId, "Duration", duration, "Error", err)
+		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	replyChan := make(chan draft.Result)
+	message := draft.Message {
+		Content: draft.ModifyExpirationTimeMessage{
+			PickId: pickId,
+			Extension: duration,
+		},
+		Reply: replyChan,
+	}
+	err = draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post modify expiration time message", "draftId", draftId, "error", err)
+	} else {
+		select {
+		case result := <- message.Reply:
+			if result.Error != nil {
+				log.Warn(ctx, "Extending pick expiration time failed", "draftId", draftId, "pickId", pickId, "error", result.Error)
+				err = result.Error
+			}
+		case <- time.After(5 * time.Second):
+			log.Warn(ctx, "Extending pick expiration time timed out", "draftId", draftId)
+			err = errors.New("timeout extending pick expiration time")
+		}
+	}
+
+	if err != nil {
+		log.Warn(ctx, "Update draft pick expiration time failed", "draftId", draftId, "duration", duration, "error", err)
 		return err.Error()
 	}
 
@@ -201,8 +281,8 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, draftStore m
 
 type AdminPickCommand struct{}
 
-func (a *AdminPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
-	log.Info(ctx, "Calling admin pick command", "Args", argStr)
+func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
+	log.Info(ctx, "Calling admin pick command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -223,24 +303,55 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, draftStore model.
 	// Format team ID (e.g., "254" -> "frc254")
 	tbaId := "frc" + teamStr
 
-	// Get the current pick
-	currentPick, err := draftManager.GetCurrentPick(draftId)
-	if currentPick.Id == 0 || err != nil {
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
+		return err.Error()
+	}
+	draftState := draftActor.GetDraftState()
+
+	if draftState.CurrentPick.Id == 0 {
 		return "No current pick found for this draft"
 	}
 
-	// Build the pick struct
-	pick := model.Pick{
-		Id:       currentPick.Id,
-		Player:   currentPick.Player,
-		Pick:     sql.NullString{String: tbaId, Valid: true},
-		PickTime: sql.NullTime{Time: time.Now(), Valid: true},
+	pickStruct := model.Pick{
+		Id:     draftState.CurrentPick.Id,
+		Player: draftState.CurrentPick.Player,
+		Pick: sql.NullString{
+			Valid:  true,
+			String: tbaId,
+		},
+		PickTime: sql.NullTime{
+			Valid: true,
+			Time:  time.Now().UTC(),
+		},
 	}
 
-	// Make the pick (this handles all validation)
-	err = draftManager.MakePick(draftId, pick)
+	replyChan := make(chan draft.Result)
+	message := draft.Message {
+		Content: draft.PickMessage{
+			Pick: pickStruct,
+		},
+		Reply: replyChan,
+	}
+	err = draftActor.PostMessage(ctx, message)
 	if err != nil {
-		return "Failed to make pick: " + err.Error()
+		log.Error(ctx, "Failed to post pick message", "draftId", draftId, "error", err)
+		return err.Error()
+	}
+	var pickError error
+	select {
+	case result := <- message.Reply:
+		if result.Error != nil {
+			pickError = result.Error
+		}
+	case <- time.After(5 * time.Second):
+		log.Warn(ctx, "making pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
+		return "make pick timed out"
+	}
+	if pickError != nil {
+		log.Warn(ctx, "Could Not Make Pick", "currentPickId", draftState.CurrentPick.Id, "pick", tbaId, "error", pickError)
+		return pickError.Error()
 	}
 
 	return fmt.Sprintf("Successfully picked team %s", teamStr)
@@ -248,8 +359,8 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, draftStore model.
 
 type RenameDraftCommand struct{}
 
-func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
-	log.Info(ctx, "Calling rename draft command", "Args", argStr)
+func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
+	log.Info(ctx, "Calling rename draft command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -272,18 +383,19 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, draftStore mode
 	}
 
 	// Fetch the draft
-	draft, err := draftManager.GetDraft(draftId, true)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		return "Draft Id Does Not Match A Valid Draft"
 	}
+	draftModel := draft.GetDraft(draftActor)
 
-	oldName := draft.Model.DisplayName
-	draft.Model.DisplayName = newName
+	oldName := draftModel.DisplayName
+	draftModel.DisplayName = newName
 
 	// Update the draft
-	err = draftManager.UpdateDraft(*draft.Model)
+	err = draft.UpdateDraft(ctx, draftActor, draftModel)
 	if err != nil {
-		log.Error(ctx, "Failed to update draft name", "Draft Id", draftId, "Error", err)
+		log.Error(ctx, "Failed to update draft name", "draftId", draftId, "error", err)
 		return "Failed to update draft name"
 	}
 
@@ -292,8 +404,8 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, draftStore mode
 
 type UndoPickCommand struct{}
 
-func (u *UndoPickCommand) ProcessCommand(ctx context.Context, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftManager *draft.DraftManager, argStr string) string {
-	log.Info(ctx, "Calling undo pick command", "Args", argStr)
+func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAHandler, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, argStr string) string {
+	log.Info(ctx, "Calling undo pick command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
 	draftIdStr, ok := argMap["id"]
@@ -306,12 +418,17 @@ func (u *UndoPickCommand) ProcessCommand(ctx context.Context, draftStore model.D
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	err = draftManager.UndoLastPick(draftId)
+	draftActor, err := draftActorMap.GetActor(ctx, draftId)
+	if err != nil {
+		return "Draft Id Does Not Match A Valid Draft"
+	}
+
+	err = draft.UndoLastPick(ctx, draftActor)
 	if err != nil {
 		return err.Error()
 	}
 
-	return "Successfully undid pick. Player %s now has until %s to make their pick"
+	return "Successfully undid pick"
 }
 
 var commands = map[string]Command{
@@ -330,45 +447,62 @@ var commands = map[string]Command{
 // ---------------- Handler Funcs --------------------------
 
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
-	log.Info(c.Request().Context(), "Got request to render admin console")
+	log.Debug(c.Request().Context(), "Got request to render admin console")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		log.Error(c.Request().Context(), "Failed to get username", "error", err)
 		username = ""
 	}
 
 	adminConsoleIndex := admin.AdminConsoleIndex(username, h.csrfToken(c))
 	adminConsole := admin.AdminConsole(" | Admin Console", true, username, adminConsoleIndex)
-	return Render(c, adminConsole)
+	if err := Render(c, adminConsole); err != nil {
+		log.Error(c.Request().Context(), "Failed to render admin console", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		log.Error(c.Request().Context(), "Failed to get username", "error", err)
 		username = ""
 	}
 
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")
 	//This is to handle the case where we have no params
-	log.Info(c.Request().Context(), "Running command", "Command", cmd, "Argument", args)
+	log.Info(c.Request().Context(), "Running command", "command", cmd, "args", args)
 
 	if len(cmd) < 1 {
 		noCommandResponse := admin.RenderCommand(username, commandString, "")
-		return Render(c, noCommandResponse)
+		if err := Render(c, noCommandResponse); err != nil {
+			log.Error(c.Request().Context(), "Failed to render empty command response", "error", err)
+			return err
+		}
+		return nil
 	}
 
 	command, ok := commands[cmd]
 	if !ok {
 		response := admin.RenderCommand(username, commandString, "Invalid command")
-		return Render(c, response)
+		if err := Render(c, response); err != nil {
+			log.Error(c.Request().Context(), "Failed to render invalid command response", "error", err)
+			return err
+		}
+		return nil
 	}
-	result := command.ProcessCommand(c.Request().Context(), h.DraftStore, h.UserStore, h.TeamStore, h.DraftManager, args)
+
+	result := command.ProcessCommand(c.Request().Context(), h.TBAHandler, h.DraftStore, h.UserStore, h.TeamStore, h.DraftActorMap, args)
 
 	response := admin.RenderCommand(username, commandString, result)
-	return Render(c, response)
+	if err := Render(c, response); err != nil {
+		log.Error(c.Request().Context(), "Failed to render command response", "error", err)
+		return err
+	}
+	return nil
 }

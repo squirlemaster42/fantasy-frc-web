@@ -2,7 +2,6 @@ package assert
 
 import (
 	"context"
-	stdlog "log"
 	"runtime"
 	"server/log"
 )
@@ -33,42 +32,43 @@ func (a *assert) RunAssert(ctx context.Context, predicate bool, msg string) {
 	}
 }
 
-func (a *assert) printContext(ctx context.Context, msg string) {
-	log.Error(ctx, "assertion failed", "name", a.name)
+func (a *assert) printContext(ctx context.Context, msg string, extra ...any) {
+	args := []any{"name", a.name}
+	args = append(args, extra...)
 	_, file, line, ok := runtime.Caller(2)
 	if ok {
-		log.Error(ctx, "assertion failed", "line", line, "file", file)
+		args = append(args, "file", file, "line", line)
 	}
 	for k, v := range a.context {
-		log.Error(ctx, "assertion context", "key", k, "value", v)
+		args = append(args, k, v)
 	}
-	stdlog.Fatal(msg)
+	log.Fatal(ctx, "assertion failed: "+msg, args...)
 }
 
 func (a *assert) NoError(ctx context.Context, err error, msg string) {
 	if err != nil {
-		log.Error(ctx, "NoError#error encountered", "error", err)
-		a.printContext(ctx, msg)
+		a.printContext(ctx, msg, "error", err)
 	}
 }
 
 func AssertCF(ctx context.Context, predicate bool, msg string) {
 	if !predicate {
+		args := []any{}
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			log.Error(ctx, "assertion failed", "line", line, "file", file)
+			args = append(args, "file", file, "line", line)
 		}
-		stdlog.Fatal(msg)
+		log.Fatal(ctx, "assertion failed: "+msg, args...)
 	}
 }
 
 func NoErrorCF(ctx context.Context, err error, msg string) {
 	if err != nil {
+		args := []any{"error", err}
 		_, file, line, ok := runtime.Caller(1)
 		if ok {
-			log.Error(ctx, "assertion failed", "line", line, "file", file)
+			args = append(args, "file", file, "line", line)
 		}
-		log.Error(ctx, "NoError#error encountered", "error", err)
-		stdlog.Fatal(msg)
+		log.Fatal(ctx, "assertion failed: "+msg, args...)
 	}
 }

@@ -46,7 +46,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```bash
    psql -d fantasy_frc -f database/fantasyFrcDb.sql
    ```
-4. Run any additional migration scripts as needed. They can be found in the database directory. 
+4. Run any additional migration scripts as needed. They can be found in the database directory.
 
 **Note**: Database versioning will be done in future release.
 
@@ -118,9 +118,6 @@ make generate
 
 # Production build
 make build
-
-# Build for Linux deployment
-make build-linux
 ```
 
 ## Deployment
@@ -129,8 +126,8 @@ For production deployment to Linux servers, see [deploy/README.md](deploy/README
 
 ## Optional Dependencies
 
-- **Redis**: Used for caching team avatars. If not available, avatars are fetched directly from The Blue Alliance API. Also can be used for rate limiting (multiple servers not yet supported). 
+- **Redis**: Used for caching team avatars.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for more details.

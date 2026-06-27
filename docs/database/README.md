@@ -18,13 +18,6 @@ Visual representations of database structure:
 - Schema evolution timeline
 - Data flow and query patterns
 
-### [🔄 Migrations](./migrations.md)
-Database versioning and upgrade procedures:
-- Migration scripts and execution order
-- Data transformation procedures
-- Rollback strategies
-- Version compatibility matrix
-
 ## 🎯 Key Concepts
 
 ### Database Design Principles

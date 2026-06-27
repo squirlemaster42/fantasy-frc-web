@@ -16,17 +16,18 @@ type Handler struct {
 	DraftStore          model.DraftStore
 	UserStore           model.UserStore
 	TeamStore           model.TeamStore
-	TbaHandler          tbaHandler.TbaHandler
-	DraftManager        *draft.DraftManager
+	TBAHandler          tbaHandler.TBAHandler
+	DraftActorMap 		*draft.DraftActorMap
 	DraftDaemon         *background.DraftDaemon
 	Scorer              *scorer.Scorer
 	AvatarStore         *cache.AvatarStore
 	TbaWebhookSecret    string
 	TbaVerificationCode string
-	DiscordBus          *discord.DiscordWebhookBus
+	DiscordWebhookBus   *discord.DiscordWebhookBus
 	SecureHttpCookie    bool
 	MinPasswordLength   int
 	CsrfSecret          string
+	AllowedOrigin       string
 }
 
 func (h *Handler) csrfToken(c echo.Context) string {

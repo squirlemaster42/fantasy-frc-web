@@ -10,12 +10,12 @@ import (
 )
 
 type PickValidator struct {
-    handler *tbaHandler.TbaHandler
+    handler *tbaHandler.TBAHandler
     draftStore model.DraftStore
 	draftId int
 }
 
-func NewPickValidator(handler *tbaHandler.TbaHandler, draftStore model.DraftStore, draftId int) PickValidator {
+func NewPickValidator(handler *tbaHandler.TBAHandler, draftStore model.DraftStore, draftId int) PickValidator {
     return PickValidator{
         handler: handler,
         draftStore: draftStore,
@@ -46,7 +46,7 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 
 	validEvent := false
 	//Looping here should always be faster because of the small lists
-	log.Info(ctx, "Checking is team is in a valid event", "Team Events", events, "Draft Events", draftEvents)
+	log.Debug(ctx, "Checking is team is in a valid event", "teamEvents", events, "draftEvents", draftEvents)
 	for _, event := range events {
 		for _, draftEvent := range draftEvents {
 			if event == draftEvent {
@@ -60,7 +60,7 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 		}
 	}
 
-	log.Info(ctx, "Checked if team is a valid pick", "Team", pick.Pick.String, "Picked", picked, "Valid Event", validEvent)
+	log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", validEvent)
 	if !validEvent {
 		return errors.New("team not at event")
 	}

@@ -32,12 +32,12 @@ func addMatch(ctx context.Context, database *sql.DB, tbaId string) error {
 	a.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "AddMatch: Failed to close statement", "error", err)
+			log.Error(ctx, "AddMatch: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, tbaId, false, 0, 0)
 	if err != nil {
-		log.Warn(ctx, "Failed to add match", "Match Tba Id", tbaId, "Error", err)
+		log.Error(ctx, "Failed to add match", "matchTbaId", tbaId, "error", err)
 		return err
 	}
 	return nil
@@ -53,12 +53,12 @@ func updateScore(ctx context.Context, database *sql.DB, tbaId string, redScore i
 	a.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UpdateScore: Failed to close statement", "error", err)
+			log.Error(ctx, "UpdateScore: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, true, redScore, blueScore, tbaId)
 	if err != nil {
-		log.Warn(ctx, "Failed to update score", "Match Tba Id", tbaId, "Red Score", redScore, "Blue Score", blueScore, "Error", err)
+		log.Error(ctx, "Failed to update score", "matchTbaId", tbaId, "redScore", redScore, "blueScore", blueScore, "error", err)
 		return err
 	}
 	return nil}
@@ -72,13 +72,13 @@ func getMatch(ctx context.Context, database *sql.DB, tbaId string) (*Match, erro
 	a.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetMatch: Failed to close statement", "error", err)
+			log.Error(ctx, "GetMatch: Failed to close statement", "error", err)
 		}
 	}()
 	match := Match{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {
-		log.Warn(ctx, "Failed to get match", "Match Tba Id", tbaId, "Error", err)
+		log.Error(ctx, "Failed to get match", "matchTbaId", tbaId, "error", err)
 		return nil, err
 	}
 	return &match, nil

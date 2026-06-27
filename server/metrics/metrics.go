@@ -15,7 +15,7 @@ import (
 
 var dbStatsReg metric.Registration
 
-func InitMetrics(database *sql.DB) error {
+func InitMetrics(ctx context.Context, database *sql.DB) error {
 	prometheus.MustRegister(httpRequestCount)
 	prometheus.MustRegister(httpRequestDuration)
 	prometheus.MustRegister(authenticatedRequestCount)
@@ -27,11 +27,11 @@ func InitMetrics(database *sql.DB) error {
 	var err error
 	dbStatsReg, err = otelsql.RegisterDBStatsMetrics(database, otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
 	if err != nil {
-		log.Warn(context.Background(), "Failed to register OTel DB stats metrics", "error", err)
+		log.Warn(ctx, "Failed to register OTel DB stats metrics", "error", err)
 		return fmt.Errorf("failed to register OTel DB stats metrics: %w", err)
 	}
 
-	InitDBQueryStats(database)
+	InitDBQueryStats(ctx, database)
 	InitActiveUserCollector()
 	InitWebSocketMetrics()
 	return nil

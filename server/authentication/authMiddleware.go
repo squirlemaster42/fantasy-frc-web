@@ -32,28 +32,28 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 		//Grab the cookie from the session
 		userTok, err := c.Cookie("sessionToken")
 		if err != nil {
-			log.Warn(c.Request().Context(), "Failed to get session token when trying to login", "Ip", c.RealIP())
+			log.Debug(c.Request().Context(), "No session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 		//Check if the cookie is valid
 		isValid, err := a.userStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to validate session token", "Ip", c.RealIP(), "Error", err)
+			log.Error(c.Request().Context(), "Failed to validate session token", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 
 		if isValid {
 			userUuid, err := a.userStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 			if err != nil {
-				log.Error(c.Request().Context(), "Failed to get user by session token", "Ip", c.RealIP(), "Error", err)
+				log.Error(c.Request().Context(), "Failed to get user by session token", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
 				return c.Redirect(http.StatusSeeOther, "/login")
 			}
 			c.Set(string(UserUuidKey), userUuid)
 			metrics.RecordUserActivity(userUuid.String())
 			metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
-			log.Info(c.Request().Context(), "User has successfully logged in", "User userUuid", userUuid, "Ip", c.RealIP())
+			log.Debug(c.Request().Context(), "User authenticated for protected route", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
 		} else {
-			log.Warn(c.Request().Context(), "Invalid login request", "Ip", c.RealIP())
+			log.Warn(c.Request().Context(), "Invalid session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 
@@ -65,25 +65,25 @@ func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userUuidVal := c.Get(string(UserUuidKey))
 		if userUuidVal == nil {
-			log.Warn(c.Request().Context(), "Could not get user uuid from context trying to reach admin page", "Ip", c.RealIP())
+			log.Warn(c.Request().Context(), "Could not get user uuid from context trying to reach admin page", "ip", c.RealIP(), "path", c.Request().URL.Path)
 			return c.Redirect(http.StatusSeeOther, "/u/home")
 		}
 		userUuid := userUuidVal.(uuid.UUID)
 
 		isAdmin, err := a.userStore.UserIsAdmin(c.Request().Context(), userUuid)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to check admin status", "User Id", userUuid, "Ip", c.RealIP(), "Error", err)
+			log.Error(c.Request().Context(), "Failed to check admin status", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
 			return c.Redirect(http.StatusSeeOther, "/u/home")
 		}
 		c.Set(string(IsAdminKey), isAdmin)
 		metrics.RecordUserActivity(userUuid.String())
 		metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
-		log.Info(c.Request().Context(), "User is admin?", "User Id", userUuid, "Is Admin", isAdmin)
+		log.Debug(c.Request().Context(), "Admin check completed", "userUuid", userUuid, "isAdmin", isAdmin, "path", c.Request().URL.Path)
 
 		if isAdmin {
-			log.Info(c.Request().Context(), "User from ip has accessed the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
+			log.Info(c.Request().Context(), "User accessed admin page", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path)
 		} else {
-			log.Info(c.Request().Context(), "User from ip did not have access to the admin page", "User Uuid", userUuid, "Ip", c.RealIP())
+			log.Warn(c.Request().Context(), "User did not have access to admin page", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path)
 			return c.Redirect(http.StatusSeeOther, "/u/home")
 		}
 
@@ -111,16 +111,19 @@ func (m *MetricAuth) MetricsAuthMiddleware() echo.MiddlewareFunc {
 			auth := c.Request().Header.Get("Authorization")
 
 			if auth == "" {
+				log.Warn(c.Request().Context(), "Metrics auth failed", "ip", c.RealIP(), "reason", "missing_header")
 				return c.NoContent(http.StatusUnauthorized)
 			}
 
 			// Expect: "Bearer <token>"
 			parts := strings.SplitN(auth, " ", 2)
 			if len(parts) != 2 || parts[0] != "Bearer" {
+				log.Warn(c.Request().Context(), "Metrics auth failed", "ip", c.RealIP(), "reason", "malformed_header")
 				return c.NoContent(http.StatusForbidden)
 			}
 
 			if subtle.ConstantTimeCompare([]byte(parts[1]), []byte(m.secret)) != 1 {
+				log.Warn(c.Request().Context(), "Metrics auth failed", "ip", c.RealIP(), "reason", "invalid_token")
 				return c.NoContent(http.StatusForbidden)
 			}
 

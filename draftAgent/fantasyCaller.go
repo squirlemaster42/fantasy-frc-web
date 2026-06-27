@@ -37,6 +37,17 @@ const (
 	target = "https://fantasy-frc.cfh.sh"
 )
 
+var easternLocation *time.Location
+
+func init() {
+	var err error
+	easternLocation, err = time.LoadLocation("America/New_York")
+	if err != nil {
+		slog.Error("Failed to load Eastern timezone", "Error", err)
+		os.Exit(1)
+	}
+}
+
 func loadUserConfig(path string) (string, error) {
 	file, err := os.ReadFile(path)
 	return string(file), err
@@ -424,6 +435,15 @@ func acceptInvite(user *User) {
 		} else {
 			r++
 			time.Sleep(500 * time.Millisecond)
+			resp, err = user.Client.Get(fmt.Sprintf("%s/u/viewInvites", target))
+			if err != nil {
+				panic(err)
+			}
+			body, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				panic(err)
+			}
 			id, found = getInviteId(string(body))
 		}
 	}
@@ -511,7 +531,7 @@ func sendAcceptInvite(user *User, inviteId int) string {
 }
 
 func getInviteId(body string) (int, bool) {
-	prefix := "<button hx-target=\"#pendingTable\" hx-swap=\"outerHTML\" name=\"inviteId\" value=\""
+	prefix := "name=\"inviteId\" value=\""
 	if strings.Count(body, prefix) == 0 {
 		return -1, false
 	}
@@ -641,7 +661,7 @@ func invitePlayersToDraft(owner *User, users []*User, draft Draft) {
 func createDraft(user *User) Draft {
 	slog.Info("Making request to make draft", "User", user.Username)
 
-	startTime := time.Now().Add(1 * time.Minute)
+	startTime := time.Now().UTC().In(easternLocation).Add(1 * time.Minute)
 
 	layout := "2006-01-02T15:04:05"
 	form := url.Values{}
