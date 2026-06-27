@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// HandleViewDraftProfile renders the draft profile page for the given draft ID.
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
@@ -49,6 +50,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	return nil
 }
 
+// HandleUpdateDraftProfile updates the draft profile fields (name, description, interval, times, webhook).
 func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to update a draft")
 
@@ -82,7 +84,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		//so for now we just won't tell them what is wrong
 		//because it is probably malicious
 		log.Warn(c.Request().Context(), "User tried to update draft but was not the owner", "userUuid", userUuid, "draftId", draftId, "ownerId", draftModel.Owner.UserUuid)
-		return c.String(http.StatusUnauthorized, "Permission denied")
+		return c.String(http.StatusForbidden, "You do not have permission to update this draft")
 	}
 
 	draftModel = model.DraftModel{
@@ -113,8 +115,14 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 	return nil
 }
 
+// SearchPlayers searches for users to invite to a draft and returns the results as HTML.
 func (h *Handler) SearchPlayers(c echo.Context) error {
-	splitSource := strings.Split(c.Request().Header["Hx-Current-Url"][0], "/")
+	currentUrl := c.Request().Header.Get("Hx-Current-Url")
+	if currentUrl == "" {
+		log.Warn(c.Request().Context(), "Missing Hx-Current-Url header")
+		return c.String(http.StatusBadRequest, "Missing required header")
+	}
+	splitSource := strings.Split(currentUrl, "/")
 	draftId, err := strconv.Atoi(splitSource[len(splitSource)-2])
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse draft id", "error", err)
@@ -146,6 +154,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	return nil
 }
 
+// InviteDraftPlayer invites a user to join the draft.
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
@@ -213,6 +222,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	return nil
 }
 
+// HandleStartDraft transitions the draft from FILLING to WAITING_TO_START after validating 8 players.
 func (h *Handler) HandleStartDraft(c echo.Context) error {
 	draftIdStr := c.Param("id")
 	log.Debug(c.Request().Context(), "Got a request to start a draft", "draftId", draftIdStr)
@@ -276,6 +286,11 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to execute draft state transition", "draftId", draftId, "error", err)
 		return err
+	}
+
+	// Cancel the invites for players who have not accepted the draft
+	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", draftId)
 	}
 
 	log.Info(c.Request().Context(), "Draft started", "draftId", draftId, "userUuid", requestingUser)

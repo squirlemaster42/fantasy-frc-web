@@ -23,6 +23,7 @@ func renderAdminMessage(c echo.Context, message string, success bool) error {
 	return nil
 }
 
+// HandleDraftAdminGet renders the draft admin page for the draft owner.
 func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve draft admin page")
 
@@ -61,6 +62,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	return nil
 }
 
+// HandleAdminSkipPick skips the current pick in the draft (owner only).
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to skip pick")
 
@@ -98,6 +100,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	return renderAdminMessage(c, "Pick skipped successfully", true)
 }
 
+// HandleAdminExtendTime extends the expiration time for the current pick.
 func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to extend pick time")
 
@@ -135,6 +138,9 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 		log.Warn(c.Request().Context(), "Invalid duration format for extend pick time", "draftId", draftId, "duration", durationStr, "error", err)
 		return renderAdminMessage(c, "Invalid duration format. Use format like: 30m, 1h, 2h30m", false)
 	}
+	if duration <= 0 {
+		return Render(c, draftView.AdminMessage("Duration must be positive", false))
+	}
 
 	log.Info(c.Request().Context(), "Extending pick", "extensionTime", duration)
 	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
@@ -152,6 +158,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	return renderAdminMessage(c, fmt.Sprintf("Pick time extended by %s", durationStr), true)
 }
 
+// HandleAdminMakePick allows the draft owner to make a pick on behalf of the current player.
 func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to make admin pick")
 
@@ -178,6 +185,9 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	if teamStr == "" {
 		log.Warn(c.Request().Context(), "Admin make pick missing team number", "userUuid", userUuid, "draftId", draftId)
 		return renderAdminMessage(c, "Team number is required", false)
+	}
+	if _, err := strconv.Atoi(teamStr); err != nil {
+		return Render(c, draftView.AdminMessage("Team number must be numeric", false))
 	}
 
 	tbaId := "frc" + teamStr
@@ -210,6 +220,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	return renderAdminMessage(c, fmt.Sprintf("Successfully picked team %s", teamStr), true)
 }
 
+// HandleAdminUndoPick undoes the last pick made in the draft.
 func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to undo pick")
 

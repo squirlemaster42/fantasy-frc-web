@@ -17,7 +17,7 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 	skipped := false
 	message := Message{
 		Content: SkipCurrentPickMessage{
-			CurrentPickId: draftActor.GetDraftState().CurrentPick.Id,
+			CurrentPickId: currentPickId,
 		},
 		Reply: replyChan,
 	}

@@ -14,13 +14,13 @@ type DraftActorMap struct {
 	actorMap sync.Map
 	loadLocks sync.Map
 	draftStore model.DraftStore
-	tbaHandler *tbaHandler.TbaHandler
+	tbaHandler *tbaHandler.TBAHandler
 	discordStore model.DiscordStore
 	discordWebhookBus *discord.DiscordWebhookBus
 	pickNotifier *picking.PickNotifier
 }
 
-func NewDraftActorMap(draftStore model.DraftStore, tbaHandler *tbaHandler.TbaHandler, discordStore model.DiscordStore, discordWebhookBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) *DraftActorMap {
+func NewDraftActorMap(draftStore model.DraftStore, tbaHandler *tbaHandler.TBAHandler, discordStore model.DiscordStore, discordWebhookBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) *DraftActorMap {
 	return &DraftActorMap{
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,

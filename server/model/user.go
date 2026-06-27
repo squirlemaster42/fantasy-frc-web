@@ -198,8 +198,6 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 	return nil
 }
 
-// This can probably clean up session that expired more than a month ago or something
-// Actually it can probably be sooner than that because expire tokens should never be reissued
 func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	assert := assert.CreateAssertWithContext("Register Session")
 	assert.AddContext("userUuid", userUuid)
