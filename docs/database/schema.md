@@ -4,7 +4,7 @@ Complete documentation of Fantasy FRC database structure, relationships, and evo
 
 ## 🗄️ Overview
 
-The Fantasy FRC database uses **PostgreSQL** with a relational schema supporting user management, draft operations, team scoring, and real-time updates.
+The Fantasy FRC database uses **PostgreSQL** with a relational schema supporting user management, draft operations, team scoring.
 
 ```mermaid
 erDiagram
