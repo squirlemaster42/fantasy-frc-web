@@ -135,8 +135,6 @@ func mapDraft(d model.DraftModel) apimodel.DraftResponse {
 		DisplayName: d.DisplayName,
 		Description: d.Description,
 		Interval:    d.Interval,
-		StartTime:   d.StartTime,
-		EndTime:     d.EndTime,
 		Owner:       mapUser(d.Owner),
 		Status:      mapDraftState(d.Status),
 		Players:     players,

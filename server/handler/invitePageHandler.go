@@ -21,40 +21,47 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		log.Error(c.Request().Context(), "Failed to get username", "error", err)
 		username = ""
 	}
 
 	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get invites", "Error", err)
+		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
 		return err
 	}
 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
 	if includeWrapper {
 		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
-		err = Render(c, inviteView)
+		if err := Render(c, inviteView); err != nil {
+			log.Error(c.Request().Context(), "Failed to render invite page", "error", err)
+			return err
+		}
 	} else {
-		err = Render(c, inviteIndex)
+		if err := Render(c, inviteIndex); err != nil {
+			log.Error(c.Request().Context(), "Failed to render invite index", "error", err)
+			return err
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	inviteIdStr := c.FormValue("inviteId")
-	log.Info(c.Request().Context(), "Got request to accept invite", "User", userUuid, "Invite Id", inviteIdStr)
+	log.Debug(c.Request().Context(), "Got request to accept invite", "userUuid", userUuid, "inviteId", inviteIdStr)
 	inviteId, err := strconv.Atoi(inviteIdStr)
 	if err != nil || inviteId == 0 {
-		log.Warn(c.Request().Context(), "Failed to parse invite id", "Invite Id", inviteIdStr, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to parse invite id", "inviteId", inviteIdStr, "error", err)
 		return renderInviteTable(h, c, true, "Invalid invite ID.", false)
 	}
 
 	invite, err := h.DraftStore.GetInvite(c.Request().Context(), inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			log.Warn(c.Request().Context(), "Invite not found", "inviteId", inviteId)
 			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
 		}
 		log.Error(c.Request().Context(), "Failed to get invite", "error", err, "inviteId", inviteId)
@@ -63,16 +70,16 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 
 	//Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != userUuid {
-		log.Info(c.Request().Context(), "Invited player to draft", "Invited User Uuid", invite.InvitedUserUuid, "Inviting User Uuid", userUuid)
+		log.Warn(c.Request().Context(), "User attempted to accept invite for another player", "invitedUserUuid", invite.InvitedUserUuid, "userUuid", userUuid)
 		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.", false)
 	}
 
-	log.Info(c.Request().Context(), "Accepting invite from player", "Invite Id", inviteId, "User Id", userUuid)
+	log.Info(c.Request().Context(), "Accepting invite from player", "inviteId", inviteId, "userUuid", userUuid)
 
 	// Route through the draft actor so the cached state stays in sync
 	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), invite.DraftId)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to get draft actor", "Draft Id", invite.DraftId, "Error", err)
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", invite.DraftId, "error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
 

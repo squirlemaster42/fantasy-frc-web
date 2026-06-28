@@ -87,14 +87,6 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 		api.BadRequest(c.Response(), "interval must be greater than 0")
 		return nil
 	}
-	if req.StartTime.IsZero() || req.EndTime.IsZero() {
-		api.BadRequest(c.Response(), "start_time and end_time are required")
-		return nil
-	}
-	if !req.StartTime.Before(req.EndTime) {
-		api.BadRequest(c.Response(), "start_time must be before end_time")
-		return nil
-	}
 
 	draftModel := model.DraftModel{
 		Owner: model.User{
@@ -103,8 +95,6 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 		DisplayName: req.DisplayName,
 		Description: req.Description,
 		Interval:    req.Interval,
-		StartTime:   req.StartTime.UTC(),
-		EndTime:     req.EndTime.UTC(),
 		Status:      model.FILLING,
 	}
 
@@ -169,21 +159,6 @@ func (h *Handler) UpdateDraft(c echo.Context) error {
 		update.Interval = req.Interval
 	} else {
 		update.Interval = draftModel.Interval
-	}
-	if !req.StartTime.IsZero() {
-		update.StartTime = req.StartTime.UTC()
-	} else {
-		update.StartTime = draftModel.StartTime
-	}
-	if !req.EndTime.IsZero() {
-		update.EndTime = req.EndTime.UTC()
-	} else {
-		update.EndTime = draftModel.EndTime
-	}
-
-	if !update.StartTime.Before(update.EndTime) {
-		api.BadRequest(c.Response(), "start_time must be before end_time")
-		return nil
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)

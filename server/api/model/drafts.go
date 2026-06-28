@@ -4,32 +4,26 @@ import "time"
 
 // CreateDraftRequest is the body for POST /api/v1/drafts.
 type CreateDraftRequest struct {
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Interval    int       `json:"interval"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
+	Interval    int    `json:"interval"`
 }
 
 // UpdateDraftRequest is the body for PATCH /api/v1/drafts/:id.
 type UpdateDraftRequest struct {
-	DisplayName string    `json:"display_name,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Interval    int       `json:"interval,omitempty"`
-	StartTime   time.Time `json:"start_time,omitempty"`
-	EndTime     time.Time `json:"end_time,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Interval    int    `json:"interval,omitempty"`
 }
 
 // DraftResponse is the JSON representation of a draft.
 type DraftResponse struct {
-	Id          int        `json:"id"`
-	DisplayName string     `json:"display_name"`
-	Description string     `json:"description"`
-	Interval    int        `json:"interval"`
-	StartTime   time.Time  `json:"start_time"`
-	EndTime     time.Time  `json:"end_time"`
-	Owner       UserSummary `json:"owner"`
-	Status      DraftState `json:"status"`
+	Id          int                   `json:"id"`
+	DisplayName string                `json:"display_name"`
+	Description string                `json:"description"`
+	Interval    int                   `json:"interval"`
+	Owner       UserSummary           `json:"owner"`
+	Status      DraftState            `json:"status"`
 	Players     []DraftPlayerResponse `json:"players"`
 	NextPick    *DraftPlayerResponse  `json:"next_pick,omitempty"`
 }

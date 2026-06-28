@@ -14,24 +14,23 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 
 	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "Error", err)
+		log.Error(c.Request().Context(), "Failed to get username", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
-	log.Info(c.Request().Context(), "Loading drafts for user", "Username", username)
+	log.Debug(c.Request().Context(), "Loading drafts for user", "username", username)
 	drafts, err := h.DraftStore.GetDraftsForUser(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load drafts")
 	}
-	log.Info(c.Request().Context(), "Loaded drafts for user", "Username", username)
+	log.Debug(c.Request().Context(), "Loaded drafts for user", "username", username)
 
 	homeIndex := view.HomeIndex(&drafts, userUuid)
 	home := view.Home(" | Draft Overview", true, username, homeIndex)
-	err = Render(c, home)
-	if err != nil {
-		log.Error(c.Request().Context(), "Handle View Home Failed To Render", "Error", err)
+	if err := Render(c, home); err != nil {
+		log.Error(c.Request().Context(), "Handle View Home Failed To Render", "error", err)
+		return err
 	}
-	log.Info(c.Request().Context(), "Rendered home page for user", "Username", username)
 	return nil
 }

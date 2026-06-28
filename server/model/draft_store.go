@@ -39,7 +39,6 @@ type DraftStore interface {
 	DeletePick(ctx context.Context, pickId int) error
 	ResetPick(ctx context.Context, pickId int, expirationTime time.Time) error
 	GetDraftsInStatus(ctx context.Context, status DraftState) ([]int, error)
-	GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error)
 	RandomizePickOrder(ctx context.Context, draftId int) error
 	HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error)
 }

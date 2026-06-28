@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -138,7 +137,7 @@ func main() {
 
 	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
 	if err != nil {
-		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "error", err)
 		secureHttpCookie = true
 	}
 
@@ -175,19 +174,19 @@ func main() {
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)
 	if err != nil {
-		log.Warn(ctx, "Failed to start draft daemon", "Error", err)
+		log.Warn(ctx, "Failed to start draft daemon", "error", err)
 		panic("failed to start draft manager")
 	}
 
-	log.DebugNoContext("Checking for drafts that need to be added to daemon")
+	log.Debug(ctx, "Checking for drafts that need to be added to daemon")
 	drafts, err := draftStore.GetDraftsInStatus(ctx, model.PICKING)
 	if err != nil {
-		log.Warn(ctx, "Could not get any drafts in picking status", "Error", err)
+		log.Warn(ctx, "Could not get any drafts in picking status", "error", err)
 	} else {
 		for _, draftId := range drafts {
 			err = draftDaemon.AddDraft(ctx, draftId)
 			if err != nil {
-				log.Warn(ctx, "Failed to add draft to manager in init", "Error", err)
+				log.Warn(ctx, "Failed to add draft to manager in init", "error", err)
 			}
 		}
 	}
@@ -201,7 +200,7 @@ func main() {
 	cleanupService := background.NewCleanupService(database, 60)
 	err = cleanupService.Start(ctx)
 	if err != nil {
-		slog.Error("Failed to start cleanup service", "Error", err)
+		log.Error(ctx, "Failed to start cleanup service", "error", err)
 	}
 
 	if redisAddr == "" {
@@ -216,7 +215,7 @@ func main() {
 		UserStore:         userStore,
 		ApiKeyStore:       apiKeyStore,
 		TeamStore:         teamStore,
-		TbaHandler:        *tbaHandler,
+		TBAHandler:        *tbaHandler,
 		DraftActorMap:     draftActorMap,
 		Scorer:            scorer,
 		AvatarStore:       &avatarStore,
@@ -231,11 +230,12 @@ func main() {
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		log.Warn(ctx, "Unable to open tba webhook secret file", "Error", err)
+		log.Warn(ctx, "Unable to open tba webhook secret file", "error", err)
 	} else {
+		defer file.Close()
 		body, err := io.ReadAll(file)
 		if err != nil {
-			log.Warn(ctx, "Failed to read tba webhook file body", "Error", err)
+			log.Warn(ctx, "Failed to read tba webhook file body", "error", err)
 		} else {
 			handler.TbaVerificationCode = string(body)
 		}
@@ -283,7 +283,10 @@ func main() {
 		log.Warn(ctx, "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
 	metrics.ShutdownMetrics()
+	if err := cleanupService.Stop(ctx); err != nil {
+		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
+	}
 	if err := database.Close(); err != nil {
-		log.Warn(ctx, "Failed to close database connection", "error", err)
+		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
 }

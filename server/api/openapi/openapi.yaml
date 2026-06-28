@@ -739,8 +739,6 @@ components:
       required:
         - display_name
         - interval
-        - start_time
-        - end_time
       properties:
         display_name:
           type: string
@@ -749,12 +747,6 @@ components:
         interval:
           type: integer
           description: Number of seconds per pick
-        start_time:
-          type: string
-          format: date-time
-        end_time:
-          type: string
-          format: date-time
 
     UpdateDraftRequest:
       type: object
@@ -766,12 +758,6 @@ components:
         interval:
           type: integer
           description: Number of seconds per pick
-        start_time:
-          type: string
-          format: date-time
-        end_time:
-          type: string
-          format: date-time
 
     Draft:
       type: object
@@ -780,8 +766,6 @@ components:
         - display_name
         - description
         - interval
-        - start_time
-        - end_time
         - owner
         - status
         - players
@@ -794,12 +778,6 @@ components:
           type: string
         interval:
           type: integer
-        start_time:
-          type: string
-          format: date-time
-        end_time:
-          type: string
-          format: date-time
         owner:
           $ref: '#/components/schemas/UserSummary'
         status:

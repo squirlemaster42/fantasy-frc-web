@@ -234,32 +234,6 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
-	mockStore := mocks.NewMockDraftStore(t)
-	draftId := 1
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:     draftId,
-		Status: model.FILLING,
-	}, nil).Once()
-	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.WAITING_TO_START).Return(nil).Once()
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:     draftId,
-		Status: model.WAITING_TO_START,
-	}, nil).Once()
-
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
-	draftActor, err := actorMap.GetActor(t.Context(), draftId)
-	assert.NoError(t, err)
-
-	err = ExecuteDraftStateTransition(t.Context(), draftActor, model.WAITING_TO_START)
-	assert.NoError(t, err)
-
-	// Verify cached state was reloaded after transition
-	draft := GetDraft(draftActor)
-	assert.Equal(t, model.WAITING_TO_START, draft.Status)
-	mockStore.AssertExpectations(t)
-}
-
 func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	notifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),

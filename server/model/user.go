@@ -31,7 +31,7 @@ func registerUser(ctx context.Context, database *sql.DB, username string, passwo
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "RegisterUser: Failed to close statement", "error", err)
+			log.Error(ctx, "RegisterUser: Failed to close statement", "error", err)
 		}
 	}()
 	userUuid := uuid.New()
@@ -54,7 +54,7 @@ func usernameTaken(ctx context.Context, database *sql.DB, username string) (bool
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UsernameTaken: Failed to close statement", "error", err)
+			log.Error(ctx, "UsernameTaken: Failed to close statement", "error", err)
 		}
 	}()
 	var count int
@@ -73,7 +73,7 @@ func getUserUuidByUsername(ctx context.Context, database *sql.DB, username strin
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetUserUuidByUsername: Failed to close statement", "error", err)
+			log.Error(ctx, "GetUserUuidByUsername: Failed to close statement", "error", err)
 		}
 	}()
 	var userUuid uuid.UUID
@@ -92,7 +92,7 @@ func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (str
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetUsername: Failed to close statement", "error", err)
+			log.Error(ctx, "GetUsername: Failed to close statement", "error", err)
 		}
 	}()
 	var username string
@@ -111,7 +111,7 @@ func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (st
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetDiscordId: Failed to close statement", "error", err)
+			log.Error(ctx, "GetDiscordId: Failed to close statement", "error", err)
 		}
 	}()
 	var discordId string
@@ -130,7 +130,7 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UpdateDiscordId: Failed to close statement", "error", err)
+			log.Error(ctx, "UpdateDiscordId: Failed to close statement", "error", err)
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, discordId, userUuid)
@@ -152,7 +152,7 @@ func validateLogin(ctx context.Context, database *sql.DB, username string, passw
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "ValidateLogin: Failed to close statement", "error", err)
+			log.Error(ctx, "ValidateLogin: Failed to close statement", "error", err)
 		}
 	}()
 	var dbPassword string
@@ -166,7 +166,11 @@ func validateLogin(ctx context.Context, database *sql.DB, username string, passw
 		return false, fmt.Errorf("failed to validate login: %w", err)
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
-	return err == nil, nil
+	valid := err == nil
+	if !valid {
+		log.Warn(ctx, "Failed login attempt", "username", username)
+	}
+	return valid, nil
 }
 
 // The old password logic should happen before this
@@ -180,7 +184,7 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UpdatePassword: Failed to close statement", "error", err)
+			log.Error(ctx, "UpdatePassword: Failed to close statement", "error", err)
 		}
 	}()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
@@ -194,17 +198,15 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 	return nil
 }
 
-// This can probably clean up session that expired more than a month ago or something
-// Actually it can probably be sooner than that because expire tokens should never be reissued
 func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	assert := assert.CreateAssertWithContext("Register Session")
-	assert.AddContext("User Uuid", userUuid)
+	assert.AddContext("userUuid", userUuid)
 	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamptz + '10 days');`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "RegisterSession: Failed to close statement", "error", err)
+			log.Error(ctx, "RegisterSession: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -223,7 +225,7 @@ func unregisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UnRegisterSession: Failed to close statement", "error", err)
+			log.Error(ctx, "UnRegisterSession: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -242,7 +244,7 @@ func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "GetUserBySessionToken: Failed to close statement", "error", err)
+			log.Error(ctx, "GetUserBySessionToken: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -253,20 +255,20 @@ func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 		return uuid.UUID{}, fmt.Errorf("failed to get user: %w", err)
 	}
 	if err := updateSessionExpiration(ctx, database, userUuid, sessionToken); err != nil {
-		log.Warn(ctx, "Failed to update session expiration", "error", err)
+		log.Error(ctx, "Failed to update session expiration", "error", err)
 	}
 	return userUuid, nil
 }
 
 func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (bool, error) {
 	assert := assert.CreateAssertWithContext("User Is Admin")
-	assert.AddContext("User Uuid", userUuid)
+	assert.AddContext("userUuid", userUuid)
 	query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UserIsAdmin: Failed to close statement", "error", err)
+			log.Error(ctx, "UserIsAdmin: Failed to close statement", "error", err)
 		}
 	}()
 	var isAdmin bool
@@ -279,14 +281,14 @@ func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (boo
 
 func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	assert := assert.CreateAssertWithContext("Update Session Expiration")
-	assert.AddContext("User Uuid", userUuid)
+	assert.AddContext("userUuid", userUuid)
 	//We want to make sure we only update the session token that the user logged in with
 	query := `Update UserSessions Set expirationTime = now()::timestamptz + '10 days' Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "UpdateSessionExpiration: Failed to close statement", "error", err)
+			log.Error(ctx, "UpdateSessionExpiration: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -307,7 +309,7 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "ValidateSessionToken: Failed to close statement", "error", err)
+			log.Error(ctx, "ValidateSessionToken: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -326,13 +328,13 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 // InvalidateAllUserSessionsExcept deletes all sessions for a user except the given token.
 func invalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
 	assert := assert.CreateAssertWithContext("Invalidate All User Sessions Except")
-	assert.AddContext("User Uuid", userUuid)
+	assert.AddContext("userUuid", userUuid)
 	query := `Delete From UserSessions Where userUuid = $1 And sessionToken != $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "InvalidateAllUserSessionsExcept: Failed to close statement", "error", err)
+			log.Error(ctx, "InvalidateAllUserSessionsExcept: Failed to close statement", "error", err)
 		}
 	}()
 	hasher := crypto.SHA256.New()
@@ -387,7 +389,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "SearchUsers: Failed to close statement", "error", err)
+			log.Error(ctx, "SearchUsers: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -400,7 +402,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	assert.NoError(ctx, err, "Failed to search users")
 	defer func() {
 		if err := userRows.Close(); err != nil {
-			log.Warn(ctx, "SearchUsers: Failed to close rows", "error", err)
+			log.Error(ctx, "SearchUsers: Failed to close rows", "error", err)
 		}
 	}()
 

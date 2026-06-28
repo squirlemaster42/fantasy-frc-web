@@ -119,20 +119,20 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 
 	jsonData, err := json.Marshal(webhook)
 	if err != nil {
-		log.Warn(ctx, "Failed to marshal discord pre-match webhook", "Error", err)
+		log.Error(ctx, "Failed to marshal discord pre-match webhook", "error", err)
 		return
 	}
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Warn(ctx, "Failed to create discord pre-match webhook request", "Error", err)
+		log.Error(ctx, "Failed to create discord pre-match webhook request", "error", err)
 		return
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		log.Warn(ctx, "Failed to post discord pre-match webhook", "Error", err)
+		log.Error(ctx, "Failed to post discord pre-match webhook", "error", err)
 		return
 	}
 
@@ -141,10 +141,10 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Warn(ctx, "Failed to read discord error response body", "Error", err)
+			log.Error(ctx, "Failed to read discord error response body", "error", err)
 			return
 		}
-		log.Warn(ctx, "Discord pre-match webhook was not successful", "Status", resp.StatusCode, "Body", string(body))
+		log.Warn(ctx, "Discord pre-match webhook was not successful", "statusCode", resp.StatusCode, "body", string(body))
 	}
 }
 
@@ -213,7 +213,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 
 	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Warn(context.Background(), "Failed to create post pick notification request", "Error", err)
+		log.Warn(context.Background(), "Failed to create post pick notification request", "error", err)
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
