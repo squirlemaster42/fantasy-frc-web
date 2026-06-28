@@ -234,6 +234,42 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
+func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	nextPickPlayer := model.DraftPlayer{Id: 10}
+
+	// Initial load when the actor is created
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:     draftId,
+		Status: model.FILLING,
+	}, nil).Once()
+
+	// FILLING -> PICKING transition now randomizes order and sets up the first pick
+	mockStore.On("RandomizePickOrder", mock.Anything, draftId).Return(nil).Once()
+	mockStore.On("NextPick", mock.Anything, draftId).Return(nextPickPlayer, nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, nextPickPlayer.Id, mock.Anything, mock.Anything).Return(1, nil).Once()
+	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.PICKING).Return(nil).Once()
+
+	// Reload draft state so cached model is not stale
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:     draftId,
+		Status: model.PICKING,
+	}, nil).Once()
+
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	err = ExecuteDraftStateTransition(t.Context(), draftActor, model.PICKING)
+	assert.NoError(t, err)
+
+	// Verify cached state was reloaded after transition
+	draft := GetDraft(draftActor)
+	assert.Equal(t, model.PICKING, draft.Status)
+	mockStore.AssertExpectations(t)
+}
+
 func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	notifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),
