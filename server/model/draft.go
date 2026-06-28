@@ -177,7 +177,8 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
         displayName,
         owners.UserUuid As ownerId,
         owners.Username As OwnerUsername,
-        COALESCE(status, '0') As Status
+        COALESCE(status, '0') As Status,
+        COALESCE(EXTRACT(EPOCH FROM Drafts.Interval), 0)::int As Interval
     From Drafts
     Left Join DraftPlayers On DraftPlayers.DraftId = Drafts.Id
     Left Join DraftInvites On DraftInvites.DraftId = Drafts.Id And Drafts.Status = $1
@@ -256,7 +257,8 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 		var ownerId uuid.UUID
 		var ownerUsername string
 		var status DraftState
-		err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status)
+		var interval int
+		err = rows.Scan(&draftId, &displayName, &ownerId, &ownerUsername, &status, &interval)
 		if err != nil {
 			return nil, err
 		}
@@ -268,8 +270,9 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 				UserUuid: ownerId,
 				Username: ownerUsername,
 			},
-			Status:  status,
-			Players: make([]DraftPlayer, 0),
+			Status:   status,
+			Interval: interval,
+			Players:  make([]DraftPlayer, 0),
 		}
 
 		pick := Pick{}
@@ -389,7 +392,8 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
         OwnerUserUuid,
-		COALESCE(DiscordWebhook, '')
+		COALESCE(DiscordWebhook, ''),
+		COALESCE(EXTRACT(EPOCH FROM Interval), 0)::int As Interval
     From Drafts Where Id = $1;`
 
 	assert := assert.CreateAssertWithContext("Get Draft")
@@ -413,6 +417,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		&draftModel.Status,
 		&ownerId,
 		&draftModel.DiscordWebhook,
+		&draftModel.Interval,
 	)
 	log.Debug(ctx, "model.GetDraft: query completed", "draftId", draftId)
 	if err != nil {
@@ -664,6 +669,31 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 
 	log.Info(ctx, "Accepted invite", "inviteId", inviteId, "draftId", draftId, "userUuid", userUuid)
 	return draftId, userUuid, nil
+}
+
+func declineInvite(ctx context.Context, database *sql.DB, inviteId int) error {
+	query := `UPDATE DraftInvites Set Canceled = TRUE Where id = $1 And Accepted = FALSE;`
+	assert := assert.CreateAssertWithContext("Decline Invite")
+	assert.AddContext("Invite Id", inviteId)
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare draft statement")
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Warn(ctx, "DeclineInvite: Failed to close statement", "error", err)
+		}
+	}()
+	result, err := stmt.ExecContext(ctx, inviteId)
+	if err != nil {
+		return fmt.Errorf("failed to decline invite: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check decline result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return errors.New("invite already accepted or does not exist")
+	}
+	return nil
 }
 
 func addPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player uuid.UUID) error {

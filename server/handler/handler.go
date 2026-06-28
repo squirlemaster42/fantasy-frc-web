@@ -15,9 +15,10 @@ import (
 type Handler struct {
 	DraftStore          model.DraftStore
 	UserStore           model.UserStore
+	ApiKeyStore         model.ApiKeyStore
 	TeamStore           model.TeamStore
 	TBAHandler          tbaHandler.TBAHandler
-	DraftActorMap 		*draft.DraftActorMap
+	DraftActorMap       *draft.DraftActorMap
 	DraftDaemon         *background.DraftDaemon
 	Scorer              *scorer.Scorer
 	AvatarStore         *cache.AvatarStore
@@ -28,6 +29,7 @@ type Handler struct {
 	MinPasswordLength   int
 	CsrfSecret          string
 	AllowedOrigin       string
+	JwtSigningKey       []byte
 }
 
 func (h *Handler) csrfToken(c echo.Context) string {

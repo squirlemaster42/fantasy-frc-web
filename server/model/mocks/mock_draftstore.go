@@ -91,6 +91,24 @@ func (_m *MockDraftStore) CancelOutstandingInvites(ctx context.Context, draftId 
 	return r0
 }
 
+// DeclineInvite provides a mock function with given fields: ctx, inviteId
+func (_m *MockDraftStore) DeclineInvite(ctx context.Context, inviteId int) error {
+	ret := _m.Called(ctx, inviteId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeclineInvite")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, inviteId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CreateDraft provides a mock function with given fields: ctx, draft
 func (_m *MockDraftStore) CreateDraft(ctx context.Context, draft *model.DraftModel) (int, error) {
 	ret := _m.Called(ctx, draft)

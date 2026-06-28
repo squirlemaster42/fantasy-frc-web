@@ -8,6 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
+	"github.com/joho/godotenv"
+
 	"server/assert"
 	"server/background"
 	"server/cache"
@@ -22,11 +28,6 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
-	"strconv"
-	"syscall"
-	"time"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -64,6 +65,7 @@ func main() {
 	csrfSecret := os.Getenv("CSRF_SECRET")
 	trustProxyVar := os.Getenv("TRUST_PROXY")
 	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+	jwtSigningKey := os.Getenv("JWT_SIGNING_KEY")
 	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
@@ -74,6 +76,13 @@ func main() {
 
 	if csrfSecret == "" {
 		panic("CSRF_SECRET environment variable is required")
+	}
+	if jwtSigningKey == "" {
+		panic("JWT_SIGNING_KEY environment variable is required")
+	}
+	if len(jwtSigningKey) < 32 {
+		log.Error(ctx, "JWT_SIGNING_KEY must be at least 32 bytes")
+		os.Exit(1)
 	}
 
 	minPasswordLength := 12
@@ -150,6 +159,7 @@ func main() {
 	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
 	userStore := model.NewSQLUserStore(database)
+	apiKeyStore := model.NewSQLApiKeyStore(database)
 	teamStore := model.NewSQLTeamStore(database)
 	discordStore := model.NewSQLDiscordStore(database)
 	matchStore := model.NewSQLMatchStore(database)
@@ -203,9 +213,10 @@ func main() {
 	handler := handler.Handler{
 		DraftStore:        draftStore,
 		UserStore:         userStore,
+		ApiKeyStore:       apiKeyStore,
 		TeamStore:         teamStore,
 		TBAHandler:        *tbaHandler,
-		DraftActorMap: draftActorMap,
+		DraftActorMap:     draftActorMap,
 		Scorer:            scorer,
 		AvatarStore:       &avatarStore,
 		DiscordWebhookBus: discordWebhookBus,
@@ -213,6 +224,7 @@ func main() {
 		MinPasswordLength: minPasswordLength,
 		CsrfSecret:        csrfSecret,
 		AllowedOrigin:     allowedOrigin,
+		JwtSigningKey:     []byte(jwtSigningKey),
 	}
 
 	// Load the tba webhook secret
@@ -236,6 +248,7 @@ func main() {
 		Database:         database,
 		MetricSecret:     metricSecret,
 		CsrfSecret:       csrfSecret,
+		JwtSigningKey:    []byte(jwtSigningKey),
 		RedisAddr:        redisAddr,
 		RedisPassword:    redisPassword,
 		RedisRateLimitDB: redisRateLimitDB,
