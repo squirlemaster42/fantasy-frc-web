@@ -187,19 +187,22 @@ func TestHandleDeclineInvite_Success(t *testing.T) {
 		DraftId:         42,
 		InvitedUserUuid: userUuid,
 	}, nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id:     42,
+		Status: model.FILLING,
+	}, nil).Once()
 	mockDraftStore.On("CancelInvite", c.Request().Context(), 123).Return(nil)
 	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 		Id:     42,
 		Status: model.FILLING,
-		Players: []model.DraftPlayer{
-			{Pending: false},
-		},
-	}, nil)
+	}, nil).Once()
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		DraftStore:    mockDraftStore,
+		UserStore:     mockUserStore,
+		DraftActorMap: draftActorMap,
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -242,12 +245,17 @@ func TestHandleDeclineInvite_WrongUser(t *testing.T) {
 		DraftId:         42,
 		InvitedUserUuid: otherUuid,
 	}, nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id: 42,
+	}, nil).Once()
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		DraftStore:    mockDraftStore,
+		UserStore:     mockUserStore,
+		DraftActorMap: draftActorMap,
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -268,20 +276,26 @@ func TestHandleDeclineInvite_RevertsToFilling(t *testing.T) {
 		DraftId:         42,
 		InvitedUserUuid: userUuid,
 	}, nil)
-	mockDraftStore.On("CancelInvite", c.Request().Context(), 123).Return(nil)
 	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 		Id:     42,
 		Status: model.WAITING_TO_START,
 		Players: []model.DraftPlayer{
 			{Pending: false},
 		},
-	}, nil)
+	}, nil).Once()
+	mockDraftStore.On("CancelInvite", c.Request().Context(), 123).Return(nil)
 	mockDraftStore.On("UpdateDraftStatus", c.Request().Context(), 42, model.FILLING).Return(nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id:     42,
+		Status: model.FILLING,
+	}, nil).Once()
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		DraftStore:    mockDraftStore,
+		UserStore:     mockUserStore,
+		DraftActorMap: draftActorMap,
 	}
 
 	err := h.HandleDeclineInvite(c)

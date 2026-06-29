@@ -45,9 +45,6 @@ func TestHandleViewDraftProfile(t *testing.T) {
 				Owner:  model.User{UserUuid: userUuid},
 				Status: model.FILLING,
 			}, nil)
-		mockDraftStore.
-			On("GetOutstandingInvitesForDraft", c.Request().Context(), 42).
-			Return([]model.DraftInvite{}, nil)
 
 		h := &Handler{
 			DraftStore: mockDraftStore,

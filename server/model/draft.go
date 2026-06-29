@@ -60,6 +60,7 @@ type DraftPlayer struct {
 	Pending     bool
 	Score       int
 	Picks       []Pick
+	InviteId    int
 }
 
 func (d *DraftPlayer) String() string {
@@ -113,14 +114,15 @@ type DraftInvite struct {
 	InvitedUserUuid    uuid.UUID //User
 	InvitingUserUuid   uuid.UUID //User
 	InvitingPlayerName string
+	InvitedPlayerName  string
 	SentTime           time.Time
 	AcceptedTime       time.Time
 	Accepted           bool
 }
 
 func (d *DraftInvite) String() string {
-	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n}",
-		d.Id, d.DraftId, d.InvitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName)
+	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n InvitedPlayerName: %s\n}",
+		d.Id, d.DraftId, d.InvitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName, d.InvitedPlayerName)
 }
 
 func getDraftsByName(ctx context.Context, database *sql.DB, searchString string) ([]DraftModel, error) {
@@ -440,14 +442,16 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	                    USERNAME,
 	                    BOOL_OR(ACCEPTED) AS ACCEPTED,
 	                    MAX(PLAYERORDER) AS PLAYERORDER,
-	                    Max(PlayerId) As PlayerId
+	                    Max(PlayerId) As PlayerId,
+	                    MAX(InviteId) As InviteId
                     FROM (
 		                    SELECT
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
 			                    't' AS ACCEPTED,
 			                    COALESCE(DRAFTPLAYERS.PLAYERORDER, -1) As PLAYERORDER,
-			                    DraftPlayers.Id As PlayerId
+			                    DraftPlayers.Id As PlayerId,
+			                    -1 As InviteId
 		                    FROM USERS
 		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
 		                    WHERE DRAFTPLAYERS.DRAFTID = $1
@@ -457,7 +461,8 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 			                    USERS.USERNAME,
 			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
 			                    -1 AS PLAYERORDER,
-			                    -1 As PlayerId
+			                    -1 As PlayerId,
+			                    DraftInvites.Id As InviteId
 		                    FROM USERS
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
 		                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(DRAFTINVITES.CANCELED, FALSE) = FALSE
@@ -501,8 +506,9 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		var accepted bool
 		var playerOrder sql.NullInt16
 		var playerId int
+		var inviteId int
 
-		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId)
+		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId, &inviteId)
 
 		if err != nil {
 			return DraftModel{}, err
@@ -528,6 +534,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 			},
 			PlayerOrder: playerOrder,
 			Pending:     !accepted,
+			InviteId:    inviteId,
 		}
 
 		//Get picks for the player
@@ -719,7 +726,8 @@ func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite
         From DraftInvites di
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
-        Where di.Id = $1;`
+        Where di.Id = $1
+        And COALESCE(di.Canceled, false) = false;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
@@ -750,7 +758,8 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.InvitedUserUuid = $1
-        And di.Accepted = false;`
+        And di.Accepted = false
+        And COALESCE(di.Canceled, false) = false;`
 	assert := assert.CreateAssertWithContext("Get Invites")
 	assert.AddContext("userUuid", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
@@ -782,6 +791,118 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
 
 		invites = append(invites, invite)
 	}
+	return invites, nil
+}
+
+func cancelInvite(ctx context.Context, database *sql.DB, inviteId int) error {
+	query := `Update DraftInvites Set Canceled = true Where Id = $1;`
+	assert := assert.CreateAssertWithContext("Cancel Invite")
+	assert.AddContext("inviteId", inviteId)
+
+	stmt, err := database.PrepareContext(ctx, query)
+	assert.NoError(ctx, err, "Failed to prepare statement")
+
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error(ctx, "CancelInvite: Failed to close statement", "error", err)
+		}
+	}()
+
+	_, err = stmt.ExecContext(ctx, inviteId)
+	if err != nil {
+		return fmt.Errorf("failed to cancel invite %d: %w", inviteId, err)
+	}
+
+	return nil
+}
+
+func uninvitePlayer(ctx context.Context, database *sql.DB, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	ownerQuery := `Select OwnerUserUuid From Drafts Where Id = $1;`
+	ownerStmt, err := database.PrepareContext(ctx, ownerQuery)
+	if err != nil {
+		return fmt.Errorf("failed to prepare owner query: %w", err)
+	}
+
+	var dbOwnerUuid string
+	err = ownerStmt.QueryRowContext(ctx, draftId).Scan(&dbOwnerUuid)
+	ownerStmt.Close()
+	if err != nil {
+		return fmt.Errorf("failed to get draft owner: %w", err)
+	}
+
+	if dbOwnerUuid != ownerUuid.String() {
+		return fmt.Errorf("user %s is not the owner of draft %d", ownerUuid, draftId)
+	}
+
+	query := `Update DraftInvites Set Canceled = true Where Id = $1 And DraftId = $2;`
+	stmt, err := database.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error(ctx, "UninvitePlayer: Failed to close statement", "error", err)
+		}
+	}()
+
+	result, err := stmt.ExecContext(ctx, inviteId, draftId)
+	if err != nil {
+		return fmt.Errorf("failed to uninvite player: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("invite %d not found for draft %d", inviteId, draftId)
+	}
+
+	log.Info(ctx, "Uninvited player from draft", "draftId", draftId, "inviteId", inviteId)
+	return nil
+}
+
+func getOutstandingInvitesForDraft(ctx context.Context, database *sql.DB, draftId int) ([]DraftInvite, error) {
+	query := `SELECT
+		di.Id,
+		u.username,
+		di.InvitedUserUuid
+	From DraftInvites di
+	Inner Join Users u On di.InvitedUserUuid = u.UserUuid
+	Where di.DraftId = $1
+	And di.Accepted = false
+	And COALESCE(di.Canceled, false) = false;`
+
+	stmt, err := database.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error(ctx, "GetOutstandingInvitesForDraft: Failed to close statement", "error", err)
+		}
+	}()
+
+	rows, err := stmt.QueryContext(ctx, draftId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get outstanding invites: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error(ctx, "GetOutstandingInvitesForDraft: Failed to close rows", "error", err)
+		}
+	}()
+
+	var invites []DraftInvite
+	for rows.Next() {
+		invite := DraftInvite{}
+		err = rows.Scan(&invite.Id, &invite.InvitedPlayerName, &invite.InvitedUserUuid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan invite: %w", err)
+		}
+		invites = append(invites, invite)
+	}
+
 	return invites, nil
 }
 

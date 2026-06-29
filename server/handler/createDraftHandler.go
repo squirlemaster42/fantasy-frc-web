@@ -25,7 +25,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 		Id: -1,
 	}
 
-	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, nil, h.csrfToken(c))
+	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
 	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, true)
 	if err := Render(c, draftCreate); err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "error", err)

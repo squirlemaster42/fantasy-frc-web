@@ -317,15 +317,6 @@ func TestDraftActor_handleMessage_UnknownType(t *testing.T) {
 	assert.Contains(t, result.Error.Error(), "unknown message type")
 }
 
-func TestDraftActor_handleDeclineInvite_NotSupported(t *testing.T) {
-	actor := &DraftActor{}
-
-	result := actor.handleDeclineInvite(t.Context(), DeclineInviteMessage{})
-
-	assert.Error(t, result.Error)
-	assert.Contains(t, result.Error.Error(), "not yet supported")
-}
-
 func TestDraftActor_handleTransferDraftOwnership_NotSupported(t *testing.T) {
 	actor := &DraftActor{}
 
@@ -563,19 +554,13 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 			var msg Message
 			switch idx % 3 {
 			case 0:
-				// This will fail early with "pick id does not match" (no DB call)
+				// ModifyExpirationTimeMessage: fails early with "pick id does not match" (no DB call)
 				msg = Message{
 					Content: ModifyExpirationTimeMessage{PickId: 999, Extension: time.Minute},
 					Reply:   replyChan,
 				}
-			case 1:
-				// This returns an error without DB calls
-				msg = Message{
-					Content: DeclineInviteMessage{InviteId: idx},
-					Reply:   replyChan,
-				}
-			case 2:
-				// This also returns an error without DB calls
+			case 1, 2:
+				// These return errors without DB calls
 				msg = Message{
 					Content: TransferDraftOwnershipMessage{Initiator: idx},
 					Reply:   replyChan,
