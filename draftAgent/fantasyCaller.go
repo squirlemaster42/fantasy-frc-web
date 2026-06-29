@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/html"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/html"
 
 	"github.com/google/uuid"
 )
@@ -681,7 +682,7 @@ func primeCSRFToken(user *User) {
 		slog.Error("Failed to prime CSRF token", "Error", err)
 		panic(err)
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		slog.Error("Failed to prime CSRF token", "Status", resp.StatusCode)

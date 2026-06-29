@@ -25,5 +25,3 @@ func setupTestContext(t *testing.T, method string, target string, body string, c
 	c := e.NewContext(req, rec)
 	return e, c, rec
 }
-
-
