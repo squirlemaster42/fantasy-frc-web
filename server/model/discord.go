@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"server/assert"
 	"server/log"
 	"strings"
@@ -25,7 +24,7 @@ func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "CreateDraft: Failed to close statement", "error", err)
+			log.Error(ctx, "GetPlayerDiscordId: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -47,12 +46,12 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 	`
 
 	assert := assert.CreateAssertWithContext("Get Next Pick Discord Event")
-	assert.AddContext("Draft Id", draftId)
+	assert.AddContext("draftId", draftId)
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare query")
 	defer func() {
 		if err := stmt.Close(); err != nil {
-			log.Warn(ctx, "CreateDraft: Failed to close statement", "error", err)
+			log.Error(ctx, "GetDraftWebhook: Failed to close statement", "error", err)
 		}
 	}()
 
@@ -107,15 +106,25 @@ func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) 
 	// prepare query
 	stmt, err := database.PrepareContext(ctx, query)
 	if err != nil {
+		log.Error(ctx, "GetDraftPickRows: Failed to prepare statement", "error", err)
 		return nil, err
 	}
-	defer stmt.Close()
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error(ctx, "GetDraftPickRows: Failed to close statement", "error", err)
+		}
+	}()
 
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
+		log.Error(ctx, "GetDraftPickRows: Failed to execute query", "error", err)
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error(ctx, "GetDraftPickRows: Failed to close rows", "error", err)
+		}
+	}()
 
 	var results []DraftPickRow
 
@@ -123,7 +132,7 @@ func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) 
 		var r DraftPickRow
 		err = rows.Scan(&r.DraftId, &r.Webhook, &r.DraftName, &r.Username, &r.DiscordId, &r.Pick)
 		if err != nil {
-			slog.Warn("Failed to scan draft pick row")
+			log.Error(ctx, "GetDraftPickRows: Failed to scan draft pick row", "error", err)
 		} else {
 			results = append(results, r)
 		}

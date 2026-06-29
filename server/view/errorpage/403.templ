@@ -1,0 +1,25 @@
+package errorpage
+
+import (
+	"server/types"
+	"server/view"
+)
+
+templ Forbidden403(page string, fromProtected bool, username string, data *types.PageData) {
+	@view.Index(page, fromProtected, username, data) {
+		<section class="flex flex-col items-center justify-center min-h-[80vh] gap-6 px-4">
+			<div class="items-center justify-center flex flex-col gap-4">
+				<h1 class="text-9xl font-extrabold text-slate-700 tracking-widest">403</h1>
+				<h2 class="bg-amber-600 text-white px-3 py-1 text-sm rounded-lg rotate-12 absolute shadow-lg">Access denied</h2>
+			</div>
+			<p class="text-sm text-center md:text-base text-slate-400 max-w-md">
+				You don't have permission to access this page. If you believe this is a mistake, please contact support.
+			</p>
+			if fromProtected {
+				<a href="/u/home" class="btn btn-primary btn-outline mt-2">Go Home</a>
+			} else {
+				<a href="/" class="btn btn-primary btn-outline mt-2">Go Home</a>
+			}
+		</section>
+	}
+}

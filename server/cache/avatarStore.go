@@ -18,19 +18,19 @@ import (
 // Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
 	client     *redis.Client
-	tbaHandler tbaHandler.TbaHandler
+	tbaHandler tbaHandler.TBAHandler
 }
 
-func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
+func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,
 		DB:       redisDB,
 		Protocol: 2,
 	})
-	ctx := context.Background()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
+		log.Error(ctx, "AvatarStore: Redis unavailable, avatar caching disabled", "error", err)
 		return AvatarStore{
 			tbaHandler: tbaHander,
 		}, nil
@@ -42,6 +42,9 @@ func NewAvatarStore(tbaHander tbaHandler.TbaHandler, redisAddr string, redisPass
 }
 
 func (a *AvatarStore) Close() error {
+	if a.client == nil {
+		return nil
+	}
 	return a.client.Close()
 }
 
@@ -76,26 +79,26 @@ func (a *AvatarStore) getTbaAvatar(ctx context.Context, teamNum int) ([]byte, er
 }
 
 func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error) {
-	log.DebugNoContext("Loading avatar", "Team Num", teamNum)
+	log.Debug(ctx, "Loading avatar", "teamNum", teamNum)
 	avatar, err := a.checkCache(ctx, teamNum)
 
 	if err == redis.Nil {
-		log.DebugNoContext("Avatar not in redis, loading from TBA", "Team Num", teamNum)
+		log.Debug(ctx, "Avatar not in redis, loading from TBA", "teamNum", teamNum)
 		avatar, err = a.getTbaAvatar(ctx, teamNum)
 		if err != nil {
-			log.Warn(ctx, "Failed to get avatar", "Team Num", teamNum, "Error", err)
+			log.Warn(ctx, "Failed to get avatar", "teamNum", teamNum, "error", err)
 			return nil, err
 		}
 
 		err = a.storeAvatar(ctx, teamNum, avatar)
 		if err != nil {
-			log.Warn(ctx, "Failed to store avatar in redis", "Error", err)
+			log.Warn(ctx, "Failed to store avatar in redis", "error", err)
 		}
 	} else if err != nil {
-		log.Warn(ctx, "Failed to get cached avatar", "Team number", teamNum, "Error", err)
+		log.Warn(ctx, "Failed to get cached avatar", "teamNum", teamNum, "error", err)
 		return a.getTbaAvatar(ctx, teamNum)
 	} else {
-		log.DebugNoContext("Avatar in redis", "Team Num", teamNum)
+		log.Debug(ctx, "Avatar in redis", "teamNum", teamNum)
 	}
 
 	return avatar, nil

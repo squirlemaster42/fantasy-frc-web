@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"server/draft"
 	"server/model"
 	"server/model/mocks"
 )
@@ -94,20 +95,25 @@ func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
 		DraftId:         42,
 		InvitedUserUuid: userUuid,
 	}, nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id: 42,
+	}, nil).Once()
 	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(8, nil)
 	mockDraftStore.On("CancelOutstandingInvites", c.Request().Context(), 42).Return(nil)
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		DraftStore:    mockDraftStore,
+		UserStore:     mockUserStore,
+		DraftActorMap: draftActorMap,
 	}
 
 	err := h.HandleAcceptInvite(c)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Too many players")
+	assert.Contains(t, rec.Body.String(), "too many players")
 }
 
 func TestHandleAcceptInvite_Success(t *testing.T) {
@@ -123,15 +129,23 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 		DraftId:         42,
 		InvitedUserUuid: userUuid,
 	}, nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id: 42,
+	}, nil).Once()
 	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(3, nil)
 	mockDraftStore.On("AcceptInvite", c.Request().Context(), 123).Return(42, playerUuid, nil)
 	mockDraftStore.On("AddPlayerToDraft", c.Request().Context(), 42, playerUuid).Return(nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id: 42,
+	}, nil).Once()
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		DraftStore:    mockDraftStore,
+		UserStore:     mockUserStore,
+		DraftActorMap: draftActorMap,
 	}
 
 	err := h.HandleAcceptInvite(c)

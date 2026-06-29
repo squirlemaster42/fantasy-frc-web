@@ -1,5 +1,7 @@
 package view
 
+import "server/view/partials"
+
 templ Landing() {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -10,11 +12,13 @@ templ Landing() {
 		<meta name="description" content="Fantasy FRC — Draft real FIRST Robotics Competition teams and compete with friends."/>
 		<meta name="google" content="notranslate"/>
 		<link rel="icon" type="image/svg+xml" href="/img/favicon.svg"/>
+		<link rel="stylesheet" href="/css/daisyui.min.css"/>
 		<link rel="stylesheet" href="/css/styles.css"/>
 		<title>Fantasy FRC</title>
 		<script src="/js/htmx.min.js"></script>
 		<script src="/js/ws.js"></script>
 		<script defer src="/js/alpine.min.js"></script>
+		<script defer src="/js/toast.js"></script>
 		<script defer src="/js/app.js"></script>
 		<style>
 			.hero-gradient {
@@ -43,6 +47,7 @@ templ Landing() {
 		</style>
 	</head>
 	<body class="bg-slate-900 text-slate-100" hx-boost="true">
+		@partials.ToastContainer()
 		<!-- Sticky Nav -->
 		<nav class="fixed top-0 w-full z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-700">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

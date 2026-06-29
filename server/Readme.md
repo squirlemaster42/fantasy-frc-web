@@ -82,7 +82,18 @@ go test -v ./...
 go test -race ./...
 ```
 
+## Using Docker
+
+```bash
+#Build the container
+docker build -t fantasyfrc .
+
+#Run the container
+docker run --env-file <env-file> --add-host=host.docker.internal:host -gateway -p <external-port>:<internal-port> fantasyfrc
+```
+
 ## Notes
 
 - Tailwind CSS CLI is automatically downloaded if not present
 - Production build creates a static binary with embedded assets
+- Tests create test accounts. to use these you need to set the min assword length shorter in your env file

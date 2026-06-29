@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +18,7 @@ import (
 	"server/log"
 	"server/metrics"
 	"server/model"
+	"server/picking"
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
@@ -30,6 +30,9 @@ import (
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	assert := assert.CreateAssertWithContext("Main")
 
 	skipScoring := flag.Bool("skipScoring", false, "When true is entered, the scorer will not be started")
@@ -43,11 +46,11 @@ func main() {
 		log.SetLevel(log.LevelDebug)
 	}
 
-	log.Info(context.Background(), "-------- Starting Fantasy FRC --------")
+	log.Info(ctx, "-------- Starting Fantasy FRC --------")
 
 	err := godotenv.Load()
 	if err != nil {
-		log.Info(context.Background(), "No .env file loaded, using environment variables")
+		log.Info(ctx, "No .env file loaded, using environment variables")
 	}
 	tbaTok := os.Getenv("TBA_TOKEN")
 	dbPassword := os.Getenv("DB_PASSWORD")
@@ -59,12 +62,15 @@ func main() {
 	metricSecret := os.Getenv("METRIC_SECRET")
 	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	csrfSecret := os.Getenv("CSRF_SECRET")
+	trustProxyVar := os.Getenv("TRUST_PROXY")
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
 	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
 	redisAvatarDBVar := os.Getenv("REDIS_AVATAR_DB")
 	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
+	rateLimitEnabledVar := os.Getenv("RATE_LIMIT_ENABLED")
 
 	if csrfSecret == "" {
 		panic("CSRF_SECRET environment variable is required")
@@ -102,23 +108,46 @@ func main() {
 		}
 	}
 
-	log.Info(context.Background(), "Extracted Env Vars")
-	database, err := database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+	rateLimitEnabled := true
+	if rateLimitEnabledVar != "" {
+		parsed, err := strconv.ParseBool(rateLimitEnabledVar)
+		if err == nil {
+			rateLimitEnabled = parsed
+		}
+	}
+
+	log.Info(ctx, "Extracted Env Vars")
+	database, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
-		log.Error(context.Background(), "Failed to register database connection", "error", err)
+		log.Error(ctx, "Failed to register database connection", "error", err)
 		os.Exit(1)
 	}
-	log.Info(context.Background(), "Registered Database Connection")
+	log.Info(ctx, "Registered Database Connection")
 
 	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
 
 	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
 	if err != nil {
-		log.Warn(context.Background(), "failed to parse secure http cookie env var. setting secureHttp to true", "Error", err)
+		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "error", err)
 		secureHttpCookie = true
 	}
 
-	discordBus := discord.NewBus()
+	trustProxy, err := strconv.ParseBool(trustProxyVar)
+	if err != nil {
+		trustProxy = false
+	}
+	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
+
+	if trustProxy && allowedOrigin == "" {
+		panic("ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
+	}
+	if allowedOrigin != "" {
+		log.Info(ctx, "WebSocket origin validation configured", "ALLOWED_ORIGIN", allowedOrigin)
+	} else {
+		log.Info(ctx, "WebSocket origin validation using development fallback (localhost/same-origin)")
+	}
+
+	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
 	userStore := model.NewSQLUserStore(database)
 	teamStore := model.NewSQLTeamStore(database)
@@ -126,81 +155,100 @@ func main() {
 	matchStore := model.NewSQLMatchStore(database)
 	matchTeamStore := model.NewSQLMatchTeamStore(database)
 
-	draftManager := draft.NewDraftManager(tbaHandler, draftStore, teamStore, discordStore, discordBus)
+	pickNotifier := &picking.PickNotifier{
+		Watchers: make(map[int][]picking.Watcher),
+	}
+
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier)
 	//Start the draft daemon and add all running drafts to it
-	draftDaemon := background.NewDraftDaemon(draftStore, draftManager)
-	err = draftDaemon.Start()
+	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
+	err = draftDaemon.Start(ctx)
 	if err != nil {
-		log.Warn(context.Background(), "Failed to start draft daemon", "Error", err)
+		log.Warn(ctx, "Failed to start draft daemon", "error", err)
 		panic("failed to start draft manager")
 	}
 
-	log.DebugNoContext("Checking for drafts that need to be added to daemon")
-	drafts, err := draftStore.GetDraftsInStatus(context.Background(), model.PICKING)
+	log.Debug(ctx, "Checking for drafts that need to be added to daemon")
+	drafts, err := draftStore.GetDraftsInStatus(ctx, model.PICKING)
 	if err != nil {
-		log.Warn(context.Background(), "Could not get any drafts in picking status", "Error", err)
+		log.Warn(ctx, "Could not get any drafts in picking status", "error", err)
 	} else {
 		for _, draftId := range drafts {
-			err = draftDaemon.AddDraft(draftId)
+			err = draftDaemon.AddDraft(ctx, draftId)
 			if err != nil {
-				log.Warn(context.Background(), "Failed to add draft to manager in init", "Error", err)
+				log.Warn(ctx, "Failed to add draft to manager in init", "error", err)
 			}
 		}
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
 	if !*skipScoring {
-		log.Info(context.Background(), "Started Scorer")
-		scorer.RunScorer()
+		log.Info(ctx, "Started Scorer")
+		scorer.RunScorer(ctx)
 	}
 
 	cleanupService := background.NewCleanupService(database, 60)
-	err = cleanupService.Start()
+	err = cleanupService.Start(ctx)
 	if err != nil {
-		slog.Error("Failed to start cleanup service", "Error", err)
+		log.Error(ctx, "Failed to start cleanup service", "error", err)
 	}
 
 	if redisAddr == "" {
 		redisAddr = "localhost:6379"
 	}
 
-	avatarStore, err := cache.NewAvatarStore(*tbaHandler, redisAddr, redisPassword, redisAvatarDB)
-	assert.NoError(context.Background(), err, "Failed to create avatar store")
+	avatarStore, err := cache.NewAvatarStore(ctx, *tbaHandler, redisAddr, redisPassword, redisAvatarDB)
+	assert.NoError(ctx, err, "Failed to create avatar store")
 
 	handler := handler.Handler{
 		DraftStore:        draftStore,
 		UserStore:         userStore,
 		TeamStore:         teamStore,
-		TbaHandler:        *tbaHandler,
-		DraftManager:      draftManager,
+		TBAHandler:        *tbaHandler,
+		DraftActorMap: draftActorMap,
 		Scorer:            scorer,
 		AvatarStore:       &avatarStore,
-		DiscordBus:        discordBus,
+		DiscordWebhookBus: discordWebhookBus,
 		SecureHttpCookie:  secureHttpCookie,
 		MinPasswordLength: minPasswordLength,
 		CsrfSecret:        csrfSecret,
+		AllowedOrigin:     allowedOrigin,
 	}
 
 	// Load the tba webhook secret
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
-		log.Warn(context.Background(), "Unable to open tba webhook secret file", "Error", err)
+		log.Warn(ctx, "Unable to open tba webhook secret file", "error", err)
 	} else {
+		defer file.Close()
 		body, err := io.ReadAll(file)
 		if err != nil {
-			log.Warn(context.Background(), "Failed to read tba webhook file body", "Error", err)
+			log.Warn(ctx, "Failed to read tba webhook file body", "error", err)
 		} else {
 			handler.TbaVerificationCode = string(body)
 		}
 	}
 	handler.TbaWebhookSecret = tbaWebhookSecret
 
-	app, otelShutdown := CreateServer(serverPort, handler, database, metricSecret, csrfSecret, redisAddr, redisPassword, redisRateLimitDB, postsPerMinute)
+	app, otelShutdown := CreateServer(ctx, ServerConfig{
+		ServerPort:       serverPort,
+		Handler:          handler,
+		Database:         database,
+		MetricSecret:     metricSecret,
+		CsrfSecret:       csrfSecret,
+		RedisAddr:        redisAddr,
+		RedisPassword:    redisPassword,
+		RedisRateLimitDB: redisRateLimitDB,
+		PostsPerMinute:   postsPerMinute,
+		RateLimitEnabled: rateLimitEnabled,
+		TrustProxy:       trustProxy,
+		AllowedOrigin:    allowedOrigin,
+	})
 
 	go func() {
 		err := app.Start(":" + serverPort)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			assert.NoError(context.Background(), err, "Failed to start server")
+			assert.NoError(ctx, err, "Failed to start server")
 		}
 	}()
 
@@ -209,18 +257,23 @@ func main() {
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
 	<-shutdownChan
 
-	log.Info(context.Background(), "Shutting down gracefully...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	log.Info(ctx, "Shutting down gracefully...")
+	cancel()
 
-	if err := app.Shutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown server gracefully", "error", err)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := app.Shutdown(shutdownCtx); err != nil {
+		log.Warn(ctx, "Failed to shutdown server gracefully", "error", err)
 	}
-	if err := otelShutdown(ctx); err != nil {
-		log.Warn(context.Background(), "Failed to shutdown OpenTelemetry tracer", "error", err)
+	if err := otelShutdown(shutdownCtx); err != nil {
+		log.Warn(ctx, "Failed to shutdown OpenTelemetry tracer", "error", err)
 	}
 	metrics.ShutdownMetrics()
+	if err := cleanupService.Stop(ctx); err != nil {
+		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
+	}
 	if err := database.Close(); err != nil {
-		log.Warn(context.Background(), "Failed to close database connection", "error", err)
+		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
 }

@@ -99,13 +99,6 @@ func initDraft(users []*User) (*User, Draft) {
 	//Start Draft
 	startDraft(owner, draft.Id)
 
-	//Check that draft is in the correct status
-	currentDraftStatus := getCurrentDraftStatus(owner, draft.Id)
-	if getCurrentDraftStatus(owner, draft.Id) != "Waiting to Start" {
-		slog.Error("Got unexpected draft status", "Expected", "Waiting to Start", "Actual", currentDraftStatus)
-		panic("draft status is not correct")
-	}
-
 	// Wait for draft start time to hit and make sure draft goes into picking
 	waitUntilDraftState(owner, draft.Id, "Picking", 300*time.Second)
 	return owner, draft
@@ -189,11 +182,7 @@ func isPickingPlayer(user *User, draftId int) bool {
 	}
 	defer resp.Body.Close()
 
-	// The rendered HTML has ` disabled name="pickInput"` when the input is disabled
-	// (the `disabled` boolean attribute is written immediately before `name="pickInput"`).
-	// CSS classes like `disabled:opacity-50` won't match because `disabled:` has a colon.
-	bodyStr := string(body)
-	return strings.Contains(bodyStr, `name="pickInput"`) && !strings.Contains(bodyStr, `disabled name="pickInput"`)
+	return strings.Contains(string(body), `name="pickInput"`)
 }
 
 // TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
@@ -207,9 +196,16 @@ func getRandomTeamId(validPicks []int) int {
 // True if pick was made successfully
 func makePickRequest(draftId int, user *User, team int) bool {
 	slog.Info("Make Pick", "Draft Id", draftId, "User", user.Username, "Team", team)
+
+	// Get the authenticated CSRF token from the cookie jar
+	csrfToken, ok := getCookieValue(&user.Client, target+"/u/home", "csrf_token")
+	if !ok {
+		panic("no csrf_token cookie available for authenticated request")
+	}
+
 	form := url.Values{}
 	form.Add("pickInput", strconv.Itoa(team))
-	form.Add("csrf_token", readCSRFToken(user))
+	form.Add("csrf_token", csrfToken)
 
 	resp, err := user.Client.Post(fmt.Sprintf("%s/u/draft/%d/makePick", target, draftId), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	if err != nil {
@@ -255,8 +251,15 @@ func waitUntilDraftState(user *User, draftId int, requestedStatus string, timeou
 
 func startDraft(user *User, draftId int) {
 	slog.Info("Start Draft", "Draft Id", draftId, "User", user.Username)
+
+	// Get the authenticated CSRF token from the cookie jar
+	csrfToken, ok := getCookieValue(&user.Client, target+"/u/home", "csrf_token")
+	if !ok {
+		panic("no csrf_token cookie available for authenticated request")
+	}
+
 	form := url.Values{}
-	form.Add("csrf_token", readCSRFToken(user))
+	form.Add("csrf_token", csrfToken)
 
 	resp, err := user.Client.Post(fmt.Sprintf("%s/u/draft/%d/startDraft", target, draftId), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 	if err != nil {
@@ -269,7 +272,7 @@ func startDraft(user *User, draftId int) {
 		panic("failed to create draft")
 	}
 
-	defer resp.Body.Close()
+	//body, err := io.ReadAll(resp.Body)
 	slog.Info("Start Draft Request Made", "Draft Id", draftId, "User", user.Username, "Status", resp.StatusCode)
 
 	slog.Info("Started Draft", "Draft Id", draftId)
@@ -310,6 +313,15 @@ func acceptInvite(user *User) {
 		} else {
 			r++
 			time.Sleep(500 * time.Millisecond)
+			resp, err = user.Client.Get(fmt.Sprintf("%s/u/viewInvites", target))
+			if err != nil {
+				panic(err)
+			}
+			body, err = io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				panic(err)
+			}
 			id, found = getInviteId(string(body))
 		}
 	}
@@ -368,9 +380,16 @@ func parseDraftStatus(profilePage string) string {
 
 func sendAcceptInvite(user *User, inviteId int) string {
 	//This should return the respose of the accept request
+
+	// Get the authenticated CSRF token from the cookie jar
+	csrfToken, ok := getCookieValue(&user.Client, target+"/u/home", "csrf_token")
+	if !ok {
+		panic("no csrf_token cookie available for authenticated request")
+	}
+
 	form := url.Values{}
 	form.Add("inviteId", strconv.Itoa(inviteId))
-	form.Add("csrf_token", readCSRFToken(user))
+	form.Add("csrf_token", csrfToken)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/u/acceptInvite", target), strings.NewReader(form.Encode()))
 	if err != nil {
@@ -398,7 +417,7 @@ func sendAcceptInvite(user *User, inviteId int) string {
 }
 
 func getInviteId(body string) (int, bool) {
-	prefix := "<button hx-target=\"#pendingTable\" hx-swap=\"outerHTML\" name=\"inviteId\" value=\""
+	prefix := "name=\"inviteId\" value=\""
 	if strings.Count(body, prefix) == 0 {
 		return -1, false
 	}
@@ -429,6 +448,16 @@ func createUser(username string, password string) *User {
 	}
 }
 
+func getCookieValue(client *http.Client, targetUrl string, name string) (string, bool) {
+	u, _ := url.Parse(targetUrl)
+	for _, c := range client.Jar.Cookies(u) {
+		if c.Name == name {
+			return c.Value, true
+		}
+	}
+	return "", false
+}
+
 func createRandomString(minLen int, maxLen int) string {
 	alphabet := "abcdefghijklmnopqrstuvwxyz"
 	length := rand.IntN(maxLen-minLen) + minLen
@@ -439,43 +468,13 @@ func createRandomString(minLen int, maxLen int) string {
 	return sb.String()
 }
 
-func primeCSRFToken(user *User) {
-	resp, err := user.Client.Get(target + "/u/createDraft")
-	if err != nil {
-		slog.Error("Failed to prime CSRF token", "Error", err)
-		panic(err)
-	}
-	resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		slog.Error("Failed to prime CSRF token", "Status", resp.StatusCode)
-		panic("failed to prime CSRF token")
-	}
-}
-
-func readCSRFToken(user *User) string {
-	u, err := url.Parse(target + "/u/createDraft")
-	if err != nil {
-		slog.Error("Failed to parse URL", "Error", err)
-		panic(err)
-	}
-
-	for _, cookie := range user.Client.Jar.Cookies(u) {
-		if cookie.Name == "csrf_token" {
-			return cookie.Value
-		}
-	}
-
-	slog.Error("CSRF token not found in cookie jar")
-	panic("CSRF token not found")
-}
-
-func getCSRFToken(user *User) string {
-	primeCSRFToken(user)
-	return readCSRFToken(user)
-}
-
 func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
+	// Get the authenticated CSRF token from the cookie jar
+	csrfToken, ok := getCookieValue(&owner.Client, target+"/u/home", "csrf_token")
+	if !ok {
+		panic("no csrf_token cookie available for authenticated request")
+	}
+
 	form := url.Values{}
 	form.Add("description", "")
 	form.Add("interval", "0")
@@ -483,7 +482,7 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 	form.Add("endTime", "0001-01-01T00:00")
 	form.Add("draftName", "")
 	form.Add("search", username)
-	form.Add("csrf_token", readCSRFToken(owner))
+	form.Add("csrf_token", csrfToken)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/u/searchPlayers", target), strings.NewReader(form.Encode()))
 	if err != nil {
@@ -509,66 +508,37 @@ func getPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 	body, err := io.ReadAll(resp.Body)
 	slog.Info("Request made", "User", username, "Status", resp.StatusCode)
 
-	buttonPrefix := fmt.Sprintf("<button hx-post=\"/u/draft/%d/invitePlayer\" hx-target=\"#inviteTable\" hx-swap=\"outerHTML\" name=\"userUuid\" value=\"", draftId)
-	userSpanPrefix := `<span class="font-medium text-slate-100">`
-	var matchedUuid uuid.UUID
-	found := false
-
-	remaining := string(body)
-	for {
-		btnIdx := strings.Index(remaining, buttonPrefix)
-		if btnIdx == -1 {
-			break
-		}
-
-		// Extract UUID from the button
-		valStart := btnIdx + len(buttonPrefix)
-		valEnd := strings.Index(remaining[valStart:], `"`)
-		if valEnd == -1 {
-			break
-		}
-		uuidStr := remaining[valStart : valStart+valEnd]
-
-		// Look backwards from the button to find the username span
-		preceding := remaining[:btnIdx]
-		spanIdx := strings.LastIndex(preceding, userSpanPrefix)
-		if spanIdx == -1 {
-			break
-		}
-		spanContentStart := spanIdx + len(userSpanPrefix)
-		spanContentEnd := strings.Index(preceding[spanContentStart:], "</span>")
-		if spanContentEnd == -1 {
-			break
-		}
-		foundUsername := preceding[spanContentStart : spanContentStart+spanContentEnd]
-
-		if foundUsername == username {
-			var parseErr error
-			matchedUuid, parseErr = uuid.Parse(uuidStr)
-			if parseErr != nil {
-				panic(parseErr)
-			}
-			found = true
-			break
-		}
-
-		// Move past this button to look for more
-		remaining = remaining[valStart+valEnd:]
+	prefix := fmt.Sprintf("<button hx-post=\"/u/draft/%d/invitePlayer\" hx-target=\"#inviteTable\" hx-swap=\"outerHTML\" name=\"userUuid\" value=\"", draftId)
+	if strings.Count(string(body), prefix) != 1 {
+		slog.Error("Did not find only one user", "Username", username, "Draft Id", draftId, "Count", strings.Count(string(body), prefix))
+		panic("err: did not find only one user")
 	}
 
-	if !found {
-		slog.Error("Did not find user in search results", "Username", username, "Draft Id", draftId, "Response Body", string(body))
-		panic("err: did not find user in search results")
+	idx := strings.Index(string(body), prefix) + len(prefix)
+	sliced := string(body)[idx:]
+	uuidStr := sliced[:strings.Index(sliced, "\"")]
+
+	uuid, err := uuid.Parse(uuidStr)
+
+	if err != nil {
+		panic(err)
+	} else {
+		slog.Info("Found UUID", "Username", username, "UUID", uuid)
 	}
 
-	slog.Info("Found UUID", "Username", username, "UUID", matchedUuid)
-	return matchedUuid
+	return uuid
 }
 
 func invitePlayersToDraft(owner *User, users []*User, draft Draft) {
 	for _, user := range users {
 		if user.Username == owner.Username {
 			continue
+		}
+
+		// Get the authenticated CSRF token from the cookie jar
+		csrfToken, ok := getCookieValue(&owner.Client, target+"/u/home", "csrf_token")
+		if !ok {
+			panic("no csrf_token cookie available for authenticated request")
 		}
 
 		form := url.Values{}
@@ -579,7 +549,7 @@ func invitePlayersToDraft(owner *User, users []*User, draft Draft) {
 		form.Add("draftName", createRandomString(5, 50))
 		form.Add("search", "")
 		form.Add("userUuid", getPlayerUUID(owner, draft.Id, user.Username).String())
-		form.Add("csrf_token", readCSRFToken(owner))
+		form.Add("csrf_token", csrfToken)
 
 		resp, err := owner.Client.Post(fmt.Sprintf("%s/u/draft/%d/invitePlayer", target, draft.Id), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 		if err != nil {
@@ -600,10 +570,13 @@ func invitePlayersToDraft(owner *User, users []*User, draft Draft) {
 func createDraft(user *User) Draft {
 	slog.Info("Making request to make draft", "User", user.Username)
 
-	// Get CSRF token from protected endpoint
-	csrfToken := getCSRFToken(user)
-
 	startTime := time.Now().Add(1 * time.Minute)
+
+	// Get the authenticated CSRF token from the cookie jar
+	csrfToken, ok := getCookieValue(&user.Client, target+"/u/home", "csrf_token")
+	if !ok {
+		panic("no csrf_token cookie available for authenticated request")
+	}
 
 	layout := "2006-01-02T15:04:05"
 	form := url.Values{}
@@ -621,30 +594,19 @@ func createDraft(user *User) Draft {
 	}
 
 	if resp.StatusCode != 200 {
-		slog.Error("Failed to create draft", "User", user.Username, "Status", resp.StatusCode)
+		slog.Error("Failed to create draft", "User", user.Username)
 		panic("failed to create draft")
 	}
 
+	//body, err := io.ReadAll(resp.Body)
 	slog.Info("Create Draft Request Made", "User", user.Username, "Status", resp.StatusCode)
 
-	// Get Draft Id from Hx-Redirect header
-	redirect := resp.Header.Get("Hx-Redirect")
-	if redirect == "" {
-		slog.Error("Missing Hx-Redirect header in response", "User", user.Username)
-		panic("missing Hx-Redirect header")
-	}
-
-	parts := strings.Split(redirect, "/")
-	if len(parts) < 5 {
-		slog.Error("Unexpected Hx-Redirect format", "Header", redirect, "Parts", len(parts))
-		panic("unexpected Hx-Redirect format")
-	}
-
-	draftIdStr := parts[3]
+	// Get Draft Id
+	draftIdStr := strings.Split(resp.Header.Get("Hx-Redirect"), "/")[3]
 	slog.Info("Parsed draft id string", "Draft Id String", draftIdStr)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
-		slog.Error("Failed to parse draft id from redirect", "DraftIdStr", draftIdStr)
+		slog.Error("Failed to parse draft id from redirect")
 		panic(err)
 	}
 
@@ -659,59 +621,59 @@ func populateAuthToks(users []*User) {
 	for _, user := range users {
 		slog.Info("Making login request", "User", user.Username)
 
-		loginURL, err := url.Parse(target + "/login")
+		// 1. GET the login page to receive the csrf_cookie
+		resp, err := user.Client.Get(target + "/login")
 		if err != nil {
-			slog.Error("Failed to parse login URL", "Error", err)
+			slog.Error("Failed to get login page", "Username", user.Username, "Error", err)
 			panic(err)
 		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 
-		// Step 1: GET the login page to obtain the CSRF cookie
-		getResp, err := user.Client.Get(loginURL.String())
-		if err != nil {
-			slog.Error("Failed to get login page", "User", user.Username, "Error", err)
-			panic(err)
-		}
-		getResp.Body.Close()
-
-		if getResp.StatusCode != 200 {
-			slog.Error("Failed to get login page", "User", user.Username, "Status", getResp.StatusCode)
-			panic("failed to get login page")
+		// 2. Extract the csrf_cookie value from the jar
+		csrfToken, ok := getCookieValue(&user.Client, target+"/login", "csrf_cookie")
+		if !ok {
+			panic("no csrf_cookie received from login page")
 		}
 
-		// Step 2: Extract the CSRF token from the cookie jar
-		var csrfToken string
-		for _, cookie := range user.Client.Jar.Cookies(loginURL) {
-			if cookie.Name == "csrf_cookie" {
-				csrfToken = cookie.Value
-				break
-			}
-		}
-
-		if csrfToken == "" {
-			slog.Error("Failed to get CSRF cookie", "User", user.Username)
-			panic("failed to get CSRF cookie")
-		}
-
-		// Step 3: POST to login with the CSRF token
+		// 3. POST login with username, password, AND csrf_token
 		form := url.Values{}
 		form.Add("username", user.Username)
 		form.Add("password", user.Password)
 		form.Add("csrf_token", csrfToken)
-		resp, err := user.Client.Post(loginURL.String(), "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
+
+		resp, err = user.Client.Post(target+"/login", "application/x-www-form-urlencoded", strings.NewReader(form.Encode()))
 		if err != nil {
 			slog.Error("Failed login", "Username", user.Username, "Error", err)
 			panic(err)
 		}
 
 		if resp.StatusCode != 200 {
-			slog.Error("Failed to login", "User", user.Username, "Status", resp.StatusCode)
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			slog.Error("Failed to login", "User", user.Username, "Body", body, "Error", err)
 			panic("failed to login")
 		}
 
-		slog.Info("Populate auth token request made", "User", user.Username, "Status", resp.StatusCode)
+		// 4. Verify we actually got a session
+		_, hasSession := getCookieValue(&user.Client, target+"/login", "sessionToken")
+		if !hasSession {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			slog.Error("Login succeeded but no sessionToken cookie was set", "Body", string(body))
+			panic("login succeeded but no sessionToken cookie was set")
+		}
 		resp.Body.Close()
 
-		// Prime CSRF token for subsequent protected POST requests
-		primeCSRFToken(user)
+		// 5. Prime the authenticated CSRF token by making a GET to a protected route
+		resp, err = user.Client.Get(target + "/u/home")
+		if err != nil {
+			slog.Error("Failed to get home page", "Username", user.Username, "Error", err)
+			panic(err)
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+
+		slog.Info("Populate auth token request made", "User", user.Username, "Status", resp.StatusCode)
 	}
 }

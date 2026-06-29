@@ -5,11 +5,11 @@ import (
 	"encoding/base32"
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/view/login"
 	"unicode"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,7 +23,10 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 	loginIndex := login.LoginIndex(false, "", h.MinPasswordLength, csrfToken)
 	login := login.Login(" | Login", false, loginIndex)
 	err = Render(c, login)
-	assert.NoErrorCF(c.Request().Context(), err, "Handle View Login Failed To Render")
+	if err != nil {
+		log.Error(c.Request().Context(), "Handle View Login Failed To Render", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	return nil
 }
 
@@ -41,14 +44,18 @@ func generateSessionToken() (string, error) {
 
 func (h *Handler) HandleLoginPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
-		log.Warn(c.Request().Context(), "CSRF validation failed on login", "Ip", c.RealIP())
+		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		loginIndex := login.LoginIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		return Render(c, loginIndex)
+		if err := Render(c, loginIndex); err != nil {
+			log.Error(c.Request().Context(), "Failed to render login page after CSRF failure", "error", err)
+			return err
+		}
+		return nil
 	}
 
 	username := c.FormValue("username")
@@ -61,10 +68,10 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 
 	if valid {
-		log.Info(c.Request().Context(), "Valid login attempt for user", "Username", username)
+		log.Info(c.Request().Context(), "Valid login attempt for user", "username", username)
 		userUuid, err := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to get user uuid", "Username", username, "Error", err)
+			log.Error(c.Request().Context(), "Failed to get user uuid", "username", username, "error", err)
 			return c.String(http.StatusInternalServerError, "Failed to validate login")
 		}
 
@@ -72,17 +79,17 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		oldTok, err := c.Cookie("sessionToken")
 		if err == nil && oldTok.Value != "" {
 			if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
-				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "Error", unregisterErr)
+				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "error", unregisterErr)
 			}
 		}
 
 		sessionTok, err := generateSessionToken()
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate session token", "Error", err)
+			log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
 			return c.String(http.StatusInternalServerError, "Failed to create session")
 		}
 		if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-			log.Error(c.Request().Context(), "Failed to register session", "Error", err)
+			log.Error(c.Request().Context(), "Failed to register session", "error", err)
 			return c.String(http.StatusInternalServerError, "Failed to create session")
 		}
 
@@ -98,7 +105,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		return nil
 	}
 
-	log.Warn(c.Request().Context(), "Invalid login attempt for user", "Username", username)
+	log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
 	csrfToken, err := generateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
@@ -106,16 +113,23 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password", h.MinPasswordLength, csrfToken)
 	err = Render(c, loginIndex)
-	assert.NoErrorCF(c.Request().Context(), err, "Failed To Render Login Page With Error")
-
-	return err
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed To Render Login Page With Error", "error", err)
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
+	var userUuidStr string
+	if userUuid, ok := c.Get("userUuid").(uuid.UUID); ok {
+		userUuidStr = userUuid.String()
+	}
+	log.Info(c.Request().Context(), "User logged out", "userUuid", userUuidStr, "ip", c.RealIP())
 	userTok, err := c.Cookie("sessionToken")
 	if err == nil && userTok.Value != "" {
 		if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
-			log.Warn(c.Request().Context(), "Failed to unregister session", "Error", unregisterErr)
+			log.Warn(c.Request().Context(), "Failed to unregister session", "error", unregisterErr)
 		}
 	}
 	cookie := new(http.Cookie)
@@ -139,21 +153,27 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 	}
 	registerIndex := login.RegisterIndex(false, "", h.MinPasswordLength, csrfToken)
 	register := login.Register(" | Register", false, registerIndex)
-	err = Render(c, register)
-	assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
+	if err := Render(c, register); err != nil {
+		log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
 	return nil
 }
 
 func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
-		log.Warn(c.Request().Context(), "CSRF validation failed on register", "Ip", c.RealIP())
+		log.Warn(c.Request().Context(), "CSRF validation failed on register", "ip", c.RealIP())
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		register := login.RegisterIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		return Render(c, register)
+		if err := Render(c, register); err != nil {
+			log.Error(c.Request().Context(), "Failed to render register page after CSRF failure", "error", err)
+			return err
+		}
+		return nil
 	}
 
 	username := c.FormValue("username")
@@ -166,7 +186,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
 	}
 	if taken {
-		log.Info(c.Request().Context(), "Account creation attempt for existing user but username was taken", "Username", username)
+		log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
 
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
@@ -174,14 +194,15 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		register := login.RegisterIndex(false, "Username Taken", h.MinPasswordLength, csrfToken)
-		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err := Render(c, register); err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
 	if password != confirmPassword {
-		log.Info(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "Username", username)
+		log.Warn(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "username", username)
 
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
@@ -189,14 +210,15 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		register := login.RegisterIndex(false, "Passwords Do Not Match", h.MinPasswordLength, csrfToken)
-		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err := Render(c, register); err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
 	if len(password) < h.MinPasswordLength {
-		log.Info(c.Request().Context(), "Password too short for user attempting to register", "Username", username)
+		log.Warn(c.Request().Context(), "Password too short for user attempting to register", "username", username)
 
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
@@ -204,9 +226,10 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		register := login.RegisterIndex(false, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength), h.MinPasswordLength, csrfToken)
-		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err := Render(c, register); err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
@@ -222,7 +245,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		}
 	}
 	if !hasUpper || !hasLower || !hasDigit {
-		log.Info(c.Request().Context(), "Password does not meet complexity requirements for user attempting to register", "Username", username)
+		log.Warn(c.Request().Context(), "Password does not meet complexity requirements for user attempting to register", "username", username)
 
 		csrfToken, err := generateCSRFCookie(c)
 		if err != nil {
@@ -230,13 +253,14 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, "An error occurred")
 		}
 		register := login.RegisterIndex(false, "Password must contain at least one uppercase letter, one lowercase letter, and one digit", h.MinPasswordLength, csrfToken)
-		err = Render(c, register)
-		assert.NoErrorCF(c.Request().Context(), err, "Handle View Register Page Failed To Render")
-
+		if err := Render(c, register); err != nil {
+			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+			return c.String(http.StatusInternalServerError, "An error occurred")
+		}
 		return nil
 	}
 
-	log.Info(c.Request().Context(), "Valid registration for user", "Username", username)
+	log.Info(c.Request().Context(), "Valid registration for user", "username", username)
 	userUuid, err := h.UserStore.RegisterUser(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to register user", "error", err)
@@ -244,11 +268,11 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 	sessionTok, err := generateSessionToken()
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate session token", "Error", err)
+		log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create session")
 	}
 	if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-		log.Error(c.Request().Context(), "Failed to register session", "Error", err)
+		log.Error(c.Request().Context(), "Failed to register session", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create session")
 	}
 	cookie := new(http.Cookie)

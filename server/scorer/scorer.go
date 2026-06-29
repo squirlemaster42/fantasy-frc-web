@@ -3,7 +3,6 @@ package scorer
 import (
 	"context"
 	"errors"
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/swagger"
@@ -14,7 +13,7 @@ import (
 )
 
 type Scorer struct {
-	tbaHandler       *tbaHandler.TbaHandler
+	tbaHandler       *tbaHandler.TBAHandler
 	matchStore       model.MatchStore
 	matchTeamStore   model.MatchTeamStore
 	teamStore        model.TeamStore
@@ -22,7 +21,7 @@ type Scorer struct {
 	queue            *MatchQueue
 }
 
-func NewScorer(tbaHandler *tbaHandler.TbaHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
+func NewScorer(tbaHandler *tbaHandler.TBAHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
 	return &Scorer{
 		tbaHandler:       tbaHandler,
 		matchStore:       matchStore,
@@ -42,7 +41,7 @@ func playoffMatchCompLevels() map[string]bool {
 }
 
 // Match, dqed teams
-func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, bool) {
+func (s *Scorer) scoreMatch(ctx context.Context, match swagger.Match, rescore bool) (model.Match, bool) {
 	scoredMatch := model.Match{
 		TbaId:     match.Key,
 		Played:    match.PostResultTime > 0,
@@ -55,23 +54,25 @@ func (s *Scorer) scoreMatch(match swagger.Match, rescore bool) (model.Match, boo
 	}
 
 	if match.CompLevel == "qm" {
-		scoredMatch.RedScore, scoredMatch.BlueScore = getQualMatchScore(context.TODO(), match)
+		scoredMatch.RedScore, scoredMatch.BlueScore = getQualMatchScore(ctx, match)
 	} else if playoffMatchCompLevels()[match.CompLevel] {
-		scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(context.TODO(), match)
+		scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(ctx, match)
 	}
 	scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
 	scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
-	scoredMatch.DqedTeams = append(match.Alliances.Blue.DqTeamKeys, match.Alliances.Blue.SurrogateTeamKeys...)
+	scoredMatch.DqedTeams = append(match.Alliances.Red.DqTeamKeys, match.Alliances.Red.SurrogateTeamKeys...)
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.DqTeamKeys...)
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
 
-	log.DebugNoContext("Scored Match", "Match", scoredMatch.String())
+	log.Debug(ctx, "Scored Match", "match", scoredMatch.String())
 
 	return scoredMatch, true
 }
 
 func getQualMatchScore(ctx context.Context, match swagger.Match) (int, int) {
-	log.Debug(ctx, "Scoring qual match", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
+	log.Debug(ctx, "Scoring qual match", "match", match.Key, "winningAlliance", match.WinningAlliance)
 
-	redScore, blueScore := getWinningAllianceScores(match, 3)
+	redScore, blueScore := getWinningAllianceScores(ctx, match, 3)
 
 	if match.ScoreBreakdown == nil {
 		return redScore, blueScore
@@ -79,32 +80,32 @@ func getQualMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.EnergizedAchieved {
 		redScore += 1
-		log.Debug(ctx, "Red Energized Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Energized Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.SuperchargedAchieved {
 		redScore += 1
-		log.Debug(ctx, "Red Supercharded Bonus Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Supercharded Bonus Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.TraversalAchieved {
 		redScore += 2
-		log.Debug(ctx, "Red Traversal Bonus Achieved", "Score", redScore)
+		log.Debug(ctx, "Red Traversal Bonus Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.EnergizedAchieved {
 		blueScore += 1
-		log.Debug(ctx, "Blue Energized Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Energized Bonus Achieved", "score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.SuperchargedAchieved {
 		blueScore += 1
-		log.Debug(ctx, "Blue Supercharged Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Supercharged Bonus Achieved", "score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.TraversalAchieved {
 		blueScore += 2
-		log.Debug(ctx, "Blue Traversal Bonus Achieved", "Score", blueScore)
+		log.Debug(ctx, "Blue Traversal Bonus Achieved", "score", blueScore)
 	}
 
 	return redScore, blueScore
@@ -134,7 +135,7 @@ func getLowerBracketMatchIds() map[int32]bool {
 }
 
 // Red score, blue score
-func getWinningAllianceScores(match swagger.Match, winningPoints int) (int, int) {
+func getWinningAllianceScores(ctx context.Context, match swagger.Match, winningPoints int) (int, int) {
 	redScore := 0
 	blueScore := 0
 
@@ -144,7 +145,7 @@ func getWinningAllianceScores(match swagger.Match, winningPoints int) (int, int)
 	case "blue":
 		blueScore = winningPoints
 	default:
-		log.DebugNoContext("No winning alliance found", "Match", match.Key, "Winning Alliance", match.WinningAlliance)
+		log.Debug(ctx, "No winning alliance found", "match", match.Key, "winningAlliance", match.WinningAlliance)
 	}
 
 	return redScore, blueScore
@@ -164,19 +165,19 @@ func getPlayoffMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 			matchPoints = 15
 		}
 	default:
-		log.Warn(ctx, "Attempted to get playoff score for non playoff match", "Match", match.Key, "Comp Level", match.CompLevel)
+		log.Warn(ctx, "Attempted to get playoff score for non playoff match", "match", match.Key, "compLevel", match.CompLevel)
 	}
 
 	if match.EventKey == utils.Einstein() {
 		matchPoints *= 2
 	}
 
-	return getWinningAllianceScores(match, matchPoints)
+	return getWinningAllianceScores(ctx, match, matchPoints)
 }
 
 // Matches are almost sorted
 // We need to sort it so that matches so qm -> qf -> sf -> f and then sort by match id
-func (s *Scorer) sortMatchesByPlayOrder(matches []string) []string {
+func (s *Scorer) sortMatchesByPlayOrder(ctx context.Context, matches []string) []string {
 	if len(matches) <= 1 {
 		return matches
 	}
@@ -185,21 +186,21 @@ func (s *Scorer) sortMatchesByPlayOrder(matches []string) []string {
 	left := matches[:mid]
 	right := matches[mid:]
 
-	sortedLeft := s.sortMatchesByPlayOrder(left)
-	sortedRight := s.sortMatchesByPlayOrder(right)
+	sortedLeft := s.sortMatchesByPlayOrder(ctx, left)
+	sortedRight := s.sortMatchesByPlayOrder(ctx, right)
 
-	return s.merge(sortedLeft, sortedRight)
+	return s.merge(ctx, sortedLeft, sortedRight)
 }
 
-func (s *Scorer) merge(left []string, right []string) []string {
+func (s *Scorer) merge(ctx context.Context, left []string, right []string) []string {
 	var result []string
 	i := 0
 	j := 0
 
 	for i < len(left) && j < len(right) {
-		val, err := utils.CompareMatchOrder(context.TODO(), left[i], right[j])
+		val, err := utils.CompareMatchOrder(ctx, left[i], right[j])
 		if err != nil {
-			log.Warn(context.TODO(), "Failed to compare match order", "Error", err)
+			log.Error(ctx, "Failed to compare match order", "error", err)
 		}
 
 		if val {
@@ -237,22 +238,21 @@ var ALLIANCE_SCORES = map[int][]int16{
 	8: {18, 17, 16, 1},
 }
 
-func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance) map[string]int16 {
-	assert.CreateAssertWithContext("Get Alliance Selection Score")
+func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int16 {
 	scores := make(map[string]int16)
 
 	splitAllianceName := strings.Split(alliance.Name, " ")
 	if len(splitAllianceName) != 2 {
-		log.Error(context.TODO(), "Alliance name was not in an expected format", "Name", alliance.Name)
+		log.Error(ctx, "Alliance name was not in an expected format", "Name", alliance.Name)
 	}
 
 	allianceNum, err := strconv.Atoi(splitAllianceName[1])
 	if err != nil {
-		log.Error(context.TODO(), "Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
+		log.Error(ctx, "Got bad TBA data when computing alliance selection scores", "Name", alliance.Name)
 	}
 
 	if allianceNum > 8 || allianceNum < 1 {
-		log.Error(context.TODO(), "Unsupported alliance number", "Alliance", alliance.Name)
+		log.Error(ctx, "Unsupported alliance number", "Alliance", alliance.Name)
 	}
 
 	scoreArr := ALLIANCE_SCORES[allianceNum]
@@ -263,7 +263,7 @@ func (s *Scorer) GetAllianceSelectionScore(alliance swagger.EliminationAlliance)
 	return scores
 }
 
-func (s *Scorer) RunScorer() {
+func (s *Scorer) RunScorer(ctx context.Context) {
 	//This function will run on its own routine
 	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
 	//We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
@@ -273,7 +273,7 @@ func (s *Scorer) RunScorer() {
 	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
 	//In this iteration we also update the valid teams
 
-	go s.scoringRunner()
+	go s.scoringRunner(ctx)
 }
 
 func (s *Scorer) AddMatchToScore(match swagger.Match) {
@@ -284,25 +284,28 @@ func (s *Scorer) getNextMatchToScore() swagger.Match {
 	return s.queue.PopMatch()
 }
 
-func (s *Scorer) updateMatchInDB(dbMatch model.Match) error {
-	log.Debug(context.TODO(), "Updating Match Scores", "Match", dbMatch.String())
-	err := s.matchStore.UpdateScore(context.TODO(), dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
+func (s *Scorer) updateMatchInDB(ctx context.Context, dbMatch model.Match) error {
+	log.Debug(ctx, "Updating Match Scores", "match", dbMatch.String())
+	err := s.matchStore.UpdateScore(ctx, dbMatch.TbaId, dbMatch.RedScore, dbMatch.BlueScore)
 	if err != nil {
 		return err
 	}
-	var errs []error
+	errs := make([]error, 0, len(dbMatch.BlueAlliance)+len(dbMatch.RedAlliance))
 	for _, team := range dbMatch.BlueAlliance {
-		errs = append(errs, s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams)))
+		errs = append(errs, s.matchTeamStore.AssociateTeam(ctx, dbMatch.TbaId, team, "Blue", isDqed(team, dbMatch.DqedTeams)))
 	}
+
 	for _, team := range dbMatch.RedAlliance {
-		errs = append(errs, s.matchTeamStore.AssocateTeam(context.TODO(), dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
+		errs = append(errs, s.matchTeamStore.AssociateTeam(ctx, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
 	}
 	return errors.Join(errs...)
 }
 
-func (s *Scorer) scoringRunner() {
+func (s *Scorer) scoringRunner(ctx context.Context) {
+	log.Info(ctx, "Scorer started")
+
 	for _, event := range utils.Events() {
-		for _, match := range s.tbaHandler.MakeEventMatchKeysRequest(context.TODO(), event) {
+		for _, match := range s.tbaHandler.MakeEventMatchKeysRequest(ctx, event) {
 			s.AddMatchToScore(swagger.Match{
 				Key: match,
 			})
@@ -314,31 +317,35 @@ func (s *Scorer) scoringRunner() {
 		if event == utils.Einstein() {
 			continue
 		}
-		s.ScoreAllianceSelection(context.TODO(), event)
+		s.ScoreAllianceSelection(ctx, event)
 	}
 
 	for {
-		log.DebugNoContext("Starting scoring iteration")
+		log.Debug(ctx, "Starting scoring iteration")
 
 		match := s.getNextMatchToScore()
 
-		log.DebugNoContext("Checking if we need to get match data", "Match", match)
+		log.Debug(ctx, "Checking if we need to get match data", "match", match)
 		if match.MatchNumber == 0 {
-			log.DebugNoContext("Loading match data", "Match", match.Key)
-			match = s.tbaHandler.MakeMatchReq(context.TODO(), match.Key)
+			log.Debug(ctx, "Loading match data", "match", match.Key)
+			match = s.tbaHandler.MakeMatchReq(ctx, match.Key)
+			if match.Key == "" {
+				log.Warn(ctx, "MakeMatchReq returned empty match data", "matchKey", match.Key)
+				continue
+			}
 		}
 
-		log.DebugNoContext("Starting scoring run", "Match", match.Key)
-		dbMatchPtr, err := s.matchStore.GetMatch(context.TODO(), match.Key)
+		log.Debug(ctx, "Starting scoring run", "match", match.Key)
+		dbMatchPtr, err := s.matchStore.GetMatch(ctx, match.Key)
 		if err != nil {
-			log.Warn(context.TODO(), "Failed to get match", "Match", match.Key, "Error", err)
+			log.Error(ctx, "Failed to get match", "match", match.Key, "error", err)
 			continue
 		}
 
 		if dbMatchPtr == nil {
-			err = s.matchStore.AddMatch(context.TODO(), match.Key)
+			err = s.matchStore.AddMatch(ctx, match.Key)
 			if err != nil {
-				log.Warn(context.TODO(), "Failed to add match to database", "Match Key", match.Key, "Error", err)
+				log.Error(ctx, "Failed to add match to database", "matchKey", match.Key, "error", err)
 				continue
 			}
 			dbMatchPtr = &model.Match{
@@ -349,26 +356,28 @@ func (s *Scorer) scoringRunner() {
 				Played:       false,
 			}
 		}
-		log.DebugNoContext("Scoring match", "Match", dbMatchPtr.String())
+		log.Debug(ctx, "Scoring match", "match", dbMatchPtr.String())
 
-		dbMatch, _ := s.scoreMatch(match, true)
-		err = s.updateMatchInDB(dbMatch)
-		if err != nil {
-			log.Warn(context.TODO(), "Failed to update match in db", "Match Id", dbMatch.TbaId, "Error", err)
+		dbMatch, shouldUpdate := s.scoreMatch(ctx, match, true)
+		if shouldUpdate {
+			err = s.updateMatchInDB(ctx, dbMatch)
+			if err != nil {
+				log.Error(ctx, "Failed to update match in db", "matchId", dbMatch.TbaId, "error", err)
+			}
 		}
 	}
 }
 
 func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
 	alliances := s.tbaHandler.MakeEliminationAllianceRequest(ctx, event)
-	log.Info(ctx, "Made alliance selection request", "Alliance length", len(alliances))
+	log.Debug(ctx, "Made alliance selection request", "allianceLength", len(alliances))
 	for _, alliance := range alliances {
-		scores := s.GetAllianceSelectionScore(alliance)
+		scores := s.GetAllianceSelectionScore(ctx, alliance)
 		for team, score := range scores {
-			log.Info(ctx, "Update alliance score for team", "Team", team, "Score", score)
+			log.Debug(ctx, "Update alliance score for team", "team", team, "score", score)
 			err := s.teamStore.UpdateTeamAllianceScore(ctx, team, score)
 			if err != nil {
-				log.Warn(ctx, "Failed to update alliance selection scores", "Event", event, "Team", team, "Error", err)
+				log.Error(ctx, "Failed to update alliance selection scores", "event", event, "team", team, "error", err)
 			}
 		}
 	}

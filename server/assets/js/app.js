@@ -17,13 +17,32 @@ document.body.addEventListener('htmx:configRequest', function(evt) {
 });
 
 document.body.addEventListener('htmx:responseError', function(evt) {
-    // Simple global error toast fallback
-    var toast = document.getElementById('global-error-toast');
-    if (toast) {
-        toast.textContent = 'An error occurred. Please try again.';
-        toast.classList.remove('hidden');
-        setTimeout(function() {
-            toast.classList.add('hidden');
-        }, 4000);
+    var status = evt.detail.xhr.status;
+    if (status === 429) {
+        var retryAfter = parseInt(evt.detail.xhr.getResponseHeader('Retry-After'), 10);
+        var message = 'Too many requests. Please try again';
+        if (retryAfter && !isNaN(retryAfter)) {
+            if (retryAfter < 60) {
+                message += ' in ' + retryAfter + ' second' + (retryAfter === 1 ? '' : 's') + '.';
+            } else {
+                var minutes = Math.ceil(retryAfter / 60);
+                message += ' in ' + minutes + ' minute' + (minutes === 1 ? '' : 's') + '.';
+            }
+        } else {
+            message += ' later.';
+        }
+        if (window.Toast) {
+            window.Toast.error(message);
+        }
+        return;
+    }
+    if (window.Toast) {
+        window.Toast.error('An error occurred. Please try again.');
+    }
+});
+
+document.body.addEventListener('htmx:sendError', function(evt) {
+    if (window.Toast) {
+        window.Toast.error('Network error. Please check your connection and try again.');
     }
 });

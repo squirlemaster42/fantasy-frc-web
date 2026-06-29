@@ -37,51 +37,51 @@ var (
 )
 
 var (
-	queryThresholdMs = getEnvAsInt("DB_QUERY_THRESHOLD_MS", 50)
-	pollInterval     = getEnvAsDuration("DB_QUERY_POLL_INTERVAL", 30*time.Second)
-	maxQueries       = getEnvAsInt("DB_QUERY_MAX_COUNT", 50)
+	queryThresholdMs = getEnvAsInt(context.Background(), "DB_QUERY_THRESHOLD_MS", 50)
+	pollInterval     = getEnvAsDuration(context.Background(), "DB_QUERY_POLL_INTERVAL", 30*time.Second)
+	maxQueries       = getEnvAsInt(context.Background(), "DB_QUERY_MAX_COUNT", 50)
 )
 
-func getEnvAsInt(key string, defaultVal int) int {
+func getEnvAsInt(ctx context.Context, key string, defaultVal int) int {
 	val := os.Getenv(key)
 	if val == "" {
 		return defaultVal
 	}
 	intVal, err := strconv.Atoi(val)
 	if err != nil {
-		log.Warn(context.Background(), "Invalid env var, using default", "key", key, "value", val, "error", err)
+		log.Warn(ctx, "Invalid env var, using default", "key", key, "value", val, "error", err)
 		return defaultVal
 	}
 	return intVal
 }
 
-func getEnvAsDuration(key string, defaultVal time.Duration) time.Duration {
+func getEnvAsDuration(ctx context.Context, key string, defaultVal time.Duration) time.Duration {
 	val := os.Getenv(key)
 	if val == "" {
 		return defaultVal
 	}
 	d, err := time.ParseDuration(val)
 	if err != nil {
-		log.Warn(context.Background(), "Invalid env var, using default", "key", key, "value", val, "error", err)
+		log.Warn(ctx, "Invalid env var, using default", "key", key, "value", val, "error", err)
 		return defaultVal
 	}
 	return d
 }
 
-func InitDBQueryStats(db *sql.DB) {
+func InitDBQueryStats(ctx context.Context, db *sql.DB) {
 	prometheus.MustRegister(dbQueryMeanTime, dbQueryCalls, dbQueryRows)
 
-	log.Info(context.TODO(), "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
+	log.Info(ctx, "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
 
-	go collectQueryStats(db)
+	go collectQueryStats(ctx, db)
 }
 
-func collectQueryStats(db *sql.DB) {
+func collectQueryStats(ctx context.Context, db *sql.DB) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		collectQueryStatsIteration(context.TODO(), db)
+		collectQueryStatsIteration(ctx, db)
 	}
 }
 
@@ -101,7 +101,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 
 	rows, err := db.QueryContext(ctx, query, float64(queryThresholdMs)/1000.0, maxQueries)
 	if err != nil {
-		log.Warn(ctx, "Failed to query pg_stat_statements", "error", err)
+		log.Error(ctx, "Failed to query pg_stat_statements", "error", err)
 		return
 	}
 	defer rows.Close()
@@ -118,7 +118,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 
 		err := rows.Scan(&queryText, &calls, &meanTime, &totalTime, &rowsCount)
 		if err != nil {
-			log.Warn(ctx, "Failed to scan pg_stat_statements row", "error", err)
+			log.Error(ctx, "Failed to scan pg_stat_statements row", "error", err)
 			continue
 		}
 

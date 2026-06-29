@@ -417,36 +417,6 @@ func (_m *MockDraftStore) GetDraftsInStatus(ctx context.Context, status model.Dr
 	return r0, r1
 }
 
-// GetDraftsToStart provides a mock function with given fields: ctx, cutoffDate
-func (_m *MockDraftStore) GetDraftsToStart(ctx context.Context, cutoffDate time.Time) ([]int, error) {
-	ret := _m.Called(ctx, cutoffDate)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetDraftsToStart")
-	}
-
-	var r0 []int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) ([]int, error)); ok {
-		return rf(ctx, cutoffDate)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, time.Time) []int); ok {
-		r0 = rf(ctx, cutoffDate)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]int)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = rf(ctx, cutoffDate)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetInvite provides a mock function with given fields: ctx, inviteId
 func (_m *MockDraftStore) GetInvite(ctx context.Context, inviteId int) (model.DraftInvite, error) {
 	ret := _m.Called(ctx, inviteId)
