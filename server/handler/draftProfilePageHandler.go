@@ -297,3 +297,62 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
 	return nil
 }
+
+// HandleUninvitePlayer removes a pending invite from the draft.
+func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	draftId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft id", "error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
+
+	inviteIdStr := c.FormValue("inviteId")
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	if err != nil || inviteId <= 0 {
+		log.Warn(c.Request().Context(), "Invalid invite id", "inviteId", inviteIdStr, "error", err)
+		return c.String(http.StatusBadRequest, "Invalid invite ID")
+	}
+
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to load draft", "draftId", draftId, "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to load draft")
+	}
+	draftModel := draft.GetDraft(draftActor)
+
+	if draftModel.Status != model.FILLING {
+		log.Warn(c.Request().Context(), "User attempted to uninvite player from draft not in FILLING state", "draftId", draftId, "status", draftModel.Status)
+		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to uninvite players")
+	}
+
+	if userUuid != draftModel.Owner.UserUuid {
+		log.Warn(c.Request().Context(), "User attempted to uninvite player from draft they do not own", "draftId", draftId, "userUuid", userUuid)
+		return c.String(http.StatusUnauthorized, "You must own the draft to uninvite a player")
+	}
+
+	err = draft.UninvitePlayer(c.Request().Context(), draftActor, draftId, userUuid, inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to uninvite player", "draftId", draftId, "inviteId", inviteId, "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to uninvite player")
+	}
+
+	// Reload draft model from actor cache (updated by UninvitePlayer)
+	draftModel = draft.GetDraft(draftActor)
+	isOwner := userUuid == draftModel.Owner.UserUuid
+
+	// Re-fetch search results so the uninvited player reappears as invitable
+	searchInput := c.FormValue("search")
+	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to search users after uninvite", "draftId", draftId, "searchInput", searchInput, "error", err)
+	}
+
+	page := draftView.UpdateAfterInvite(users, draftId, draftModel.Players, isOwner, h.csrfToken(c))
+	if err := Render(c, page); err != nil {
+		log.Error(c.Request().Context(), "Uninvite Player Failed To Render", "draftId", draftId, "error", err)
+		return err
+	}
+
+	return nil
+}

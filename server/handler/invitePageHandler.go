@@ -31,7 +31,7 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 		return err
 	}
 
-	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
+	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
 	if includeWrapper {
 		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
 		if err := Render(c, inviteView); err != nil {
@@ -90,4 +90,46 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	}
 
 	return renderInviteTable(h, c, false, "", false)
+}
+
+func (h *Handler) HandleDeclineInvite(c echo.Context) error {
+	userUuid := c.Get("userUuid").(uuid.UUID)
+	inviteIdStr := c.FormValue("inviteId")
+
+	log.Info(c.Request().Context(), "Got request to decline invite", "User", userUuid, "Invite Id", inviteIdStr)
+
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	if err != nil || inviteId == 0 {
+		log.Warn(c.Request().Context(), "Failed to parse invite id", "Invite Id", inviteIdStr, "Error", err)
+		return renderInviteTable(h, c, true, "Invalid invite ID.", false)
+	}
+
+	// We need the draftId before routing through the actor to get the DraftActor
+	inviteForDraftId, err := h.DraftStore.GetInvite(c.Request().Context(), inviteId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
+		}
+		log.Error(c.Request().Context(), "Failed to get invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
+
+	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), inviteForDraftId.DraftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", inviteForDraftId.DraftId, "error", err)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
+
+	err = draft.DeclineInvite(c.Request().Context(), draftActor, inviteId, userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to decline invite", "error", err, "inviteId", inviteId)
+		return renderInviteTable(h, c, true, err.Error(), false)
+	}
+
+	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
+		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
+	}
+	return Render(c, draftView.DraftInviteIndex(invites, false, ""))
 }

@@ -60,8 +60,15 @@ type AcceptInviteMessage struct {
 	AcceptingUserUuid uuid.UUID
 }
 
+type UninvitePlayerMessage struct {
+	DraftId   int
+	OwnerUuid uuid.UUID
+	InviteId  int
+}
+
 type DeclineInviteMessage struct {
 	InviteId int
+	UserUuid uuid.UUID
 }
 
 type ShutdownMessage struct{}
@@ -287,6 +294,8 @@ func (d *DraftActor) handleMessage(message Message) Result {
 		return d.handleInvitePlayer(message.context, msg)
 	case AcceptInviteMessage:
 		return d.handleAcceptInvite(message.context, msg)
+	case UninvitePlayerMessage:
+		return d.handleUninvitePlayer(message.context, msg)
 	case DeclineInviteMessage:
 		return d.handleDeclineInvite(message.context, msg)
 	default:
@@ -378,9 +387,62 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 }
 
 func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteMessage) Result {
-	return Result{
-		Error: errors.New("declining invites is not yet supported"),
+	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Result{
+				Error: errors.New("invite not found. It may have been cancelled or expired."),
+			}
+		}
+		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: fmt.Errorf("could not decline invite. If this continues please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
+		}
 	}
+
+	if invite.InvitedUserUuid != msg.UserUuid {
+		log.Info(ctx, "User attempted to decline invite for another player", "InvitedUserUuid", invite.InvitedUserUuid, "RequestingUserUuid", msg.UserUuid)
+		return Result{
+			Error: errors.New("you are not allowed to decline invites for other players."),
+		}
+	}
+
+	err = d.draftStore.CancelInvite(ctx, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to cancel invite", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: fmt.Errorf("could not decline invite. If this continues please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
+		}
+	}
+
+	// Check whether the draft should revert from WAITING_TO_START to FILLING
+	acceptedPlayers := 0
+	for _, player := range d.draftState.Players {
+		if !player.Pending {
+			acceptedPlayers++
+		}
+	}
+
+	if acceptedPlayers < 8 && d.draftState.Status == model.WAITING_TO_START {
+		err = d.draftStore.UpdateDraftStatus(ctx, d.draftState.Id, model.FILLING)
+		if err != nil {
+			log.Error(ctx, "Failed to revert draft status to filling after decline", "error", err, "draftId", d.draftState.Id)
+		}
+	}
+
+	// Reload draft state so cached model is not stale
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		log.Error(ctx, "Failed to reload draft after declining invite", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+		}
+	}
+	d.mu.Lock()
+	d.draftState = updatedDraft
+	d.mu.Unlock()
+
+	return Result{}
 }
 
 func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMessage) Result {
@@ -410,6 +472,42 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
 	if err != nil {
 		log.Error(ctx, "Failed to reload draft after inviting player", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+		}
+	}
+	d.mu.Lock()
+	d.draftState = updatedDraft
+	d.mu.Unlock()
+
+	return Result{}
+}
+
+func (d *DraftActor) handleUninvitePlayer(ctx context.Context, msg UninvitePlayerMessage) Result {
+	if d.draftState.Status != model.FILLING {
+		return Result{
+			Error: errors.New("Draft must be in FILLING state to uninvite players"),
+		}
+	}
+
+	if msg.OwnerUuid != d.draftState.Owner.UserUuid {
+		return Result{
+			Error: errors.New("you must own the draft to uninvite a player"),
+		}
+	}
+
+	err := d.draftStore.UninvitePlayer(ctx, msg.DraftId, msg.OwnerUuid, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to uninvite player", "error", err)
+		return Result{
+			Error: err,
+		}
+	}
+
+	// Reload draft state so cached model is not stale
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		log.Error(ctx, "Failed to reload draft after uninviting player", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
