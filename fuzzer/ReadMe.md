@@ -52,4 +52,4 @@ Generates JSON files containing randomized match data that can be used to:
 
 ## Development
 
-This tool helps ensure the reliability of the Fantasy FRC scoring system by providing comprehensive test data for webhook processing and match scoring. 
+This tool helps ensure the reliability of the Fantasy FRC scoring system by providing test data for webhook processing and match scoring. 
