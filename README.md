@@ -48,7 +48,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```
 4. Run any additional migration scripts as needed. They can be found in the database directory.
 
-**Note**: Database versioning will be done in future release.
+**Note**: Database versioning will be done in future release
 
 ## Configuration
 
