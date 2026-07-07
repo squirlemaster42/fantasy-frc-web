@@ -302,11 +302,11 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
 		if errors.Is(err, sql.ErrNoRows) {
 			return Result{
-				Error: errors.New("invite not found. It may have been cancelled or expired."),
+				Error: errors.New("invite not found; it may have been cancelled or expired"),
 			}
 		}
 		return Result{
-			Error: fmt.Errorf("Could not accept invite. If this continued please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
+			Error: fmt.Errorf("could not accept invite; if this continued please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
 		}
 	}
 
@@ -314,7 +314,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 	if invite.InvitedUserUuid != msg.AcceptingUserUuid {
 		log.Warn(ctx, "Invited player to draft", "invitedUserUuid", invite.InvitedUserUuid, "acceptingUserUuid", msg.AcceptingUserUuid)
 		return Result{
-			Error: errors.New("you are not allowed to accept drafts for other players."),
+			Error: errors.New("you are not allowed to accept drafts for other players"),
 		}
 	}
 
@@ -335,7 +335,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			log.Error(ctx, "Failed to cancel outstanding invites", "error", err, "draftId", d.draftState.Id)
 		}
 		return Result{
-			Error: errors.New("too many players are already in the draft. Please contect the draft owner if you think this is an error."),
+			Error: errors.New("too many players are already in the draft; please contact the draft owner if you think this is an error"),
 		}
 	}
 
@@ -387,7 +387,7 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 	// Check that the draft is in the correct state
 	if d.draftState.Status != model.FILLING {
 		return Result{
-			Error: errors.New("Draft must be in FILLING state to invite players"),
+			Error: errors.New("draft must be in FILLING state to invite players"),
 		}
 	}
 

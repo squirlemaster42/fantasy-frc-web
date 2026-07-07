@@ -136,7 +136,7 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 		return
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
@@ -224,14 +224,14 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("Discord webhook was not successful: %s", string(body))
+		return fmt.Errorf("discord webhook was not successful: %s", string(body))
 	}
 
 	return nil

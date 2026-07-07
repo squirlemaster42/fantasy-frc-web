@@ -304,7 +304,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			err = playerRows.Scan(&userUuid, &username, &accepted)
 			if err != nil {
-				playerRows.Close()
+				_ = playerRows.Close()
 				return nil, err
 			}
 			draftPlayer := DraftPlayer{
@@ -317,7 +317,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			draftModel.Players = append(draftModel.Players, draftPlayer)
 		}
-		playerRows.Close()
+		_ = playerRows.Close()
 
 		drafts = append(drafts, draftModel)
 	}

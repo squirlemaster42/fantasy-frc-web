@@ -51,7 +51,7 @@ func getDB(t *testing.T) *sql.DB {
 
 func TestDBStatsCollector(t *testing.T) {
 	db := getDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
@@ -78,7 +78,7 @@ func TestDBStatsCollector(t *testing.T) {
 
 func TestDBStatsCollectorQueryCount(t *testing.T) {
 	db := getDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
@@ -102,7 +102,7 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 
 func TestOTelDBStatsMetrics(t *testing.T) {
 	db := getDB(t)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	reg, err := otelsql.RegisterDBStatsMetrics(db)
 	assert.NoError(t, err)
