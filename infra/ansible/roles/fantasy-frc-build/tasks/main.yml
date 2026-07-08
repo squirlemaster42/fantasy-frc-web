@@ -1,0 +1,88 @@
+---
+- name: Check if buildkit is installed
+  shell: |
+    command -v buildctl >/dev/null 2>&1 && command -v buildkitd >/dev/null 2>&1 && echo "installed" || echo "missing"
+  register: buildkit_check
+  changed_when: false
+  become: yes
+
+- name: Download and install buildkit
+  shell: |
+    set -eu
+    BUILDKIT_VERSION="{{ buildkit_version }}"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+      x86_64) ARCH=amd64 ;;
+      aarch64) ARCH=arm64 ;;
+    esac
+    TMPDIR="$(mktemp -d)"
+    cd "$TMPDIR"
+    curl -fsSL "https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-${ARCH}.tar.gz" -o buildkit.tar.gz
+    tar -xzf buildkit.tar.gz
+    cp bin/buildctl bin/buildkitd /usr/local/bin/
+    chmod +x /usr/local/bin/buildctl /usr/local/bin/buildkitd
+    rm -rf "$TMPDIR"
+  args:
+    executable: /bin/bash
+  when: buildkit_check.stdout == "missing"
+  become: yes
+
+- name: Create buildkitd systemd service
+  copy:
+    dest: /etc/systemd/system/buildkitd.service
+    content: |
+      [Unit]
+      Description=BuildKit Daemon
+      Documentation=https://github.com/moby/buildkit
+      After=containerd.service
+
+      [Service]
+      ExecStart=/usr/local/bin/buildkitd --addr=unix:///run/buildkit/buildkitd.sock
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+  become: yes
+
+- name: Start and enable buildkitd
+  systemd:
+    name: buildkitd
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  become: yes
+
+- name: Check if web image already exists in containerd
+  shell: |
+    ctr -n k8s.io images check "name=={{ web_image_name }}:{{ web_image_tag }}" | grep -q "{{ web_image_name }}:{{ web_image_tag }}" && echo "exists" || echo "missing"
+  register: web_image_check
+  changed_when: false
+  become: yes
+
+- name: Build Fantasy FRC web image
+  shell: |
+    {{ nerdctl_path }} -n k8s.io build -t {{ web_image_name }}:{{ web_image_tag }} {{ project_dir }}/server
+  when: web_image_check.stdout == "missing" or force_build | default(false) | bool
+  timeout: 600
+  become: yes
+
+- name: Check if migrations image already exists in containerd
+  shell: |
+    ctr -n k8s.io images check "name=={{ migrations_image_name }}:{{ migrations_image_tag }}" | grep -q "{{ migrations_image_name }}:{{ migrations_image_tag }}" && echo "exists" || echo "missing"
+  register: migrations_image_check
+  changed_when: false
+  become: yes
+
+- name: Build Fantasy FRC migrations image
+  shell: |
+    {{ nerdctl_path }} -n k8s.io build -t {{ migrations_image_name }}:{{ migrations_image_tag }} {{ project_dir }}/database
+  when: migrations_image_check.stdout == "missing" or force_build | default(false) | bool
+  timeout: 300
+  become: yes
+
+- name: Verify web image exists
+  shell: |
+    ctr -n k8s.io images check "name=={{ web_image_name }}:{{ web_image_tag }}" | grep "{{ web_image_name }}:{{ web_image_tag }}"
+  changed_when: false
+  become: yes

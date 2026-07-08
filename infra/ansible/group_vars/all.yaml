@@ -28,3 +28,39 @@ lb_ip_range: "192.168.1.200-192.168.1.210"
 
 # Regular non-root user on the nodes (for kubectl config)
 regular_user: "jmisbach"
+
+# ---------------------------------------------------------------------------
+# Application stack configuration (used by deploy-apps.yaml)
+# ---------------------------------------------------------------------------
+
+# Static IP of the control-plane node (used for ingress access and /etc/hosts)
+api_ip: "192.168.1.164"
+
+# Local domains used for ingress
+fantasy_frc_domain: "fantasy-frc.local"
+grafana_domain: "grafana.local"
+vault_domain: "vault.local"
+
+# Ingress NodePorts
+ingress_http_port: 31531
+ingress_https_port: 30556
+
+# Storage class for all application PVCs
+storage_class: "longhorn"
+
+# Database configuration
+db_name: "appdb"
+db_username: "postgres"
+
+# Container registry for locally-built images
+registry_host: "registry.fantasy-frc.svc.cluster.local"
+registry_port: 5000
+
+# Helm chart versions
+ingress_nginx_chart_version: "4.12.0"
+cert_manager_chart_version: "1.17.1"
+vault_chart_version: "0.29.1"
+external_secrets_chart_version: "0.14.0"
+kube_prometheus_stack_chart_version: "68.4.3"
+loki_chart_version: "6.25.0"
+tempo_chart_version: "1.18.1"

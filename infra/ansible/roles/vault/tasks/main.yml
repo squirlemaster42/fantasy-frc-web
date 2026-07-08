@@ -1,0 +1,178 @@
+---
+- name: Add HashiCorp Helm repository
+  shell: |
+    helm repo add hashicorp https://helm.releases.hashicorp.com 2>/dev/null || true
+
+- name: Add External Secrets Operator Helm repository
+  shell: |
+    helm repo add external-secrets https://charts.external-secrets.io 2>/dev/null || true
+
+- name: Update Helm repositories
+  shell: |
+    helm repo update
+
+- name: Ensure Vault namespace exists
+  shell: |
+    kubectl create namespace {{ vault_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Ensure External Secrets Operator namespace exists
+  shell: |
+    kubectl create namespace {{ eso_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Render Vault values
+  template:
+    src: vault-values.yaml.j2
+    dest: /tmp/vault-values.yaml
+    mode: '0644'
+
+- name: Deploy Vault
+  shell: |
+    helm upgrade --install vault hashicorp/vault \
+      --namespace {{ vault_namespace }} \
+      --version {{ vault_chart_version }} \
+      --values /tmp/vault-values.yaml \
+      --wait \
+      --timeout 10m
+
+- name: Deploy External Secrets Operator
+  shell: |
+    helm upgrade --install external-secrets external-secrets/external-secrets \
+      --namespace {{ eso_namespace }} \
+      --version {{ external_secrets_chart_version }} \
+      --set installCRDs=true \
+      --wait \
+      --timeout 10m
+
+- name: Wait for Vault pod to be running
+  shell: |
+    kubectl wait --for=condition=podscheduled pod/vault-0 -n {{ vault_namespace }} --timeout=180s
+    kubectl wait --for=condition=ready pod/vault-0 -n {{ vault_namespace }} --timeout=300s || true
+
+- name: Check if Vault is already initialized
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- vault status -format=json 2>/dev/null | jq -r '.initialized' || echo "false"
+  register: vault_initialized
+  changed_when: false
+
+- name: Initialize Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- vault operator init -key-shares=5 -key-threshold=3 -format=json > {{ vault_init_file }}
+    chmod 600 {{ vault_init_file }}
+  when: vault_initialized.stdout != "true"
+
+- name: Read Vault root token and unseal keys
+  set_fact:
+    vault_root_token: "{{ lookup('file', vault_init_file) | from_json | json_query('root_token') }}"
+    vault_unseal_key_1: "{{ lookup('file', vault_init_file) | from_json | json_query('unseal_keys_b64[0]') }}"
+    vault_unseal_key_2: "{{ lookup('file', vault_init_file) | from_json | json_query('unseal_keys_b64[1]') }}"
+    vault_unseal_key_3: "{{ lookup('file', vault_init_file) | from_json | json_query('unseal_keys_b64[2]') }}"
+
+- name: Unseal Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- vault operator unseal {{ item }} >/dev/null || true
+  loop:
+    - "{{ vault_unseal_key_1 }}"
+    - "{{ vault_unseal_key_2 }}"
+    - "{{ vault_unseal_key_3 }}"
+
+- name: Enable KV v2 secrets engine
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault secrets enable -path=secret kv-v2 >/dev/null 2>&1 || true
+
+- name: Render External Secrets Operator policy file
+  template:
+    src: eso-policy.hcl.j2
+    dest: /tmp/eso-policy.hcl
+    mode: '0644'
+
+- name: Copy External Secrets Operator policy file into Vault pod
+  shell: |
+    kubectl cp /tmp/eso-policy.hcl vault/vault-0:/tmp/eso-policy.hcl
+
+- name: Write External Secrets Operator policy
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault policy write external-secrets /tmp/eso-policy.hcl
+
+- name: Enable Kubernetes auth method
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault auth enable kubernetes >/dev/null 2>&1 || true
+
+- name: Configure Kubernetes auth method
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc" \
+      kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+      token_reviewer_jwt=@/var/run/secrets/kubernetes.io/serviceaccount/token \
+      disable_issuer_verification=true
+
+- name: Create Kubernetes auth role for External Secrets Operator
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault write auth/kubernetes/role/external-secrets \
+      bound_service_account_names=external-secrets \
+      bound_service_account_namespaces={{ eso_namespace }} \
+      policies=external-secrets \
+      ttl=1h
+
+- name: Render ClusterSecretStore
+  template:
+    src: cluster-secret-store.yaml.j2
+    dest: /tmp/cluster-secret-store.yaml
+    mode: '0644'
+
+- name: Apply ClusterSecretStore
+  shell: |
+    kubectl apply -f /tmp/cluster-secret-store.yaml
+
+- name: Read Postgres password from Kubernetes secret
+  shell: |
+    kubectl get secret postgres-secret -n database -o jsonpath='{.data.password}' | base64 -d
+  register: postgres_password_lookup
+  changed_when: false
+
+- name: Read Redis password from Kubernetes secret
+  shell: |
+    kubectl get secret redis-secret -n fantasy-frc -o jsonpath='{.data.password}' | base64 -d
+  register: redis_password_lookup
+  changed_when: false
+
+- name: Set password facts
+  set_fact:
+    postgres_password: "{{ postgres_password_lookup.stdout }}"
+    redis_password: "{{ redis_password_lookup.stdout }}"
+
+- name: Generate app secrets
+  set_fact:
+    tba_webhook_secret: "{{ lookup('password', '/dev/null length=32') }}"
+    metric_secret: "{{ lookup('password', '/dev/null length=32') }}"
+    csrf_secret: "{{ lookup('password', '/dev/null length=48') }}"
+
+- name: Store Postgres password in Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv put secret/database/postgres password="{{ postgres_password }}"
+  when: postgres_password | length > 0
+
+- name: Store application secrets in Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv put secret/fantasy-frc/app \
+      DB_USERNAME="{{ db_username | default('postgres') }}" \
+      DB_PASSWORD="{{ postgres_password }}" \
+      DB_IP="postgres.database.svc.cluster.local" \
+      DB_NAME="{{ db_name | default('appdb') }}" \
+      SERVER_PORT="8080" \
+      TBA_TOKEN="REPLACE_WITH_REAL_TBA_TOKEN" \
+      TBA_WEBHOOK_SECRET="{{ tba_webhook_secret }}" \
+      METRIC_SECRET="{{ metric_secret }}" \
+      SECURE_HTTP_COOKIE="false" \
+      CSRF_SECRET="{{ csrf_secret }}" \
+      TRUST_PROXY="true" \
+      ALLOWED_ORIGIN="http://{{ fantasy_frc_domain }}:{{ ingress_http_port }}" \
+      REDIS_ADDR="redis.fantasy-frc.svc.cluster.local:6379" \
+      REDIS_PASSWORD="{{ redis_password }}" \
+      REDIS_RATE_LIMIT_DB="1" \
+      REDIS_AVATAR_DB="2" \
+      RATE_LIMIT_POSTS_PER_MINUTE="100" \
+      RATE_LIMIT_ENABLED="true" \
+      OTEL_EXPORTER_OTLP_ENDPOINT="http://tempo.monitoring.svc.cluster.local:4318" \
+      OTEL_RESOURCE_ATTRIBUTES="service.name=fantasy-frc-web" \
+      MIN_PASSWORD_LENGTH="12"
+  when: postgres_password | length > 0 and redis_password | length > 0

@@ -30,9 +30,12 @@ kubectl create secret generic postgres-secret \
     --dry-run=client -o yaml | kubectl apply -f -
 
 log "Deploying Postgres..."
-kubectl apply -f "${SCRIPT_DIR}/postgres.yaml"
+envsubst '$DB_NAME $DB_USERNAME' < "${SCRIPT_DIR}/postgres.yaml" | kubectl apply -f -
 
-log "Waiting for Postgres to be ready..."
+log "Waiting for Postgres StatefulSet rollout..."
+kubectl rollout status statefulset/postgres -n database --timeout=180s
+
+log "Waiting for Postgres pod to be ready..."
 kubectl wait --for=condition=ready pod -l app=postgres -n database --timeout=120s
 
 echo ""

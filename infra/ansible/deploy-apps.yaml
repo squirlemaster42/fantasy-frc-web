@@ -1,0 +1,16 @@
+---
+# Deploy the Fantasy FRC application stack on a running Kubernetes cluster.
+# Run after site.yaml has provisioned the cluster.
+
+- name: Deploy core application infrastructure
+  hosts: control_plane[0]
+  become: no
+  roles:
+    - ingress-nginx
+    - cert-manager
+    - postgres
+    - redis
+    - vault
+    - monitoring
+    - fantasy-frc-build
+    - fantasy-frc

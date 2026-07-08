@@ -1,0 +1,20 @@
+---
+- name: Add ingress-nginx Helm repository
+  shell: |
+    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx 2>/dev/null || true
+    helm repo update
+
+- name: Ensure ingress-nginx namespace exists
+  shell: |
+    kubectl create namespace {{ ingress_nginx_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Deploy ingress-nginx
+  shell: |
+    helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+      --namespace {{ ingress_nginx_namespace }} \
+      --version {{ ingress_nginx_chart_version }} \
+      --set controller.service.type=NodePort \
+      --set controller.service.nodePorts.http={{ ingress_http_port }} \
+      --set controller.service.nodePorts.https={{ ingress_https_port }} \
+      --wait \
+      --timeout 10m

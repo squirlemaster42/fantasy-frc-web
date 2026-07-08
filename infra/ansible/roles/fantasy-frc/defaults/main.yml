@@ -1,0 +1,9 @@
+---
+fantasy_frc_namespace: fantasy-frc
+fantasy_frc_domain: "{{ fantasy_frc_domain | default('fantasy-frc.local') }}"
+registry_host: "{{ registry_host | default('registry.fantasy-frc.svc.cluster.local') }}"
+registry_port: "{{ registry_port | default(5000) }}"
+fantasy_frc_replicas: 1
+migrations_image_name: "{{ registry_host }}:{{ registry_port }}/fantasy-frc-migrations"
+migrations_image_tag: latest
+fantasy_frc_skip_scoring: true

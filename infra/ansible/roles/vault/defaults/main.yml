@@ -1,0 +1,11 @@
+---
+vault_namespace: vault
+eso_namespace: external-secrets
+vault_storage_class: "{{ storage_class | default('longhorn') }}"
+vault_data_storage_size: 10Gi
+vault_audit_storage_size: 5Gi
+vault_init_file: "/home/{{ regular_user }}/fantasy-frc-web/infra/k8s/vault-init.json"
+
+# Domains and endpoints
+fantasy_frc_domain: "{{ fantasy_frc_domain | default('fantasy-frc.local') }}"
+ingress_http_port: "{{ ingress_http_port | default(31531) }}"

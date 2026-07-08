@@ -1,0 +1,11 @@
+---
+fantasy_frc_namespace: fantasy-frc
+registry_host: "{{ registry_host | default('registry.fantasy-frc.svc.cluster.local') }}"
+registry_port: "{{ registry_port | default(5000) }}"
+web_image_name: "{{ registry_host }}:{{ registry_port }}/fantasy-frc-web"
+web_image_tag: latest
+migrations_image_name: "{{ registry_host }}:{{ registry_port }}/fantasy-frc-migrations"
+migrations_image_tag: latest
+project_dir: "/home/{{ regular_user }}/fantasy-frc-web"
+nerdctl_path: "/home/{{ regular_user }}/.local/bin/nerdctl"
+buildkit_version: "v0.31.1"

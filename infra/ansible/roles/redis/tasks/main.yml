@@ -1,0 +1,38 @@
+---
+- name: Ensure fantasy-frc namespace exists
+  shell: |
+    kubectl create namespace {{ redis_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Read existing Redis password from Kubernetes secret
+  shell: |
+    kubectl get secret redis-secret -n {{ redis_namespace }} -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || true
+  register: existing_redis_password
+  changed_when: false
+
+- name: Generate Redis password
+  set_fact:
+    redis_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  when: existing_redis_password.stdout | length == 0
+
+- name: Use existing Redis password
+  set_fact:
+    redis_password: "{{ existing_redis_password.stdout }}"
+  when: existing_redis_password.stdout | length > 0
+
+- name: Render Redis manifest
+  template:
+    src: redis.yaml.j2
+    dest: /tmp/redis.yaml
+    mode: '0644'
+
+- name: Deploy Redis
+  shell: |
+    kubectl apply -f /tmp/redis.yaml
+
+- name: Wait for Redis StatefulSet rollout
+  shell: |
+    kubectl rollout status statefulset/redis -n {{ redis_namespace }} --timeout=180s
+
+- name: Wait for Redis pod to be ready
+  shell: |
+    kubectl wait --for=condition=ready pod -l app=redis -n {{ redis_namespace }} --timeout=120s

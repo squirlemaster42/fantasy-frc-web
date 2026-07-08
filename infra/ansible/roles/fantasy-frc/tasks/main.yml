@@ -1,0 +1,52 @@
+---
+- name: Ensure fantasy-frc namespace exists
+  shell: |
+    kubectl create namespace {{ fantasy_frc_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Render ExternalSecret
+  template:
+    src: external-secret.yaml.j2
+    dest: /tmp/fantasy-frc-external-secret.yaml
+    mode: '0644'
+
+- name: Apply ExternalSecret
+  shell: |
+    kubectl apply -f /tmp/fantasy-frc-external-secret.yaml
+
+- name: Wait for ExternalSecret to sync
+  shell: |
+    kubectl wait --for=condition=Ready externalsecret/fantasy-frc-app-secret -n {{ fantasy_frc_namespace }} --timeout=120s
+  ignore_errors: yes
+
+- name: Remove existing migration job
+  shell: |
+    kubectl delete job fantasy-frc-migrate -n {{ fantasy_frc_namespace }} --ignore-not-found=true
+
+- name: Render migration job manifest
+  template:
+    src: migrate-job.yaml.j2
+    dest: /tmp/fantasy-frc-migrate-job.yaml
+    mode: '0644'
+
+- name: Apply migration job
+  shell: |
+    kubectl apply -f /tmp/fantasy-frc-migrate-job.yaml
+
+- name: Wait for migration job to complete
+  shell: |
+    kubectl wait --for=condition=complete job/fantasy-frc-migrate -n {{ fantasy_frc_namespace }} --timeout=180s
+
+- name: Render Fantasy FRC application manifest
+  template:
+    src: app.yaml.j2
+    dest: /tmp/fantasy-frc-app.yaml
+    mode: '0644'
+
+- name: Deploy Fantasy FRC web application
+  shell: |
+    kubectl apply -f /tmp/fantasy-frc-app.yaml
+
+- name: Wait for Fantasy FRC deployment rollout
+  shell: |
+    kubectl rollout status deployment/fantasy-frc-web -n {{ fantasy_frc_namespace }} --timeout=180s
+  ignore_errors: yes

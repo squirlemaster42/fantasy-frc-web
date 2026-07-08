@@ -1,0 +1,10 @@
+---
+postgres_namespace: database
+postgres_db_name: "{{ db_name | default('appdb') }}"
+postgres_db_username: "{{ db_username | default('postgres') }}"
+postgres_storage_class: "{{ storage_class | default('longhorn') }}"
+postgres_storage_size: 10Gi
+postgres_memory_request: 256Mi
+postgres_memory_limit: 1Gi
+postgres_cpu_request: 250m
+postgres_cpu_limit: 1000m

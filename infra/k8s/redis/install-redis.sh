@@ -14,6 +14,9 @@ log() {
     echo -e "\n[$(date +'%Y-%m-%d %H:%M:%S')] $*"
 }
 
+log "Creating namespace..."
+kubectl create namespace fantasy-frc --dry-run=client -o yaml | kubectl apply -f -
+
 render_manifest() {
     local input="$1"
     local output="$(mktemp)"
@@ -30,7 +33,10 @@ MANIFEST="$(render_manifest "${SCRIPT_DIR}/redis.yaml")"
 kubectl apply -f "${MANIFEST}"
 rm -f "${MANIFEST}"
 
-log "Waiting for Redis to be ready..."
+log "Waiting for Redis StatefulSet rollout..."
+kubectl rollout status statefulset/redis -n fantasy-frc --timeout=180s
+
+log "Waiting for Redis pod to be ready..."
 kubectl wait --for=condition=ready pod -l app=redis -n fantasy-frc --timeout=120s
 
 echo ""

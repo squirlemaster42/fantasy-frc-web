@@ -1,0 +1,45 @@
+---
+- name: Ensure database namespace exists
+  shell: |
+    kubectl create namespace {{ postgres_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Read existing Postgres password from Kubernetes secret
+  shell: |
+    kubectl get secret postgres-secret -n {{ postgres_namespace }} -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || true
+  register: existing_postgres_password
+  changed_when: false
+
+- name: Generate Postgres password
+  set_fact:
+    postgres_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  when: existing_postgres_password.stdout | length == 0
+
+- name: Use existing Postgres password
+  set_fact:
+    postgres_password: "{{ existing_postgres_password.stdout }}"
+  when: existing_postgres_password.stdout | length > 0
+
+- name: Create Postgres secret
+  shell: |
+    kubectl create secret generic postgres-secret \
+      --namespace={{ postgres_namespace }} \
+      --from-literal=password="{{ postgres_password }}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Render Postgres manifest
+  template:
+    src: postgres.yaml.j2
+    dest: /tmp/postgres.yaml
+    mode: '0644'
+
+- name: Deploy Postgres
+  shell: |
+    kubectl apply -f /tmp/postgres.yaml
+
+- name: Wait for Postgres StatefulSet rollout
+  shell: |
+    kubectl rollout status statefulset/postgres -n {{ postgres_namespace }} --timeout=180s
+
+- name: Wait for Postgres pod to be ready
+  shell: |
+    kubectl wait --for=condition=ready pod -l app=postgres -n {{ postgres_namespace }} --timeout=120s

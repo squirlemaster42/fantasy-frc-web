@@ -1,0 +1,48 @@
+---
+- name: Add cert-manager Helm repository
+  shell: |
+    helm repo add jetstack https://charts.jetstack.io 2>/dev/null || true
+    helm repo update
+
+- name: Ensure cert-manager namespace exists
+  shell: |
+    kubectl create namespace {{ cert_manager_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Deploy cert-manager
+  shell: |
+    helm upgrade --install cert-manager jetstack/cert-manager \
+      --namespace {{ cert_manager_namespace }} \
+      --version {{ cert_manager_chart_version }} \
+      --set crds.enabled=true \
+      --wait \
+      --timeout 10m
+
+- name: Render CA and ClusterIssuer
+  template:
+    src: ca-setup.yaml.j2
+    dest: /tmp/ca-setup.yaml
+    mode: '0644'
+
+- name: Apply CA and ClusterIssuer
+  shell: |
+    kubectl apply -f /tmp/ca-setup.yaml
+
+- name: Render certificates
+  template:
+    src: certificates.yaml.j2
+    dest: /tmp/certificates.yaml
+    mode: '0644'
+
+- name: Apply certificates
+  shell: |
+    kubectl apply -f /tmp/certificates.yaml
+
+- name: Wait for certificates to be ready
+  shell: |
+    kubectl wait --for=condition=ready certificate -n fantasy-frc fantasy-frc-tls --timeout=60s || true
+    kubectl wait --for=condition=ready certificate -n monitoring grafana-tls --timeout=60s || true
+    kubectl wait --for=condition=ready certificate -n vault vault-tls --timeout=60s || true
+
+- name: Export CA certificate
+  shell: |
+    kubectl get secret homelab-ca-secret -n {{ cert_manager_namespace }} -o jsonpath='{.data.ca\.crt}' | base64 -d > /home/{{ regular_user }}/fantasy-frc-web/infra/k8s/cert-manager/homelab-ca.crt

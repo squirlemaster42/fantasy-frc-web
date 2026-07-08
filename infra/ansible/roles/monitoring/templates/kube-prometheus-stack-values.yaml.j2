@@ -21,7 +21,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: longhorn
+          storageClassName: {{ monitoring_storage_class }}
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -36,11 +36,11 @@ prometheus:
 
 grafana:
   enabled: true
-  # adminPassword is injected by the install script via --set.
+  adminPassword: "{{ grafana_admin_password }}"
   persistence:
     enabled: true
     type: pvc
-    storageClassName: longhorn
+    storageClassName: {{ monitoring_storage_class }}
     accessModes: ["ReadWriteOnce"]
     size: 5Gi
   resources:
@@ -91,4 +91,4 @@ grafana:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - ${GRAFANA_DOMAIN}
+      - {{ grafana_domain }}

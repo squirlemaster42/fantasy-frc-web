@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fantasy-frc-migrate
+  namespace: {{ fantasy_frc_namespace }}
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: {{ migrations_image_name }}:{{ migrations_image_tag }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - goose
+            - -dir
+            - /migrations
+            - postgres
+            - "postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_IP)/$(DB_NAME)?sslmode=disable"
+            - up
+          envFrom:
+            - secretRef:
+                name: fantasy-frc-app-secret
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+      restartPolicy: Never
+  backoffLimit: 1

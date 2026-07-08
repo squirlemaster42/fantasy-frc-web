@@ -1,13 +1,8 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: database
----
-apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: database
+  namespace: {{ postgres_namespace }}
   labels:
     app: postgres
 spec:
@@ -23,7 +18,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
-  namespace: database
+  namespace: {{ postgres_namespace }}
 spec:
   serviceName: postgres
   replicas: 1
@@ -38,19 +33,25 @@ spec:
       containers:
         - name: postgres
           image: postgres:16-alpine
+          command:
+            - docker-entrypoint.sh
+            - postgres
+          args:
+            - -c
+            - shared_preload_libraries=pg_stat_statements
           ports:
             - containerPort: 5432
               name: postgres
           env:
             - name: POSTGRES_USER
-              value: "${DB_USERNAME}"
+              value: "{{ postgres_db_username }}"
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: postgres-secret
                   key: password
             - name: POSTGRES_DB
-              value: "${DB_NAME}"
+              value: "{{ postgres_db_name }}"
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           volumeMounts:
@@ -58,17 +59,17 @@ spec:
               mountPath: /var/lib/postgresql/data
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "{{ postgres_memory_request }}"
+              cpu: "{{ postgres_cpu_request }}"
             limits:
-              memory: "1Gi"
-              cpu: "1000m"
+              memory: "{{ postgres_memory_limit }}"
+              cpu: "{{ postgres_cpu_limit }}"
           livenessProbe:
             exec:
               command:
                 - pg_isready
                 - -U
-                - postgres
+                - "{{ postgres_db_username }}"
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
@@ -76,15 +77,38 @@ spec:
               command:
                 - pg_isready
                 - -U
-                - postgres
+                - "{{ postgres_db_username }}"
             initialDelaySeconds: 5
             periodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - postgres
+                topologyKey: kubernetes.io/hostname
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
       spec:
         accessModes: ["ReadWriteOnce"]
-        storageClassName: longhorn
+        storageClassName: "{{ postgres_storage_class }}"
         resources:
           requests:
-            storage: 10Gi
+            storage: {{ postgres_storage_size }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres
+  namespace: {{ postgres_namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres

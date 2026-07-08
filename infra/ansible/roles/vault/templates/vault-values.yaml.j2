@@ -4,7 +4,6 @@
 server:
   enabled: true
 
-  # Run as a single node. For HA, change to "ha" and configure raft.
   ha:
     enabled: false
 
@@ -25,16 +24,15 @@ server:
 
       disable_mlock = true
 
-  # Persist Vault data using Longhorn storage class
   dataStorage:
     enabled: true
-    size: 10Gi
-    storageClass: longhorn
+    size: {{ vault_data_storage_size }}
+    storageClass: {{ vault_storage_class }}
 
   auditStorage:
     enabled: true
-    size: 5Gi
-    storageClass: longhorn
+    size: {{ vault_audit_storage_size }}
+    storageClass: {{ vault_storage_class }}
 
   resources:
     requests:
@@ -48,9 +46,8 @@ server:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - host: vault.local
+      - host: {{ vault_domain }}
         paths: []
-    annotations: {}
 
 injector:
   enabled: true
