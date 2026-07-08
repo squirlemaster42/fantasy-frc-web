@@ -46,7 +46,7 @@ func TestRegisterDatabaseConnection(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotNil(t, db)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Execute a query to generate spans
 	rows, err := db.QueryContext(ctx, "SELECT 1")

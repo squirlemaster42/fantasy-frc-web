@@ -55,7 +55,7 @@ func (a *AvatarStore) storeAvatar(ctx context.Context, teamNum int, avatar []byt
 
 func (a *AvatarStore) checkCache(ctx context.Context, teamNum int) ([]byte, error) {
 	if a.client == nil {
-		return nil, errors.New("Redis not found")
+		return nil, errors.New("redis not found")
 	}
 
 	avatar, err := a.client.Get(ctx, strconv.Itoa(teamNum)).Result()

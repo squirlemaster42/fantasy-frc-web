@@ -12,7 +12,7 @@ import (
 func TestNewCleanupService(t *testing.T) {
 	db, _, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	service := NewCleanupService(db, 60)
 
@@ -24,7 +24,7 @@ func TestNewCleanupService(t *testing.T) {
 func TestCleanupService_StartStop(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	service := NewCleanupService(db, 60)
 
@@ -53,7 +53,7 @@ func TestCleanupService_StartStop(t *testing.T) {
 func TestCleanupService_cleanExpiredSessionTokens(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare("Delete from UserSessions").
 		WillBeClosed().
@@ -70,7 +70,7 @@ func TestCleanupService_cleanExpiredSessionTokens(t *testing.T) {
 func TestCleanupService_cleanExpiredSessionTokens_PrepareError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare("Delete from UserSessions").
 		WillReturnError(assert.AnError)
@@ -86,7 +86,7 @@ func TestCleanupService_cleanExpiredSessionTokens_PrepareError(t *testing.T) {
 func TestCleanupService_cleanExpiredSessionTokens_ExecError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare("Delete from UserSessions").
 		WillBeClosed().
@@ -104,7 +104,7 @@ func TestCleanupService_cleanExpiredSessionTokens_ExecError(t *testing.T) {
 func TestCleanupService_Start_RunsCleanup(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare("Delete from UserSessions").
 		WillBeClosed().

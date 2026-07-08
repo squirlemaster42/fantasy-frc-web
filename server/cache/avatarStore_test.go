@@ -43,7 +43,7 @@ func TestAvatarStore_storeAvatarAndCheckCache(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler("", nil)
 	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	avatar := []byte("fake-avatar-bytes")
 	err = store.storeAvatar(context.Background(), 254, avatar)
@@ -61,7 +61,7 @@ func TestAvatarStore_checkCache_Miss(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler("", nil)
 	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	cached, err := store.checkCache(context.Background(), 254)
 	assert.Equal(t, redis.Nil, err)
@@ -83,7 +83,7 @@ func TestAvatarStore_GetAvatar_CacheHit(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler("", nil)
 	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
-	defer store.Close()
+	defer func() { _ = store.Close() }()
 
 	// storeAvatar stores raw bytes in Redis, not base64-encoded bytes
 	avatar := []byte("fake-avatar-bytes")
