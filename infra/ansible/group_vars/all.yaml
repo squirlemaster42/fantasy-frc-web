@@ -1,0 +1,30 @@
+---
+# Kubernetes version to install
+k8s_version: "1.32"
+
+# API server virtual IP (must be in the same subnet, outside DHCP pool).
+# Set this in your inventory's [all:vars] section. For a single-node test you
+# can point it at the node IP; for HA it must be a separate VIP.
+# api_vip: "192.168.1.170"
+
+# Pod network CIDR (must not conflict with physical network)
+pod_cidr: "10.244.0.0/16"
+
+# Service CIDR (Kubernetes default; change only if needed)
+service_cidr: "10.96.0.0/12"
+
+# CNI plugin
+cni_plugin: "calico"
+
+# Storage provider
+storage_provider: "longhorn"
+
+# kube-vip interface (set to the node's primary network interface, e.g., eth0 or eno1)
+# If unset, kube-vip will try to auto-detect.
+kube_vip_interface: ""
+
+# LoadBalancer IP range for services (MetalLB or kube-vip LoadBalancer)
+lb_ip_range: "192.168.1.200-192.168.1.210"
+
+# Regular non-root user on the nodes (for kubectl config)
+regular_user: "jmisbach"

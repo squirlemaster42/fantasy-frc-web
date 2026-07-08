@@ -1,0 +1,95 @@
+# Values for prometheus-community/kube-prometheus-stack
+# Optimized for a single-node bare-metal Kubernetes cluster.
+
+# Disable components we don't need on a small cluster
+alertmanager:
+  enabled: false
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+prometheus-node-exporter:
+  enabled: true
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: "9GB"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+grafana:
+  enabled: true
+  # adminPassword is injected by the install script via --set.
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-path
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # Add Loki and Tempo datasources (Prometheus is already provisioned by the chart).
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Loki
+          type: loki
+          url: http://loki:3100
+          access: proxy
+        - name: Tempo
+          type: tempo
+          url: http://tempo:3200
+          access: proxy
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: Loki
+              spanStartTimeShift: "1h"
+              spanEndTimeShift: "1h"
+              tags: ["pod", "service.name"]
+              filterByTraceID: false
+              filterBySpanID: false
+            tracesToMetrics:
+              datasourceUid: prometheus
+              spanStartTimeShift: "1h"
+              spanEndTimeShift: "1h"
+              tags: ["pod", "service.name"]
+              queries:
+                - name: "Request rate"
+                  query: "sum(rate(http_requests_total{$$__tags}[5m]))"
+            serviceMap:
+              datasourceUid: prometheus
+            nodeGraph:
+              enabled: true
+            search:
+              hide: false
+            lokiSearch:
+              datasourceUid: Loki
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - ${GRAFANA_DOMAIN}
+    path: /

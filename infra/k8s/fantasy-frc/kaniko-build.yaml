@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-build
+  namespace: fantasy-frc
+spec:
+  template:
+    spec:
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - --dockerfile=Dockerfile
+            - --context=/workspace/server
+            - --destination=registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:latest
+            - --insecure
+            - --skip-tls-verify
+          volumeMounts:
+            - name: source
+              mountPath: /workspace/server
+            - name: docker-config
+              mountPath: /kaniko/.docker
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "4000m"
+      restartPolicy: Never
+      volumes:
+        - name: source
+          hostPath:
+            path: ${PROJECT_DIR}/server
+            type: Directory
+        - name: docker-config
+          emptyDir: {}
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800

@@ -1,0 +1,29 @@
+---
+- name: Check if Longhorn is already installed
+  shell: |
+    kubectl get ns longhorn-system >/dev/null 2>&1 && echo "installed" || echo "not-installed"
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  register: longhorn_status
+  changed_when: false
+
+- name: Install Longhorn
+  shell: |
+    kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: longhorn_status.stdout == "not-installed"
+
+- name: Wait for Longhorn to be ready
+  shell: |
+    kubectl wait --for=condition=ready pod -l app=longhorn-manager -n longhorn-system --timeout=300s
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: longhorn_status.stdout == "not-installed"
+
+- name: Set Longhorn as default StorageClass
+  shell: |
+    kubectl patch storageclass longhorn -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: longhorn_status.stdout == "not-installed"

@@ -1,0 +1,135 @@
+---
+- name: Remove stale Grafana apt repository
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/grafana.list
+    - /etc/apt/keyrings/grafana.gpg
+  ignore_errors: yes
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install prerequisites
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+      - software-properties-common
+      - python3-pip
+    state: present
+
+- name: Disable swap
+  shell: |
+    swapoff -a
+    sed -i.bak '/\sswap\s/s/^/#/' /etc/fstab
+  args:
+    executable: /bin/bash
+
+- name: Load kernel modules now
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Ensure kernel modules load on boot
+  copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+
+- name: Configure sysctl for Kubernetes
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_file: /etc/sysctl.d/99-k8s.conf
+    reload: yes
+  loop:
+    - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { name: "net.ipv4.ip_forward", value: "1" }
+
+- name: Install containerd
+  apt:
+    name: containerd
+    state: present
+
+- name: Generate default containerd config if missing
+  shell: |
+    containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  notify: restart containerd
+
+- name: Ensure containerd config directory exists
+  file:
+    path: /etc/containerd/conf.d
+    state: directory
+    mode: '0755'
+
+- name: Ensure containerd imports conf.d
+  lineinfile:
+    path: /etc/containerd/config.toml
+    line: 'imports = ["/etc/containerd/conf.d/*.toml"]'
+    regexp: '^imports\s*='
+    insertafter: '^version\s*='
+  notify: restart containerd
+
+- name: Ensure containerd systemd cgroup driver is configured
+  copy:
+    dest: /etc/containerd/conf.d/99-k8s-cgroup.toml
+    content: |
+      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc.options]
+        SystemdCgroup = true
+  notify: restart containerd
+
+- name: Enable and start containerd
+  systemd:
+    name: containerd
+    enabled: yes
+    state: started
+
+- name: Add Kubernetes apt key
+  shell: |
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes apt repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /"
+    state: present
+    filename: kubernetes
+
+- name: Install kubeadm, kubelet, kubectl
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+
+- name: Hold Kubernetes packages
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Enable kubelet
+  systemd:
+    name: kubelet
+    enabled: yes

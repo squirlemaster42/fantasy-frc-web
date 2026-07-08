@@ -1,0 +1,47 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  identity:
+    hostname: HOSTNAME
+    username: USERNAME
+    password: PASSWORD_HASH
+  ssh:
+    install-server: yes
+    allow-pw: yes
+    authorized-keys:
+      - SSH_PUBLIC_KEY
+  packages:
+    - python3
+    - python3-pip
+    - curl
+    - vim
+    - git
+    - openssh-server
+  storage:
+    layout:
+      name: direct
+  network:
+    version: 2
+    ethernets:
+      all-en:
+        match:
+          name: "en*"
+        dhcp4: true
+      all-eth:
+        match:
+          name: "eth*"
+        dhcp4: true
+  user-data:
+    timezone: UTC
+    package_update: true
+    package_upgrade: true
+    runcmd:
+      - |
+        # Ensure SSH is enabled
+        systemctl enable --now ssh
+      - |
+        # Reboot to finish
+        reboot

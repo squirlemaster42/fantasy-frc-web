@@ -1,0 +1,59 @@
+# HashiCorp Vault Helm values for single-node standalone deployment
+# with Raft integrated storage. Suitable for a home lab.
+
+server:
+  enabled: true
+
+  # Run as a single node. For HA, change to "ha" and configure raft.
+  ha:
+    enabled: false
+
+  standalone:
+    enabled: true
+    config: |
+      ui = true
+
+      listener "tcp" {
+        tls_disable = 1
+        address = "[::]:8200"
+        cluster_address = "[::]:8201"
+      }
+
+      storage "raft" {
+        path = "/vault/data"
+      }
+
+      disable_mlock = true
+
+  # Persist Vault data using local-path storage class
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: local-path
+
+  auditStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - host: vault.local
+        paths: []
+    annotations: {}
+
+injector:
+  enabled: true
+
+ui:
+  enabled: true

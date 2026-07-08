@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: export-image
+  namespace: fantasy-frc
+spec:
+  template:
+    spec:
+      containers:
+        - name: skopeo
+          image: quay.io/skopeo/stable:latest
+          command:
+            - sh
+            - -c
+            - |
+              skopeo copy --src-tls-verify=false \
+                docker://registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:latest \
+                docker-archive:/output/fantasy-frc-web.tar:latest
+          volumeMounts:
+            - name: output
+              mountPath: /output
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      restartPolicy: Never
+      volumes:
+        - name: output
+          hostPath:
+            path: ${PROJECT_DIR}/infra/k8s/fantasy-frc/image-export
+            type: DirectoryOrCreate
+  backoffLimit: 1

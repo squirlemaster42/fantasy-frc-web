@@ -1,0 +1,48 @@
+---
+- name: Check if Calico is already installed
+  shell: |
+    kubectl get ds calico-node -n calico-system >/dev/null 2>&1 && echo "installed" || echo "not-installed"
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  register: calico_status
+  changed_when: false
+
+- name: Install Tigera operator
+  shell: |
+    kubectl apply --server-side=true --force-conflicts -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: calico_status.stdout == "not-installed"
+
+- name: Render Calico custom resources
+  template:
+    src: custom-resources.yaml.j2
+    dest: /tmp/calico-custom-resources.yaml
+    mode: '0644'
+  when: calico_status.stdout == "not-installed"
+
+- name: Install Calico custom resources
+  shell: |
+    kubectl apply --server-side=true --force-conflicts -f /tmp/calico-custom-resources.yaml
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: calico_status.stdout == "not-installed"
+
+- name: Wait for calico-node DaemonSet to exist
+  shell: |
+    for i in $(seq 1 60); do
+      kubectl get ds calico-node -n calico-system >/dev/null 2>&1 && exit 0
+      sleep 5
+    done
+    echo "Timeout waiting for calico-node DaemonSet" >&2
+    exit 1
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: calico_status.stdout == "not-installed"
+
+- name: Wait for Calico pods to be ready
+  shell: |
+    kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n calico-system --timeout=300s
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: calico_status.stdout == "not-installed"
