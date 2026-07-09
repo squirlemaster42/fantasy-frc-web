@@ -7,9 +7,18 @@
   register: calico_status
   changed_when: false
 
+- name: Download Tigera operator manifest
+  shell: |
+    curl -fsSL --retry 5 --retry-delay 10 \
+      -o /tmp/tigera-operator-v3.29.1.yaml \
+      https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
+  args:
+    creates: /tmp/tigera-operator-v3.29.1.yaml
+    executable: /bin/bash
+
 - name: Install Tigera operator
   shell: |
-    kubectl apply --server-side=true --force-conflicts -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
+    kubectl apply --server-side=true --force-conflicts -f /tmp/tigera-operator-v3.29.1.yaml
   environment:
     KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   when: calico_status.stdout == "not-installed"
@@ -40,9 +49,9 @@
     KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   when: calico_status.stdout == "not-installed"
 
-- name: Wait for Calico pods to be ready
+- name: Wait for Calico DaemonSet rollout to finish
   shell: |
-    kubectl wait --for=condition=ready pod -l k8s-app=calico-node -n calico-system --timeout=300s
+    kubectl rollout status daemonset/calico-node -n calico-system --timeout=1200s
   environment:
     KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   when: calico_status.stdout == "not-installed"

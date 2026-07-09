@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: {{ registry_host }}:{{ registry_port }}/fantasy-frc-web:latest
+          image: {{ web_image_name }}:{{ web_image_tag }}
           imagePullPolicy: IfNotPresent
           command:
             - "./server"
@@ -75,8 +75,7 @@ spec:
         - {{ fantasy_frc_domain }}
       secretName: fantasy-frc-tls
   rules:
-    - host: {{ fantasy_frc_domain }}
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix

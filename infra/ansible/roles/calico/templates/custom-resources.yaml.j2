@@ -7,6 +7,9 @@ metadata:
 spec:
   # Configures Calico networking.
   calicoNetwork:
+    # Explicit MTU to avoid auto-detection picking up lower-MTU interfaces
+    # such as Tailscale (1280) and failing to set VXLAN tunnel MTU.
+    mtu: 1200
     ipPools:
     - name: default-ipv4-ippool
       blockSize: 26

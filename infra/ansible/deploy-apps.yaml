@@ -5,6 +5,8 @@
 - name: Deploy core application infrastructure
   hosts: control_plane[0]
   become: no
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   roles:
     - ingress-nginx
     - cert-manager
@@ -12,5 +14,4 @@
     - redis
     - vault
     - monitoring
-    - fantasy-frc-build
     - fantasy-frc

@@ -10,21 +10,22 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo "WARNING: This will completely remove Kubernetes and all cluster data."
-read -r -p "Are you sure? [y/N] " response
-if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo "Aborted."
-    exit 0
-fi
 
 echo "Draining node if part of a cluster..."
 kubectl drain "$(hostname)" --ignore-daemonsets --delete-emptydir-data --force 2>/dev/null || true
 
-echo "Resetting kubeadm..."
-kubeadm reset -f 2>/dev/null || true
+echo "Resetting kubeadm (timeout 5m)..."
+timeout 300 kubeadm reset -f 2>/dev/null || true
 
 echo "Stopping Kubernetes services..."
 systemctl stop kubelet 2>/dev/null || true
 systemctl stop containerd 2>/dev/null || true
+
+echo "Killing any remaining containerd tasks..."
+if command -v ctr >/dev/null 2>&1; then
+    ctr -n k8s.io tasks kill -a -s SIGKILL $(ctr -n k8s.io tasks ls -q 2>/dev/null | tr '\n' ' ') 2>/dev/null || true
+fi
+pkill -9 -f 'containerd-shim-runc-v2' 2>/dev/null || true
 
 echo "Removing Kubernetes packages..."
 apt-mark unhold kubelet kubeadm kubectl 2>/dev/null || true

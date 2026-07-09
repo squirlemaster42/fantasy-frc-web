@@ -64,3 +64,7 @@
       --values /tmp/tempo-values.yaml \
       --wait \
       --timeout 10m
+
+- name: Install Promtail
+  shell: |
+    kubectl apply -f /home/{{ regular_user }}/fantasy-frc-web/infra/k8s/monitoring/promtail.yaml

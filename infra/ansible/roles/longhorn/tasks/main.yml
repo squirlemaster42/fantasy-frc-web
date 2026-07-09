@@ -7,16 +7,37 @@
   register: longhorn_status
   changed_when: false
 
+- name: Download Longhorn manifest
+  shell: |
+    curl -fsSL --retry 5 --retry-delay 10 \
+      -o /tmp/longhorn-v1.7.2.yaml \
+      https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
+  args:
+    creates: /tmp/longhorn-v1.7.2.yaml
+    executable: /bin/bash
+
 - name: Install Longhorn
   shell: |
-    kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
+    kubectl apply -f /tmp/longhorn-v1.7.2.yaml
+  environment:
+    KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
+  when: longhorn_status.stdout == "not-installed"
+
+- name: Wait for Longhorn pods to exist
+  shell: |
+    for i in $(seq 1 60); do
+      kubectl get pods -n longhorn-system -o jsonpath='{.items[*].metadata.name}' | grep -q longhorn && exit 0
+      sleep 5
+    done
+    echo "Timeout waiting for Longhorn pods to appear" >&2
+    exit 1
   environment:
     KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   when: longhorn_status.stdout == "not-installed"
 
 - name: Wait for Longhorn to be ready
   shell: |
-    kubectl wait --for=condition=ready pod -l app=longhorn-manager -n longhorn-system --timeout=300s
+    kubectl wait --for=condition=ready pod --all -n longhorn-system --timeout=600s
   environment:
     KUBECONFIG: "/home/{{ regular_user }}/.kube/config"
   when: longhorn_status.stdout == "not-installed"

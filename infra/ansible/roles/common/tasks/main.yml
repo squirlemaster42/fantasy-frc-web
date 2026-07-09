@@ -20,6 +20,7 @@
       - ca-certificates
       - curl
       - gpg
+      - jq
       - software-properties-common
       - python3-pip
     state: present
@@ -73,6 +74,12 @@
     name: containerd
     state: present
 
+- name: Ensure containerd config directory exists
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
 - name: Generate default containerd config if missing
   shell: |
     containerd config default > /etc/containerd/config.toml
@@ -80,7 +87,7 @@
     creates: /etc/containerd/config.toml
   notify: restart containerd
 
-- name: Ensure containerd config directory exists
+- name: Ensure containerd conf.d directory exists
   file:
     path: /etc/containerd/conf.d
     state: directory
@@ -94,12 +101,22 @@
     insertafter: '^version\s*='
   notify: restart containerd
 
+- name: Detect containerd major version
+  shell: |
+    containerd --version | awk '{print $3}' | cut -d. -f1
+  register: containerd_version_output
+  changed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Set containerd major version fact
+  set_fact:
+    containerd_major_version: "{{ containerd_version_output.stdout }}"
+
 - name: Ensure containerd systemd cgroup driver is configured
-  copy:
+  template:
+    src: containerd-cgroup.toml.j2
     dest: /etc/containerd/conf.d/99-k8s-cgroup.toml
-    content: |
-      [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc.options]
-        SystemdCgroup = true
   notify: restart containerd
 
 - name: Enable and start containerd
@@ -138,6 +155,46 @@
     - kubelet
     - kubeadm
     - kubectl
+
+- name: Install Helm
+  shell: |
+    set -eu
+    HELM_VERSION="v3.17.0"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+      x86_64) ARCH=amd64 ;;
+      aarch64) ARCH=arm64 ;;
+    esac
+    TMPDIR="$(mktemp -d)"
+    cd "$TMPDIR"
+    curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" -o helm.tar.gz
+    tar -xzf helm.tar.gz
+    cp linux-${ARCH}/helm /usr/local/bin/helm
+    chmod +x /usr/local/bin/helm
+    rm -rf "$TMPDIR"
+  args:
+    creates: /usr/local/bin/helm
+    executable: /bin/bash
+
+- name: Install nerdctl
+  shell: |
+    set -eu
+    NERDCTL_VERSION="{{ nerdctl_version }}"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+      x86_64) ARCH=amd64 ;;
+      aarch64) ARCH=arm64 ;;
+    esac
+    TMPDIR="$(mktemp -d)"
+    cd "$TMPDIR"
+    curl -fsSL "https://github.com/containerd/nerdctl/releases/download/${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION#v}-linux-${ARCH}.tar.gz" -o nerdctl.tar.gz
+    tar -xzf nerdctl.tar.gz
+    cp nerdctl /usr/local/bin/nerdctl
+    chmod +x /usr/local/bin/nerdctl
+    rm -rf "$TMPDIR"
+  args:
+    creates: /usr/local/bin/nerdctl
+    executable: /bin/bash
 
 - name: Enable kubelet
   systemd:

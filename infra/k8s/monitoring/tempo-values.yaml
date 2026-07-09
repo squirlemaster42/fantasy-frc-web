@@ -30,4 +30,4 @@ resources:
     memory: 1Gi
 
 service:
-  port: 3200
+  port: 3100

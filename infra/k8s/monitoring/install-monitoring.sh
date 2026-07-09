@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the Grafana monitoring stack (Prometheus, Grafana, Loki, Tempo)
+# Install the Grafana monitoring stack (Prometheus, Grafana, Loki, Tempo, Promtail)
 # into the Kubernetes cluster.
 
 set -euo pipefail
@@ -84,33 +84,41 @@ ${HELM} upgrade --install tempo grafana/tempo \
     --timeout 10m
 
 # -----------------------------------------------------------------------------
-# 6. Verify
+# 6. Install Promtail (log collector for Loki)
+# -----------------------------------------------------------------------------
+log "Installing Promtail..."
+kubectl apply -f "${SCRIPT_DIR}/promtail.yaml"
+
+# -----------------------------------------------------------------------------
+# 7. Verify
 # -----------------------------------------------------------------------------
 log "Verifying monitoring stack..."
 kubectl get pods -n "${NAMESPACE}"
 
 # Print access info
-GRAFANA_NODEPORT="$(${HELM} get values kube-prometheus-stack -n "${NAMESPACE}" -o json 2>/dev/null | \
+GRAFANA_HOST="$(${HELM} get values kube-prometheus-stack -n "${NAMESPACE}" -o json 2>/dev/null | \
     jq -r '.grafana.ingress.hosts[0] // "grafana.local"' 2>/dev/null || echo "grafana.local")"
 
 INGRESS_HTTP_PORT="$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>/dev/null || echo "31531")"
+
+GRAFANA_NODEPORT="$(kubectl get svc -n "${NAMESPACE}" kube-prometheus-stack-grafana -o jsonpath='{.spec.ports[?(@.name=="http-web")].nodePort}' 2>/dev/null || \
+    kubectl get svc -n "${NAMESPACE}" kube-prometheus-stack-grafana -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || \
+    echo "31532")"
 
 echo ""
 echo "================================================================================"
 echo "  Grafana monitoring stack installed!"
 echo "================================================================================"
 echo ""
-echo "Grafana URL:     http://${API_IP}:${INGRESS_HTTP_PORT}"
-echo "Grafana host:    ${GRAFANA_NODEPORT}"
-echo "Admin username:  admin"
-echo "Admin password:  ${GRAFANA_PASSWORD}"
-echo "Password file:   ${GRAFANA_PASSWORD_FILE}"
+echo "Grafana NodePort URL:  http://${API_IP}:${GRAFANA_NODEPORT}/"
+echo "Grafana Ingress URL:   http://${API_IP}:${INGRESS_HTTP_PORT}/"
+echo "Grafana host:          ${GRAFANA_HOST}"
+echo "Admin username:        admin"
+echo "Admin password:        ${GRAFANA_PASSWORD}"
+echo "Password file:         ${GRAFANA_PASSWORD_FILE}"
 echo ""
-echo "If you access Grafana from a browser, add this line to your /etc/hosts:"
-echo "  ${API_IP}  ${GRAFANA_NODEPORT}"
-echo ""
-echo "Or use the IP and NodePort directly:"
-echo "  http://${API_IP}:${INGRESS_HTTP_PORT}"
+echo "If you access Grafana through the ingress, add this line to your /etc/hosts:"
+echo "  ${API_IP}  ${GRAFANA_HOST}"
 echo ""
 echo "To forward Grafana locally:"
 echo "  kubectl port-forward -n ${NAMESPACE} svc/kube-prometheus-stack-grafana 3000:80"

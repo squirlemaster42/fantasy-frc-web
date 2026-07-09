@@ -5,5 +5,7 @@ registry_host: "{{ registry_host | default('registry.fantasy-frc.svc.cluster.loc
 registry_port: "{{ registry_port | default(5000) }}"
 fantasy_frc_replicas: 1
 migrations_image_name: "{{ registry_host }}:{{ registry_port }}/fantasy-frc-migrations"
-migrations_image_tag: latest
+migrations_image_tag: "{{ app_image_tag | default('latest') }}"
+web_image_name: "{{ registry_host }}:{{ registry_port }}/fantasy-frc-web"
+web_image_tag: "{{ app_image_tag | default('latest') }}"
 fantasy_frc_skip_scoring: true

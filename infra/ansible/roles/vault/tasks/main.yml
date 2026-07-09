@@ -54,6 +54,20 @@
   register: vault_initialized
   changed_when: false
 
+- name: Check if Vault init file exists
+  stat:
+    path: "{{ vault_init_file }}"
+  register: vault_init_file_stat
+
+- name: Fail if Vault is initialized but init file is missing
+  fail:
+    msg: >
+      Vault is already initialized but {{ vault_init_file }} is missing.
+      Restore the file from backup, or run teardown and start fresh.
+  when:
+    - vault_initialized.stdout == "true"
+    - not vault_init_file_stat.stat.exists
+
 - name: Initialize Vault
   shell: |
     kubectl exec vault-0 -n {{ vault_namespace }} -- vault operator init -key-shares=5 -key-threshold=3 -format=json > {{ vault_init_file }}
@@ -140,16 +154,23 @@
     postgres_password: "{{ postgres_password_lookup.stdout }}"
     redis_password: "{{ redis_password_lookup.stdout }}"
 
+- name: Store Postgres password in Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv put secret/database/postgres password="{{ postgres_password }}"
+  when: postgres_password | length > 0
+
+- name: Check if application secrets already exist in Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv get -format=json secret/fantasy-frc/app >/dev/null 2>&1 && echo "exists" || echo "missing"
+  register: app_secret_status
+  changed_when: false
+
 - name: Generate app secrets
   set_fact:
     tba_webhook_secret: "{{ lookup('password', '/dev/null length=32') }}"
     metric_secret: "{{ lookup('password', '/dev/null length=32') }}"
     csrf_secret: "{{ lookup('password', '/dev/null length=48') }}"
-
-- name: Store Postgres password in Vault
-  shell: |
-    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv put secret/database/postgres password="{{ postgres_password }}"
-  when: postgres_password | length > 0
+  when: app_secret_status.stdout == "missing"
 
 - name: Store application secrets in Vault
   shell: |
@@ -165,7 +186,7 @@
       SECURE_HTTP_COOKIE="false" \
       CSRF_SECRET="{{ csrf_secret }}" \
       TRUST_PROXY="true" \
-      ALLOWED_ORIGIN="http://{{ fantasy_frc_domain }}:{{ ingress_http_port }}" \
+      ALLOWED_ORIGIN="https://{{ fantasy_frc_domain }}:{{ ingress_https_port }}" \
       REDIS_ADDR="redis.fantasy-frc.svc.cluster.local:6379" \
       REDIS_PASSWORD="{{ redis_password }}" \
       REDIS_RATE_LIMIT_DB="1" \
@@ -175,4 +196,49 @@
       OTEL_EXPORTER_OTLP_ENDPOINT="http://tempo.monitoring.svc.cluster.local:4318" \
       OTEL_RESOURCE_ATTRIBUTES="service.name=fantasy-frc-web" \
       MIN_PASSWORD_LENGTH="12"
-  when: postgres_password | length > 0 and redis_password | length > 0
+  when:
+    - app_secret_status.stdout == "missing"
+    - postgres_password | length > 0
+    - redis_password | length > 0
+
+- name: Read current ALLOWED_ORIGIN from Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv get -format=json secret/fantasy-frc/app 2>/dev/null | jq -r '.data.data.ALLOWED_ORIGIN // empty'
+  register: current_allowed_origin
+  changed_when: false
+  when: app_secret_status.stdout == "exists"
+
+- name: Fix ALLOWED_ORIGIN if it still uses an HTTP origin
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app ALLOWED_ORIGIN="https://{{ fantasy_frc_domain }}:{{ ingress_https_port }}"
+  when:
+    - app_secret_status.stdout == "exists"
+    - current_allowed_origin.stdout is regex('^http://')
+
+- name: Read current OTEL_EXPORTER_OTLP_ENDPOINT from Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv get -format=json secret/fantasy-frc/app 2>/dev/null | jq -r '.data.data.OTEL_EXPORTER_OTLP_ENDPOINT // empty'
+  register: current_otel_endpoint
+  changed_when: false
+  when: app_secret_status.stdout == "exists"
+
+- name: Patch OTEL_EXPORTER_OTLP_ENDPOINT if missing
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app OTEL_EXPORTER_OTLP_ENDPOINT="http://tempo.monitoring.svc.cluster.local:4318"
+  when:
+    - app_secret_status.stdout == "exists"
+    - current_otel_endpoint.stdout | length == 0
+
+- name: Read current OTEL_RESOURCE_ATTRIBUTES from Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv get -format=json secret/fantasy-frc/app 2>/dev/null | jq -r '.data.data.OTEL_RESOURCE_ATTRIBUTES // empty'
+  register: current_otel_resource_attrs
+  changed_when: false
+  when: app_secret_status.stdout == "exists"
+
+- name: Patch OTEL_RESOURCE_ATTRIBUTES if missing
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app OTEL_RESOURCE_ATTRIBUTES="service.name=fantasy-frc-web"
+  when:
+    - app_secret_status.stdout == "exists"
+    - current_otel_resource_attrs.stdout | length == 0

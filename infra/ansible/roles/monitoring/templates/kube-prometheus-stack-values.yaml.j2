@@ -50,6 +50,16 @@ grafana:
     limits:
       cpu: 500m
       memory: 512Mi
+  service:
+    type: NodePort
+    nodePort: 31532
+    port: 80
+    targetPort: 3000
+  grafana.ini:
+    server:
+      root_url: "http://192.168.1.164:31532/"
+    security:
+      disable_brute_force_login_protection: true
   # Add Loki and Tempo datasources (Prometheus is already provisioned by the chart).
   datasources:
     datasources.yaml:

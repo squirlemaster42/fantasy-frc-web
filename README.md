@@ -122,7 +122,7 @@ make build
 
 ## Deployment
 
-For production deployment to Linux servers, see [deploy/README.md](deploy/README.md)
+For deployment to a Kubernetes cluster, see [infra/ansible/README.md](infra/ansible/README.md).
 
 ## Optional Dependencies
 

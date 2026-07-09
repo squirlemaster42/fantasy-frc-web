@@ -71,8 +71,7 @@ spec:
         - ${FANTASY_FRC_DOMAIN}
       secretName: fantasy-frc-tls
   rules:
-    - host: ${FANTASY_FRC_DOMAIN}
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix

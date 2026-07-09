@@ -9,3 +9,4 @@ vault_init_file: "/home/{{ regular_user }}/fantasy-frc-web/infra/k8s/vault-init.
 # Domains and endpoints
 fantasy_frc_domain: "{{ fantasy_frc_domain | default('fantasy-frc.local') }}"
 ingress_http_port: "{{ ingress_http_port | default(31531) }}"
+ingress_https_port: "{{ ingress_https_port | default(30556) }}"

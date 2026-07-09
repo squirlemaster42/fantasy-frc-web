@@ -1,0 +1,6 @@
+{% if containerd_major_version | int >= 2 %}
+[plugins."io.containerd.cri.v1.runtime".containerd.runtimes.runc.options]
+{% else %}
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+{% endif %}
+  SystemdCgroup = true

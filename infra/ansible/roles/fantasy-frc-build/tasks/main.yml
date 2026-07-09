@@ -53,6 +53,16 @@
     daemon_reload: yes
   become: yes
 
+- name: Detect nerdctl path on target node
+  shell: |
+    command -v nerdctl || echo "{{ nerdctl_path }}"
+  register: nerdctl_detected
+  changed_when: false
+
+- name: Set detected nerdctl path fact
+  set_fact:
+    nerdctl_path: "{{ nerdctl_detected.stdout_lines[-1] }}"
+
 - name: Check if web image already exists in containerd
   shell: |
     ctr -n k8s.io images check "name=={{ web_image_name }}:{{ web_image_tag }}" | grep -q "{{ web_image_name }}:{{ web_image_tag }}" && echo "exists" || echo "missing"
@@ -60,10 +70,23 @@
   changed_when: false
   become: yes
 
+- name: Remove existing web image when force_build is true
+  shell: |
+    ctr -n k8s.io images rm {{ web_image_name }}:{{ web_image_tag }} || true
+    ctr -n k8s.io images rm {{ web_image_name }}:latest || true
+  when:
+    - force_build | bool
+    - web_image_check.stdout == "exists"
+  become: yes
+
 - name: Build Fantasy FRC web image
   shell: |
-    {{ nerdctl_path }} -n k8s.io build -t {{ web_image_name }}:{{ web_image_tag }} {{ project_dir }}/server
-  when: web_image_check.stdout == "missing" or force_build | default(false) | bool
+    {{ nerdctl_path }} -n k8s.io build \
+      -t {{ web_image_name }}:{{ web_image_tag }} \
+      -t {{ web_image_name }}:latest \
+      {{ project_dir }}/server
+  when:
+    - build_images | bool or force_build | bool or web_image_check.stdout == "missing"
   timeout: 600
   become: yes
 
@@ -74,15 +97,34 @@
   changed_when: false
   become: yes
 
+- name: Remove existing migrations image when force_build is true
+  shell: |
+    ctr -n k8s.io images rm {{ migrations_image_name }}:{{ migrations_image_tag }} || true
+    ctr -n k8s.io images rm {{ migrations_image_name }}:latest || true
+  when:
+    - force_build | bool
+    - migrations_image_check.stdout == "exists"
+  become: yes
+
 - name: Build Fantasy FRC migrations image
   shell: |
-    {{ nerdctl_path }} -n k8s.io build -t {{ migrations_image_name }}:{{ migrations_image_tag }} {{ project_dir }}/database
-  when: migrations_image_check.stdout == "missing" or force_build | default(false) | bool
+    {{ nerdctl_path }} -n k8s.io build \
+      -t {{ migrations_image_name }}:{{ migrations_image_tag }} \
+      -t {{ migrations_image_name }}:latest \
+      {{ project_dir }}/database
+  when:
+    - build_images | bool or force_build | bool or migrations_image_check.stdout == "missing"
   timeout: 300
   become: yes
 
 - name: Verify web image exists
   shell: |
     ctr -n k8s.io images check "name=={{ web_image_name }}:{{ web_image_tag }}" | grep "{{ web_image_name }}:{{ web_image_tag }}"
+  changed_when: false
+  become: yes
+
+- name: Verify migrations image exists
+  shell: |
+    ctr -n k8s.io images check "name=={{ migrations_image_name }}:{{ migrations_image_tag }}" | grep "{{ migrations_image_name }}:{{ migrations_image_tag }}"
   changed_when: false
   become: yes

@@ -1,0 +1,12 @@
+---
+# Build and push Fantasy FRC container images to the local registry.
+# Run this whenever source code or Dockerfiles change.
+# Images are tagged with the current git short SHA and also with :latest.
+
+- name: Build Fantasy FRC container images
+  hosts: control_plane[0]
+  become: no
+  vars:
+    build_images: true
+  roles:
+    - fantasy-frc-build

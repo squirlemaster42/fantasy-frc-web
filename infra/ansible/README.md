@@ -1,40 +1,37 @@
 # Ansible Kubernetes Deployment
 
-This directory contains Ansible playbooks for deploying a high-availability Kubernetes cluster on Ubuntu 24.04.
+This directory contains Ansible playbooks for deploying the Fantasy FRC stack on a Kubernetes cluster running Ubuntu 24.04.
 
-## Architecture
+The default inventory is a **single-node control plane** suitable for a home lab. The playbooks also support a **multi-node HA control plane** with worker nodes if you expand the inventory.
 
-- **3 control-plane nodes** running kubeadm with a virtual IP (VIP)
-- **Optional worker nodes**
-- **kube-vip** for API server HA and LoadBalancer services
-- **Calico** for CNI
-- **Longhorn** for replicated storage
+## What the playbooks install
+
+- `site.yaml` — OS packages, containerd, kubeadm, kubelet, Helm, nerdctl, jq; Kubernetes cluster; Calico CNI; Longhorn storage.
+- `build-images.yaml` — Build the Fantasy FRC web and migration container images locally using nerdctl + BuildKit.
+- `deploy-apps.yaml` — Ingress-NGINX, cert-manager, Postgres, Redis, HashiCorp Vault, External Secrets Operator, Grafana/Loki/Tempo monitoring, and the Fantasy FRC web app.
 
 ## Requirements
 
-- Ansible installed on your admin machine
-- SSH key-based access to all nodes
-- Nodes running Ubuntu 24.04 Server
-- A free static IP for the control-plane VIP in the same subnet as the nodes
+- Target node(s) running Ubuntu 24.04 Server.
+- Internet access from the nodes to download packages, Helm charts, container images, and release binaries.
+- The repository checked out at `/home/{{ regular_user }}/fantasy-frc-web` (used by the image build role).
+- On the admin/control-plane node:
+  - `ansible-playbook`
+  - `git`
+  - `jq`
+  - SSH key-based access to remote nodes (only needed for multi-node)
+
+`scripts/setup.sh` checks for `ansible-playbook`, `git`, and `jq` before running.
 
 ## Inventory
 
-Copy the example inventory and update it:
-
-```bash
-cp inventory/hosts.ini.example inventory/hosts.ini
-```
-
-Example:
+The committed `inventory/hosts.ini` is configured for a single-node home lab:
 
 ```ini
 [control_plane]
-cp1 ansible_host=192.168.1.171
-cp2 ansible_host=192.168.1.172
-cp3 ansible_host=192.168.1.173
+cp1 ansible_host=192.168.1.164 ansible_connection=local
 
 [workers]
-worker1 ansible_host=192.168.1.174
 
 [k8s:children]
 control_plane
@@ -43,60 +40,121 @@ workers
 [all:vars]
 ansible_user=jmisbach
 ansible_ssh_private_key_file=~/.ssh/id_rsa
+api_vip=192.168.1.164
 ```
+
+For a multi-node HA cluster, copy `inventory/hosts.ini.example` and edit it:
+
+```bash
+cp inventory/hosts.ini.example inventory/hosts.ini
+```
+
+Then add your nodes and set a dedicated `api_vip` that is in the same subnet but outside your DHCP pool.
 
 ## Configuration
 
 Edit `group_vars/all.yaml`:
 
 ```yaml
-api_vip: "192.168.1.170"
-pod_cidr: "192.168.0.0/16"
-service_cidr: "10.96.0.0/12"
-lb_ip_range: "192.168.1.200-192.168.1.210"
+api_vip: "192.168.1.164"   # For single-node, use the node IP; for HA, use a dedicated VIP
+api_ip: "192.168.1.164"    # Static IP used for ingress access
+fantasy_frc_domain: "fantasy-frc.local"
+grafana_domain: "grafana.local"
+vault_domain: "vault.local"
 regular_user: "jmisbach"
 ```
 
-## Run the cluster setup
+At minimum, update the IP addresses and domains for your network.
+
+## New machine setup
+
+The easiest path for a single-node home lab is the helper script. It runs `site.yaml`, `build-images.yaml`, and `deploy-apps.yaml` in order.
 
 ```bash
 cd infra/ansible
-ansible-playbook -i inventory/hosts.ini site.yaml
+
+# Wipes any existing cluster, containerd data, and persistent volumes, then reboots
+./scripts/teardown.sh
+
+# After the node reboots and you log back in:
+./scripts/setup.sh
+./scripts/validate.sh
 ```
 
-This will:
+`setup.sh` will prompt for your sudo password when Ansible needs it.
 
-1. Prepare all nodes (OS packages, containerd, kubeadm, kubelet)
-2. Deploy kube-vip static pod manifests on all control-plane nodes
-3. Initialize the first control-plane node
-4. Join the remaining control-plane nodes
-5. Join worker nodes
-6. Install Calico
-7. Install Longhorn and set it as the default StorageClass
+### Running the playbooks manually
+
+If you prefer to run the playbooks individually:
+
+```bash
+# Provision the cluster and storage (requires sudo)
+ansible-playbook -i inventory/hosts.ini site.yaml -K
+
+# Build the Fantasy FRC container images (requires sudo)
+ansible-playbook -i inventory/hosts.ini build-images.yaml -K
+
+# Deploy the application stack (does NOT require sudo)
+ansible-playbook -i inventory/hosts.ini deploy-apps.yaml
+```
 
 ## Verify
 
 ```bash
-ssh cp1
 kubectl get nodes
 kubectl get pods -n kube-system
 kubectl get storageclass
+./scripts/validate.sh
 ```
 
-## Next steps
+## Updating the application after a code change
 
-After the cluster is up, deploy the applications from `infra/k8s/`:
+When you push new webapp code, rebuild and redeploy:
 
-1. Vault + External Secrets Operator
-2. cert-manager
-3. Monitoring stack
-4. Postgres + Redis
-5. Fantasy FRC web app
+```bash
+ansible-playbook -i inventory/hosts.ini build-images.yaml -K
+ansible-playbook -i inventory/hosts.ini deploy-apps.yaml
+```
 
-See `infra/k8s/README.md` for details.
+Images are tagged with the current git short SHA and also `:latest`.
 
-## Notes
+### Local uncommitted changes
 
-- The first control-plane node must be reachable before the others can join. `site.yaml` handles this ordering.
-- If a node is already part of the cluster, the playbooks skip it (idempotent).
-- The VIP (`api_vip`) must not be in your DHCP pool.
+If you edited code without committing, the git short SHA has not changed, so the playbook may skip the build thinking the image already exists. Force a rebuild:
+
+```bash
+ansible-playbook -i inventory/hosts.ini build-images.yaml -K -e force_build=true
+ansible-playbook -i inventory/hosts.ini deploy-apps.yaml
+```
+
+### Forcing a rebuild with the `:latest` tag
+
+If you are using `:latest` and want to rebuild even though the image already exists:
+
+```bash
+ansible-playbook -i inventory/hosts.ini build-images.yaml -K -e force_build=true
+```
+
+## Access the applications
+
+Add the control-plane IP to your local `/etc/hosts`:
+
+```
+192.168.1.164  fantasy-frc.local grafana.local vault.local
+```
+
+Then browse to:
+
+- `https://fantasy-frc.local:30556`
+- `https://grafana.local:30556`
+- `https://vault.local:30556`
+
+Trust `infra/k8s/cert-manager/homelab-ca.crt` on your local machine to avoid browser warnings.
+
+## Important notes
+
+- `site.yaml` and `build-images.yaml` need sudo (`-K`). `deploy-apps.yaml` does not.
+- The playbooks are idempotent: re-running them will skip nodes already in the cluster and skip Vault/app secrets that already exist.
+- The first control-plane node must finish initializing before additional control-plane or worker nodes can join. `site.yaml` handles this ordering.
+- For HA, `api_vip` must be a dedicated static IP outside your DHCP pool.
+- Keep `infra/k8s/vault-init.json` safe. If Vault is initialized and this file is lost, the playbook will stop with an error telling you to restore it or tear down.

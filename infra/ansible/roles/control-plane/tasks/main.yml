@@ -67,7 +67,7 @@
 
     - name: Remove control-plane taint on single-node cluster
       shell: |
-        kubectl taint nodes {{ inventory_hostname }} node-role.kubernetes.io/control-plane:NoSchedule- || true
+        kubectl taint nodes {{ ansible_hostname }} node-role.kubernetes.io/control-plane:NoSchedule- || true
       environment:
         KUBECONFIG: "/etc/kubernetes/admin.conf"
       when:
@@ -75,6 +75,16 @@
         - groups['workers'] | length == 0
 
   when: inventory_hostname == groups['control_plane'][0] and not admin_conf.stat.exists
+
+- name: Remove control-plane taint on single-node cluster
+  shell: |
+    kubectl taint nodes {{ ansible_hostname }} node-role.kubernetes.io/control-plane:NoSchedule- || true
+  environment:
+    KUBECONFIG: "/etc/kubernetes/admin.conf"
+  when:
+    - groups['control_plane'] | length == 1
+    - groups['workers'] | length == 0
+    - admin_conf.stat.exists
 
 - name: Wait for API server to be available on VIP
   uri:

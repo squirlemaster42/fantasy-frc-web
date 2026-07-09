@@ -1,8 +1,12 @@
 # Fantasy FRC Kubernetes Infrastructure
 
-This directory contains all the Kubernetes manifests, Helm values, and scripts needed to replicate the Fantasy FRC stack on a new machine.
+> **Superseded by `infra/ansible/`**
+>
+> The automated Ansible setup in [`infra/ansible/`](../ansible/) is now the recommended way to provision the cluster **and** deploy the full Fantasy FRC stack. Use it for both single-node home labs and multi-node HA clusters.
+>
+> This directory is kept as a reference for the raw Kubernetes manifests, Helm values, and manual scripts that the Ansible playbooks automate.
 
-> For **high-availability multi-node clusters**, use the Ansible playbooks in `infra/ansible/` to provision the Kubernetes nodes. This directory contains the application-level manifests and Helm values used after the cluster is running.
+This directory contains all the Kubernetes manifests, Helm values, and scripts needed to replicate the Fantasy FRC stack on a new machine.
 
 ## What is included
 
@@ -54,20 +58,28 @@ infra/k8s/
 
 ### Single-node setup
 
-For a single-node cluster, follow the steps below using `infra/k8s/cluster/setup-k8s.sh`.
+For a single-node cluster, use the Ansible playbooks in `infra/ansible/` instead:
+
+```bash
+cd infra/ansible
+./scripts/setup.sh
+./scripts/validate.sh
+```
+
+See [`infra/ansible/README.md`](../ansible/README.md) for details.
 
 ### Multi-node HA setup
 
-For 3+ nodes with HA control plane, use the Ansible playbooks in `infra/ansible/` instead:
+For 3+ nodes with HA control plane, use the Ansible playbooks in `infra/ansible/`:
 
 ```bash
 cd infra/ansible
 cp inventory/hosts.ini.example inventory/hosts.ini
 # Edit inventory/hosts.ini and group_vars/all.yaml
-ansible-playbook -i inventory/hosts.ini site.yaml
+ansible-playbook -i inventory/hosts.ini site.yaml -K
+ansible-playbook -i inventory/hosts.ini build-images.yaml -K
+ansible-playbook -i inventory/hosts.ini deploy-apps.yaml
 ```
-
-Then return here to deploy the applications.
 
 ### 1. Prepare configuration
 

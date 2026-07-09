@@ -56,6 +56,18 @@ db_username: "postgres"
 registry_host: "registry.fantasy-frc.svc.cluster.local"
 registry_port: 5000
 
+# Application image tag. Defaults to the current git short SHA for reproducible
+# deployments. Override with -e app_image_tag=latest for mutable-tag workflows.
+app_image_tag: "{{ lookup('pipe', 'git -C ' + inventory_dir + '/../.. rev-parse --short HEAD') | default('latest', true) }}"
+
+# When true, build container images even if they already exist. Useful after
+# Dockerfile or source changes when using mutable tags like latest.
+force_build: false
+
+# When true, the build role will build and push images. Set to false in
+# deploy-apps.yaml to only deploy infrastructure using an existing image tag.
+build_images: false
+
 # Helm chart versions
 ingress_nginx_chart_version: "4.12.0"
 cert_manager_chart_version: "1.17.1"
