@@ -34,6 +34,11 @@ generate:
 mocks:
 	go tool github.com/vektra/mockery/v2
 
+# Run linters
+lint:
+	go vet ./...
+	go tool golangci-lint run ./...
+
 # Run tests
 test:
 	go test ./...
@@ -52,4 +57,4 @@ build-linux: build-css generate
 prod: build
 	@echo "Production build complete. Binary: server"
 
-.PHONY: build-css watch-css run build build-linux prod generate mocks test
+.PHONY: build-css watch-css run build build-linux prod generate mocks lint test

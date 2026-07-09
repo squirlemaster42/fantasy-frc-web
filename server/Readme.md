@@ -1,6 +1,6 @@
 ## Fantasy FRC Server
 
-Written in Go with Templ and HTMX.
+Written in Go with Templ and HTMX
 
 For detailed development guidelines, build commands, and code style, see the project [`AGENTS.md`](../AGENTS.md).
 

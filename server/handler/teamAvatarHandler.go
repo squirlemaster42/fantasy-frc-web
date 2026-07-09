@@ -11,7 +11,7 @@ import (
 func (h *Handler) GetTeamAvatar(c echo.Context) error {
 	teamNum, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return errors.New("Id must be a valid team number")
+		return errors.New("id must be a valid team number")
 	}
 
 	avatar, err := h.AvatarStore.GetAvatar(c.Request().Context(), teamNum)

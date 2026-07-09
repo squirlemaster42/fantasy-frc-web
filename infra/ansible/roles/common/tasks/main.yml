@@ -1,0 +1,202 @@
+---
+- name: Remove stale Grafana apt repository
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/grafana.list
+    - /etc/apt/keyrings/grafana.gpg
+  ignore_errors: yes
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install prerequisites
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+      - jq
+      - software-properties-common
+      - python3-pip
+    state: present
+
+- name: Disable swap
+  shell: |
+    swapoff -a
+    sed -i.bak '/\sswap\s/s/^/#/' /etc/fstab
+  args:
+    executable: /bin/bash
+
+- name: Load kernel modules now
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Ensure kernel modules load on boot
+  copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+
+- name: Configure sysctl for Kubernetes
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { name: "net.ipv4.ip_forward", value: "1" }
+
+- name: Increase inotify limits for container builds
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: "fs.inotify.max_user_instances", value: "512" }
+    - { name: "fs.inotify.max_user_watches", value: "524288" }
+
+
+- name: Install containerd
+  apt:
+    name: containerd
+    state: present
+
+- name: Ensure containerd config directory exists
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
+- name: Generate default containerd config if missing
+  shell: |
+    containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  notify: restart containerd
+
+- name: Ensure containerd conf.d directory exists
+  file:
+    path: /etc/containerd/conf.d
+    state: directory
+    mode: '0755'
+
+- name: Ensure containerd imports conf.d
+  lineinfile:
+    path: /etc/containerd/config.toml
+    line: 'imports = ["/etc/containerd/conf.d/*.toml"]'
+    regexp: '^imports\s*='
+    insertafter: '^version\s*='
+  notify: restart containerd
+
+- name: Detect containerd major version
+  shell: |
+    containerd --version | awk '{print $3}' | cut -d. -f1
+  register: containerd_version_output
+  changed_when: false
+  args:
+    executable: /bin/bash
+
+- name: Set containerd major version fact
+  set_fact:
+    containerd_major_version: "{{ containerd_version_output.stdout }}"
+
+- name: Ensure containerd systemd cgroup driver is configured
+  template:
+    src: containerd-cgroup.toml.j2
+    dest: /etc/containerd/conf.d/99-k8s-cgroup.toml
+  notify: restart containerd
+
+- name: Enable and start containerd
+  systemd:
+    name: containerd
+    enabled: yes
+    state: started
+
+- name: Add Kubernetes apt key
+  shell: |
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes apt repository
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /"
+    state: present
+    filename: kubernetes
+
+- name: Install kubeadm, kubelet, kubectl
+  apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: yes
+
+- name: Hold Kubernetes packages
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Install Helm
+  shell: |
+    set -eu
+    HELM_VERSION="v3.17.0"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+      x86_64) ARCH=amd64 ;;
+      aarch64) ARCH=arm64 ;;
+    esac
+    TMPDIR="$(mktemp -d)"
+    cd "$TMPDIR"
+    curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${ARCH}.tar.gz" -o helm.tar.gz
+    tar -xzf helm.tar.gz
+    cp linux-${ARCH}/helm /usr/local/bin/helm
+    chmod +x /usr/local/bin/helm
+    rm -rf "$TMPDIR"
+  args:
+    creates: /usr/local/bin/helm
+    executable: /bin/bash
+
+- name: Install nerdctl
+  shell: |
+    set -eu
+    NERDCTL_VERSION="{{ nerdctl_version }}"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+      x86_64) ARCH=amd64 ;;
+      aarch64) ARCH=arm64 ;;
+    esac
+    TMPDIR="$(mktemp -d)"
+    cd "$TMPDIR"
+    curl -fsSL "https://github.com/containerd/nerdctl/releases/download/${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION#v}-linux-${ARCH}.tar.gz" -o nerdctl.tar.gz
+    tar -xzf nerdctl.tar.gz
+    cp nerdctl /usr/local/bin/nerdctl
+    chmod +x /usr/local/bin/nerdctl
+    rm -rf "$TMPDIR"
+  args:
+    creates: /usr/local/bin/nerdctl
+    executable: /bin/bash
+
+- name: Enable kubelet
+  systemd:
+    name: kubelet
+    enabled: yes

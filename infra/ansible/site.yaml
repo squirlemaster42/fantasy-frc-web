@@ -1,0 +1,39 @@
+---
+- name: Prepare all Kubernetes nodes
+  hosts: k8s
+  become: yes
+  roles:
+    - common
+
+- name: Initialize first control-plane node
+  hosts: control_plane[0]
+  become: yes
+  roles:
+    - role: kube-vip
+      when: groups['control_plane'] | length > 1
+    - control-plane
+
+- name: Join additional control-plane nodes
+  hosts: control_plane[1:]
+  become: yes
+  roles:
+    - kube-vip
+    - control-plane
+
+- name: Join worker nodes
+  hosts: workers
+  become: yes
+  roles:
+    - worker
+
+- name: Install Calico CNI
+  hosts: control_plane[0]
+  become: yes
+  roles:
+    - calico
+
+- name: Install Longhorn storage
+  hosts: control_plane[0]
+  become: yes
+  roles:
+    - longhorn

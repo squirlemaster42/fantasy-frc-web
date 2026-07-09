@@ -1,0 +1,33 @@
+# Values for grafana/tempo chart
+# Single-binary mode for a single-node cluster.
+
+tempo:
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo
+  retention: 24h
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+persistence:
+  enabled: true
+  storageClassName: longhorn
+  size: 10Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+service:
+  port: 3200

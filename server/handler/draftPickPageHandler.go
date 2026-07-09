@@ -184,21 +184,21 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Error(ctx, "Failed to parse draft id string", "draftIdString", draftIdStr, "error", err)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusBadRequest)
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusNotFound)
 	}
 
 	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "draftId", draftId)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -229,7 +229,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	defer func() {
 		ticker.Stop()
 		draft.UnregisterWatcher(ctx, h.DraftActorMap, watcher)
-		conn.Close()
+		_ = conn.Close()
 		<-done
 	}()
 

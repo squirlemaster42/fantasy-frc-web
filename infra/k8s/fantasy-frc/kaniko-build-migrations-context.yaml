@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-build-migrations
+  namespace: fantasy-frc
+spec:
+  template:
+    spec:
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:latest
+          args:
+            - --dockerfile=Dockerfile
+            - --context=/workspace/context
+            - --destination=registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:latest
+            - --insecure
+            - --skip-tls-verify
+          volumeMounts:
+            - name: source
+              mountPath: /workspace/context
+            - name: docker-config
+              mountPath: /kaniko/.docker
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+      restartPolicy: Never
+      volumes:
+        - name: source
+          hostPath:
+            path: ${PROJECT_DIR}/infra/k8s/fantasy-frc/migrations-context
+            type: Directory
+        - name: docker-config
+          emptyDir: {}
+  backoffLimit: 0
+  activeDeadlineSeconds: 300

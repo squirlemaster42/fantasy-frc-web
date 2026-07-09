@@ -232,7 +232,7 @@ func main() {
 	if err != nil {
 		log.Warn(ctx, "Unable to open tba webhook secret file", "error", err)
 	} else {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		body, err := io.ReadAll(file)
 		if err != nil {
 			log.Warn(ctx, "Failed to read tba webhook file body", "error", err)

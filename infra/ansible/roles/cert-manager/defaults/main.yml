@@ -1,0 +1,6 @@
+---
+cert_manager_namespace: cert-manager
+cert_manager_chart_version: "{{ cert_manager_chart_version | default('1.17.1') }}"
+fantasy_frc_domain: "{{ fantasy_frc_domain | default('fantasy-frc.local') }}"
+grafana_domain: "{{ grafana_domain | default('grafana.local') }}"
+vault_domain: "{{ vault_domain | default('vault.local') }}"
