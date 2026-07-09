@@ -18,6 +18,7 @@ type DraftStore interface {
 	GetInvite(ctx context.Context, inviteId int) (DraftInvite, error)
 	GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error)
 	CancelOutstandingInvites(ctx context.Context, draftId int) error
+	DeclineInvite(ctx context.Context, inviteId int) error
 	AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error)
 	AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) error
 	InvitePlayer(ctx context.Context, draftId int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error)

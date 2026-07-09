@@ -56,6 +56,10 @@ func (s *SQLDraftStore) CancelOutstandingInvites(ctx context.Context, draftId in
 	return cancelOutstandingInvites(ctx, s.db, draftId)
 }
 
+func (s *SQLDraftStore) DeclineInvite(ctx context.Context, inviteId int) error {
+	return declineInvite(ctx, s.db, inviteId)
+}
+
 func (s *SQLDraftStore) AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error) {
 	return acceptInvite(ctx, s.db, inviteId)
 }

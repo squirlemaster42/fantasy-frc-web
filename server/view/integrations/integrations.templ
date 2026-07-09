@@ -1,0 +1,151 @@
+package integrations
+
+import (
+	"fmt"
+	"server/model"
+	"server/view"
+	"server/view/partials"
+	"time"
+)
+
+func formatTime(t time.Time) string {
+	return t.Format("Jan 2, 2006 3:04 PM")
+}
+
+templ IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage string, newSecret string, csrfToken string) {
+	<div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen" id="integrations-box">
+		<div class="max-w-3xl w-full">
+			<div class="card bg-slate-800 shadow-2xl rounded-2xl border border-slate-700">
+				<div class="card-body p-8">
+					<div class="text-center mb-8">
+						<div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+							</svg>
+						</div>
+						<h1 class="text-2xl font-bold text-slate-100 mb-2">Integrations</h1>
+						<p class="text-slate-400 text-sm">Manage API keys for draft automation</p>
+					</div>
+					if errorMessage != "" {
+						@partials.AlertBanner(errorMessage, "error")
+					}
+					if successMessage != "" {
+						@partials.AlertBanner(successMessage, "success")
+					}
+					if newSecret != "" {
+						<div class="bg-green-900/30 border border-green-600 rounded-lg p-4 mb-6">
+							<p class="text-green-300 text-sm font-medium mb-2">New integration credentials</p>
+							<div class="space-y-2">
+								<div>
+									<label class="text-xs text-green-400 uppercase">Client ID</label>
+									<input type="text" readonly value={ newSecretClientId(newSecret) } class="w-full bg-slate-900 border border-green-700 rounded px-3 py-2 text-green-100 text-sm font-mono" onclick="this.select()"/>
+								</div>
+								<div>
+									<label class="text-xs text-green-400 uppercase">Client Secret</label>
+									<input type="text" readonly value={ newSecretValue(newSecret) } class="w-full bg-slate-900 border border-green-700 rounded px-3 py-2 text-green-100 text-sm font-mono" onclick="this.select()"/>
+								</div>
+							</div>
+							<p class="text-green-400 text-xs mt-3">Copy these values now. The secret will not be shown again.</p>
+						</div>
+					}
+					<form
+						hx-swap="outerHTML transition:true"
+						hx-post="/u/integrations"
+						hx-target="#integrations-box"
+						class="space-y-4 mb-8"
+					>
+						@partials.CSRFInput(csrfToken)
+						<div>
+							<label class="block text-sm font-medium text-slate-300 mb-2">Integration Name</label>
+							<input
+								type="text"
+								name="displayName"
+								placeholder="e.g., My Draft Bot"
+								required
+								class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							/>
+						</div>
+						<button
+							type="submit"
+							class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+							</svg>
+							Create Integration
+						</button>
+					</form>
+					<div class="border-t border-slate-600 pt-6">
+						<h3 class="text-lg font-semibold text-slate-100 mb-4">Existing Integrations</h3>
+						if len(keys) == 0 {
+							<p class="text-slate-400 text-sm">No integrations yet.</p>
+						} else {
+							<div class="space-y-3">
+								for _, key := range keys {
+									<div class="bg-slate-700/50 border border-slate-600 rounded-lg p-4 flex items-center justify-between">
+										<div>
+											<p class="text-slate-100 font-medium">{ key.DisplayName }</p>
+											<p class="text-slate-400 text-xs font-mono">{ key.ClientId }</p>
+											<p class="text-slate-500 text-xs mt-1">
+												Created { formatTime(key.CreatedAt) }
+												if key.LastUsedAt.Valid {
+													<span> · Last used { formatTime(key.LastUsedAt.Time) }</span>
+												}
+												if key.Revoked {
+													<span class="text-red-400 ml-2">Revoked</span>
+												}
+											</p>
+										</div>
+										if !key.Revoked {
+											<form method="post" action={ templ.URL(fmt.Sprintf("/u/integrations/%s/revoke", key.Id.String())) }>
+												@partials.CSRFInput(csrfToken)
+												<button
+													type="submit"
+													class="text-red-400 hover:text-red-300 text-sm font-medium px-3 py-1 rounded hover:bg-slate-600 transition-colors"
+													onclick="return confirm('Revoke this integration? This cannot be undone.')"
+												>
+													Revoke
+												</button>
+											</form>
+										}
+									</div>
+								}
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ Integrations(page string, fromProtected bool, username string, cmp templ.Component) {
+	@view.Index(page, fromProtected, username, nil) {
+		@cmp
+	}
+}
+
+func newSecretClientId(s string) string {
+	parts := splitSecret(s)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return ""
+}
+
+func newSecretValue(s string) string {
+	parts := splitSecret(s)
+	if len(parts) == 2 {
+		return parts[0]
+	}
+	return ""
+}
+
+func splitSecret(s string) []string {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '|' {
+			return []string{s[:i], s[i+1:]}
+		}
+	}
+	return []string{s}
+}

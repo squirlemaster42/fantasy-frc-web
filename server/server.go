@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	apihandler "server/api/handler"
+	apimiddleware "server/api/middleware"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -28,6 +30,7 @@ type ServerConfig struct {
 	Database         *sql.DB
 	MetricSecret     string
 	CsrfSecret       string
+	JwtSigningKey    []byte
 	RedisAddr        string
 	RedisPassword    string
 	RedisRateLimitDB int
@@ -173,6 +176,43 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		return c.String(http.StatusOK, "ok")
 	})
 
+	authHandler := apihandler.NewAuthHandler(cfg.Handler.ApiKeyStore, cfg.JwtSigningKey)
+	apiHandler := apihandler.NewHandler(cfg.Handler.DraftStore, cfg.Handler.UserStore, cfg.Handler.ApiKeyStore, cfg.Handler.TeamStore, cfg.Handler.DraftActorMap)
+	apiV1 := app.Group("/api/v1")
+	apiV1.POST("/auth/token", authHandler.Token)
+
+	apiV1Protected := apiV1.Group("")
+	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
+
+	// Users
+	apiV1Protected.GET("/users/search", apiHandler.SearchUsers)
+
+	// Drafts
+	apiV1Protected.GET("/drafts", apiHandler.ListDrafts)
+	apiV1Protected.POST("/drafts", apiHandler.CreateDraft)
+	apiV1Protected.GET("/drafts/:id", apiHandler.GetDraft)
+	apiV1Protected.PATCH("/drafts/:id", apiHandler.UpdateDraft)
+	apiV1Protected.POST("/drafts/:id/start", apiHandler.StartDraft)
+	apiV1Protected.GET("/drafts/:id/picks", apiHandler.ListPicks)
+	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick)
+	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip)
+	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore)
+
+	// Public team score
+	apiV1.GET("/team/score", apiHandler.GetTeamScore)
+
+	// Invites
+	apiV1Protected.GET("/invites", apiHandler.ListInvites)
+	apiV1Protected.POST("/drafts/:id/invites", apiHandler.CreateInvite)
+	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite)
+	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite)
+
+	// Admin
+	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick)
+	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime)
+	apiV1Protected.POST("/drafts/:id/admin/make-pick", apiHandler.AdminMakePick)
+	apiV1Protected.POST("/drafts/:id/admin/undo-pick", apiHandler.AdminUndoPick)
+
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
 	protected.POST("/logout", cfg.Handler.HandleLogoutPost)
@@ -202,6 +242,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	protected.GET("/team/:id/avatar", cfg.Handler.GetTeamAvatar)
 	protected.GET("/userProfile", cfg.Handler.HandleViewUserProfile)
 	protected.POST("/userProfile", cfg.Handler.HandleUpdateUserProfile)
+	protected.GET("/integrations", cfg.Handler.HandleViewIntegrations)
+	protected.POST("/integrations", cfg.Handler.HandleCreateIntegration)
+	protected.POST("/integrations/:id/revoke", cfg.Handler.HandleRevokeIntegration)
 
 	admin := protected.Group("/admin", auth.CheckAdmin)
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
