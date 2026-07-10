@@ -26,6 +26,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
             <li>
                 <a
                     href="/u/home"
+                    title="Home"
                     class={ templ.Classes(templ.KV("active", currentPage == "Draft Overview")) }>
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -38,6 +39,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
             <li>
                 <a
                     href="/u/viewInvites"
+                    title="Invites"
                     class={ templ.Classes(templ.KV("active", currentPage == "Teams")) }>
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -50,6 +52,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
             <li>
                 <a
                     href="/u/team/score"
+                    title="Team Scores"
                     class={ templ.Classes(templ.KV("active", currentPage == "Draft")) }>
                     <span>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -63,6 +66,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
                 <li>
                     <a
                         href={templ.URL(fmt.Sprintf("/u/draft/%d/profile", data.DraftId))}
+                        title="Draft Profile"
                         class={ templ.Classes(templ.KV("active", currentPage == "League")) }>
                         <span>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -75,6 +79,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
                 <li>
                     <a
                         href={templ.URL(fmt.Sprintf("/u/draft/%d/pick", data.DraftId))}
+                        title="Draft Picks"
                         class={ templ.Classes(templ.KV("active", currentPage == "Settings")) }>
                         <span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-robot" viewBox="0 0 16 16">
@@ -88,6 +93,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
                 <li>
                     <a
                         href={templ.URL(fmt.Sprintf("/u/draft/%d/draftScore", data.DraftId))}
+                        title="Draft Scores"
                         class={ templ.Classes(templ.KV("active", currentPage == "Settings")) }>
                         <span>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -100,6 +106,7 @@ templ Sidebar(currentPage string, data *types.PageData) {
                 <li>
                     <a
                         href={templ.URL(fmt.Sprintf("/u/draft/%d/admin", data.DraftId))}
+                        title="Draft Admin"
                         class={ templ.Classes(templ.KV("active", currentPage == "Settings")) }>
                         <span>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">

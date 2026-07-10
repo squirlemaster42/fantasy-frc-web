@@ -34,6 +34,12 @@ templ Navbar(fromProtected bool, username string, page string, data *types.PageD
                     </a>
                 </div>
 
+                <div class="flex-shrink-0">
+                    <p class="w-full bg-transparent text-3xl md:text-4xl font-bold text-blue-400 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-3 py-2">
+                        Draft Name | { page }
+                    </p>
+                </div>
+
                 <!-- User Actions -->
                 <div class="flex items-center space-x-4">
                     if fromProtected {
