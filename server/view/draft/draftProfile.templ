@@ -241,8 +241,8 @@ templ StartDraftButton(submitUrl string, err string, isOwner bool, csrfToken str
     }
 }
 
-templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
-    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
+templ DraftProfile (page string, fromProtected bool, username string, cmp templ.Component, draftId int, draftName string, isOwner bool) {
+    @view.Index(page, fromProtected, username, types.NewPageData(draftId, draftName, isOwner)) {
         @cmp
     }
 }

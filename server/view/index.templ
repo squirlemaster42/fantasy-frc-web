@@ -25,14 +25,7 @@ templ Index(page string, fromProtected bool, username string, data *types.PageDa
         </head>
         <body
             class="simple-transition h-screen bg-slate-900"
-            hx-boost="true"
-            x-data="{
-                collapsed: JSON.parse(localStorage.getItem('sidebar-collapsed') ?? 'false'),
-                toggleSidebar() {
-                    this.collapsed = !this.collapsed;
-                    localStorage.setItem('sidebar-collapsed', JSON.stringify(this.collapsed));
-                }
-            }">
+            hx-boost="true">
 
             @partials.ToastContainer()
 

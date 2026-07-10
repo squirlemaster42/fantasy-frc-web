@@ -60,7 +60,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	}
 
 	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status)
-	draftView := draft.DraftScore(" | Draft Score", true, username, draftIndex, draftId, isOwner)
+	draftView := draft.DraftScore("Draft Score", true, username, draftIndex, draftId, draftModel.DisplayName, isOwner)
 	if err := Render(c, draftView); err != nil {
 		log.Error(c.Request().Context(), "Failed to render draft score page", "draftId", draftId, "error", err)
 		return err
@@ -114,7 +114,7 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	}
 
 	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
-	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, isOwner)
+	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, draftId, draftModel.DisplayName, isOwner)
 	if err := Render(c, draftTeamScore); err != nil {
 		log.Error(c.Request().Context(), "Failed to render draft team score page", "draftId", draftId, "teamNumber", teamNumber, "error", err)
 		return err
