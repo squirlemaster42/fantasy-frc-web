@@ -2,6 +2,7 @@ package admin
 
 import "server/view"
 import "fmt"
+import "server/types"
 
 templ AdminConsoleIndex(username string, csrfToken string) {
 <div class="w-full h-full p-4">
@@ -22,7 +23,7 @@ templ AdminConsoleIndex(username string, csrfToken string) {
 }
 
 templ AdminConsole(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
         @cmp
     }
 }

@@ -4,6 +4,7 @@ import "server/view"
 import "fmt"
 import "server/model"
 import "server/view/partials"
+import "server/types"
 
 templ TeamScoreIndex(csrfToken string) {
     <div class="bg-slate-900 p-6 flex flex-col h-full">
@@ -83,7 +84,7 @@ templ TeamScoreIndex(csrfToken string) {
 }
 
 templ TeamPick(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
         @cmp
     }
 }

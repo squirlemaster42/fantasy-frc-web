@@ -3,6 +3,7 @@ package login
 import "fmt"
 import "server/view"
 import "server/view/partials"
+import "server/types"
 
 templ LoginIndex(fromProtected bool, errorMessage string, minPasswordLength int, csrfToken string) {
     <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
@@ -119,7 +120,7 @@ templ LoginIndex(fromProtected bool, errorMessage string, minPasswordLength int,
 }
 
 templ Login(page string, fromProtected bool, cmp templ.Component) {
-    @view.Index(page, fromProtected, "", nil) {
+    @view.Index(page, fromProtected, "", types.NewPageData(0, "", false)) {
         @cmp
     }
 }
