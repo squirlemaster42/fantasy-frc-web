@@ -37,7 +37,7 @@ templ Index(page string, fromProtected bool, username string, data *types.PageDa
                     <header>
                         @partials.Navbar(fromProtected, username, page, data)
                     </header>
-                    <main class="flex-1">
+                    <main class="flex-1 overflow-y-auto">
                         {children...}
                     </main>
                     <footer class="bg-slate-900 border-t border-slate-700 py-4 px-6 flex-shrink-0">
