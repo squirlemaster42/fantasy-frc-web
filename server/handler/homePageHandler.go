@@ -27,7 +27,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Loaded drafts for user", "username", username)
 
 	homeIndex := view.HomeIndex(&drafts, userUuid)
-	home := view.Home(" | Draft Overview", true, username, homeIndex)
+	home := view.Home("Draft Overview", true, username, homeIndex)
 	if err := Render(c, home); err != nil {
 		log.Error(c.Request().Context(), "Handle View Home Failed To Render", "error", err)
 		return err
