@@ -132,7 +132,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 			log.Error(c.Request().Context(), "Failed to get username", "error", err)
 			username = ""
 		}
-		pickPageView := draftView.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
+		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, draftId, draftActor.GetDraftState().DisplayName, isOwner)
 		if err := Render(c, pickPageView); err != nil {
 			log.Error(c.Request().Context(), "Failed to render pick page", "draftId", draftId, "error", err)
 			return err

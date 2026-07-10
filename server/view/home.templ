@@ -5,6 +5,7 @@ import (
     "server/view/partials"
     "fmt"
 	"github.com/google/uuid"
+	"server/types"
 )
 
 templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
@@ -102,7 +103,7 @@ templ HomeIndex (drafts *[]model.DraftModel, userUuid uuid.UUID) {
 }
 
 templ Home(page string, fromProtected bool, username string, cmp templ.Component) {
-    @Index(page, fromProtected, username, nil) {
+    @Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
         @cmp
     }
 }

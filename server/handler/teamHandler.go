@@ -18,7 +18,7 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
 	}
 
 	teamIndex := team.TeamScoreIndex(h.csrfToken(c))
-	teamView := team.TeamPick(" | Team Score", true, username, teamIndex)
+	teamView := team.TeamPick("Team Score", true, username, teamIndex)
 	if err := Render(c, teamView); err != nil {
 		log.Error(c.Request().Context(), "Failed to render team score page", "error", err)
 		return err
