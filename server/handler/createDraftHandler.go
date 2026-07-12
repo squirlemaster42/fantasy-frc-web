@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"server/log"
 	"server/model"
+	"server/types"
 	"server/view/draft"
 	"strconv"
 
@@ -26,7 +27,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	}
 
 	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
-	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, -1, "", true)
+	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, types.NewPageData(-1, "", true))
 	if err := Render(c, draftCreate); err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "error", err)
 		return err
