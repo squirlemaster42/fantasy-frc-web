@@ -110,8 +110,8 @@ templ DraftPickIndex (pickPageModel PickPage, csrfToken string) {
     </div>
 }
 
-templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, draftId int, isOwner bool) {
-    @view.Index(page, fromProtected, username, types.NewPageData(draftId, isOwner)) {
+templ DraftPick (page string, fromProtected bool, username string, cmp templ.Component, pageData types.PageData) {
+    @view.Index(page, fromProtected, username, pageData) {
         @cmp
     }
 }

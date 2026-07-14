@@ -8,6 +8,7 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/types"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
@@ -132,7 +133,7 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 			log.Error(c.Request().Context(), "Failed to get username", "error", err)
 			username = ""
 		}
-		pickPageView := draftView.DraftPick(" | Draft Picks", true, username, pickPageIndex, draftId, isOwner)
+		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, types.NewPageData(draftId, draftActor.GetDraftState().DisplayName, isOwner))
 		if err := Render(c, pickPageView); err != nil {
 			log.Error(c.Request().Context(), "Failed to render pick page", "draftId", draftId, "error", err)
 			return err
@@ -184,21 +185,21 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Error(ctx, "Failed to parse draft id string", "draftIdString", draftIdStr, "error", err)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusBadRequest)
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusNotFound)
 	}
 
 	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "draftId", draftId)
-		conn.Close()
+		_ = conn.Close()
 		return c.NoContent(http.StatusInternalServerError)
 	}
 
@@ -229,7 +230,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	defer func() {
 		ticker.Stop()
 		draft.UnregisterWatcher(ctx, h.DraftActorMap, watcher)
-		conn.Close()
+		_ = conn.Close()
 		<-done
 	}()
 

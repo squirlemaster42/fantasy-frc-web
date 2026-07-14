@@ -1,0 +1,23 @@
+---
+- name: Check if node is already part of a cluster
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Wait for API server to be available on VIP
+  uri:
+    url: "https://{{ api_vip }}:6443/healthz"
+    validate_certs: no
+    status_code: 200
+  register: api_health
+  until: api_health.status == 200
+  retries: 30
+  delay: 10
+  when: not kubelet_conf.stat.exists
+
+- name: Join worker node to cluster
+  shell: |
+    {{ hostvars[groups['control_plane'][0]]['worker_join_command'] }}
+  args:
+    creates: /etc/kubernetes/kubelet.conf
+  when: not kubelet_conf.stat.exists

@@ -296,7 +296,7 @@ func matchPrecidence() map[string]int {
 func getMatchLevel(matchKey string) (string, error) {
 	pattern := regexp.MustCompile("_[a-z]+")
 	match := pattern.FindString(matchKey)[1:]
-	if !(len(match) == 2 || len(match) == 1) {
+	if len(match) != 2 && len(match) != 1 {
 		return "", fmt.Errorf("match string %s was not im expected format", match)
 	}
 	return match, nil

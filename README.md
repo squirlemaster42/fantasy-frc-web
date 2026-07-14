@@ -28,7 +28,7 @@ the entire drafting and scoring process for Fantasy FRC.
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.26+. Current testing against Go 1.26.2.
+Fantasy FRC is built using Go 1.26+. Current testing against Go 1.26.2
 
 ### Install Templ
 
@@ -48,7 +48,7 @@ Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/
    ```
 4. Run any additional migration scripts as needed. They can be found in the database directory.
 
-**Note**: Database versioning will be done in future release.
+**Note**: Database versioning will be done in future release
 
 ## Configuration
 
@@ -122,7 +122,7 @@ make build
 
 ## Deployment
 
-For production deployment to Linux servers, see [deploy/README.md](deploy/README.md).
+For deployment to a Kubernetes cluster, see [infra/ansible/README.md](infra/ansible/README.md).
 
 ## Optional Dependencies
 

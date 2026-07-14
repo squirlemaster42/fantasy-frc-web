@@ -1,0 +1,23 @@
+---
+- name: Ensure /etc/kubernetes/manifests exists
+  file:
+    path: /etc/kubernetes/manifests
+    state: directory
+    mode: '0755'
+
+- name: Detect primary network interface if not set
+  shell: |
+    ip route | grep default | awk '{print $5}' | head -n1
+  register: detected_interface
+  changed_when: false
+  when: kube_vip_interface == "" or kube_vip_interface is not defined
+
+- name: Set kube-vip interface fact
+  set_fact:
+    kube_vip_iface: "{{ kube_vip_interface | default(detected_interface.stdout, true) }}"
+
+- name: Deploy kube-vip static pod manifest
+  template:
+    src: kube-vip.yaml.j2
+    dest: /etc/kubernetes/manifests/kube-vip.yaml
+    mode: '0644'

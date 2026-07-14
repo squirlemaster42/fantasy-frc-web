@@ -4,6 +4,7 @@ import "server/view"
 import "server/model"
 import "server/view/partials"
 import "fmt"
+import "server/types"
 
 templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage string) {
     if hasError {
@@ -77,7 +78,7 @@ templ DraftInviteIndex (invites []model.DraftInvite, hasError bool, errorMessage
 }
 
 templ DraftInvite (page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
         @cmp
     }
 }

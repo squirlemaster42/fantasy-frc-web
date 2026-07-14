@@ -104,7 +104,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		log.Error(ctx, "Failed to query pg_stat_statements", "error", err)
 		return
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	dbQueryMeanTime.Reset()
 	dbQueryCalls.Reset()

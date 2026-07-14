@@ -33,8 +33,14 @@ go test -race ./...
 
 ### Linting and Formatting
 ```bash
+# Run all linters (go vet and golangci-lint)
+make lint
+
 # Vet code for potential issues
 go vet ./...
+
+# Run golangci-lint
+go tool golangci-lint run ./...
 
 For formatting, follow the format of the rest of the code, do not use Go's built in formatter.
 ```

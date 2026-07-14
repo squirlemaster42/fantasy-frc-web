@@ -71,7 +71,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		// Determine auth context for consistent navbar/footer rendering
 		fromProtected := false
 		username := ""
-		var pageData *types.PageData
+        pageData := types.NewPageData(0, "", false)
 		if userUuidVal := c.Get(string(authentication.UserUuidKey)); userUuidVal != nil {
 			if userUuid, ok := userUuidVal.(uuid.UUID); ok {
 				fromProtected = true
@@ -86,14 +86,14 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		var page templ.Component
 		switch code {
 		case http.StatusNotFound:
-			page = errorpage.NotFound404(" | Page Not Found", fromProtected, username, pageData)
+			page = errorpage.NotFound404("Page Not Found", fromProtected, username, pageData)
 		case http.StatusForbidden:
-			page = errorpage.Forbidden403(" | Access Denied", fromProtected, username, pageData)
+			page = errorpage.Forbidden403("Access Denied", fromProtected, username, pageData)
 		case http.StatusInternalServerError:
-			page = errorpage.ServerError500(" | Server Error", fromProtected, username, pageData)
+			page = errorpage.ServerError500("Server Error", fromProtected, username, pageData)
 		default:
 			// For other status codes, fall back to a generic error page
-			page = errorpage.ServerError500(" | Error", fromProtected, username, pageData)
+			page = errorpage.ServerError500("Error", fromProtected, username, pageData)
 		}
 
 		// Render the templ component; if rendering itself fails, fall back to plain text

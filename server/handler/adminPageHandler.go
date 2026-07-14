@@ -88,7 +88,7 @@ func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 	sb.WriteString("-------------\n")
 
 	for _, draft := range drafts {
-		sb.WriteString(fmt.Sprintf("%4d  | %s\n", draft.Id, draft.DisplayName))
+		fmt.Fprintf(&sb, "%4d  | %s\n", draft.Id, draft.DisplayName)
 	}
 
 	return sb.String()
@@ -142,7 +142,7 @@ func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandl
 	if err != nil {
 		return "Failed to open file: " + err.Error()
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	body, err := io.ReadAll(file)
 	if err != nil {
 		return "Failed to read file: " + err.Error()

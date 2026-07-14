@@ -21,7 +21,7 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 	loginIndex := login.LoginIndex(false, "", h.MinPasswordLength, csrfToken)
-	login := login.Login(" | Login", false, loginIndex)
+	login := login.Login("Login", false, loginIndex)
 	err = Render(c, login)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle View Login Failed To Render", "error", err)
@@ -152,7 +152,7 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 	registerIndex := login.RegisterIndex(false, "", h.MinPasswordLength, csrfToken)
-	register := login.Register(" | Register", false, registerIndex)
+	register := login.Register("Register", false, registerIndex)
 	if err := Render(c, register); err != nil {
 		log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

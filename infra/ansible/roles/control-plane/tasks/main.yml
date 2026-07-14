@@ -1,0 +1,105 @@
+---
+- name: Check if node is already part of a cluster
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: admin_conf
+
+- name: Initialize first control-plane node
+  block:
+    - name: Run kubeadm init
+      shell: |
+        kubeadm init \
+          --control-plane-endpoint={{ api_vip }}:6443 \
+          --apiserver-advertise-address={{ ansible_host }} \
+          --pod-network-cidr={{ pod_cidr }} \
+          --service-cidr={{ service_cidr }} \
+          --upload-certs \
+          --v=5
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory for regular user
+      file:
+        path: "/home/{{ regular_user }}/.kube"
+        state: directory
+        owner: "{{ regular_user }}"
+        group: "{{ regular_user }}"
+        mode: '0755'
+
+    - name: Copy admin.conf to regular user's .kube/config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ regular_user }}/.kube/config"
+        remote_src: yes
+        owner: "{{ regular_user }}"
+        group: "{{ regular_user }}"
+        mode: '0600'
+
+    - name: Generate certificate key for control-plane joins
+      shell: |
+        kubeadm init phase upload-certs --upload-certs 2>/dev/null | tail -1
+      register: cert_key_output
+      changed_when: false
+
+    - name: Set certificate key fact
+      set_fact:
+        kubeadm_cert_key: "{{ cert_key_output.stdout }}"
+
+    - name: Generate kubeadm join command for control-plane
+      shell: |
+        kubeadm token create --print-join-command --certificate-key {{ kubeadm_cert_key }}
+      register: control_plane_join_command
+      changed_when: false
+
+    - name: Set control-plane join command fact
+      set_fact:
+        cp_join_command: "{{ control_plane_join_command.stdout }}"
+
+    - name: Generate worker join command
+      shell: |
+        kubeadm token create --print-join-command
+      register: worker_join_command_output
+      changed_when: false
+
+    - name: Set worker join command fact
+      set_fact:
+        worker_join_command: "{{ worker_join_command_output.stdout }}"
+
+    - name: Remove control-plane taint on single-node cluster
+      shell: |
+        kubectl taint nodes {{ ansible_hostname }} node-role.kubernetes.io/control-plane:NoSchedule- || true
+      environment:
+        KUBECONFIG: "/etc/kubernetes/admin.conf"
+      when:
+        - groups['control_plane'] | length == 1
+        - groups['workers'] | length == 0
+
+  when: inventory_hostname == groups['control_plane'][0] and not admin_conf.stat.exists
+
+- name: Remove control-plane taint on single-node cluster
+  shell: |
+    kubectl taint nodes {{ ansible_hostname }} node-role.kubernetes.io/control-plane:NoSchedule- || true
+  environment:
+    KUBECONFIG: "/etc/kubernetes/admin.conf"
+  when:
+    - groups['control_plane'] | length == 1
+    - groups['workers'] | length == 0
+    - admin_conf.stat.exists
+
+- name: Wait for API server to be available on VIP
+  uri:
+    url: "https://{{ api_vip }}:6443/healthz"
+    validate_certs: no
+    status_code: 200
+  register: api_health
+  until: api_health.status == 200
+  retries: 30
+  delay: 10
+  when: inventory_hostname != groups['control_plane'][0] and not admin_conf.stat.exists
+
+- name: Join additional control-plane node
+  shell: |
+    {{ hostvars[groups['control_plane'][0]]['cp_join_command'] }}
+  args:
+    creates: /etc/kubernetes/admin.conf
+  when: inventory_hostname != groups['control_plane'][0] and not admin_conf.stat.exists

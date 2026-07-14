@@ -62,7 +62,7 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 	}
 
 	if !webhook.Valid {
-		return "", fmt.Errorf("Draft with id %d does not have discord webhook set", draftId)
+		return "", fmt.Errorf("draft with id %d does not have discord webhook set", draftId)
 	}
 
 	return webhook.String, nil

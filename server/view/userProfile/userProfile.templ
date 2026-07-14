@@ -3,6 +3,7 @@ package userprofile
 import "fmt"
 import "server/view"
 import "server/view/partials"
+import "server/types"
 
 templ UserProfileIndex(username string, discordId string, errorMessage string, successMessage string, csrfToken string, minPasswordLength int) {
     <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
@@ -170,7 +171,7 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 }
 
 templ UserProfile(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, nil) {
+    @view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
         @cmp
     }
 }

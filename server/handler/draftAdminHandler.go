@@ -7,6 +7,7 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/types"
 	draftView "server/view/draft"
 	"strconv"
 	"time"
@@ -54,7 +55,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	isOwner := true
 
 	adminIndex := draftView.DraftAdminIndex(draftModel, h.csrfToken(c))
-	draftAdmin := draftView.DraftAdmin(" | Draft Admin", true, username, adminIndex, draftId, isOwner)
+	draftAdmin := draftView.DraftAdmin("Draft Admin", true, username, adminIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
 	if err := Render(c, draftAdmin); err != nil {
 		log.Error(c.Request().Context(), "Failed to render draft admin page", "draftId", draftId, "error", err)
 		return err

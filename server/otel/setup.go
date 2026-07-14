@@ -22,11 +22,16 @@ func InitTracer(serviceName string) func(context.Context) error {
 		return func(ctx context.Context) error { return nil }
 	}
 
-	// Create resource with service name
-	res := resource.NewWithAttributes(
+	// Create resource with service name, merging any OTEL_RESOURCE_ATTRIBUTES
+	defaultRes := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceName(serviceName),
 	)
+	res, err := resource.Merge(resource.Environment(), defaultRes)
+	if err != nil {
+		log.Warn(ctx, "Failed to merge OTEL resource attributes", "error", err)
+		res = defaultRes
+	}
 
 	// Create tracer provider
 	tp := sdktrace.NewTracerProvider(

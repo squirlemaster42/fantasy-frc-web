@@ -33,7 +33,7 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
 	if includeWrapper {
-		inviteView := draftView.DraftInvite(" | Draft Invites", true, username, inviteIndex)
+		inviteView := draftView.DraftInvite("Draft Invites", true, username, inviteIndex)
 		if err := Render(c, inviteView); err != nil {
 			log.Error(c.Request().Context(), "Failed to render invite page", "error", err)
 			return err

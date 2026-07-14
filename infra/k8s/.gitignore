@@ -1,0 +1,21 @@
+# Kubernetes infrastructure secrets and generated artifacts
+# Never commit these to git.
+
+# Local environment configuration (copy from .env.example)
+config.env
+.env
+
+# Vault unseal keys and root token
+vault-init.json
+
+# Generated passwords
+*-password.txt
+*-token.txt
+postgres-password.txt
+grafana-admin-password.txt
+redis-password.txt
+
+# Exported image tarballs and build contexts
+image-export/
+*.tar
+migrations-context/migrations/

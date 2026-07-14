@@ -1,0 +1,541 @@
+Using /home/jmisbach/fantasy-frc-web/infra/ansible/ansible.cfg as config file
+
+PLAY [Build Fantasy FRC container images] **************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [cp1]
+
+TASK [fantasy-frc-build : Check if buildkit is installed] **********************
+ok: [cp1] => changed=false 
+  cmd: |-
+    command -v buildctl >/dev/null 2>&1 && command -v buildkitd >/dev/null 2>&1 && echo "installed" || echo "missing"
+  delta: '0:00:00.002535'
+  end: '2026-07-08 04:20:18.035063'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:18.032528'
+  stderr: ''
+  stderr_lines: <omitted>
+  stdout: installed
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Download and install buildkit] ***********************
+skipping: [cp1] => changed=false 
+  false_condition: buildkit_check.stdout == "missing"
+  skip_reason: Conditional result was False
+
+TASK [fantasy-frc-build : Create buildkitd systemd service] ********************
+ok: [cp1] => changed=false 
+  checksum: 8d91d2013c092516e8ec1980767874adac775056
+  dest: /etc/systemd/system/buildkitd.service
+  gid: 0
+  group: root
+  mode: '0644'
+  owner: root
+  path: /etc/systemd/system/buildkitd.service
+  size: 262
+  state: file
+  uid: 0
+
+TASK [fantasy-frc-build : Start and enable buildkitd] **************************
+ok: [cp1] => changed=false 
+  enabled: true
+  name: buildkitd
+  state: started
+  status:
+    ActiveEnterTimestamp: Wed 2026-07-08 02:19:11 UTC
+    ActiveEnterTimestampMonotonic: '8820636264'
+    ActiveExitTimestampMonotonic: '0'
+    ActiveState: active
+    After: sysinit.target system.slice basic.target systemd-journald.socket containerd.service
+    AllowIsolate: 'no'
+    AssertResult: 'yes'
+    AssertTimestamp: Wed 2026-07-08 02:19:11 UTC
+    AssertTimestampMonotonic: '8820628793'
+    Before: shutdown.target multi-user.target
+    BlockIOAccounting: 'no'
+    BlockIOWeight: '[not set]'
+    CPUAccounting: 'yes'
+    CPUAffinityFromNUMA: 'no'
+    CPUQuotaPerSecUSec: infinity
+    CPUQuotaPeriodUSec: infinity
+    CPUSchedulingPolicy: '0'
+    CPUSchedulingPriority: '0'
+    CPUSchedulingResetOnFork: 'no'
+    CPUShares: '[not set]'
+    CPUUsageNSec: '29099577000'
+    CPUWeight: '[not set]'
+    CacheDirectoryMode: '0755'
+    CanFreeze: 'yes'
+    CanIsolate: 'no'
+    CanReload: 'no'
+    CanStart: 'yes'
+    CanStop: 'yes'
+    CapabilityBoundingSet: cap_chown cap_dac_override cap_dac_read_search cap_fowner cap_fsetid cap_kill cap_setgid cap_setuid cap_setpcap cap_linux_immutable cap_net_bind_service cap_net_broadcast cap_net_admin cap_net_raw cap_ipc_lock cap_ipc_owner cap_sys_module cap_sys_rawio cap_sys_chroot cap_sys_ptrace cap_sys_pacct cap_sys_admin cap_sys_boot cap_sys_nice cap_sys_resource cap_sys_time cap_sys_tty_config cap_mknod cap_lease cap_audit_write cap_audit_control cap_setfcap cap_mac_override cap_mac_admin cap_syslog cap_wake_alarm cap_block_suspend cap_audit_read cap_perfmon cap_bpf cap_checkpoint_restore
+    CleanResult: success
+    CollectMode: inactive
+    ConditionResult: 'yes'
+    ConditionTimestamp: Wed 2026-07-08 02:19:11 UTC
+    ConditionTimestampMonotonic: '8820628792'
+    ConfigurationDirectoryMode: '0755'
+    Conflicts: shutdown.target
+    ControlGroup: /system.slice/buildkitd.service
+    ControlGroupId: '46045'
+    ControlPID: '0'
+    CoredumpFilter: '0x33'
+    CoredumpReceive: 'no'
+    DefaultDependencies: 'yes'
+    DefaultMemoryLow: '0'
+    DefaultMemoryMin: '0'
+    DefaultStartupMemoryLow: '0'
+    Delegate: 'no'
+    Description: BuildKit Daemon
+    DevicePolicy: auto
+    Documentation: https://github.com/moby/buildkit
+    DynamicUser: 'no'
+    EffectiveCPUs: 0-3
+    EffectiveMemoryNodes: '0'
+    ExecMainCode: '0'
+    ExecMainExitTimestampMonotonic: '0'
+    ExecMainPID: '229992'
+    ExecMainStartTimestamp: Wed 2026-07-08 02:19:11 UTC
+    ExecMainStartTimestampMonotonic: '8820636081'
+    ExecMainStatus: '0'
+    ExecStart: '{ path=/usr/local/bin/buildkitd ; argv[]=/usr/local/bin/buildkitd --addr=unix:///run/buildkit/buildkitd.sock ; ignore_errors=no ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }'
+    ExecStartEx: '{ path=/usr/local/bin/buildkitd ; argv[]=/usr/local/bin/buildkitd --addr=unix:///run/buildkit/buildkitd.sock ; flags= ; start_time=[n/a] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }'
+    ExitType: main
+    ExtensionImagePolicy: root=verity+signed+encrypted+unprotected+absent:usr=verity+signed+encrypted+unprotected+absent:home=encrypted+unprotected+absent:srv=encrypted+unprotected+absent:tmp=encrypted+unprotected+absent:var=encrypted+unprotected+absent
+    FailureAction: none
+    FileDescriptorStoreMax: '0'
+    FileDescriptorStorePreserve: restart
+    FinalKillSignal: '9'
+    FragmentPath: /etc/systemd/system/buildkitd.service
+    FreezerState: running
+    GID: '[not set]'
+    GuessMainPID: 'yes'
+    IOAccounting: 'no'
+    IOReadBytes: '[not set]'
+    IOReadOperations: '[not set]'
+    IOSchedulingClass: '2'
+    IOSchedulingPriority: '4'
+    IOWeight: '[not set]'
+    IOWriteBytes: '[not set]'
+    IOWriteOperations: '[not set]'
+    IPAccounting: 'no'
+    IPEgressBytes: '[no data]'
+    IPEgressPackets: '[no data]'
+    IPIngressBytes: '[no data]'
+    IPIngressPackets: '[no data]'
+    Id: buildkitd.service
+    IgnoreOnIsolate: 'no'
+    IgnoreSIGPIPE: 'yes'
+    InactiveEnterTimestampMonotonic: '0'
+    InactiveExitTimestamp: Wed 2026-07-08 02:19:11 UTC
+    InactiveExitTimestampMonotonic: '8820636264'
+    InvocationID: 7bde6af78e2f484c84e712706d4fe0d5
+    JobRunningTimeoutUSec: infinity
+    JobTimeoutAction: none
+    JobTimeoutUSec: infinity
+    KeyringMode: private
+    KillMode: control-group
+    KillSignal: '15'
+    LimitAS: infinity
+    LimitASSoft: infinity
+    LimitCORE: infinity
+    LimitCORESoft: '0'
+    LimitCPU: infinity
+    LimitCPUSoft: infinity
+    LimitDATA: infinity
+    LimitDATASoft: infinity
+    LimitFSIZE: infinity
+    LimitFSIZESoft: infinity
+    LimitLOCKS: infinity
+    LimitLOCKSSoft: infinity
+    LimitMEMLOCK: '8388608'
+    LimitMEMLOCKSoft: '8388608'
+    LimitMSGQUEUE: '819200'
+    LimitMSGQUEUESoft: '819200'
+    LimitNICE: '0'
+    LimitNICESoft: '0'
+    LimitNOFILE: '524288'
+    LimitNOFILESoft: '1024'
+    LimitNPROC: '62821'
+    LimitNPROCSoft: '62821'
+    LimitRSS: infinity
+    LimitRSSSoft: infinity
+    LimitRTPRIO: '0'
+    LimitRTPRIOSoft: '0'
+    LimitRTTIME: infinity
+    LimitRTTIMESoft: infinity
+    LimitSIGPENDING: '62821'
+    LimitSIGPENDINGSoft: '62821'
+    LimitSTACK: infinity
+    LimitSTACKSoft: '8388608'
+    LoadState: loaded
+    LockPersonality: 'no'
+    LogLevelMax: '-1'
+    LogRateLimitBurst: '0'
+    LogRateLimitIntervalUSec: '0'
+    LogsDirectoryMode: '0755'
+    MainPID: '229992'
+    ManagedOOMMemoryPressure: auto
+    ManagedOOMMemoryPressureLimit: '0'
+    ManagedOOMPreference: none
+    ManagedOOMSwap: auto
+    MemoryAccounting: 'yes'
+    MemoryAvailable: '10021449728'
+    MemoryCurrent: '1014550528'
+    MemoryDenyWriteExecute: 'no'
+    MemoryHigh: infinity
+    MemoryKSM: 'no'
+    MemoryLimit: infinity
+    MemoryLow: '0'
+    MemoryMax: infinity
+    MemoryMin: '0'
+    MemoryPeak: '1530032128'
+    MemoryPressureThresholdUSec: 200ms
+    MemoryPressureWatch: auto
+    MemorySwapCurrent: '0'
+    MemorySwapMax: infinity
+    MemorySwapPeak: '0'
+    MemoryZSwapCurrent: '0'
+    MemoryZSwapMax: infinity
+    MountAPIVFS: 'no'
+    MountImagePolicy: root=verity+signed+encrypted+unprotected+absent:usr=verity+signed+encrypted+unprotected+absent:home=encrypted+unprotected+absent:srv=encrypted+unprotected+absent:tmp=encrypted+unprotected+absent:var=encrypted+unprotected+absent
+    NFileDescriptorStore: '0'
+    NRestarts: '0'
+    NUMAPolicy: n/a
+    Names: buildkitd.service
+    NeedDaemonReload: 'no'
+    Nice: '0'
+    NoNewPrivileges: 'no'
+    NonBlocking: 'no'
+    NotifyAccess: none
+    OOMPolicy: stop
+    OOMScoreAdjust: '0'
+    OnFailureJobMode: replace
+    OnSuccessJobMode: fail
+    Perpetual: 'no'
+    PrivateDevices: 'no'
+    PrivateIPC: 'no'
+    PrivateMounts: 'no'
+    PrivateNetwork: 'no'
+    PrivateTmp: 'no'
+    PrivateUsers: 'no'
+    ProcSubset: all
+    ProtectClock: 'no'
+    ProtectControlGroups: 'no'
+    ProtectHome: 'no'
+    ProtectHostname: 'no'
+    ProtectKernelLogs: 'no'
+    ProtectKernelModules: 'no'
+    ProtectKernelTunables: 'no'
+    ProtectProc: default
+    ProtectSystem: 'no'
+    RefuseManualStart: 'no'
+    RefuseManualStop: 'no'
+    ReloadResult: success
+    ReloadSignal: '1'
+    RemainAfterExit: 'no'
+    RemoveIPC: 'no'
+    Requires: sysinit.target system.slice
+    Restart: always
+    RestartKillSignal: '15'
+    RestartMaxDelayUSec: infinity
+    RestartMode: normal
+    RestartSteps: '0'
+    RestartUSec: 5s
+    RestartUSecNext: 5s
+    RestrictNamespaces: 'no'
+    RestrictRealtime: 'no'
+    RestrictSUIDSGID: 'no'
+    Result: success
+    RootDirectoryStartOnly: 'no'
+    RootEphemeral: 'no'
+    RootImagePolicy: root=verity+signed+encrypted+unprotected+absent:usr=verity+signed+encrypted+unprotected+absent:home=encrypted+unprotected+absent:srv=encrypted+unprotected+absent:tmp=encrypted+unprotected+absent:var=encrypted+unprotected+absent
+    RuntimeDirectoryMode: '0755'
+    RuntimeDirectoryPreserve: 'no'
+    RuntimeMaxUSec: infinity
+    RuntimeRandomizedExtraUSec: '0'
+    SameProcessGroup: 'no'
+    SecureBits: '0'
+    SendSIGHUP: 'no'
+    SendSIGKILL: 'yes'
+    SetLoginEnvironment: 'no'
+    Slice: system.slice
+    StandardError: inherit
+    StandardInput: 'null'
+    StandardOutput: journal
+    StartLimitAction: none
+    StartLimitBurst: '5'
+    StartLimitIntervalUSec: 10s
+    StartupBlockIOWeight: '[not set]'
+    StartupCPUShares: '[not set]'
+    StartupCPUWeight: '[not set]'
+    StartupIOWeight: '[not set]'
+    StartupMemoryHigh: infinity
+    StartupMemoryLow: '0'
+    StartupMemoryMax: infinity
+    StartupMemorySwapMax: infinity
+    StartupMemoryZSwapMax: infinity
+    StateChangeTimestamp: Wed 2026-07-08 02:19:11 UTC
+    StateChangeTimestampMonotonic: '8820636264'
+    StateDirectoryMode: '0755'
+    StatusErrno: '0'
+    StopWhenUnneeded: 'no'
+    SubState: running
+    SuccessAction: none
+    SurviveFinalKillSignal: 'no'
+    SyslogFacility: '3'
+    SyslogLevel: '6'
+    SyslogLevelPrefix: 'yes'
+    SyslogPriority: '30'
+    SystemCallErrorNumber: '2147483646'
+    TTYReset: 'no'
+    TTYVHangup: 'no'
+    TTYVTDisallocate: 'no'
+    TasksAccounting: 'yes'
+    TasksCurrent: '14'
+    TasksMax: '18846'
+    TimeoutAbortUSec: 1min 30s
+    TimeoutCleanUSec: infinity
+    TimeoutStartFailureMode: terminate
+    TimeoutStartUSec: 1min 30s
+    TimeoutStopFailureMode: terminate
+    TimeoutStopUSec: 1min 30s
+    TimerSlackNSec: '50000'
+    Transient: 'no'
+    Type: simple
+    UID: '[not set]'
+    UMask: '0022'
+    UnitFilePreset: enabled
+    UnitFileState: enabled
+    UtmpMode: init
+    WantedBy: multi-user.target
+    WatchdogSignal: '6'
+    WatchdogTimestampMonotonic: '0'
+    WatchdogUSec: '0'
+
+TASK [fantasy-frc-build : Check if web image already exists in containerd] *****
+ok: [cp1] => changed=false 
+  cmd: |-
+    ctr -n k8s.io images check "name==registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d" | grep -q "registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d" && echo "exists" || echo "missing"
+  delta: '0:00:00.014264'
+  end: '2026-07-08 04:20:20.305370'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:20.291106'
+  stderr: ''
+  stderr_lines: <omitted>
+  stdout: missing
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Remove existing web image when force_build is true] ***
+skipping: [cp1] => changed=false 
+  false_condition: force_build | bool
+  skip_reason: Conditional result was False
+
+TASK [fantasy-frc-build : Build Fantasy FRC web image] *************************
+changed: [cp1] => changed=true 
+  cmd: |-
+    /home/jmisbach/.local/bin/nerdctl -n k8s.io build  -t registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d  -t registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:latest  /home/jmisbach/fantasy-frc-web/server
+  delta: '0:00:06.593181'
+  end: '2026-07-08 04:20:27.187075'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:20.593894'
+  stderr: |-
+    #1 [internal] load build definition from Dockerfile
+    #1 transferring dockerfile: 901B done
+    #1 DONE 0.2s
+  
+    #2 [internal] load metadata for docker.io/library/golang:1.26
+    #2 ...
+  
+    #3 [internal] load metadata for docker.io/library/alpine:3.22
+    #3 DONE 0.8s
+  
+    #2 [internal] load metadata for docker.io/library/golang:1.26
+    #2 DONE 0.9s
+  
+    #4 [internal] load .dockerignore
+    #4 transferring context: 2B done
+    #4 DONE 0.2s
+  
+    #5 [internal] load build context
+    #5 DONE 0.0s
+  
+    #6 [stage-1 1/5] FROM docker.io/library/alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    #6 resolve docker.io/library/alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    #6 resolve docker.io/library/alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce 0.5s done
+    #6 DONE 0.6s
+  
+    #7 [builder 1/8] FROM docker.io/library/golang:1.26@sha256:b900de91b15b2e2953d930ece1d0ecff0a1590ab2006088d20dcf0f56f1e979f
+    #7 resolve docker.io/library/golang:1.26@sha256:b900de91b15b2e2953d930ece1d0ecff0a1590ab2006088d20dcf0f56f1e979f 0.5s done
+    #7 DONE 0.5s
+  
+    #5 [internal] load build context
+    #5 transferring context: 46.58MB 0.3s done
+    #5 DONE 0.5s
+  
+    #8 [builder 6/8] COPY . .
+    #8 CACHED
+  
+    #9 [stage-1 3/5] WORKDIR /app
+    #9 CACHED
+  
+    #10 [stage-1 4/5] COPY --from=builder /app/server .
+    #10 CACHED
+  
+    #11 [stage-1 2/5] RUN apk --no-cache add ca-certificates tzdata
+    #11 CACHED
+  
+    #12 [builder 4/8] COPY go.mod go.sum ./
+    #12 CACHED
+  
+    #13 [builder 5/8] RUN go mod download
+    #13 CACHED
+  
+    #14 [builder 8/8] RUN CGO_ENABLED=0 GOOS=linux go build -o server .
+    #14 CACHED
+  
+    #15 [builder 2/8] WORKDIR /app
+    #15 CACHED
+  
+    #16 [builder 3/8] RUN curl -sLO https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 &&     chmod +x tailwindcss-linux-x64 &&     mv tailwindcss-linux-x64 tailwindcss
+    #16 CACHED
+  
+    #17 [builder 7/8] RUN go tool templ generate &&     ./tailwindcss -i ./assets/input.css -o ./assets/css/styles.css --minify
+    #17 CACHED
+  
+    #18 [stage-1 5/5] COPY --from=builder /app/assets ./assets
+    #18 CACHED
+  
+    #19 exporting to docker image format
+    #19 exporting layers done
+    #19 exporting manifest sha256:04216061a2dd984fb553d23ea8454e60c7338fcc1083fd9b426fb5f6c25ef660 0.1s done
+    #19 exporting config sha256:019c4f388dc5f34960e9523266f6457aac6f70bffbea981ce7ad1204b77b3d96 0.1s done
+    #19 sending tarball
+    #19 sending tarball 2.1s done
+    #19 DONE 2.2s
+  stderr_lines: <omitted>
+  stdout: |-
+    unpacking registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d (sha256:04216061a2dd984fb553d23ea8454e60c7338fcc1083fd9b426fb5f6c25ef660)...
+    Loaded image: registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Check if migrations image already exists in containerd] ***
+ok: [cp1] => changed=false 
+  cmd: |-
+    ctr -n k8s.io images check "name==registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d" | grep -q "registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d" && echo "exists" || echo "missing"
+  delta: '0:00:00.014379'
+  end: '2026-07-08 04:20:27.446342'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:27.431963'
+  stderr: ''
+  stderr_lines: <omitted>
+  stdout: missing
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Remove existing migrations image when force_build is true] ***
+skipping: [cp1] => changed=false 
+  false_condition: force_build | bool
+  skip_reason: Conditional result was False
+
+TASK [fantasy-frc-build : Build Fantasy FRC migrations image] ******************
+changed: [cp1] => changed=true 
+  cmd: |-
+    /home/jmisbach/.local/bin/nerdctl -n k8s.io build  -t registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d  -t registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:latest  /home/jmisbach/fantasy-frc-web/database
+  delta: '0:00:05.890456'
+  end: '2026-07-08 04:20:33.628623'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:27.738167'
+  stderr: |-
+    #1 [internal] load build definition from Dockerfile
+    #1 transferring dockerfile: 418B done
+    #1 DONE 0.1s
+  
+    #2 [internal] load metadata for docker.io/library/golang:1.26
+    #2 ...
+  
+    #3 [internal] load metadata for docker.io/library/alpine:3.19
+    #3 DONE 0.7s
+  
+    #2 [internal] load metadata for docker.io/library/golang:1.26
+    #2 DONE 0.8s
+  
+    #4 [internal] load .dockerignore
+    #4 transferring context: 2B done
+    #4 DONE 0.1s
+  
+    #5 [internal] load build context
+    #5 transferring context: 5.79kB 0.0s done
+    #5 DONE 0.3s
+  
+    #6 [stage-1 1/4] FROM docker.io/library/alpine:3.19@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
+    #6 resolve docker.io/library/alpine:3.19@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
+    #6 resolve docker.io/library/alpine:3.19@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1 0.7s done
+    #6 DONE 0.7s
+  
+    #7 [goose-builder 1/2] FROM docker.io/library/golang:1.26@sha256:b900de91b15b2e2953d930ece1d0ecff0a1590ab2006088d20dcf0f56f1e979f
+    #7 resolve docker.io/library/golang:1.26@sha256:b900de91b15b2e2953d930ece1d0ecff0a1590ab2006088d20dcf0f56f1e979f 0.7s done
+    #7 DONE 0.7s
+  
+    #8 [stage-1 2/4] RUN apk add --no-cache ca-certificates
+    #8 CACHED
+  
+    #9 [goose-builder 2/2] RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.27.1
+    #9 CACHED
+  
+    #10 [stage-1 3/4] COPY --from=goose-builder /go/bin/goose /usr/local/bin/goose
+    #10 CACHED
+  
+    #11 [stage-1 4/4] COPY migrations /migrations
+    #11 CACHED
+  
+    #12 exporting to docker image format
+    #12 exporting layers done
+    #12 exporting manifest sha256:dce1de0f7d86f578583ae501b0e7cd22ccc8929a45d21fd505b1169dfc0c4244 0.1s done
+    #12 exporting config sha256:5d52c643c35c116fea4e3d76dfc7fd91f86630fa247b82b36ceb663542c3ae6a 0.1s done
+    #12 sending tarball
+    #12 sending tarball 2.0s done
+    #12 DONE 2.2s
+  stderr_lines: <omitted>
+  stdout: |-
+    unpacking registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d (sha256:dce1de0f7d86f578583ae501b0e7cd22ccc8929a45d21fd505b1169dfc0c4244)...
+    Loaded image: registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Verify web image exists] *****************************
+ok: [cp1] => changed=false 
+  cmd: |-
+    ctr -n k8s.io images check "name==registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d" | grep "registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d"
+  delta: '0:00:00.032646'
+  end: '2026-07-08 04:20:33.944463'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:33.911817'
+  stderr: ''
+  stderr_lines: <omitted>
+  stdout: registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-web:30d528d application/vnd.oci.image.manifest.v1+json sha256:04216061a2dd984fb553d23ea8454e60c7338fcc1083fd9b426fb5f6c25ef660 complete (6/6) 20.7 MiB/20.7 MiB true
+  stdout_lines: <omitted>
+
+TASK [fantasy-frc-build : Verify migrations image exists] **********************
+ok: [cp1] => changed=false 
+  cmd: |-
+    ctr -n k8s.io images check "name==registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d" | grep "registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d"
+  delta: '0:00:00.018699'
+  end: '2026-07-08 04:20:34.230478'
+  msg: ''
+  rc: 0
+  start: '2026-07-08 04:20:34.211779'
+  stderr: ''
+  stderr_lines: <omitted>
+  stdout: registry.fantasy-frc.svc.cluster.local:5000/fantasy-frc-migrations:30d528d application/vnd.oci.image.manifest.v1+json sha256:dce1de0f7d86f578583ae501b0e7cd22ccc8929a45d21fd505b1169dfc0c4244 complete (5/5) 28.3 MiB/28.3 MiB true
+  stdout_lines: <omitted>
+
+PLAY RECAP *********************************************************************
+cp1                        : ok=10   changed=2    unreachable=0    failed=0    skipped=3    rescued=0    ignored=0   
+

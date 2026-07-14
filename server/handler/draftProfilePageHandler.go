@@ -6,6 +6,7 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/types"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
@@ -42,7 +43,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
-	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
+	draftView := draftView.DraftProfile("Draft Profile", true, username, draftIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
 	if err := Render(c, draftView); err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Profile Failed To Render", "draftId", draftId, "error", err)
 		return err

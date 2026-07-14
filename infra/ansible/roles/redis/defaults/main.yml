@@ -1,0 +1,8 @@
+---
+redis_namespace: fantasy-frc
+redis_storage_class: "{{ storage_class | default('longhorn') }}"
+redis_storage_size: 2Gi
+redis_memory_request: 64Mi
+redis_memory_limit: 256Mi
+redis_cpu_request: 50m
+redis_cpu_limit: 250m

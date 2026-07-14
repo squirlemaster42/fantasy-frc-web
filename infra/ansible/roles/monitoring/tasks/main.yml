@@ -1,0 +1,70 @@
+---
+- name: Add Helm repositories
+  shell: |
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
+    helm repo add grafana https://grafana.github.io/helm-charts 2>/dev/null || true
+    helm repo update
+
+- name: Ensure monitoring namespace exists
+  shell: |
+    kubectl create namespace {{ monitoring_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: Generate Grafana admin password
+  set_fact:
+    grafana_admin_password: "{{ lookup('password', '/dev/null length=24') }}"
+  when: grafana_admin_password is not defined
+
+- name: Save Grafana admin password locally
+  copy:
+    content: "{{ grafana_admin_password }}"
+    dest: "/home/{{ regular_user }}/fantasy-frc-web/infra/k8s/monitoring/grafana-admin-password.txt"
+    mode: '0600'
+
+- name: Render kube-prometheus-stack values
+  template:
+    src: kube-prometheus-stack-values.yaml.j2
+    dest: /tmp/kube-prometheus-stack-values.yaml
+    mode: '0644'
+
+- name: Install kube-prometheus-stack
+  shell: |
+    helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+      --namespace {{ monitoring_namespace }} \
+      --version {{ kube_prometheus_stack_chart_version }} \
+      --values /tmp/kube-prometheus-stack-values.yaml \
+      --wait \
+      --timeout 10m
+
+- name: Render Loki values
+  template:
+    src: loki-values.yaml.j2
+    dest: /tmp/loki-values.yaml
+    mode: '0644'
+
+- name: Install Loki
+  shell: |
+    helm upgrade --install loki grafana/loki \
+      --namespace {{ monitoring_namespace }} \
+      --version {{ loki_chart_version }} \
+      --values /tmp/loki-values.yaml \
+      --wait \
+      --timeout 10m
+
+- name: Render Tempo values
+  template:
+    src: tempo-values.yaml.j2
+    dest: /tmp/tempo-values.yaml
+    mode: '0644'
+
+- name: Install Tempo
+  shell: |
+    helm upgrade --install tempo grafana/tempo \
+      --namespace {{ monitoring_namespace }} \
+      --version {{ tempo_chart_version }} \
+      --values /tmp/tempo-values.yaml \
+      --wait \
+      --timeout 10m
+
+- name: Install Promtail
+  shell: |
+    kubectl apply -f /home/{{ regular_user }}/fantasy-frc-web/infra/k8s/monitoring/promtail.yaml

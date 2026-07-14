@@ -1,6 +1,6 @@
 # System Overview
 
-High-level architecture of the Fantasy FRC web application.
+High-level architecture of the Fantasy FRC web application
 
 ## 🏗️ Architecture Components
 

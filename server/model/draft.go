@@ -306,7 +306,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			err = playerRows.Scan(&userUuid, &username, &accepted)
 			if err != nil {
-				playerRows.Close()
+				_ = playerRows.Close()
 				return nil, err
 			}
 			draftPlayer := DraftPlayer{
@@ -319,7 +319,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			draftModel.Players = append(draftModel.Players, draftPlayer)
 		}
-		playerRows.Close()
+		_ = playerRows.Close()
 
 		drafts = append(drafts, draftModel)
 	}
@@ -386,12 +386,13 @@ func updateDraftStatus(ctx context.Context, database *sql.DB, draftId int, statu
 
 func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
 	log.Debug(ctx, "model.GetDraft: starting", "draftId", draftId)
-	query := `Select
+    query := `Select
         DisplayName,
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
         OwnerUserUuid,
-		COALESCE(DiscordWebhook, '')
+		COALESCE(DiscordWebhook, ''),
+        COALESCE(EXTRACT(EPOCH FROM Interval)::int, 0) As Interval
     From Drafts Where Id = $1;`
 
 	assert := assert.CreateAssertWithContext("Get Draft")
@@ -415,6 +416,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		&draftModel.Status,
 		&ownerId,
 		&draftModel.DiscordWebhook,
+		&draftModel.Interval,
 	)
 	log.Debug(ctx, "model.GetDraft: query completed", "draftId", draftId)
 	if err != nil {
@@ -595,7 +597,7 @@ func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 
 func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error {
 	log.Debug(ctx, "model.UpdateDraft: starting", "draftId", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, Interval = $3, DiscordWebhook = $4 Where Id = $5;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, Interval = make_interval(secs => $3), DiscordWebhook = $4 Where Id = $5;`
 	assert := assert.CreateAssertWithContext("Update Draft")
 	assert.AddContext("Display Name", draft.DisplayName)
 	assert.AddContext("Interval", draft.Interval)
@@ -908,7 +910,7 @@ func getOutstandingInvitesForDraft(ctx context.Context, database *sql.DB, draftI
 
 func getPicks(ctx context.Context, database *sql.DB, draftId int) ([]Pick, error) {
 	query := `SELECT
-        Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime
+        Picks.id, Picks.player, Picks.pick, Picks.pickTime, Picks.ExpirationTime, Picks.Skipped
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
@@ -934,7 +936,7 @@ func getPicks(ctx context.Context, database *sql.DB, draftId int) ([]Pick, error
 	var picks []Pick
 	for rows.Next() {
 		pick := Pick{}
-		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime)
+		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime, &pick.Skipped)
 
 		if err != nil {
 			return nil, err

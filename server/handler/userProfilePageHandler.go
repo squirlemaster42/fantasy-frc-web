@@ -29,7 +29,7 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 	}
 
 	userProfileIndex := userprofile.UserProfileIndex(username, discordId, "", "", h.csrfToken(c), h.MinPasswordLength)
-	userProfile := userprofile.UserProfile(" | User Profile", true, username, userProfileIndex)
+	userProfile := userprofile.UserProfile("User Profile", true, username, userProfileIndex)
 	if err := Render(c, userProfile); err != nil {
 		log.Error(c.Request().Context(), "Handle View User Profile Failed To Render", "error", err)
 		return err
