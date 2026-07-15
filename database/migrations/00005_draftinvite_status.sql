@@ -1,3 +1,5 @@
+-- +goose Up
+-- Add invite status field
 CREATE TYPE inviteStatus AS ENUM ('pending', 'accepted', 'declined', 'canceled');
 
 ALTER TABLE DraftInvites ADD COLUMN Status inviteStatus;
@@ -10,6 +12,9 @@ END;
 
 ALTER TABLE DraftInvites
     ALTER COLUMN Status SET NOT NULL;
+
+-- +goose Down
+-- Drop old columns
 
 ALTER TABLE DraftInvites
     DROP COLUMN Accepted,

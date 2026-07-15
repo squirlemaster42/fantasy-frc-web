@@ -358,7 +358,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
                         SELECT
                         USERS.UserUuid AS UserUuid,
                         USERS.USERNAME,
-                        't' AS ACCEPTED,
+                        'accepted' AS Status,
                         DRAFTPLAYERS.PLAYERORDER,
                         DraftPlayers.Id As PlayerId
                         FROM USERS
@@ -368,16 +368,13 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
                         SELECT
                         USERS.USERUUID AS USERID,
                         USERS.USERNAME,
-                        DRAFTINVITES.ACCEPTED AS ACCEPTED,
+                        DRAFTINVITES.STATUS AS STATUS,
                         -1 AS PLAYERORDER,
                         -1 As PlayerId
                         FROM USERS
                         INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
                         WHERE DRAFTINVITES.DRAFTID = $1
-                        	AND (
-                        	    DRAFTINVITES.CANCELED = 'f'
-                        	    OR DRAFTINVITES.CANCELED IS NULL
-                        	)
+                        	AND DRAFTINVITES.Status != 'canceled'
                     ) U
                 )`
 

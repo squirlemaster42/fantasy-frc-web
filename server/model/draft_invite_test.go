@@ -15,7 +15,7 @@ func TestCancelInvite_Success(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 
-	mock.ExpectPrepare(`Update DraftInvites Set Canceled = true Where Id = \$1;`).
+	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
 		ExpectExec().
 		WithArgs(42).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -30,7 +30,7 @@ func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 
-	mock.ExpectPrepare(`Update DraftInvites Set Canceled = true Where Id = \$1;`).
+	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
 		ExpectExec().
 		WithArgs(99).
 		WillReturnError(sql.ErrConnDone)
@@ -52,7 +52,7 @@ func TestUninvitePlayer_Success(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows([]string{"OwnerUserUuid"}).AddRow(ownerUuid.String()))
 
-	mock.ExpectPrepare(`Update DraftInvites Set Canceled = true Where Id = \$1 And DraftId = \$2;`).
+	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1 And DraftId = \$2;`).
 		ExpectExec().
 		WithArgs(10, 1).
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -93,7 +93,7 @@ func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows([]string{"OwnerUserUuid"}).AddRow(ownerUuid.String()))
 
-	mock.ExpectPrepare(`Update DraftInvites Set Canceled = true Where Id = \$1 And DraftId = \$2;`).
+	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1 And DraftId = \$2;`).
 		ExpectExec().
 		WithArgs(99, 1).
 		WillReturnResult(sqlmock.NewResult(0, 0))
@@ -113,7 +113,7 @@ func TestGetOutstandingInvitesForDraft(t *testing.T) {
 		AddRow(1, "player1", "550e8400-e29b-41d4-a716-446655440000").
 		AddRow(2, "player2", "550e8400-e29b-41d4-a716-446655440001")
 
-	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.DraftId = \$1(.+)And di.Accepted = false(.+)And COALESCE\(di.Canceled, false\) = false;`).
+	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.DraftId = \$1(.+)And di.Status = 'pending';`).
 		ExpectQuery().
 		WithArgs(1).
 		WillReturnRows(rows)
@@ -133,7 +133,7 @@ func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "InvitedUserUuid"})
 
-	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.DraftId = \$1(.+)And di.Accepted = false(.+)And COALESCE\(di.Canceled, false\) = false;`).
+	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.DraftId = \$1(.+)And di.Status = 'pending';`).
 		ExpectQuery().
 		WithArgs(1).
 		WillReturnRows(rows)
@@ -149,7 +149,7 @@ func TestGetInvite_ExcludesCanceled(t *testing.T) {
 	assert.NoError(t, err)
 	defer db.Close()
 
-	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.Id = \$1(.+)And COALESCE\(di.Canceled, false\) = false;`).
+	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.Id = \$1(.+)And di.Status != 'canceled';`).
 		ExpectQuery().
 		WithArgs(42).
 		WillReturnError(sql.ErrNoRows)
@@ -169,7 +169,7 @@ func TestGetInvites_ExcludesCanceled(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"Id", "username", "DisplayName"}).
 		AddRow(1, "inviter", "Test Draft")
 
-	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.InvitedUserUuid = \$1(.+)And di.Accepted = false(.+)And COALESCE\(di.Canceled, false\) = false;`).
+	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.InvitedUserUuid = \$1(.+)And di.Status = 'pending';`).
 		ExpectQuery().
 		WithArgs("550e8400-e29b-41d4-a716-446655440000").
 		WillReturnRows(rows)

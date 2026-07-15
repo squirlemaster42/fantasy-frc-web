@@ -152,8 +152,8 @@ func TestCancelOutstandingInvites_Integration(t *testing.T) {
 	err = store.CancelOutstandingInvites(ctx, draft.Id)
 	require.NoError(t, err)
 
-	var canceled bool
-	err = db.QueryRowContext(ctx, "SELECT COALESCE(Canceled, false) FROM DraftInvites WHERE Id = $1", inviteId).Scan(&canceled)
+	var status string
+	err = db.QueryRowContext(ctx, "SELECT Status FROM DraftInvites WHERE Id = $1", inviteId).Scan(&status)
 	require.NoError(t, err)
-	assert.True(t, canceled)
+	assert.Equal(t, "canceled", status)
 }

@@ -36,7 +36,7 @@ type DraftModel struct {
 	Players        []DraftPlayer
 	NextPick       DraftPlayer
 	CurrentPick    Pick
-	Picks 		   []Pick
+	Picks          []Pick
 }
 
 func (d *DraftModel) String() string {
@@ -107,6 +107,15 @@ func (p *Pick) String() string {
 		p.Id, p.Player, pickStr, pickTimeStr, p.Skipped, p.AvailableTime.String(), p.ExpirationTime.String(), p.Score)
 }
 
+type InviteStatus string
+
+const (
+	Pending  InviteStatus = "pending"
+	Accepted InviteStatus = "accepted"
+	Canceled InviteStatus = "canceled"
+	Declined InviteStatus = "declined"
+)
+
 type DraftInvite struct {
 	Id                 int
 	DraftId            int //Draft
@@ -117,12 +126,12 @@ type DraftInvite struct {
 	InvitedPlayerName  string
 	SentTime           time.Time
 	AcceptedTime       time.Time
-	Accepted           bool
+	Status             InviteStatus
 }
 
 func (d *DraftInvite) String() string {
-	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Accepted: %t\n DraftName: %s\n InvitingPlayerName: %s\n InvitedPlayerName: %s\n}",
-		d.Id, d.DraftId, d.InvitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Accepted, d.DraftName, d.InvitingPlayerName, d.InvitedPlayerName)
+	return fmt.Sprintf("DraftInvite: {\nId: %d\n DraftId: %d\n InvitingUserUuid: %s\n InvitedUserUuid: %s\n SentTime: %s\n AcceptedTime: %s\n Status: %s\n DraftName: %s\n InvitingPlayerName: %s\n InvitedPlayerName: %s\n}",
+		d.Id, d.DraftId, d.InvitingUserUuid.String(), d.InvitedUserUuid.String(), d.SentTime.String(), d.AcceptedTime.String(), d.Status, d.DraftName, d.InvitingPlayerName, d.InvitedPlayerName)
 }
 
 func getDraftsByName(ctx context.Context, database *sql.DB, searchString string) ([]DraftModel, error) {
@@ -179,7 +188,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
         displayName,
         owners.UserUuid As ownerId,
         owners.Username As OwnerUsername,
-        COALESCE(status, '0') As Status
+        COALESCE(Drafts.Status, '0') As Status
     From Drafts
     Left Join DraftPlayers On DraftPlayers.DraftId = Drafts.Id
     Left Join DraftInvites On DraftInvites.DraftId = Drafts.Id And Drafts.Status = $1
@@ -217,29 +226,27 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 	playerQuery := `SELECT
 	                    UserUuid,
 	                    USERNAME,
-	                    BOOL_OR(ACCEPTED) AS ACCEPTED
+	                    BOOL_OR(Status = 'accepted') AS ACCEPTED
                     FROM (
-	                    SELECT
-		                    USERS.UserUuid AS UserUuid,
-		                    USERS.USERNAME,
-		                    't' AS ACCEPTED,
-							'f' AS CANCELED,
-		                    DRAFTPLAYERS.PLAYERORDER,
-		                    DraftPlayers.Id As PlayerId
-	                    FROM USERS
-	                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
-	                    WHERE DRAFTPLAYERS.DRAFTID = $1
-	                    UNION
-	                    SELECT
-		                    USERS.UserUuid AS UserUuid,
-		                    USERS.USERNAME,
-		                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
-							DRAFTINVITES.CANCELED AS CANCELED,
-		                    -1 AS PLAYERORDER,
-		                    -1 As PlayerId
-	                    FROM USERS
-	                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-	                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(CANCELED, FALSE) = FALSE
+                    SELECT
+	                    USERS.UserUuid AS UserUuid,
+	                    USERS.USERNAME,
+	                    'accepted' AS Status,
+	                    DRAFTPLAYERS.PLAYERORDER,
+	                    DraftPlayers.Id As PlayerId
+                    FROM USERS
+                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
+                    WHERE DRAFTPLAYERS.DRAFTID = $1
+                    UNION
+                    SELECT
+	                    USERS.UserUuid AS UserUuid,
+	                    USERS.USERNAME,
+	                    DRAFTINVITES.Status AS Status,
+	                    -1 AS PLAYERORDER,
+	                    -1 As PlayerId
+                    FROM USERS
+                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
+                    WHERE DRAFTINVITES.DRAFTID = $1 AND DRAFTINVITES.Status != 'canceled'
                     ) U
                     GROUP BY UserUuid, USERNAME
                     ORDER BY MAX(PLAYERORDER);`
@@ -386,7 +393,7 @@ func updateDraftStatus(ctx context.Context, database *sql.DB, draftId int, statu
 
 func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
 	log.Debug(ctx, "model.GetDraft: starting", "draftId", draftId)
-    query := `Select
+	query := `Select
         DisplayName,
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
@@ -429,8 +436,8 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	if err != nil {
 		log.Error(ctx, "Failed to get current pick for draft", "draftId", draftId, "error", err)
 	} else {
-        draftModel.CurrentPick = currentPick
-    }
+		draftModel.CurrentPick = currentPick
+	}
 
 	picks, err := getPicks(ctx, database, draftId)
 	if err != nil {
@@ -442,7 +449,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	playerQuery := `SELECT
                         UserUuid,
 	                    USERNAME,
-	                    BOOL_OR(ACCEPTED) AS ACCEPTED,
+	                    BOOL_OR(Status = 'accepted') AS ACCEPTED,
 	                    MAX(PLAYERORDER) AS PLAYERORDER,
 	                    Max(PlayerId) As PlayerId,
 	                    MAX(InviteId) As InviteId
@@ -450,7 +457,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		                    SELECT
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
-			                    't' AS ACCEPTED,
+			                    'accepted' AS Status,
 			                    COALESCE(DRAFTPLAYERS.PLAYERORDER, -1) As PLAYERORDER,
 			                    DraftPlayers.Id As PlayerId,
 			                    -1 As InviteId
@@ -461,13 +468,13 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		                    SELECT
 			                    USERS.UserUuid AS UserUuid,
 			                    USERS.USERNAME,
-			                    DRAFTINVITES.ACCEPTED AS ACCEPTED,
+			                    DRAFTINVITES.Status AS Status,
 			                    -1 AS PLAYERORDER,
 			                    -1 As PlayerId,
 			                    DraftInvites.Id As InviteId
 		                    FROM USERS
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-		                    WHERE DRAFTINVITES.DRAFTID = $1 AND COALESCE(DRAFTINVITES.CANCELED, FALSE) = FALSE
+		                    WHERE DRAFTINVITES.DRAFTID = $1 AND DRAFTINVITES.Status != 'canceled'
 	                    ) U
                     GROUP BY UserUuid, USERNAME
                     ORDER BY PLAYERORDER;`
@@ -621,7 +628,7 @@ func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error
 func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
 	assert := assert.CreateAssertWithContext("Invite Player")
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
-    sentTime, accepted) Values ($1, $2, $3, $4, $5) RETURNING Id;`
+    sentTime, Status) Values ($1, $2, $3, $4, $5) RETURNING Id;`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
@@ -631,7 +638,7 @@ func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 	}()
 
 	var inviteId int
-	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), false).Scan(&inviteId)
+	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), "pending").Scan(&inviteId)
 	if err != nil {
 		return -1, err
 	}
@@ -641,7 +648,7 @@ func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 
 // Returns draftId, UserUuid, error
 func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uuid.UUID, error) {
-	query := `UPDATE DraftInvites Set accepted = $1, acceptedTime = $2 where id = $3;`
+	query := `UPDATE DraftInvites Set Status = 'accepted', acceptedTime = $1 where id = $2;`
 	assert := assert.CreateAssertWithContext("Accept Invite")
 	assert.AddContext("Invite Id", inviteId)
 	stmt, err := database.PrepareContext(ctx, query)
@@ -651,7 +658,7 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 			log.Error(ctx, "AcceptInvite: Failed to close statement", "error", err)
 		}
 	}()
-	_, err = stmt.ExecContext(ctx, true, time.Now().UTC(), inviteId)
+	_, err = stmt.ExecContext(ctx, time.Now().UTC(), inviteId)
 	if err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to accept invite: %w", err)
 	}
@@ -695,7 +702,7 @@ func addPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player u
 }
 
 func cancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int) error {
-	query := `Update DraftInvites Set Canceled = true Where DraftId = $1 and Accepted = false;`
+	query := `Update DraftInvites Set Status = 'canceled' Where DraftId = $1 and Status = 'pending';`
 	assert := assert.CreateAssertWithContext("Cancel Outstanding Invites")
 	assert.AddContext("draftId", draftId)
 
@@ -729,7 +736,7 @@ func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1
-        And COALESCE(di.Canceled, false) = false;`
+        And di.Status != 'canceled';`
 	stmt, err := database.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "Failed to prepare statement")
 	defer func() {
@@ -760,8 +767,7 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
         Inner Join Drafts d On di.DraftId = d.Id
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.InvitedUserUuid = $1
-        And di.Accepted = false
-        And COALESCE(di.Canceled, false) = false;`
+        And di.Status = 'pending';`
 	assert := assert.CreateAssertWithContext("Get Invites")
 	assert.AddContext("userUuid", userUuid)
 	stmt, err := database.PrepareContext(ctx, query)
@@ -797,7 +803,7 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
 }
 
 func cancelInvite(ctx context.Context, database *sql.DB, inviteId int) error {
-	query := `Update DraftInvites Set Canceled = true Where Id = $1;`
+	query := `Update DraftInvites Set Status = 'canceled' Where Id = $1;`
 	assert := assert.CreateAssertWithContext("Cancel Invite")
 	assert.AddContext("inviteId", inviteId)
 
@@ -836,7 +842,7 @@ func uninvitePlayer(ctx context.Context, database *sql.DB, draftId int, ownerUui
 		return fmt.Errorf("user %s is not the owner of draft %d", ownerUuid, draftId)
 	}
 
-	query := `Update DraftInvites Set Canceled = true Where Id = $1 And DraftId = $2;`
+	query := `Update DraftInvites Set Status = 'canceled' Where Id = $1 And DraftId = $2;`
 	stmt, err := database.PrepareContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
@@ -872,8 +878,7 @@ func getOutstandingInvitesForDraft(ctx context.Context, database *sql.DB, draftI
 	From DraftInvites di
 	Inner Join Users u On di.InvitedUserUuid = u.UserUuid
 	Where di.DraftId = $1
-	And di.Accepted = false
-	And COALESCE(di.Canceled, false) = false;`
+	And di.Status = 'pending';`
 
 	stmt, err := database.PrepareContext(ctx, query)
 	if err != nil {
