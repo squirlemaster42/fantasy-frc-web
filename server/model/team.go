@@ -37,10 +37,10 @@ func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	team := Team{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("failed to get team: %w", err)
-	}
-	if team.TbaId == "" {
-		return nil, nil
 	}
 	return &team, nil
 }
