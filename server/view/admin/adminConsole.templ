@@ -11,7 +11,7 @@ templ AdminConsoleIndex(username string, csrfToken string) {
                 <!-- Previous command outputs will be appended here -->
         </div>
         <div class="flex items-center">
-            <span class="text-green-400">{fmt.Sprintf("%s@webapp~$", username)}</span>
+            <span class="text-success">{fmt.Sprintf("%s@webapp~$", username)}</span>
             <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
                 aria-label="Command input"
                 hx-on::after-request="document.getElementById('commandInput').value = ''"
@@ -30,12 +30,12 @@ templ AdminConsole(page string, fromProtected bool, username string, cmp templ.C
 
 templ RenderCommand(username string, command string, response string) {
     <p>
-        <span class="text-green-400">{fmt.Sprintf("%s@webapp~$", username)}</span>
-        <span class="text-gray-50">{command}</span>
+        <span class="text-success">{fmt.Sprintf("%s@webapp~$", username)}</span>
+        <span class="text-base-content">{command}</span>
     </p>
     if len(response) > 0 {
         <p>
-            <span style="white-space: pre-line;" class="text-gray-50">{response}</span>
+            <span style="white-space: pre-line;" class="text-base-content">{response}</span>
         </p>
     }
 }

@@ -9,10 +9,10 @@ templ Forbidden403(page string, fromProtected bool, username string, data types.
 	@view.Index(page, fromProtected, username, data) {
 		<section class="flex flex-col items-center justify-center min-h-[80vh] gap-6 px-4">
 			<div class="items-center justify-center flex flex-col gap-4">
-				<h1 class="text-9xl font-extrabold text-slate-700 tracking-widest">403</h1>
-				<h2 class="bg-amber-600 text-white px-3 py-1 text-sm rounded-lg rotate-12 absolute shadow-lg">Access denied</h2>
+				<h1 class="text-9xl font-extrabold text-base-content/20 tracking-widest">403</h1>
+				<h2 class="bg-warning text-warning-content px-3 py-1 text-sm rounded-lg rotate-12 absolute shadow-lg">Access denied</h2>
 			</div>
-			<p class="text-sm text-center md:text-base text-slate-400 max-w-md">
+			<p class="text-sm text-center md:text-base text-base-content/70 max-w-md">
 				You don't have permission to access this page. If you believe this is a mistake, please contact support.
 			</p>
 			if fromProtected {
