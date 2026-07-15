@@ -29,14 +29,23 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                     </a>
                 </div>
 
-                <div class="flex-shrink-0">
-                    <p class="w-full bg-transparent text-3xl md:text-4xl font-bold text-blue-400 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-3 py-2">
-                        if data.DraftName == "" || data.DraftId == -1 {
+                <div class="flex items-center justify-center min-w-0 max-w-[45vw] sm:max-w-[55vw] md:max-w-[65vw] lg:max-w-[75vw]">
+                    if data.DraftName == "" || data.DraftId == -1 {
+                        <span class="text-3xl md:text-4xl font-bold text-blue-400 px-3 py-2">
                             { page }
-                        } else {
-                            { data.DraftName } | { page }
-                        }
-                    </p>
+                        </span>
+                    } else {
+                        <span
+                            class="text-3xl md:text-4xl font-bold text-blue-400 truncate px-3 py-2 flex-1 min-w-0"
+                            title={ data.DraftName }
+                        >
+                            { data.DraftName }
+                        </span>
+                        <span class="text-3xl md:text-4xl font-bold text-blue-400 px-1 py-2 flex-shrink-0">|</span>
+                        <span class="text-3xl md:text-4xl font-bold text-blue-400 px-3 py-2 flex-shrink-0">
+                            { page }
+                        </span>
+                    }
                 </div>
 
                 <!-- User Actions -->
