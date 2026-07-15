@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fantasy-frc-web
+  namespace: {{ fantasy_frc_namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fantasy-frc-web
