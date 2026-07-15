@@ -657,29 +657,17 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
 	if err != nil {
 		log.Warn(ctx, "Could not get current pick draft player id", "draftPlayerId", msg.Pick.Player, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
 	}
 
 	currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
 	if err != nil {
 		log.Warn(ctx, "Could not get current pick draft player name", "draftPlayerId", msg.Pick.Player, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
 	}
 	currPickName := currPickUser.Username
 
 	draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
 	if err != nil {
-		log.Error(ctx, "Could not get draft webhook", "draftId", d.draftState.Id, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
+		log.Warn(ctx, "Could not get draft webhook", "draftId", d.draftState.Id, "error", err)
 	}
 
 	event := discord.NextPickDiscordEvent{
@@ -694,19 +682,11 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		nextPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
 		if err != nil {
 			log.Warn(ctx, "Could not get next pick draft player id", "draftPlayerId", nextPickPlayer.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
 		}
 
 		nextPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
 		if err != nil {
 			log.Warn(ctx, "Could not get next pick draft player name", "draftPlayerId", nextPickPlayer.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
 		}
 		nextPickName := nextPickUser.Username
 
