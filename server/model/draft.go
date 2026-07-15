@@ -107,15 +107,6 @@ func (p *Pick) String() string {
 		p.Id, p.Player, pickStr, pickTimeStr, p.Skipped, p.AvailableTime.String(), p.ExpirationTime.String(), p.Score)
 }
 
-type InviteStatus string
-
-const (
-	Pending  InviteStatus = "pending"
-	Accepted InviteStatus = "accepted"
-	Canceled InviteStatus = "canceled"
-	Declined InviteStatus = "declined"
-)
-
 type DraftInvite struct {
 	Id                 int
 	DraftId            int //Draft
@@ -126,7 +117,7 @@ type DraftInvite struct {
 	InvitedPlayerName  string
 	SentTime           time.Time
 	AcceptedTime       time.Time
-	Status             InviteStatus
+	Status             string
 }
 
 func (d *DraftInvite) String() string {
