@@ -182,7 +182,7 @@ func isPickingPlayer(user *User, draftId int) bool {
 	}
 	defer resp.Body.Close()
 
-	return strings.Contains(string(body), `name="pickInput"`)
+	return strings.Contains(string(body), `name="pickInput"`) && !strings.Contains(string(body), `disabled name="pickInput"`)
 }
 
 // TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
