@@ -1,34 +1,34 @@
 [
-    {
-        "Username": "TestUser1",
-        "Password": "TestPass1"
-    },
-    {
-        "Username": "TestUser2",
-        "Password": "TestPass2"
-    },
-    {
-        "Username": "TestUser3",
-        "Password": "TestPass3"
-    },
-    {
-        "Username": "TestUser4",
-        "Password": "TestPass4"
-    },
-    {
-        "Username": "TestUser5",
-        "Password": "TestPass5"
-    },
-    {
-        "Username": "TestUser6",
-        "Password": "TestPass6"
-    },
-    {
-        "Username": "TestUser7",
-        "Password": "TestPass7"
-    },
-    {
-        "Username": "TestUser8",
-        "Password": "TestPass8"
-    }
+  {
+    "Username": "UserOne",
+    "Password": "UserOne"
+  },
+  {
+    "Username": "UserTwo",
+    "Password": "UserTwo"
+  },
+  {
+    "Username": "UserThree",
+    "Password": "UserThree"
+  },
+  {
+    "Username": "UserFour",
+    "Password": "UserFour"
+  },
+  {
+    "Username": "UserFive",
+    "Password": "UserFive"
+  },
+  {
+    "Username": "UserSix",
+    "Password": "UserSix"
+  },
+  {
+    "Username": "UserSeven",
+    "Password": "UserSeven"
+  },
+  {
+    "Username": "UserEight",
+    "Password": "UserEight"
+  }
 ]
