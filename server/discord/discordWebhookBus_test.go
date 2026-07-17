@@ -289,3 +289,88 @@ func TestPostPickNotification_ConsecutivePicksMessage(t *testing.T) {
 		t.Fatal("expected webhook to be received")
 	}
 }
+
+func TestPostPickNotification_SkipDifferentPlayers(t *testing.T) {
+	received := make(chan DiscordWebhook, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+
+		var webhook DiscordWebhook
+		err = json.Unmarshal(body, &webhook)
+		assert.NoError(t, err)
+
+		received <- webhook
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	bus := NewBus()
+	defer bus.Stop()
+
+	event := NextPickDiscordEvent{
+		PreviousPickName:      "Charlie",
+		PreviousPickDiscordId: sql.NullString{String: "12345678901234567", Valid: true},
+		NextPickName:          "David",
+		NextPickDiscordId:     sql.NullString{String: "98765432109876543", Valid: true},
+		Webhook:               server.URL,
+		ExpirationTime:        time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		Skipped:               true,
+	}
+
+	err := bus.PostPickNotification(event)
+	assert.NoError(t, err)
+
+	select {
+	case webhook := <-received:
+		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.Contains(t, webhook.Content, "<@98765432109876543>")
+		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "it is now your pick")
+		assert.Equal(t, []string{"98765432109876543"}, webhook.AllowedMentions.Users)
+	case <-time.After(time.Second):
+		t.Fatal("expected webhook to be received")
+	}
+}
+
+func TestPostPickNotification_SkipSamePlayer(t *testing.T) {
+	received := make(chan DiscordWebhook, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+
+		var webhook DiscordWebhook
+		err = json.Unmarshal(body, &webhook)
+		assert.NoError(t, err)
+
+		received <- webhook
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	bus := NewBus()
+	defer bus.Stop()
+
+	event := NextPickDiscordEvent{
+		PreviousPickName:      "Charlie",
+		PreviousPickDiscordId: sql.NullString{String: "12345678901234567", Valid: true},
+		NextPickName:          "Charlie",
+		NextPickDiscordId:     sql.NullString{String: "12345678901234567", Valid: true},
+		Webhook:               server.URL,
+		ExpirationTime:        time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		Skipped:               true,
+	}
+
+	err := bus.PostPickNotification(event)
+	assert.NoError(t, err)
+
+	select {
+	case webhook := <-received:
+		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "it is your turn again")
+		assert.Equal(t, []string{"12345678901234567"}, webhook.AllowedMentions.Users)
+	case <-time.After(time.Second):
+		t.Fatal("expected webhook to be received")
+	}
+}

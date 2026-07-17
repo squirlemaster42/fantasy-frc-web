@@ -1,8 +1,13 @@
 package draft
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -10,10 +15,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"server/discord"
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
 )
+
+type testDiscordStore struct {
+	playerDiscordIds map[int]sql.NullString
+	webhooks         map[int]string
+}
+
+func (t *testDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId int) (sql.NullString, error) {
+	return t.playerDiscordIds[draftPlayerId], nil
+}
+
+func (t *testDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (string, error) {
+	return t.webhooks[draftId], nil
+}
 
 func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
@@ -131,6 +150,93 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	// Give the actor a moment to process the state transition message
 	// it posts internally after the skip.
 	time.Sleep(100 * time.Millisecond)
+
+	mockStore.AssertExpectations(t)
+}
+
+func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
+	received := make(chan discord.DiscordWebhook, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err)
+
+		var webhook discord.DiscordWebhook
+		err = json.Unmarshal(body, &webhook)
+		assert.NoError(t, err)
+
+		received <- webhook
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	mockStore := mocks.NewMockDraftStore(t)
+	discordStore := &testDiscordStore{
+		playerDiscordIds: map[int]sql.NullString{
+			3: {String: "12345678901234567", Valid: true},
+			4: {String: "98765432109876543", Valid: true},
+		},
+		webhooks: map[int]string{
+			1: server.URL,
+		},
+	}
+
+	draftId := 1
+	pickId := 42
+	players := []model.DraftPlayer{
+		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}, User: model.User{Username: "Alice"}},
+		{Id: 2, PlayerOrder: sql.NullInt16{Int16: 1, Valid: true}, User: model.User{Username: "Bob"}},
+		{Id: 3, PlayerOrder: sql.NullInt16{Int16: 2, Valid: true}, User: model.User{Username: "Charlie"}},
+		{Id: 4, PlayerOrder: sql.NullInt16{Int16: 3, Valid: true}, User: model.User{Username: "David"}},
+	}
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId, Player: 3},
+		Picks: []model.Pick{
+			{Id: 1, Player: 1},
+			{Id: 2, Player: 2},
+			{Id: pickId, Player: 3},
+		},
+		Players: players,
+	}, nil).Once()
+	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("GetDraftPlayerUser", mock.Anything, 3).Return(model.User{Username: "Charlie"}, nil).Once()
+	mockStore.On("GetDraftPlayerUser", mock.Anything, 4).Return(model.User{Username: "David"}, nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: 43, Player: 4},
+		Picks: []model.Pick{
+			{Id: 1, Player: 1},
+			{Id: 2, Player: 2},
+			{Id: pickId, Player: 3, Skipped: true},
+		},
+		Players: players,
+	}, nil).Once()
+
+	bus := discord.NewBus()
+	defer bus.Stop()
+
+	actorMap := NewDraftActorMap(mockStore, nil, discordStore, bus, nil)
+
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	assert.True(t, skipped)
+
+	select {
+	case webhook := <-received:
+		assert.Equal(t, "Pick Notifier", webhook.Username)
+		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.Contains(t, webhook.Content, "<@98765432109876543>")
+		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "it is now your pick")
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected discord webhook to be received")
+	}
 
 	mockStore.AssertExpectations(t)
 }
