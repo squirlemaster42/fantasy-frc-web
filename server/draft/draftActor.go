@@ -657,13 +657,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	event, err := d.buildNextPickDiscordEvent(ctx, currentPick.Player, msg.Pick.Pick.String, nextPickPlayer, pickingComplete, false)
 	if err != nil {
 		log.Warn(ctx, "Failed to build pick notification event", "draftId", d.draftState.Id, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
-	}
-
-	if d.discordBus != nil {
+	} else if d.discordBus != nil {
 		go func() {
 			if err := d.discordBus.PostPickNotification(event); err != nil {
 				log.Error(ctx, "Failed to post discord webhook", "error", err)
