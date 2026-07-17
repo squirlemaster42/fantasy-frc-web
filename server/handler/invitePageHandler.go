@@ -31,7 +31,7 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 		return err
 	}
 
-	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage)
+	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
 	if includeWrapper {
 		inviteView := draftView.DraftInvite("Draft Invites", true, username, inviteIndex)
 		if err := Render(c, inviteView); err != nil {
@@ -131,5 +131,5 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
-	return Render(c, draftView.DraftInviteIndex(invites, false, ""))
+	return Render(c, draftView.DraftInviteIndex(invites, false, "", h.csrfToken(c)))
 }

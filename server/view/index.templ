@@ -7,7 +7,7 @@ import (
 
 templ Index(page string, fromProtected bool, username string, data types.PageData) {
     <!DOCTYPE html>
-	<html lang="en" data-theme="dark">
+	<html lang="en" data-theme="fantasy-frc">
         <head>
             <meta charset="UTF-8"/>
 			<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
@@ -24,7 +24,7 @@ templ Index(page string, fromProtected bool, username string, data types.PageDat
 			<script defer src="/js/app.js"></script>
         </head>
         <body
-            class="simple-transition h-screen bg-slate-900"
+            class="simple-transition h-screen bg-base-100"
             hx-boost="true">
 
             @partials.ToastContainer()
@@ -40,13 +40,13 @@ templ Index(page string, fromProtected bool, username string, data types.PageDat
                     <main class="flex-1 overflow-y-auto">
                         {children...}
                     </main>
-                    <footer class="bg-slate-900 border-t border-slate-700 py-4 px-6 flex-shrink-0">
+                    <footer class="bg-base-100 border-t border-base-300 py-4 px-6 flex-shrink-0">
                         <div class="max-w-7xl mx-auto text-center">
-                            <p class="text-sm text-slate-400">
+                            <p class="text-sm text-base-content/70">
                                 Powered by
                                 <a
                                     href="https://www.thebluealliance.com"
-                                    class="text-blue-400 hover:text-blue-300">
+                                    class="text-primary hover:text-primary/80">
                                     The Blue Alliance
                                 </a>
                             </p>

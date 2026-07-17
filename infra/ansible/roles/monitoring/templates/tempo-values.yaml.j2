@@ -29,5 +29,6 @@ resources:
     cpu: 1000m
     memory: 1Gi
 
-service:
-  port: 3200
+# Use the chart default HTTP/query port (3100). The single-binary Tempo chart
+# hardcodes this in the Service and StatefulSet, so setting service.port here
+# has no effect and is misleading.

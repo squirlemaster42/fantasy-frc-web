@@ -6,20 +6,20 @@ import "server/view/partials"
 import "server/types"
 
 templ UserProfileIndex(username string, discordId string, errorMessage string, successMessage string, csrfToken string, minPasswordLength int) {
-    <div class="bg-slate-900 flex items-center justify-center p-4 min-h-screen">
+    <div class="bg-base-100 flex items-center justify-center p-4 min-h-screen">
         <div class="max-w-md w-full" id="profile-box">
             <!-- Profile Card -->
-            <div class="card bg-slate-800 shadow-2xl rounded-2xl border border-slate-700">
+            <div class="card bg-base-200 shadow-2xl rounded-2xl border border-base-300">
                 <div class="card-body p-8">
                     <!-- Header -->
                     <div class="text-center mb-8">
-                        <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-white">
+                        <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-primary-content">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                             </svg>
                         </div>
-                        <h1 class="text-2xl font-bold text-slate-100 mb-2">User Profile</h1>
-                        <p class="text-slate-400 text-sm">Manage your account settings</p>
+                        <h1 class="text-2xl font-bold text-base-content mb-2">User Profile</h1>
+                        <p class="text-base-content/70 text-sm">Manage your account settings</p>
                     </div>
 
                     <!-- Error Message -->
@@ -45,16 +45,16 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 
                         <!-- Username Field (Read-only) -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                            <label class="block text-sm font-medium text-base-content/80 mb-2">Username</label>
                             <div class="relative">
                                 <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-300 cursor-not-allowed opacity-75"
+                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 cursor-not-allowed opacity-75"
                                     type="text"
                                     value={ username }
                                     disabled
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                     </svg>
                                 </div>
@@ -63,17 +63,17 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 
                         <!-- Discord ID Field -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Discord User ID</label>
+                            <label class="block text-sm font-medium text-base-content/80 mb-2">Discord User ID</label>
                             <div class="relative">
                                 <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                     type="text"
                                     name="discordId"
                                     placeholder="Enter your Discord User ID"
                                     value={ discordId }
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
                                     </svg>
                                 </div>
@@ -81,22 +81,22 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
                         </div>
 
                         <!-- Divider -->
-                        <div class="border-t border-slate-600 pt-6">
-                            <h3 class="text-sm font-medium text-slate-300 mb-4">Change Password</h3>
+                        <div class="border-t border-base-300 pt-6">
+                            <h3 class="text-sm font-medium text-base-content/80 mb-4">Change Password</h3>
                         </div>
 
                         <!-- Current Password Field -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Current Password</label>
+                            <label class="block text-sm font-medium text-base-content/80 mb-2">Current Password</label>
                             <div class="relative">
                                 <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                     type="password"
                                     name="currentPassword"
                                     placeholder="Enter current password"
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                     </svg>
                                 </div>
@@ -105,17 +105,17 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 
                         <!-- New Password Field -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">New Password</label>
+                            <label class="block text-sm font-medium text-base-content/80 mb-2">New Password</label>
                             <div class="relative">
                                 <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                     type="password"
                                     name="newPassword"
                                     placeholder="Enter new password"
                                     minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                     </svg>
                                 </div>
@@ -124,17 +124,17 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
 
                         <!-- Confirm New Password Field -->
                         <div>
-                            <label class="block text-sm font-medium text-slate-300 mb-2">Confirm New Password</label>
+                            <label class="block text-sm font-medium text-base-content/80 mb-2">Confirm New Password</label>
                             <div class="relative">
                                 <input
-                                    class="w-full bg-slate-700 border border-slate-600 rounded-lg pl-10 pr-4 py-3 text-slate-100 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                                     type="password"
                                     name="confirmNewPassword"
                                     placeholder="Confirm new password"
                                     minlength={ fmt.Sprintf("%d", minPasswordLength) }
                                 />
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
                                     </svg>
                                 </div>
@@ -146,7 +146,7 @@ templ UserProfileIndex(username string, discordId string, errorMessage string, s
                             <button
                                 type="submit"
                                 hx-disabled-elt="this"
-                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+                                class="w-full btn btn-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
                             >
                                 <span x-show="!loading" class="flex items-center justify-center gap-2">
                                     Save Changes

@@ -193,7 +193,8 @@
       REDIS_AVATAR_DB="2" \
       RATE_LIMIT_POSTS_PER_MINUTE="100" \
       RATE_LIMIT_ENABLED="true" \
-      OTEL_EXPORTER_OTLP_ENDPOINT="http://tempo.monitoring.svc.cluster.local:4318" \
+      OTEL_EXPORTER_OTLP_ENDPOINT="http://alloy.monitoring.svc.cluster.local:4318" \
+      OTEL_EXPORTER_OTLP_TIMEOUT="30000" \
       OTEL_RESOURCE_ATTRIBUTES="service.name=fantasy-frc-web" \
       MIN_PASSWORD_LENGTH="12"
   when:
@@ -222,12 +223,12 @@
   changed_when: false
   when: app_secret_status.stdout == "exists"
 
-- name: Patch OTEL_EXPORTER_OTLP_ENDPOINT if missing
+- name: Patch OTEL_EXPORTER_OTLP_ENDPOINT if missing or pointing at old Tempo endpoint
   shell: |
-    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app OTEL_EXPORTER_OTLP_ENDPOINT="http://tempo.monitoring.svc.cluster.local:4318"
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app OTEL_EXPORTER_OTLP_ENDPOINT="http://alloy.monitoring.svc.cluster.local:4318"
   when:
     - app_secret_status.stdout == "exists"
-    - current_otel_endpoint.stdout | length == 0
+    - current_otel_endpoint.stdout | length == 0 or current_otel_endpoint.stdout == "http://tempo.monitoring.svc.cluster.local:4318"
 
 - name: Read current OTEL_RESOURCE_ATTRIBUTES from Vault
   shell: |
@@ -242,3 +243,17 @@
   when:
     - app_secret_status.stdout == "exists"
     - current_otel_resource_attrs.stdout | length == 0
+
+- name: Read current OTEL_EXPORTER_OTLP_TIMEOUT from Vault
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv get -format=json secret/fantasy-frc/app 2>/dev/null | jq -r '.data.data.OTEL_EXPORTER_OTLP_TIMEOUT // empty'
+  register: current_otel_timeout
+  changed_when: false
+  when: app_secret_status.stdout == "exists"
+
+- name: Patch OTEL_EXPORTER_OTLP_TIMEOUT if missing
+  shell: |
+    kubectl exec vault-0 -n {{ vault_namespace }} -- env VAULT_TOKEN={{ vault_root_token }} vault kv patch secret/fantasy-frc/app OTEL_EXPORTER_OTLP_TIMEOUT="30000"
+  when:
+    - app_secret_status.stdout == "exists"
+    - current_otel_timeout.stdout | length == 0

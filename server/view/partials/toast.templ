@@ -26,10 +26,10 @@ templ ToastContainer() {
                 @transitionend="if (!show) { toasts = toasts.filter(t => t.id !== toast.id) }"
                 class="pointer-events-auto flex items-center justify-between px-4 py-3 rounded-lg shadow-lg border w-full"
                 :class="{
-                    'bg-red-900/90 border-red-700 text-red-100': toast.type === 'error',
-                    'bg-green-900/90 border-green-700 text-green-100': toast.type === 'success',
-                    'bg-amber-900/90 border-amber-700 text-amber-100': toast.type === 'warning',
-                    'bg-blue-900/90 border-blue-700 text-blue-100': toast.type === 'info'
+                    'bg-error/90 border-error text-error-content': toast.type === 'error',
+                    'bg-success/90 border-success text-success-content': toast.type === 'success',
+                    'bg-warning/90 border-warning text-warning-content': toast.type === 'warning',
+                    'bg-info/90 border-info text-info-content': toast.type === 'info'
                 }"
                 role="alert"
             >

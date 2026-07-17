@@ -9,13 +9,13 @@ import (
 func navClass(page string, section string) string {
 	base := "flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
 	if strings.Contains(page, section) {
-		return base + " bg-slate-800 text-blue-400"
+		return base + " bg-base-300 text-primary"
 	}
-	return base + " text-slate-300 hover:text-blue-400 hover:bg-slate-800"
+	return base + " text-base-content/80 hover:text-primary hover:bg-base-300"
 }
 
 templ Navbar(fromProtected bool, username string, page string, data types.PageData) {
-    <nav class="bg-slate-900 border-b border-slate-700 shadow-lg top-0 w-full z-50">
+    <nav class="bg-base-200 border-b border-base-300 shadow-lg top-0 w-full z-50">
         <div class="mx-8 px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Brand -->
@@ -23,33 +23,42 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                     <a
                         hx-swap="transition:true"
                         href="/u/home"
-                        class="flex items-center gap-3 text-slate-100 hover:text-blue-400 transition-colors duration-200 font-bold text-xl"
+                        class="flex items-center gap-3 text-base-content hover:text-primary transition-colors duration-200 font-bold text-xl"
                     >
                         Fantasy FRC
                     </a>
                 </div>
 
-                <div class="flex-shrink-0">
-                    <p class="w-full bg-transparent text-3xl md:text-4xl font-bold text-blue-400 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg px-3 py-2">
-                        if data.DraftName == "" || data.DraftId == -1 {
+                <div class="flex items-center justify-center min-w-0 max-w-[45vw] sm:max-w-[55vw] md:max-w-[65vw] lg:max-w-[75vw]">
+                    if data.DraftName == "" || data.DraftId == -1 {
+                        <span class="text-3xl md:text-4xl font-bold text-primary px-3 py-2">
                             { page }
-                        } else {
-                            { data.DraftName } | { page }
-                        }
-                    </p>
+                        </span>
+                    } else {
+                        <span
+                            class="text-3xl md:text-4xl font-bold text-primary truncate px-3 py-2 flex-1 min-w-0"
+                            title={ data.DraftName }
+                        >
+                            { data.DraftName }
+                        </span>
+                        <span class="text-3xl md:text-4xl font-bold text-primary px-1 py-2 flex-shrink-0">|</span>
+                        <span class="text-3xl md:text-4xl font-bold text-primary px-3 py-2 flex-shrink-0">
+                            { page }
+                        </span>
+                    }
                 </div>
 
                 <!-- User Actions -->
                 <div class="flex items-center space-x-4">
                     if fromProtected {
                         <div class="flex items-center space-x-2">
-                            <a href="/u/userProfile" class="flex items-center space-x-2 hover:bg-slate-800 rounded-lg px-2 py-1 transition-all duration-200">
-                                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-white">
+                            <a href="/u/userProfile" class="flex items-center space-x-2 hover:bg-base-200 rounded-lg px-2 py-1 transition-all duration-200">
+                                <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-primary-content">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                     </svg>
                                 </div>
-                                <span class="text-slate-300 hover:text-blue-400 font-medium">{ username }</span>
+                                <span class="text-base-content/80 hover:text-primary font-medium">{ username }</span>
                             </a>
                         </div>
                         @HtmxButton(
@@ -58,7 +67,7 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                             "transition:true",
                             "Are you sure you want to log out?",
                             false,
-                            "hidden md:flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium",
+                            "hidden md:flex btn btn-ghost btn-error items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium",
                             "",
                             "",
                             "",
@@ -74,7 +83,7 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                             <a
                                 hx-swap="transition:true"
                                 href="/register"
-                                class="flex items-center gap-2 px-4 py-2 text-slate-300 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium"
+                                class="flex items-center gap-2 px-4 py-2 text-base-content/80 hover:text-success hover:bg-base-200 rounded-lg transition-all duration-200 font-medium"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
@@ -84,7 +93,7 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                             <a
                                 hx-swap="transition:true"
                                 href="/login"
-                                class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all duration-200 font-medium"
+                                class="btn btn-primary flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
@@ -102,7 +111,7 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
             <button
                 id="mobile-menu-btn"
                 aria-label="Toggle menu"
-                class="text-slate-300 hover:text-white p-2"
+                class="text-base-content/80 hover:text-base-content p-2"
                 @click="open = !open"
             >
                 <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -113,12 +122,12 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                 </svg>
             </button>
 
-            <div x-show="open" x-cloak class="md:hidden fixed inset-0 top-16 bg-slate-900 border-t border-slate-700 z-40 overflow-y-auto">
+            <div x-show="open" x-cloak class="md:hidden fixed inset-0 top-16 bg-base-200 border-t border-base-300 z-40 overflow-y-auto">
                 <div class="flex justify-end px-4 py-2">
                     <button
                         aria-label="Close menu"
                         @click="open = false"
-                        class="text-slate-300 hover:text-white p-2"
+                        class="text-base-content/80 hover:text-base-content p-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -127,15 +136,15 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                 </div>
             <div class="px-4 pb-4 space-y-2">
                 if fromProtected {
-                    <a href="/u/userProfile" class="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium">
-                        <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-white">
+                    <a href="/u/userProfile" class="flex items-center space-x-3 px-4 py-3 text-base-content/80 hover:text-primary hover:bg-base-200 rounded-lg transition-all duration-200 font-medium">
+                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-primary-content">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.500 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                             </svg>
                         </div>
                         <span class="font-medium">{ username }</span>
                     </a>
-                    <div class="border-t border-slate-700 my-2"></div>
+                    <div class="border-t border-base-300 my-2"></div>
                     if data.DraftId != 0 {
                         <a href={templ.URL(fmt.Sprintf("/u/draft/%d/profile", data.DraftId))} class={navClass(page, "Draft Profile")}>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
@@ -177,14 +186,14 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                             Team Scores
                         </a>
                     }
-                    <div class="border-t border-slate-700 my-2"></div>
+                    <div class="border-t border-base-300 my-2"></div>
                     @HtmxButton(
                         "/u/logout",
                         "body",
                         "transition:true",
                         "Are you sure you want to log out?",
                         false,
-                        "flex items-center gap-3 w-full px-4 py-3 text-slate-300 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all duration-200 font-medium",
+                        "flex items-center gap-3 w-full btn btn-ghost btn-error px-4 py-3 rounded-lg transition-all duration-200 font-medium",
                         "",
                         "",
                         "",

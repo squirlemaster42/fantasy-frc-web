@@ -1,0 +1,127 @@
+# Values for grafana/alloy chart
+# Deploys Grafana Alloy as a DaemonSet to collect logs and traces.
+
+alloy:
+  configMap:
+    content: |
+      // Discover Kubernetes pods.
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // Relabel discovered pods to add useful labels.
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      // Tail container logs from discovered pods.
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [otelcol.receiver.loki.default.receiver]
+      }
+
+      // Convert Loki logs to OTLP format.
+      otelcol.receiver.loki "default" {
+        output {
+          logs = [otelcol.processor.transform.add_labels.input]
+        }
+      }
+
+      // Add static labels to OTLP logs.
+      otelcol.processor.transform "add_labels" {
+        error_mode = "ignore"
+
+        log_statements {
+          context = "log"
+          statements = [
+            "set(resource.attributes[\"cluster\"], \"homelab\")",
+          ]
+        }
+
+        output {
+          logs = [otelcol.exporter.otlphttp.loki.input]
+        }
+      }
+
+      // Export logs to Loki via OTLP.
+      otelcol.exporter.otlphttp "loki" {
+        client {
+          endpoint = "http://loki.monitoring.svc.cluster.local:3100/otlp"
+        }
+      }
+
+      // Receive OTLP traces over gRPC and HTTP.
+      otelcol.receiver.otlp "default" {
+        grpc {
+          endpoint = "0.0.0.0:4317"
+        }
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      // Batch traces before exporting.
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlphttp.tempo.input]
+        }
+      }
+
+      // Export traces to Tempo.
+      otelcol.exporter.otlphttp "tempo" {
+        client {
+          endpoint = "http://tempo.monitoring.svc.cluster.local:4318"
+        }
+      }
+
+controller:
+  type: daemonset
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      effect: NoSchedule
+      operator: Exists
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: http-metrics
+      port: 12345
+      targetPort: 12345
+      protocol: TCP
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

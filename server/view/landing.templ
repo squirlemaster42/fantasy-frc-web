@@ -4,7 +4,7 @@ import "server/view/partials"
 
 templ Landing() {
 	<!DOCTYPE html>
-	<html lang="en">
+	<html lang="en" data-theme="fantasy-frc">
 	<head>
 		<meta charset="UTF-8"/>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge"/>
@@ -23,48 +23,48 @@ templ Landing() {
 		<style>
 			.hero-gradient {
 				background:
-					radial-gradient(ellipse 60% 40% at 70% 50%, rgba(59, 130, 246, 0.08), transparent),
-					radial-gradient(ellipse 50% 30% at 20% 80%, rgba(139, 92, 246, 0.06), transparent),
-					linear-gradient(160deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%);
+					radial-gradient(ellipse 60% 40% at 70% 50%, rgba(106, 125, 153, 0.12), transparent),
+					radial-gradient(ellipse 50% 30% at 20% 80%, rgba(122, 127, 139, 0.08), transparent),
+					linear-gradient(160deg, #1f2225 0%, #16181a 40%, #1f2225 100%);
 			}
 			.text-gradient {
-				background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+				background: linear-gradient(135deg, #6a7d99, #7a7f8b, #ac978c);
 				-webkit-background-clip: text;
 				-webkit-text-fill-color: transparent;
 				background-clip: text;
 			}
 			.card-glow {
 				box-shadow:
-					0 0 0 1px rgba(59, 130, 246, 0.1),
-					0 20px 50px -10px rgba(59, 130, 246, 0.15),
-					0 0 80px -20px rgba(139, 92, 246, 0.1);
+					0 0 0 1px rgba(106, 125, 153, 0.15),
+					0 20px 50px -10px rgba(106, 125, 153, 0.18),
+					0 0 80px -20px rgba(122, 127, 139, 0.12);
 			}
 			@media (prefers-reduced-motion: reduce) {
 				.hero-gradient {
-					background: #0f172a;
+					background: #16181a;
 				}
 			}
 		</style>
 	</head>
-	<body class="bg-slate-900 text-slate-100" hx-boost="true">
+	<body class="bg-base-100 text-base-content" hx-boost="true">
 		@partials.ToastContainer()
 		<!-- Sticky Nav -->
-		<nav class="fixed top-0 w-full z-50 bg-slate-900/90 backdrop-blur-md border-b border-slate-700">
+		<nav class="fixed top-0 w-full z-50 bg-base-200/95 backdrop-blur-md border-b border-base-300 shadow-lg">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="flex justify-between items-center h-16">
-					<a href="/" class="flex items-center gap-3 text-slate-100 hover:text-blue-400 transition-colors duration-200 font-bold text-xl">
-						<div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-white">
+					<a href="/" class="flex items-center gap-3 text-base-content hover:text-primary transition-colors duration-200 font-bold text-xl">
+						<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-primary-content">
 								<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
 							</svg>
 						</div>
 						Fantasy FRC
 					</a>
 					<div class="flex items-center gap-3">
-						<a href="/login" class="px-4 py-2 text-slate-300 hover:text-white font-medium transition-colors duration-200">
+						<a href="/login" class="px-4 py-2 text-base-content/80 hover:text-base-content font-medium transition-colors duration-200">
 							Log In
 						</a>
-						<a href="/register" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-all duration-200 hover:scale-105">
+						<a href="/register" class="btn btn-primary font-semibold rounded-lg transition-all duration-200 hover:scale-105">
 							Sign Up
 						</a>
 					</div>
@@ -74,22 +74,22 @@ templ Landing() {
 
 		<!-- Hero -->
 		<div class="min-h-screen flex items-center justify-center relative hero-gradient overflow-hidden pt-16">
-			<div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/50 pointer-events-none"></div>
+			<div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-base-100/50 pointer-events-none"></div>
 
 			<div class="flex flex-col lg:flex-row-reverse items-center max-w-7xl mx-auto w-full relative z-10 px-4 py-12">
 				<div class="lg:w-1/2 flex justify-center items-center mb-12 lg:mb-0">
 					<div class="relative">
-						<div class="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl opacity-40"></div>
-						<div class="relative bg-slate-800/60 backdrop-blur-sm rounded-2xl p-8 border border-slate-700/50 card-glow">
-							<svg class="w-full h-64 lg:h-80 text-blue-400" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<div class="absolute -inset-4 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-3xl blur-2xl opacity-40"></div>
+						<div class="relative bg-base-200/60 backdrop-blur-sm rounded-2xl p-8 border border-base-300/50 card-glow">
+							<svg class="w-full h-64 lg:h-80 text-primary" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
 								<rect x="150" y="50" width="100" height="80" rx="10" fill="currentColor" opacity="0.8"/>
-								<circle cx="175" cy="80" r="8" fill="#fff"/>
-								<circle cx="225" cy="80" r="8" fill="#fff"/>
-								<rect x="170" y="100" width="60" height="10" rx="5" fill="#fff" opacity="0.6"/>
+								<circle cx="175" cy="80" r="8" fill="#e9e7e8"/>
+								<circle cx="225" cy="80" r="8" fill="#e9e7e8"/>
+								<rect x="170" y="100" width="60" height="10" rx="5" fill="#e9e7e8" opacity="0.6"/>
 								<rect x="120" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
 								<rect x="240" y="130" width="40" height="60" rx="5" fill="currentColor" opacity="0.6"/>
 								<rect x="160" y="130" width="80" height="40" rx="5" fill="currentColor" opacity="0.7"/>
-								<text x="200" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">FRC</text>
+								<text x="200" y="155" text-anchor="middle" fill="#e9e7e8" font-size="12" font-weight="bold">FRC</text>
 								<path d="M50 150 L150 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
 								<path d="M250 150 L350 150" stroke="currentColor" stroke-width="2" opacity="0.4"/>
 								<circle cx="50" cy="150" r="4" fill="currentColor"/>
@@ -103,27 +103,27 @@ templ Landing() {
 					<h1 class="text-5xl lg:text-7xl font-extrabold mb-6">
 						<span class="text-gradient">Fantasy FRC</span>
 					</h1>
-					<p class="text-xl text-slate-300 mb-8 leading-relaxed max-w-xl">
+					<p class="text-xl text-base-content/80 mb-8 leading-relaxed max-w-xl">
 						Draft real FIRST Robotics Competition teams. Compete with friends. Track live match scores. No wrenches required.
 					</p>
 					<div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-						<a href="/register" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2">
+						<a href="/register" class="btn btn-primary font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2">
 							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z"/>
 							</svg>
 							Create Free Account
 						</a>
-						<a href="/login" class="border-2 border-slate-400 hover:border-slate-300 text-slate-200 hover:text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 flex items-center justify-center">
+						<a href="/login" class="border-2 border-base-content/50 hover:border-base-content text-base-content/80 hover:text-base-content font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105 flex items-center justify-center">
 							Log In
 						</a>
 					</div>
-					<div class="mt-6 flex items-center gap-6 text-sm text-slate-400 justify-center lg:justify-start">
+					<div class="mt-6 flex items-center gap-6 text-sm text-base-content/70 justify-center lg:justify-start">
 						<span class="flex items-center gap-1">
-							<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+							<svg class="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
 							Free forever
 						</span>
 						<span class="flex items-center gap-1">
-							<svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+							<svg class="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
 							No email required
 						</span>
 					</div>
@@ -132,42 +132,42 @@ templ Landing() {
 		</div>
 
 		<!-- How It Works -->
-		<div class="py-20 bg-slate-900">
+		<div class="py-20 bg-base-100">
 			<div class="max-w-5xl mx-auto px-4">
 				<div class="text-center mb-16">
-					<h2 class="text-3xl lg:text-4xl font-bold text-white mb-4">How It Works</h2>
-					<p class="text-lg text-slate-400">Three steps to start competing</p>
+					<h2 class="text-3xl lg:text-4xl font-bold text-base-content mb-4">How It Works</h2>
+					<p class="text-lg text-base-content/70">Three steps to start competing</p>
 				</div>
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 					<div class="text-center">
-						<div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">1</div>
-						<h3 class="text-xl font-bold text-white mb-2">Create a Draft</h3>
-						<p class="text-slate-400">Set up a private league and invite up to 7 friends.</p>
+						<div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-primary-content">1</div>
+						<h3 class="text-xl font-bold text-base-content mb-2">Create a Draft</h3>
+						<p class="text-base-content/70">Set up a private league and invite up to 7 friends.</p>
 					</div>
 					<div class="text-center">
-						<div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">2</div>
-						<h3 class="text-xl font-bold text-white mb-2">Draft Teams</h3>
-						<p class="text-slate-400">Pick real FRC teams. Snake draft, 8 rounds.</p>
+						<div class="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-secondary-content">2</div>
+						<h3 class="text-xl font-bold text-base-content mb-2">Draft Teams</h3>
+						<p class="text-base-content/70">Pick real FRC teams. Snake draft, 8 rounds.</p>
 					</div>
 					<div class="text-center">
-						<div class="w-16 h-16 bg-pink-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
-						<h3 class="text-xl font-bold text-white mb-2">Score Points</h3>
-						<p class="text-slate-400">Teams earn points from real competition matches.</p>
+						<div class="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold text-accent-content">3</div>
+						<h3 class="text-xl font-bold text-base-content mb-2">Score Points</h3>
+						<p class="text-base-content/70">Teams earn points from real competition matches.</p>
 					</div>
 				</div>
 			</div>
 		</div>
 
 		<!-- Footer CTA -->
-		<div class="py-20 bg-slate-800 border-t border-slate-700">
+		<div class="py-20 bg-base-200 border-t border-base-300">
 			<div class="max-w-3xl mx-auto px-4 text-center">
-				<h2 class="text-3xl lg:text-4xl font-bold text-white mb-4">Ready to draft?</h2>
-				<p class="text-lg text-slate-400 mb-8">Join a league or create your own. It takes 30 seconds.</p>
+				<h2 class="text-3xl lg:text-4xl font-bold text-base-content mb-4">Ready to draft?</h2>
+				<p class="text-lg text-base-content/70 mb-8">Join a league or create your own. It takes 30 seconds.</p>
 				<div class="flex flex-col sm:flex-row gap-4 justify-center">
-					<a href="/register" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
+					<a href="/register" class="btn btn-primary font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
 						Get Started
 					</a>
-					<a href="/login" class="border-2 border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
+					<a href="/login" class="border-2 border-base-300 hover:border-base-content text-base-content/80 hover:text-base-content font-bold py-4 px-8 rounded-xl transition-all duration-300 hover:scale-105">
 						Log In
 					</a>
 				</div>
@@ -175,10 +175,10 @@ templ Landing() {
 		</div>
 
 		<!-- Footer -->
-		<footer class="bg-slate-900 border-t border-slate-700 py-6">
+		<footer class="bg-base-100 border-t border-base-300 py-6">
 			<div class="max-w-7xl mx-auto px-4 text-center">
-				<p class="text-sm text-slate-500">
-					Powered by <a href="https://www.thebluealliance.com" class="text-blue-400 hover:text-blue-300 transition-colors">The Blue Alliance</a>
+				<p class="text-sm text-base-content/50">
+					Powered by <a href="https://www.thebluealliance.com" class="text-primary hover:text-primary/80 transition-colors">The Blue Alliance</a>
 				</p>
 			</div>
 		</footer>
