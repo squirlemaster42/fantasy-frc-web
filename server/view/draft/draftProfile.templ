@@ -80,7 +80,11 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                                         </div>
                                         <h3 class="font-semibold text-base-content mb-2">{player.User.Username}</h3>
                                         <div class="text-xs text-base-content/70 font-medium mb-2">Pending Invitation</div>
-                                        if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
+                                        if isOwner && player.InviteId > 0 {
+                                            @partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draft.Id), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken) {
+                                                Uninvite
+                                            }
+                                        } else if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
                                             <div class="text-xs text-base-content/70">Pick Order: <span class="font-semibold text-base-content/90">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
                                         }
                                     </div>
@@ -247,7 +251,7 @@ templ DraftProfile (page string, fromProtected bool, username string, cmp templ.
     }
 }
 
-templ PlayerList(players []model.DraftPlayer) {
+templ PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToken string) {
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="playerList" hx-swap-oob="outerHTML:#playerList">
         for _, player := range players {
             if player.Pending {
@@ -260,7 +264,13 @@ templ PlayerList(players []model.DraftPlayer) {
                         </div>
                         <h3 class="font-semibold text-base-content mb-2">{player.User.Username}</h3>
                         <div class="text-xs text-base-content/70 font-medium mb-2">Pending Invitation</div>
-                        <div class="text-xs text-base-content/70">Pick Order: <span class="font-semibold text-base-content/90">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
+                        if isOwner && player.InviteId > 0 {
+                            @partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken) {
+                                Uninvite
+                            }
+                        } else if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
+                            <div class="text-xs text-base-content/70">Pick Order: <span class="font-semibold text-base-content/90">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
+                        }
                     </div>
                 </div>
             } else {
@@ -273,7 +283,9 @@ templ PlayerList(players []model.DraftPlayer) {
                         </div>
                         <h3 class="font-semibold text-base-content mb-2">{player.User.Username}</h3>
                         <div class="text-xs text-base-content/70 font-medium mb-2">Joined</div>
-                        <div class="text-xs text-base-content/70">Pick Order: <span class="font-semibold text-base-content/90">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
+                        if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
+                            <div class="text-xs text-base-content/70">Pick Order: <span class="font-semibold text-base-content/90">{ fmt.Sprintf("%d", player.PlayerOrder.Int16) }</span></div>
+                        }
                     </div>
                 </div>
             }
@@ -325,6 +337,6 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool, csrfTok
 }
 
 templ UpdateAfterInvite(users []model.User, draftId int, players []model.DraftPlayer, isOwner bool, csrfToken string) {
-    @PlayerList(players)
+    @PlayerList(players, draftId, isOwner, csrfToken)
     @PlayerSearchResults(users, draftId, isOwner, csrfToken)
 }

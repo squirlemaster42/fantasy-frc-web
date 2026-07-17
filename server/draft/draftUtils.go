@@ -211,6 +211,49 @@ func InvitePlayer(ctx context.Context, draftActor *DraftActor, invite model.Draf
 	}
 }
 
+func UninvitePlayer(ctx context.Context, draftActor *DraftActor, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: UninvitePlayerMessage{
+			DraftId:   draftId,
+			OwnerUuid: ownerUuid,
+			InviteId:  inviteId,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout uninviting player")
+	}
+}
+
+func DeclineInvite(ctx context.Context, draftActor *DraftActor, inviteId int, userUuid uuid.UUID) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: DeclineInviteMessage{
+			InviteId: inviteId,
+			UserUuid: userUuid,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout declining invite")
+	}
+}
+
 func AcceptInvite(ctx context.Context, draftActor *DraftActor, inviteId int, acceptingUserUuid uuid.UUID) error {
 	replyChan := make(chan Result)
 	message := Message{
