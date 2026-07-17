@@ -1,8 +1,11 @@
 package view
 
-import "server/view/partials"
+import (
+	"server/types"
+	"server/view/partials"
+)
 
-templ Landing() {
+templ Landing(fromProtected bool, username string) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="fantasy-frc">
 	<head>
@@ -49,28 +52,34 @@ templ Landing() {
 	<body class="bg-base-100 text-base-content" hx-boost="true">
 		@partials.ToastContainer()
 		<!-- Sticky Nav -->
-		<nav class="fixed top-0 w-full z-50 bg-base-200/95 backdrop-blur-md border-b border-base-300 shadow-lg">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div class="flex justify-between items-center h-16">
-					<a href="/" class="flex items-center gap-3 text-base-content hover:text-primary transition-colors duration-200 font-bold text-xl">
-						<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-primary-content">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
-							</svg>
+		if fromProtected {
+			<header class="fixed top-0 w-full z-50">
+				@partials.Navbar(fromProtected, username, "Home", types.NewPageData(-1, "", false))
+			</header>
+		} else {
+			<nav class="fixed top-0 w-full z-50 bg-base-200/95 backdrop-blur-md border-b border-base-300 shadow-lg">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="flex justify-between items-center h-16">
+						<a href="/" class="flex items-center gap-3 text-base-content hover:text-primary transition-colors duration-200 font-bold text-xl">
+							<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-primary-content">
+									<path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+								</svg>
+							</div>
+							Fantasy FRC
+						</a>
+						<div class="flex items-center gap-3">
+							<a href="/login" class="px-4 py-2 text-base-content/80 hover:text-base-content font-medium transition-colors duration-200">
+								Log In
+							</a>
+							<a href="/register" class="btn btn-primary font-semibold rounded-lg transition-all duration-200 hover:scale-105">
+								Sign Up
+							</a>
 						</div>
-						Fantasy FRC
-					</a>
-					<div class="flex items-center gap-3">
-						<a href="/login" class="px-4 py-2 text-base-content/80 hover:text-base-content font-medium transition-colors duration-200">
-							Log In
-						</a>
-						<a href="/register" class="btn btn-primary font-semibold rounded-lg transition-all duration-200 hover:scale-105">
-							Sign Up
-						</a>
 					</div>
 				</div>
-			</div>
-		</nav>
+			</nav>
+		}
 
 		<!-- Hero -->
 		<div class="min-h-screen flex items-center justify-center relative hero-gradient overflow-hidden pt-16">

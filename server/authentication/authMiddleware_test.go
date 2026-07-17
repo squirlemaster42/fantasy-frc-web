@@ -234,6 +234,91 @@ func TestCheckAdmin_UserIsAdminError(t *testing.T) {
 	mockUserStore.AssertExpectations(t)
 }
 
+func TestRedirectIfAuthenticated_NoSessionCookie(t *testing.T) {
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestRedirectIfAuthenticated_InvalidSession(t *testing.T) {
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "invalid-token").Return(false, nil)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	mockUserStore.AssertExpectations(t)
+}
+
+func TestRedirectIfAuthenticated_ValidSession(t *testing.T) {
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "valid-token").Return(true, nil)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
+	mockUserStore.AssertExpectations(t)
+}
+
+func TestRedirectIfAuthenticated_ValidateSessionError(t *testing.T) {
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "token").Return(false, errors.New("db error"))
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	mockUserStore.AssertExpectations(t)
+}
+
 func TestNewMetricAuth_PanicsOnEmptySecret(t *testing.T) {
 	assert.Panics(t, func() {
 		NewMetricAuth("")

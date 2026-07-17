@@ -61,6 +61,28 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
+func (a *Authenticator) RedirectIfAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userTok, err := c.Cookie("sessionToken")
+		if err != nil {
+			return next(c)
+		}
+
+		isValid, err := a.userStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
+		if err != nil {
+			log.Error(c.Request().Context(), "Failed to validate session token for redirect check", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
+			return next(c)
+		}
+
+		if isValid {
+			log.Debug(c.Request().Context(), "Authenticated user redirected from public auth page", "ip", c.RealIP(), "path", c.Request().URL.Path)
+			return c.Redirect(http.StatusSeeOther, "/u/home")
+		}
+
+		return next(c)
+	}
+}
+
 func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		userUuidVal := c.Get(string(UserUuidKey))

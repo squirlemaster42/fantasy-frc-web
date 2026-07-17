@@ -160,9 +160,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	//Setup Routes
 	app.GET("/", cfg.Handler.HandleViewLanding, echomiddleware.Gzip())
-	app.GET("/login", cfg.Handler.HandleViewLogin, echomiddleware.Gzip())
+	app.GET("/login", cfg.Handler.HandleViewLogin, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
 	app.POST("/login", cfg.Handler.HandleLoginPost, loginPostMiddleware...)
-	app.GET("/register", cfg.Handler.HandleViewRegister, echomiddleware.Gzip())
+	app.GET("/register", cfg.Handler.HandleViewRegister, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
 	app.POST("/register", cfg.Handler.HandlerRegisterPost, registerPostMiddleware...)
 	app.POST("/tbaWebhook", cfg.Handler.ConsumeTbaWebhook, echomiddleware.Gzip())
 
