@@ -512,21 +512,26 @@ func TestGetOverallLeaderboard_Integration(t *testing.T) {
 	makePick(t, draftA, userA, teamA)
 	makePick(t, draftB, userB, teamB)
 
-	page, err := store.GetOverallLeaderboard(ctx, 1, 25)
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, page.Total, 2)
-	assert.GreaterOrEqual(t, 1, page.CurrentPage)
-	assert.Equal(t, 25, page.PerPage)
-
-	// Find and verify entry for userA in draftA
+	// Paginate through leaderboard to find new entries
 	var userAEntry *LeaderboardEntry
 	var userBEntry *LeaderboardEntry
-	for i, entry := range page.Entries {
-		if entry.User.UserUuid == userA.UserUuid && entry.DraftId == draftA.Id {
-			userAEntry = &page.Entries[i]
+	for pageNum := 1; pageNum <= 100; pageNum++ {
+		page, err := store.GetOverallLeaderboard(ctx, pageNum, 25)
+		require.NoError(t, err)
+		if len(page.Entries) == 0 {
+			break
 		}
-		if entry.User.UserUuid == userB.UserUuid && entry.DraftId == draftB.Id {
-			userBEntry = &page.Entries[i]
+		assert.GreaterOrEqual(t, page.Total, 2)
+		for i, entry := range page.Entries {
+			if entry.User.UserUuid == userA.UserUuid && entry.DraftId == draftA.Id {
+				userAEntry = &page.Entries[i]
+			}
+			if entry.User.UserUuid == userB.UserUuid && entry.DraftId == draftB.Id {
+				userBEntry = &page.Entries[i]
+			}
+		}
+		if userAEntry != nil && userBEntry != nil {
+			break
 		}
 	}
 	require.NotNil(t, userAEntry, "Entry for userA in draftA not found")

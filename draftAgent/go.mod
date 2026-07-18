@@ -1,12 +1,12 @@
 module draftAgent
 
-go 1.26.2
+go 1.26.5
 
 require github.com/google/uuid v1.6.0
 
 require (
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.55.0
+	golang.org/x/net v0.57.0
 )
 
 require (
