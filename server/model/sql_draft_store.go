@@ -155,3 +155,7 @@ func (s *SQLDraftStore) UninvitePlayer(ctx context.Context, draftId int, ownerUu
 func (s *SQLDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error) {
 	return getOutstandingInvitesForDraft(ctx, s.db, draftId)
 }
+
+func (s *SQLDraftStore) GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error) {
+	return getOverallLeaderboard(ctx, s.db, page, perPage)
+}

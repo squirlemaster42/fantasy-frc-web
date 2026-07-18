@@ -533,6 +533,34 @@ func (_m *MockDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, dra
 	return r0, r1
 }
 
+// GetOverallLeaderboard provides a mock function with given fields: ctx, page, perPage
+func (_m *MockDraftStore) GetOverallLeaderboard(ctx context.Context, page int, perPage int) (model.LeaderboardPage, error) {
+	ret := _m.Called(ctx, page, perPage)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOverallLeaderboard")
+	}
+
+	var r0 model.LeaderboardPage
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) (model.LeaderboardPage, error)); ok {
+		return rf(ctx, page, perPage)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) model.LeaderboardPage); ok {
+		r0 = rf(ctx, page, perPage)
+	} else {
+		r0 = ret.Get(0).(model.LeaderboardPage)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, page, perPage)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPicks provides a mock function with given fields: ctx, draft
 func (_m *MockDraftStore) GetPicks(ctx context.Context, draft int) ([]model.Pick, error) {
 	ret := _m.Called(ctx, draft)

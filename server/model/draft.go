@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"server/assert"
 	"server/log"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1534,4 +1535,142 @@ func getDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 
 	assert.RunAssert(ctx, len(picks) == len(usernames), "Picks and usernames maps have inconsistent lengths")
 	return playerScores, nil
+}
+
+type LeaderboardEntry struct {
+	User       User
+	Score      int
+	Picks      []Pick
+	DraftId    int
+	DraftName  string
+}
+
+type LeaderboardPage struct {
+	Entries     []LeaderboardEntry
+	CurrentPage int
+	TotalPages  int
+	PerPage     int
+	Total       int
+}
+
+func getOverallLeaderboard(ctx context.Context, database *sql.DB, page int, perPage int) (LeaderboardPage, error) {
+	query := `Select
+		dp.Id,
+		u.UserUuid,
+		u.Username,
+		p.Pick,
+		d.Id,
+		d.DisplayName
+	From Picks p
+	Inner Join DraftPlayers dp On p.Player = dp.Id
+	Inner Join Users u On u.UserUuid = dp.UserUuid
+	Inner Join Drafts d On d.Id = dp.DraftId
+	Where p.Pick Is Not Null;`
+
+	stmt, err := database.PrepareContext(ctx, query)
+	if err != nil {
+		return LeaderboardPage{}, fmt.Errorf("failed to prepare leaderboard statement: %w", err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			log.Error(ctx, "getOverallLeaderboard: Failed to close statement", "error", err)
+		}
+	}()
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return LeaderboardPage{}, fmt.Errorf("failed to query leaderboard: %w", err)
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Error(ctx, "getOverallLeaderboard: Failed to close rows", "error", err)
+		}
+	}()
+
+	type rawPick struct {
+		dpId      int
+		userUuid  uuid.UUID
+		username  string
+		pick      string
+		draftId   int
+		draftName string
+	}
+
+	var rawPicks []rawPick
+	for rows.Next() {
+		var r rawPick
+		err = rows.Scan(&r.dpId, &r.userUuid, &r.username, &r.pick, &r.draftId, &r.draftName)
+		if err != nil {
+			return LeaderboardPage{}, fmt.Errorf("failed to scan leaderboard row: %w", err)
+		}
+		rawPicks = append(rawPicks, r)
+	}
+
+	type entryKey struct {
+		userUuid uuid.UUID
+		draftId  int
+	}
+
+	entryMap := make(map[entryKey]*LeaderboardEntry)
+	for _, r := range rawPicks {
+		key := entryKey{userUuid: r.userUuid, draftId: r.draftId}
+		entry, ok := entryMap[key]
+		if !ok {
+			entry = &LeaderboardEntry{
+				User:      User{UserUuid: r.userUuid, Username: r.username},
+				DraftId:   r.draftId,
+				DraftName: r.draftName,
+			}
+			entryMap[key] = entry
+		}
+
+		score, err := getScore(ctx, database, r.pick)
+		if err != nil {
+			return LeaderboardPage{}, fmt.Errorf("failed to get score for pick %s: %w", r.pick, err)
+		}
+		totalScore := score["Total Score"]
+		entry.Score += totalScore
+		entry.Picks = append(entry.Picks, Pick{
+			Pick:  sql.NullString{Valid: true, String: r.pick},
+			Score: totalScore,
+		})
+	}
+
+	entries := make([]LeaderboardEntry, 0, len(entryMap))
+	for _, entry := range entryMap {
+		entries = append(entries, *entry)
+	}
+
+	slices.SortFunc(entries, func(a, b LeaderboardEntry) int {
+		return b.Score - a.Score
+	})
+
+	total := len(entries)
+	totalPages := (total + perPage - 1) / perPage
+	if totalPages < 1 {
+		totalPages = 1
+	}
+
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+
+	start := (page - 1) * perPage
+	end := start + perPage
+	if end > total {
+		end = total
+	}
+
+	pagedEntries := entries[start:end]
+
+	return LeaderboardPage{
+		Entries:     pagedEntries,
+		CurrentPage: page,
+		TotalPages:  totalPages,
+		PerPage:     perPage,
+		Total:       total,
+	}, nil
 }

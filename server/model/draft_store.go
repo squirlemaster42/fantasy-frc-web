@@ -43,4 +43,5 @@ type DraftStore interface {
 	CancelInvite(ctx context.Context, inviteId int) error
 	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error
 	GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error)
+	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
 }

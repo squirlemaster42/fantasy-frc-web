@@ -197,6 +197,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	protected.POST("/draft/:id/admin/makePick", cfg.Handler.HandleAdminMakePick)
 	protected.POST("/draft/:id/admin/undoPick", cfg.Handler.HandleAdminUndoPick)
 	protected.POST("/searchPlayers", cfg.Handler.SearchPlayers)
+	protected.GET("/leaderboard", cfg.Handler.HandleOverallLeaderboard)
 	protected.GET("/viewInvites", cfg.Handler.HandleViewInvites)
 	protected.POST("/acceptInvite", cfg.Handler.HandleAcceptInvite)
 	protected.POST("/declineInvite", cfg.Handler.HandleDeclineInvite)
