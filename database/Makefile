@@ -2,6 +2,9 @@
 # Requires: goose CLI (go install github.com/pressly/goose/v3/cmd/goose@latest)
 # Requires: Docker (for test target)
 
+# Auto-load environment variables from .env if present
+-include ./.env
+
 DB_URL ?= postgresql://$(DB_USERNAME):$(DB_PASSWORD)@$(DB_IP)/$(DB_NAME)?sslmode=disable
 
 .PHONY: create up down status version test
