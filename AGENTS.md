@@ -1,4 +1,4 @@
-# AGENTS.md - Development Guidelines for Fantasy FRC Web
+u# AGENTS.md - Development Guidelines for Fantasy FRC Web
 
 This file contains build/lint/test commands and code style guidelines for agentic coding assistants working on this Go, templ, Htmx, Postgres web application.
 
@@ -82,7 +82,7 @@ cd database && make test
 ```
 
 Migrations are **not** tied to the server application. They run manually or as a K8s Job.
-See `database/README.md` for full details.
+See `database/README.md` for full details
 
 ## Code Style Guidelines
 
