@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"server/assert"
+	db "server/database"
 	"server/log"
 )
 
@@ -33,13 +33,10 @@ func associateTeam(ctx context.Context, database *sql.DB, matchTbaId string, tea
 
 	query := `INSERT INTO Matches_Teams (team_tbaId, match_tbaId, alliance, isDqed) Values ($1, $2, $3, $4)
         On Conflict (team_tbaId, match_tbaId) Do Update Set alliance = excluded.alliance, isDqed = excluded.isDqed;`
-	assert := assert.CreateAssertWithContext("Associate Team")
-	assert.AddContext("Match Id", matchTbaId)
-	assert.AddContext("Team Id", teamTbaId)
-	assert.AddContext("Alliance", alliance)
-	assert.AddContext("Is Dqed", isDqed)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "failed to prepare statement")
+	stmt, err := db.Prepare(ctx, database, query)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Error(ctx, "AssociateTeam: Failed to close statement", "error", err)

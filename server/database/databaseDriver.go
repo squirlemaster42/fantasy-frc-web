@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"server/log"
 	"time"
@@ -52,4 +53,15 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 
 func createConnectionString(username string, password string, ip string, dbName string) string {
 	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
+}
+
+func Prepare(ctx context.Context, db *sql.DB, query string) (*sql.Stmt, error) {
+	stmt, err := db.PrepareContext(ctx, query)
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
+		log.Fatal(ctx, "Failed to prepare statement", "error", err, "query", query)
+	}
+	return stmt, nil
 }

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"server/assert"
+	"server/database"
 	"server/log"
 	"server/metrics"
 	"server/swagger"
@@ -39,9 +39,6 @@ func NewHandler(tbaToken string, database *sql.DB) *TBAHandler {
 }
 
 func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string, error) {
-	assert := assert.CreateAssertWithContext("Check Tba Cache")
-	assert.AddContext("Url", url)
-
 	// Dont check the cache if we dont have a database
 	// This is probably because we are running a unit test
 	if t.database == nil {
@@ -53,8 +50,10 @@ func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string
         responseBody
     From TbaCache
     Where url = $1;`
-	stmt, err := t.database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
+	stmt, err := database.Prepare(ctx, t.database, query)
+	if err != nil {
+		return nil, "", err
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Error(ctx, "checkCache: Failed to close statement", "error", err)
@@ -69,10 +68,6 @@ func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string
 }
 
 func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {
-	assert := assert.CreateAssertWithContext("Cache Tba Data")
-	assert.AddContext("url", url)
-	assert.AddContext("Etag", etag)
-
 	// Dont cache the data if we dont have a database
 	// This is probably because we are running a unit test
 	if t.database == nil {
@@ -81,8 +76,11 @@ func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, bod
 
 	query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3)
 		On Conflict (url) Do Update Set etag = excluded.etag, responseBody = excluded.responseBody;`
-	stmt, err := t.database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
+	stmt, err := database.Prepare(ctx, t.database, query)
+	if err != nil {
+		log.Error(ctx, "cacheData: Failed to prepare statement", "error", err)
+		return
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Error(ctx, "cacheData: Failed to close statement", "error", err)

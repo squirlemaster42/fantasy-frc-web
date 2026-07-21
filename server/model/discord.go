@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"server/assert"
+	db "server/database"
 	"server/log"
 	"strings"
 )
@@ -18,10 +18,10 @@ func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 		Where dp.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Player Discord Id")
-	assert.AddContext("Draft Player Id", draftPlayerId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
+	stmt, err := db.Prepare(ctx, database, query)
+	if err != nil {
+		return sql.NullString{}, err
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Error(ctx, "GetPlayerDiscordId: Failed to close statement", "error", err)
@@ -45,10 +45,10 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 		Where d.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Next Pick Discord Event")
-	assert.AddContext("draftId", draftId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
+	stmt, err := db.Prepare(ctx, database, query)
+	if err != nil {
+		return "", err
+	}
 	defer func() {
 		if err := stmt.Close(); err != nil {
 			log.Error(ctx, "GetDraftWebhook: Failed to close statement", "error", err)
