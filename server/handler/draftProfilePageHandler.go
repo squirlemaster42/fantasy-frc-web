@@ -258,11 +258,11 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	if !model.CanStartDraft(draftModel) {
-		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId, "numAccepted", numAccepted)
+		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
-			fmt.Sprintf("Draft must have exactly 8 accepted players to start."),
+			"Draft must have exactly 8 accepted players to start",
 			true,
 			h.csrfToken(c),
 		)

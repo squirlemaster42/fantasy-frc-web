@@ -57,6 +57,8 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 		default:
 		}
 
+		d.mu.RLock()
+		defer d.mu.RUnlock()
 		if !d.IsRunning() {
 			return
 		}

@@ -300,18 +300,3 @@ All 30+ routes are registered in a single function.
 
 **Fix:** Group into `registerAuthRoutes(app, auth)`,
 `registerDraftRoutes(protected, auth)`, `registerAdminRoutes(admin)`.
-
-### 43. Inline anonymous middleware for static files
-**File:** `server/server.go:113-139`
-
-The `cacheControlMiddleware` is defined as an inline anonymous function and
-reused for three static routes.
-
-**Fix:** Extract to a named function or package-level helper.
-
-### 45. Draft Daemon shutdown race
-**File:** `server/background/draftDaemon.go`
-
-`Stop()` sets `d.running = false` and calls `d.cancel()`, but the `Run()` loop
-checks `d.IsRunning()` only at the top of each iteration. A race exists where
-one more tick could execute after stop.

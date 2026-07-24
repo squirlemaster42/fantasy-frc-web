@@ -391,7 +391,7 @@ func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteM
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Result{
-				Error: errors.New("invite not found. It may have been cancelled or expired."),
+				Error: errors.New("invite not found. It may have been cancelled or expired"),
 			}
 		}
 		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
@@ -403,7 +403,7 @@ func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteM
 	if invite.InvitedUserUuid != msg.UserUuid {
 		log.Info(ctx, "User attempted to decline invite for another player", "InvitedUserUuid", invite.InvitedUserUuid, "RequestingUserUuid", msg.UserUuid)
 		return Result{
-			Error: errors.New("you are not allowed to decline invites for other players."),
+			Error: errors.New("you are not allowed to decline invites for other players"),
 		}
 	}
 
@@ -486,7 +486,7 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 func (d *DraftActor) handleUninvitePlayer(ctx context.Context, msg UninvitePlayerMessage) Result {
 	if d.draftState.Status != model.FILLING {
 		return Result{
-			Error: errors.New("Draft must be in FILLING state to uninvite players"),
+			Error: errors.New("draft must be in FILLING state to uninvite players"),
 		}
 	}
 

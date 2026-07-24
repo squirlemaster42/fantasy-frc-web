@@ -110,13 +110,6 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		log.Warn(ctx, "Failed to initialize metrics", "error", err)
 	}
 
-	cacheControlMiddleware := func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
-			return next(c)
-		}
-	}
-
 	app.Add(
 		http.MethodGet,
 		"/css/*",
@@ -217,3 +210,12 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	return app, shutdown
 }
+
+
+func cacheControlMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
+		return next(c)
+	}
+}
+
