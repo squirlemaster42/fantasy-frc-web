@@ -212,7 +212,7 @@ Round 3: Player 1 → Player 2 → Player 3 → ... → Player 8
 Unfortunately, picks are final once submitted. Double-check before confirming!
 
 **Can I trade with other players after the draft?**
-Currently, trading is not supported. Your roster is locked after the draft.
+Currently, trading is not supported.
 
 **What happens if the draft server goes down?**
 The system has backup mechanisms. Contact your draft commissioner for assistance.

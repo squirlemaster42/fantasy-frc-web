@@ -1,6 +1,6 @@
 # Fantasy FRC Deployment
 
-This directory previously contained Ansible playbooks and bash-based migration scripts.
+This directory previously contained Ansible playbooks and bash-based migration scripts. Deprecated.
 
 ## Current State
 
