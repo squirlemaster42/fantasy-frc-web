@@ -936,8 +936,8 @@ func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
 		return nextPlayer
 	}
 
-	lastPlayer := GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-1].Player)
-	secondLastPick := GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-2].Player)
+	lastPlayer := model.GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-1].Player)
+	secondLastPick := model.GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-2].Player)
 	assert.RunAssert(ctx, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
 	direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
 	if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
@@ -1024,15 +1024,6 @@ func (d *DraftActor) close() {
 	d.mu.Lock()
 	d.shutdown = true
 	d.mu.Unlock()
-}
-
-func GetDraftPlayerFromDraft(ctx context.Context, draft model.DraftModel, draftPlayerId int) model.DraftPlayer {
-	for _, p := range draft.Players {
-		if p.Id == draftPlayerId {
-			return p
-		}
-	}
-	return model.DraftPlayer{}
 }
 
 func (d *DraftActor) GetDraftState() model.DraftModel {

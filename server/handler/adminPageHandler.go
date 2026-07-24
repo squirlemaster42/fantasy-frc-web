@@ -116,11 +116,11 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 	numAccepted := 0
 	for _, player := range draftState.Players {
 		if !player.Pending {
-			numAccepted += 1
+			numAccepted++
 		}
 	}
 
-	if numAccepted != 8 {
+	if !model.CanStartDraft(draftState) {
 		return "Not Enough Players Have Accepted The Draft"
 	}
 

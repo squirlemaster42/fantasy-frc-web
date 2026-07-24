@@ -72,25 +72,25 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 				return next(ctx)
 			}
 
-		// Validate token for state-changing requests
-		if err != nil || sessionCookie.Value == "" {
-			log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "no_session_token")
-			return ctx.NoContent(http.StatusForbidden)
-		}
+			// Validate token for state-changing requests
+			if err != nil || sessionCookie.Value == "" {
+				log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "no_session_token")
+				return ctx.NoContent(http.StatusForbidden)
+			}
 
-		// Get token from form or header
-		var submittedToken string
-		if ctx.Request().FormValue("csrf_token") != "" {
-			submittedToken = ctx.Request().FormValue("csrf_token")
-		} else {
-			submittedToken = ctx.Request().Header.Get("X-CSRF-Token")
-		}
+			// Get token from form or header
+			var submittedToken string
+			if ctx.Request().FormValue("csrf_token") != "" {
+				submittedToken = ctx.Request().FormValue("csrf_token")
+			} else {
+				submittedToken = ctx.Request().Header.Get("X-CSRF-Token")
+			}
 
-		expectedToken := c.GenerateToken(sessionCookie.Value)
-		if subtle.ConstantTimeCompare([]byte(submittedToken), []byte(expectedToken)) != 1 {
-			log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "token_mismatch")
-			return ctx.NoContent(http.StatusForbidden)
-		}
+			expectedToken := c.GenerateToken(sessionCookie.Value)
+			if subtle.ConstantTimeCompare([]byte(submittedToken), []byte(expectedToken)) != 1 {
+				log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "token_mismatch")
+				return ctx.NoContent(http.StatusForbidden)
+			}
 
 			return next(ctx)
 		}

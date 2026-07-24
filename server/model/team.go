@@ -7,7 +7,6 @@ import (
 	"fmt"
 	db "server/database"
 	"server/log"
-	"server/tbaHandler"
 	"server/utils"
 	"sort"
 )
@@ -142,47 +141,6 @@ func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 	})
 
 	return matches, nil
-}
-
-func ValidPick(ctx context.Context, draftStore DraftStore, teamStore TeamStore, handler *tbaHandler.TBAHandler, tbaId string, draftId int) (bool, error) {
-	if tbaId == "" {
-		return false, errors.New("no team entered")
-	}
-
-	picked, err := draftStore.HasBeenPicked(ctx, draftId, tbaId)
-	if err != nil {
-		return false, err
-	}
-
-	if picked {
-		return false, errors.New("team already picked")
-	}
-
-	events := handler.MakeEventListReq(ctx, tbaId)
-	draftEvents := utils.Events()
-
-	validEvent := false
-	//Looping here should always be faster because of the small lists
-	log.Debug(ctx, "Checking is team is in a valid event", "teamEvents", events, "draftEvents", draftEvents)
-	for _, event := range events {
-		for _, draftEvent := range draftEvents {
-			if event == draftEvent {
-				validEvent = true
-				break
-			}
-		}
-
-		if validEvent {
-			break
-		}
-	}
-
-	log.Debug(ctx, "Checked if team is a valid pick", "team", tbaId, "picked", picked, "validEvent", validEvent)
-	if !validEvent {
-		return false, errors.New("team not at event")
-	}
-
-	return true, nil
 }
 
 // Keys are the string that represents display name and the value is the score

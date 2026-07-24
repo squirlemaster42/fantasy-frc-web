@@ -1686,3 +1686,14 @@ func getOverallLeaderboard(ctx context.Context, database *sql.DB, page int, perP
 		Total:       total,
 	}, nil
 }
+
+func CanStartDraft(draftModel DraftModel) bool {
+	// Check that eight players have accepted the draft
+	numAccepted := 0
+	for _, p := range draftModel.Players {
+		if !p.Pending {
+			numAccepted++
+		}
+	}
+	return numAccepted == 8
+}

@@ -102,16 +102,3 @@ func TestGetMatchScores_Integration(t *testing.T) {
 		_, _ = db.ExecContext(context.Background(), "DELETE FROM Teams WHERE tbaId = $1", teamId)
 	})
 }
-
-func TestValidPick_EmptyTeam_Integration(t *testing.T) {
-	db := setupTestDB(t)
-	store := NewSQLDraftStore(db)
-	ctx := context.Background()
-
-	draftStore := store
-	teamStore := NewSQLTeamStore(db)
-
-	valid, err := ValidPick(ctx, draftStore, teamStore, nil, "", 1)
-	assert.Error(t, err)
-	assert.False(t, valid)
-}
