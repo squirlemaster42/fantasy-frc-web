@@ -108,8 +108,6 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 
 ## Protected Endpoints (/u/* - Authentication Required)
 
-All routes under `/u` require a valid session token cookie.
-
 ### User Dashboard
 
 #### GET `/u/home`

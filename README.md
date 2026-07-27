@@ -126,7 +126,7 @@ For deployment to a Kubernetes cluster, see [infra/ansible/README.md](infra/ansi
 
 ## Optional Dependencies
 
-- **Redis**: Used for caching team avatars.
+- **Redis**: Used for caching team avatars
 
 ## License
 

@@ -46,7 +46,6 @@ go build
 Generates JSON files containing randomized match data that can be used to:
 
 - Test webhook endpoints
-- Validate scoring calculations
 - Simulate high-volume match updates
 - Debug scoring edge cases
 
