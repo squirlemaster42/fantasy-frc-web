@@ -137,23 +137,13 @@ func getDraftsByName(ctx context.Context, database *sql.DB, searchString string)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			log.Error(ctx, "GetDraftsByName: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftsByName")
 	rows, err := stmt.QueryContext(ctx, searchString)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get drafts by name: %w", err)
 	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Error(ctx, "GetDraftsByName: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetDraftsByName")
 	var drafts []DraftModel
 	for rows.Next() {
 		var draftId int
@@ -198,22 +188,12 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			log.Error(ctx, "GetDraftsForUser: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftsForUser")
 	rows, err := stmt.QueryContext(ctx, FILLING, userUuid)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Error(ctx, "GetDraftsForUser: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetDraftsForUser")
 	var drafts []DraftModel
 
 	playerQuery := `SELECT
@@ -248,11 +228,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := playerStmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftsForUser: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, playerStmt, "GetDraftsForUser")
 
 	for rows.Next() {
 		var draftId int
@@ -308,7 +284,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			err = playerRows.Scan(&userUuid, &username, &accepted)
 			if err != nil {
-				_ = playerRows.Close()
+				db.CloseRows(ctx, playerRows, "GetDraftsForUser")
 				return nil, err
 			}
 			draftPlayer := DraftPlayer{
@@ -321,7 +297,7 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 
 			draftModel.Players = append(draftModel.Players, draftPlayer)
 		}
-		_ = playerRows.Close()
+		db.CloseRows(ctx, playerRows, "GetDraftsForUser")
 
 		drafts = append(drafts, draftModel)
 	}
@@ -342,11 +318,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 	if err != nil {
 		return -1, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CreateDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "CreateDraft")
 	var draftId int
 	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status).Scan(&draftId)
 	if err != nil {
@@ -357,11 +329,7 @@ func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int,
 	if err != nil {
 		return -1, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CreateDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "CreateDraft")
 	_, err = stmt.ExecContext(ctx, draftId, draft.Owner.UserUuid)
 	if err != nil {
 		return -1, err
@@ -377,11 +345,7 @@ func updateDraftStatus(ctx context.Context, database *sql.DB, draftId int, statu
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateDraftStatus: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateDraftStatus")
 
 	_, err = stmt.ExecContext(ctx, status, draftId)
 	if err != nil {
@@ -409,11 +373,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	if err != nil {
 		return DraftModel{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraft")
 	log.Debug(ctx, "model.GetDraft: executing query", "draftId", draftId)
 	draftModel := DraftModel{
 		Id: draftId,
@@ -485,21 +445,13 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	if err != nil {
 		return DraftModel{}, err
 	}
-	defer func() {
-		if err := playerStmt.Close(); err != nil {
-			log.Error(ctx, "GetDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, playerStmt, "GetDraft")
 	playerRows, err := playerStmt.QueryContext(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to load players for draft", "draftId", draftId, "error", err)
 		return DraftModel{}, errors.New("failed to load draft")
 	}
-	defer func() {
-		if err := playerRows.Close(); err != nil {
-			log.Error(ctx, "GetDraft: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, playerRows, "GetDraft")
 
 	log.Debug(ctx, "Checking if we need to get the current pick for the draft", "statusCode", draftModel.Status, "picking", PICKING)
 	if draftModel.Status == PICKING {
@@ -580,21 +532,13 @@ func getDraftPlayerPicks(ctx context.Context, database *sql.DB, draftPlayerId in
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftPlayerPicks: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftPlayerPicks")
 
 	rows, err := stmt.QueryContext(ctx, draftPlayerId)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetDraftPlayerPicks: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetDraftPlayerPicks")
 
 	var picks []Pick
 	for rows.Next() {
@@ -619,11 +563,7 @@ func updateDraft(ctx context.Context, database *sql.DB, draft *DraftModel) error
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateDraft")
 	log.Debug(ctx, "model.UpdateDraft: executing query", "draftId", draft.Id)
 	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.Interval, draft.DiscordWebhook, draft.Id)
 	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
@@ -640,11 +580,7 @@ func invitePlayer(ctx context.Context, database *sql.DB, draft int, invitingUser
 	if err != nil {
 		return -1, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "InvitePlayer: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "InvitePlayer")
 
 	var inviteId int
 	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), "pending").Scan(&inviteId)
@@ -662,11 +598,7 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 	if err != nil {
 		return 0, uuid.UUID{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AcceptInvite: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "AcceptInvite")
 	_, err = stmt.ExecContext(ctx, time.Now().UTC(), inviteId)
 	if err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to accept invite: %w", err)
@@ -677,11 +609,7 @@ func acceptInvite(ctx context.Context, database *sql.DB, inviteId int) (int, uui
 	if err != nil {
 		return 0, uuid.UUID{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AcceptInvite: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "AcceptInvite")
 	var draftId int
 	var userUuid uuid.UUID
 	err = stmt.QueryRowContext(ctx, inviteId).Scan(&draftId, &userUuid)
@@ -699,11 +627,7 @@ func addPlayerToDraft(ctx context.Context, database *sql.DB, draft int, player u
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AddPlayerToDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "AddPlayerToDraft")
 	_, err = stmt.ExecContext(ctx, draft, player)
 	if err != nil {
 		return fmt.Errorf("failed to add player to draft: %w", err)
@@ -719,11 +643,7 @@ func cancelOutstandingInvites(ctx context.Context, database *sql.DB, draftId int
 		return err
 	}
 
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CancelOutstandingInvites: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "CancelOutstandingInvites")
 
 	_, err = stmt.ExecContext(ctx, draftId)
 	if err != nil {
@@ -749,11 +669,7 @@ func getInvite(ctx context.Context, database *sql.DB, inviteId int) (DraftInvite
 	if err != nil {
 		return DraftInvite{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetInvite: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetInvite")
 	invite := DraftInvite{}
 	err = stmt.QueryRowContext(ctx, inviteId).Scan(
 		&invite.Id,
@@ -782,21 +698,13 @@ func getInvites(ctx context.Context, database *sql.DB, userUuid uuid.UUID) ([]Dr
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetInvites: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetInvites")
 	rows, err := stmt.QueryContext(ctx, userUuid)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get invites: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetInvites: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetInvites")
 
 	var invites []DraftInvite
 	for rows.Next() {
@@ -820,11 +728,7 @@ func cancelInvite(ctx context.Context, database *sql.DB, inviteId int) error {
 		return err
 	}
 
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CancelInvite: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "CancelInvite")
 
 	_, err = stmt.ExecContext(ctx, inviteId)
 	if err != nil {
@@ -836,14 +740,14 @@ func cancelInvite(ctx context.Context, database *sql.DB, inviteId int) error {
 
 func uninvitePlayer(ctx context.Context, database *sql.DB, draftId int, ownerUuid uuid.UUID, inviteId int) error {
 	ownerQuery := `Select OwnerUserUuid From Drafts Where Id = $1;`
-	ownerStmt, err := database.PrepareContext(ctx, ownerQuery)
+	ownerStmt, err := db.Prepare(ctx, database, ownerQuery)
 	if err != nil {
-		return fmt.Errorf("failed to prepare owner query: %w", err)
+		return err
 	}
 
 	var dbOwnerUuid string
 	err = ownerStmt.QueryRowContext(ctx, draftId).Scan(&dbOwnerUuid)
-	ownerStmt.Close()
+	db.CloseStatement(ctx, ownerStmt, "UninvitePlayer")
 	if err != nil {
 		return fmt.Errorf("failed to get draft owner: %w", err)
 	}
@@ -853,15 +757,11 @@ func uninvitePlayer(ctx context.Context, database *sql.DB, draftId int, ownerUui
 	}
 
 	query := `Update DraftInvites Set Status = 'canceled' Where Id = $1 And DraftId = $2;`
-	stmt, err := database.PrepareContext(ctx, query)
+	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
+		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UninvitePlayer: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UninvitePlayer")
 
 	result, err := stmt.ExecContext(ctx, inviteId, draftId)
 	if err != nil {
@@ -890,25 +790,17 @@ func getOutstandingInvitesForDraft(ctx context.Context, database *sql.DB, draftI
 	Where di.DraftId = $1
 	And di.Status = 'pending';`
 
-	stmt, err := database.PrepareContext(ctx, query)
+	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetOutstandingInvitesForDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetOutstandingInvitesForDraft")
 
 	rows, err := stmt.QueryContext(ctx, draftId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get outstanding invites: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetOutstandingInvitesForDraft: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetOutstandingInvitesForDraft")
 
 	var invites []DraftInvite
 	for rows.Next() {
@@ -935,20 +827,12 @@ func getPicks(ctx context.Context, database *sql.DB, draftId int) ([]Pick, error
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetPicks: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetPicks")
 	rows, err := stmt.QueryContext(ctx, draftId)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetPicks: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetPicks")
 
 	var picks []Pick
 	for rows.Next() {
@@ -972,11 +856,7 @@ func getDraftPlayerId(ctx context.Context, database *sql.DB, draftId int, userUu
 	if err != nil {
 		return -1, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftPlayerId: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftPlayerId")
 
 	var draftPlayerId int
 	err = stmt.QueryRowContext(ctx, draftId, userUuid).Scan(&draftPlayerId)
@@ -1000,11 +880,7 @@ func getDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int
 	if err != nil {
 		return User{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftPlayerUser: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftPlayerUser")
 
 	var user User
 	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&user.UserUuid, &user.Username)
@@ -1022,11 +898,7 @@ func makePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int,
 	if err != nil {
 		return 0, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "MakePickAvailable: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "MakePickAvailable")
 
 	var pickId int
 	err = stmt.QueryRowContext(ctx, draftPlayerId, availableTime, expirationTime).Scan(&pickId)
@@ -1047,11 +919,7 @@ func makePick(ctx context.Context, database *sql.DB, pick Pick) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "MakePick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "MakePick")
 	var updatedId int
 	err = stmt.QueryRowContext(ctx, pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
 	if err != nil {
@@ -1074,11 +942,7 @@ func hasBeenPicked(ctx context.Context, database *sql.DB, draftId int, team stri
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "HasBeenPicked: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "HasBeenPicked")
 	var numPicked int
 	err = stmt.QueryRowContext(ctx, draftId, team).Scan(&numPicked)
 	if err != nil {
@@ -1112,11 +976,7 @@ func randomizePickOrder(ctx context.Context, database *sql.DB, draftId int) erro
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "RandomizePickOrder: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "RandomizePickOrder")
 
 	for i, player := range awaitingAssignment {
 		draftPlayerId, err := getDraftPlayerId(ctx, database, draftId, player.User.UserUuid)
@@ -1133,10 +993,7 @@ func randomizePickOrder(ctx context.Context, database *sql.DB, draftId int) erro
 }
 
 func nextPick(ctx context.Context, database *sql.DB, draftId int) (DraftPlayer, error) {
-	//We need to get the last two picks
-	assert := assert.CreateAssertWithContext("Next Pick")
 	picks, err := getPicks(ctx, database, draftId)
-
 	if err != nil {
 		log.Error(ctx, "Failed to get picks", "draftId", draftId, "error", err)
 		return DraftPlayer{}, err
@@ -1147,48 +1004,8 @@ func nextPick(ctx context.Context, database *sql.DB, draftId int) (DraftPlayer, 
 		log.Error(ctx, "Attempting to find next pick for invalid draft", "draftId", draftId, "error", err)
 		return DraftPlayer{}, err
 	}
-	assert.RunAssert(ctx, len(draft.Players) > 0, "Draft has no players when finding next pick")
-	var nextPlayer DraftPlayer
 
-	//I dont think we need to account for the case where there are only two players
-	if len(picks) < 2 {
-		for _, player := range draft.Players {
-			assert.RunAssert(ctx, player.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-			if int(player.PlayerOrder.Int16) == len(picks) {
-				nextPlayer = player
-			}
-		}
-	} else {
-		//We can then figure out what direction
-		//we are going and if we hit the
-		//end then we decide what the next pick is
-		lastPlayer := GetDraftPlayerFromDraft(ctx, draft, picks[len(picks)-1].Player)
-		secondLastPick := GetDraftPlayerFromDraft(ctx, draft, picks[len(picks)-2].Player)
-		assert.RunAssert(ctx, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-		direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
-		if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
-			if int(lastPlayer.PlayerOrder.Int16) == len(draft.Players)-1 {
-				direction = -1
-			} else {
-				direction = 1
-			}
-		}
-		if len(picks)%len(draft.Players) == 0 {
-			direction = 0
-		}
-		assert.AddContext("Last Player Id", lastPlayer.Id)
-		assert.AddContext("Second Last Player Id", secondLastPick.Id)
-		assert.AddContext("Last Player Order", lastPlayer.PlayerOrder)
-		assert.AddContext("Second Last Player Order", secondLastPick.PlayerOrder)
-		assert.AddContext("Direction", direction)
-
-		//We know draft.players is order by player order
-		assert.RunAssert(ctx, int16(len(draft.Players)) > lastPlayer.PlayerOrder.Int16+direction && lastPlayer.PlayerOrder.Int16+direction >= 0, "Next pick is out of bounds")
-		nextPlayer = draft.Players[lastPlayer.PlayerOrder.Int16+direction]
-	}
-
-	//Take the pick and make it into a draft player
-	return nextPlayer, err
+	return DetermineNextPick(draft.Players, picks)
 }
 
 func getNumPlayersInInvitedDraft(ctx context.Context, database *sql.DB, inviteId int) (int, error) {
@@ -1202,11 +1019,7 @@ func getNumPlayersInInvitedDraft(ctx context.Context, database *sql.DB, inviteId
 	if err != nil {
 		return 0, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetNumPlayersInInvitedDraft: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetNumPlayersInInvitedDraft")
 	var numPlayers int
 	err = stmt.QueryRowContext(ctx, inviteId).Scan(&numPlayers)
 	if err != nil {
@@ -1224,6 +1037,71 @@ func GetDraftPlayerFromDraft(ctx context.Context, draft DraftModel, draftPlayerI
 	return DraftPlayer{}
 }
 
+func DetermineNextPick(players []DraftPlayer, picks []Pick) (DraftPlayer, error) {
+	if len(players) == 0 {
+		return DraftPlayer{}, fmt.Errorf("no players in draft")
+	}
+
+	findPlayer := func(playerId int) (DraftPlayer, error) {
+		for _, p := range players {
+			if p.Id == playerId {
+				return p, nil
+			}
+		}
+		return DraftPlayer{}, fmt.Errorf("player %d not found in draft", playerId)
+	}
+
+	var nextPlayer DraftPlayer
+
+	if len(picks) < 2 {
+		for _, player := range players {
+			if !player.PlayerOrder.Valid {
+				return DraftPlayer{}, fmt.Errorf("player order not set when finding next pick")
+			}
+			if int(player.PlayerOrder.Int16) == len(picks) {
+				nextPlayer = player
+			}
+		}
+		if nextPlayer.Id == 0 {
+			return DraftPlayer{}, fmt.Errorf("next player has invalid id")
+		}
+		return nextPlayer, nil
+	}
+
+	lastPlayer, err := findPlayer(picks[len(picks)-1].Player)
+	if err != nil {
+		return DraftPlayer{}, err
+	}
+	secondLastPick, err := findPlayer(picks[len(picks)-2].Player)
+	if err != nil {
+		return DraftPlayer{}, err
+	}
+	if !lastPlayer.PlayerOrder.Valid {
+		return DraftPlayer{}, fmt.Errorf("player order not set when finding next pick")
+	}
+	direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
+	if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
+		if int(lastPlayer.PlayerOrder.Int16) == len(players)-1 {
+			direction = -1
+		} else {
+			direction = 1
+		}
+	}
+	if len(picks)%len(players) == 0 {
+		direction = 0
+	}
+
+	nextIndex := lastPlayer.PlayerOrder.Int16 + direction
+	if nextIndex < 0 || int(nextIndex) >= len(players) {
+		return DraftPlayer{}, fmt.Errorf("next pick is out of bounds")
+	}
+	nextPlayer = players[nextIndex]
+	if nextPlayer.Id == 0 {
+		return DraftPlayer{}, fmt.Errorf("next player has invalid id")
+	}
+	return nextPlayer, nil
+}
+
 func shouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) (bool, error) {
 	query := `SELECT
         COALESCE(skipPicks, false) As skipPicks
@@ -1234,11 +1112,7 @@ func shouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int) (boo
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "ShouldSkipPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "ShouldSkipPick")
 	var shouldSkip bool
 	err = stmt.QueryRowContext(ctx, draftPlayer).Scan(&shouldSkip)
 
@@ -1256,11 +1130,7 @@ func markShouldSkipPick(ctx context.Context, database *sql.DB, draftPlayer int, 
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "MarkShouldSkipPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "MarkShouldSkipPick")
 	_, err = stmt.ExecContext(ctx, draftPlayer, shouldSkip)
 
 	return err
@@ -1288,11 +1158,7 @@ func getCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, e
 	if err != nil {
 		return Pick{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetCurrentPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetCurrentPick")
 	var pick Pick
 	err = stmt.QueryRowContext(ctx, draftId).Scan(
 		&pick.Id,
@@ -1319,11 +1185,7 @@ func skipPick(ctx context.Context, database *sql.DB, pickId int) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "SkipPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "SkipPick")
 	_, err = stmt.ExecContext(ctx, pickId)
 	if err != nil {
 		log.Error(ctx, "Failed to skip pick", "pickId", pickId, "error", err)
@@ -1339,11 +1201,7 @@ func updatePickExpirationTime(ctx context.Context, database *sql.DB, pickId int,
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdatePickExpirationTime: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdatePickExpirationTime")
 	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
 	return err
 }
@@ -1367,11 +1225,7 @@ func getPreviousPick(ctx context.Context, database *sql.DB, draftId int, current
 	if err != nil {
 		return Pick{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetPreviousPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetPreviousPick")
 	var pick Pick
 	err = stmt.QueryRowContext(ctx, draftId, currentPickId).Scan(
 		&pick.Id,
@@ -1397,11 +1251,7 @@ func deletePick(ctx context.Context, database *sql.DB, pickId int) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "DeletePick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "DeletePick")
 	_, err = stmt.ExecContext(ctx, pickId)
 	return err
 }
@@ -1413,11 +1263,7 @@ func resetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "ResetPick: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "ResetPick")
 	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
 	return err
 }
@@ -1432,21 +1278,13 @@ func getDraftsInStatus(ctx context.Context, database *sql.DB, status DraftState)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftsInStatus: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftsInStatus")
 
 	rows, err := stmt.QueryContext(ctx, status)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetDraftsInStatus: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetDraftsInStatus")
 
 	var errs []error
 	var drafts []int
@@ -1484,21 +1322,13 @@ func getDraftScore(ctx context.Context, database *sql.DB, draftId int) ([]DraftP
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftScore: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDraftScore")
 
 	rows, err := stmt.QueryContext(ctx, draftId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get picks for draft: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetDraftScore: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetDraftScore")
 
 	picks := make(map[int][]string)
 	usernames := make(map[int]string)
@@ -1579,25 +1409,17 @@ func getOverallLeaderboard(ctx context.Context, database *sql.DB, page int, perP
 	Inner Join Drafts d On d.Id = dp.DraftId
 	Where p.Pick Is Not Null;`
 
-	stmt, err := database.PrepareContext(ctx, query)
+	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return LeaderboardPage{}, fmt.Errorf("failed to prepare leaderboard statement: %w", err)
+		return LeaderboardPage{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "getOverallLeaderboard: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "getOverallLeaderboard")
 
 	rows, err := stmt.QueryContext(ctx)
 	if err != nil {
 		return LeaderboardPage{}, fmt.Errorf("failed to query leaderboard: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "getOverallLeaderboard: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "getOverallLeaderboard")
 
 	type rawPick struct {
 		dpId      int

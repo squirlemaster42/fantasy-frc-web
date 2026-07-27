@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	db "server/database"
-	"server/log"
 )
 
 type MatchTeam struct {
@@ -37,11 +36,7 @@ func associateTeam(ctx context.Context, database *sql.DB, matchTbaId string, tea
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AssociateTeam: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "AssociateTeam")
 	_, err = stmt.ExecContext(ctx, teamTbaId, matchTbaId, alliance, isDqed)
 	if err != nil {
 		return fmt.Errorf("failed to associate team: %w", err)

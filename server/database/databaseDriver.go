@@ -65,3 +65,21 @@ func Prepare(ctx context.Context, db *sql.DB, query string) (*sql.Stmt, error) {
 	}
 	return stmt, nil
 }
+
+func CloseStatement(ctx context.Context, stmt *sql.Stmt, funcName string) {
+	if stmt == nil {
+		return
+	}
+	if err := stmt.Close(); err != nil {
+		log.Error(ctx, funcName+": failed to close statement", "error", err)
+	}
+}
+
+func CloseRows(ctx context.Context, rows *sql.Rows, funcName string) {
+	if rows == nil {
+		return
+	}
+	if err := rows.Close(); err != nil {
+		log.Error(ctx, funcName+": failed to close rows", "error", err)
+	}
+}

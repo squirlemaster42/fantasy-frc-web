@@ -128,10 +128,9 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	pickPageIndex := draftView.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
-		username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+		username, err := h.getAuthenticatedUsername(c, userUuid)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to get username", "error", err)
-			username = ""
+			return err
 		}
 		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, types.NewPageData(draftId, draftActor.GetDraftState().DisplayName, isOwner))
 		if err := Render(c, pickPageView); err != nil {
@@ -252,9 +251,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Debug(ctx, "Received pick event notification, re-rendering picks", "draftId", draftId)
 			draftModel := draft.GetDraft(draftActor)
 
-			var html strings.Builder
-			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
-			err = pickPage.Render(ctx, &html)
+			html, err := RenderToString(ctx, draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid))
 			if err != nil {
 				log.Error(ctx, "Failed to render picks for notifier", "error", err)
 				continue
@@ -264,7 +261,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			if err != nil {
 				log.Warn(ctx, "failed to set context deadline on websocket context", "draftId", draftId, "error", err)
 			}
-			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
+			err = conn.WriteMessage(websocket.TextMessage, []byte(html))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "draftId", draftId, "error", err)
 				return err

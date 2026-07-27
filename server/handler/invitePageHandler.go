@@ -19,10 +19,9 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		username = ""
+		return err
 	}
 
 	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)

@@ -20,10 +20,9 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))

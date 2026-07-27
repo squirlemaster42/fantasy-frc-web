@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -22,6 +23,15 @@ func RenderError(c echo.Context, status int, component templ.Component) error {
 		return err
 	}
 	return c.HTML(status, buf.String())
+}
+
+func RenderToString(ctx context.Context, component templ.Component) (string, error) {
+	var buf bytes.Buffer
+	err := component.Render(ctx, &buf)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // generateCSRFCookie creates a double-submit CSRF cookie for unauthenticated forms

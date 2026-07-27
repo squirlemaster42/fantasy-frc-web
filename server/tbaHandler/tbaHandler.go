@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"server/database"
+	db "server/database"
 	"server/log"
 	"server/metrics"
 	"server/swagger"
@@ -50,15 +50,11 @@ func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string
         responseBody
     From TbaCache
     Where url = $1;`
-	stmt, err := database.Prepare(ctx, t.database, query)
+	stmt, err := db.Prepare(ctx, t.database, query)
 	if err != nil {
 		return nil, "", err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "checkCache: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "checkCache")
 
 	var etag string
 	var body []byte
@@ -76,16 +72,12 @@ func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, bod
 
 	query := `Insert Into TbaCache (url, etag, responseBody) Values ($1, $2, $3)
 		On Conflict (url) Do Update Set etag = excluded.etag, responseBody = excluded.responseBody;`
-	stmt, err := database.Prepare(ctx, t.database, query)
+	stmt, err := db.Prepare(ctx, t.database, query)
 	if err != nil {
 		log.Error(ctx, "cacheData: Failed to prepare statement", "error", err)
 		return
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "cacheData: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "cacheData")
 
 	_, err = stmt.ExecContext(ctx, url, etag, body)
 	if err != nil {
@@ -357,5 +349,5 @@ func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (
 		}
 	}
 
-	return "", errors.New("Failed to find avatar in response: " + string(jsonData))
+	return "", errors.New("failed to find avatar in response: " + string(jsonData))
 }

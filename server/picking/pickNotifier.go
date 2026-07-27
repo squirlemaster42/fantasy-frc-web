@@ -18,10 +18,6 @@ type PickEvent struct {
 	DraftId int
 }
 
-type PickListener interface {
-	ReceivePickEvent(ctx context.Context, pickEvent PickEvent) error
-}
-
 //We need to store a set of connected clients
 //and what draft they are looking at
 //When a pick is made on a given draft we need

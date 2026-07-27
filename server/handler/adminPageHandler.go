@@ -450,10 +450,9 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to render admin console")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		username = ""
+		return err
 	}
 
 	adminConsoleIndex := admin.AdminConsoleIndex(username, h.csrfToken(c))
@@ -467,10 +466,9 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		username = ""
+		return err
 	}
 
 	commandString := c.FormValue("command")

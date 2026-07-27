@@ -6,7 +6,7 @@ import (
 	"server/log"
 	"server/model"
 	"server/types"
-	"server/view/draft"
+	draftView "server/view/draft"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -17,17 +17,16 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve the create draft page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 	draftModel := model.DraftModel{
 		Id: -1,
 	}
 
-	draftCreateIndex := draft.DraftProfileIndex(draftModel, true, h.csrfToken(c))
-	draftCreate := draft.DraftProfile(" | Create Draft", true, username, draftCreateIndex, types.NewPageData(-1, "", true))
+	draftCreateIndex := draftView.DraftProfileIndex(draftModel, true, h.csrfToken(c))
+	draftCreate := draftView.DraftProfile(" | Create Draft", true, username, draftCreateIndex, types.NewPageData(-1, "", true))
 	if err := Render(c, draftCreate); err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "error", err)
 		return err
@@ -49,10 +48,9 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Interval must be a number, was %s", interval))
 	}
 
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftModel := model.DraftModel{

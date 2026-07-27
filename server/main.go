@@ -64,57 +64,22 @@ func main() {
 	csrfSecret := os.Getenv("CSRF_SECRET")
 	trustProxyVar := os.Getenv("TRUST_PROXY")
 	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
-	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
-	redisAvatarDBVar := os.Getenv("REDIS_AVATAR_DB")
-	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
-	rateLimitEnabledVar := os.Getenv("RATE_LIMIT_ENABLED")
 
 	if csrfSecret == "" {
 		panic("CSRF_SECRET environment variable is required")
 	}
 
-	minPasswordLength := 12
-	if minPasswordLengthVar != "" {
-		parsed, err := strconv.Atoi(minPasswordLengthVar)
-		if err == nil && parsed > 0 {
-			minPasswordLength = parsed
-		}
-	}
+	minPasswordLength := utils.GetEnvInt("MIN_PASSWORD_LENGTH", 12)
 
-	redisRateLimitDB := 1
-	if redisRateLimitDBVar != "" {
-		parsed, err := strconv.Atoi(redisRateLimitDBVar)
-		if err == nil {
-			redisRateLimitDB = parsed
-		}
-	}
+	redisRateLimitDB := utils.GetEnvInt("REDIS_RATE_LIMIT_DB", 1)
 
-	redisAvatarDB := 2
-	if redisAvatarDBVar != "" {
-		parsed, err := strconv.Atoi(redisAvatarDBVar)
-		if err == nil {
-			redisAvatarDB = parsed
-		}
-	}
+	redisAvatarDB := utils.GetEnvInt("REDIS_AVATAR_DB", 2)
 
-	postsPerMinute := int64(100)
-	if postsPerMinuteVar != "" {
-		parsed, err := strconv.ParseInt(postsPerMinuteVar, 10, 64)
-		if err == nil && parsed > 0 {
-			postsPerMinute = parsed
-		}
-	}
+	postsPerMinute := utils.GetEnvInt64("RATE_LIMIT_POSTS_PER_MINUTE", 100)
 
-	rateLimitEnabled := true
-	if rateLimitEnabledVar != "" {
-		parsed, err := strconv.ParseBool(rateLimitEnabledVar)
-		if err == nil {
-			rateLimitEnabled = parsed
-		}
-	}
+	rateLimitEnabled := utils.GetEnvBool("RATE_LIMIT_ENABLED", true)
 
 	log.Info(ctx, "Extracted Env Vars")
 	database, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)

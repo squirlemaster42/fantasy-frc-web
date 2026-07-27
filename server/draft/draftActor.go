@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"server/assert"
 	"server/discord"
 	"server/log"
 	"server/model"
@@ -521,15 +520,11 @@ func (d *DraftActor) handleUninvitePlayer(ctx context.Context, msg UninvitePlaye
 
 func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransitionMessage) Result {
 	log.Info(ctx, "Got request to execute draft state transition", "draftId", d.draftState.Id, "requestedState", msg.RequestedState)
-	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
-
-	assert.AddContext("draftId", d.draftState.Id)
-	assert.AddContext("Current Draft Model State", string(d.draftState.Status))
-	assert.AddContext("requestedState", string(msg.RequestedState))
 
 	state, stateFound := d.states[d.draftState.Status]
-	assert.AddContext("Current Draft State", state)
-	assert.RunAssert(ctx, stateFound, "Current draft state is not registered in state machine")
+	if !stateFound {
+		return Result{Error: fmt.Errorf("current draft state is not registered in state machine")}
+	}
 	log.Debug(ctx, "Found draft state", "draftId", d.draftState.Id, "State", state.state)
 	transition, transitionFound := state.transitions[msg.RequestedState]
 	if !transitionFound {
@@ -758,7 +753,13 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 
 	// Only make the next pick available if the draft is not already complete
 	if len(d.draftState.Picks) < 64 {
-		nextPickPlayer = d.getNextPick(ctx)
+		nextPickPlayer, err = d.getNextPick(ctx)
+		if err != nil {
+			log.Error(ctx, "Failed to get next pick when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
+			return Result{
+				Error: err,
+			}
+		}
 		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
 		if err != nil {
 			log.Error(ctx, "Failed to make pick available when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
@@ -917,45 +918,8 @@ func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
 	return d.draftState.Picks[len(d.draftState.Picks) - 2], nil
 }
 
-func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
-	assert := assert.CreateAssertWithContext("Get Next Pick")
-	assert.AddContext("draftId", d.draftState.Id)
-	assert.AddContext("currentPickId", d.draftState.CurrentPick)
-	assert.RunAssert(ctx, len(d.draftState.Players) > 0, "Draft has no players when finding next pick")
-
-	var nextPlayer model.DraftPlayer
-
-	// Only two players is an edge case so we just hard code it
-	if len(d.draftState.Picks) < 2 {
-		for _, player := range d.draftState.Players {
-			if int(player.PlayerOrder.Int16) == len(d.draftState.Picks) {
-				nextPlayer = player
-			}
-		}
-		assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
-		return nextPlayer
-	}
-
-	lastPlayer := model.GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-1].Player)
-	secondLastPick := model.GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-2].Player)
-	assert.RunAssert(ctx, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-	direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
-	if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
-		if int(lastPlayer.PlayerOrder.Int16) == len(d.draftState.Players)-1 {
-			direction = -1
-		} else {
-			direction = 1
-		}
-	}
-	if len(d.draftState.Picks) % len(d.draftState.Players) == 0 {
-		direction = 0
-	}
-
-	nextIndex := lastPlayer.PlayerOrder.Int16 + direction
-	assert.RunAssert(ctx, nextIndex >= 0 && int(nextIndex) < len(d.draftState.Players), "next pick is out of bounds")
-	nextPlayer = d.draftState.Players[nextIndex]
-	assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
-	return nextPlayer
+func (d *DraftActor) getNextPick(ctx context.Context) (model.DraftPlayer, error) {
+	return model.DetermineNextPick(d.draftState.Players, d.draftState.Picks)
 }
 
 func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraftPlayerId int, previousPickedTeam string, nextPickPlayer model.DraftPlayer, pickingComplete bool, skipped bool) (discord.NextPickDiscordEvent, error) {

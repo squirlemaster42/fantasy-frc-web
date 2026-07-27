@@ -15,19 +15,7 @@ import (
 
 // We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
-	csrfToken, err := generateCSRFCookie(c)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	loginIndex := login.LoginIndex(false, "", h.MinPasswordLength, csrfToken)
-	login := login.Login("Login", false, loginIndex)
-	err = Render(c, login)
-	if err != nil {
-		log.Error(c.Request().Context(), "Handle View Login Failed To Render", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	return nil
+	return h.renderLoginWithError(c, "")
 }
 
 // We generate a 128 bit session token
@@ -45,17 +33,7 @@ func generateSessionToken() (string, error) {
 func (h *Handler) HandleLoginPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		loginIndex := login.LoginIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		if err := Render(c, loginIndex); err != nil {
-			log.Error(c.Request().Context(), "Failed to render login page after CSRF failure", "error", err)
-			return err
-		}
-		return nil
+		return h.renderLoginWithError(c, "Invalid request. Please try again.")
 	}
 
 	username := c.FormValue("username")
@@ -106,18 +84,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	}
 
 	log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
-	csrfToken, err := generateCSRFCookie(c)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password", h.MinPasswordLength, csrfToken)
-	err = Render(c, loginIndex)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed To Render Login Page With Error", "error", err)
-		return err
-	}
-	return nil
+	return h.renderLoginWithError(c, "You have entered an invalid username or password")
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -145,35 +112,34 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleViewRegister(c echo.Context) error {
+func (h *Handler) renderRegisterWithError(c echo.Context, message string) error {
 	csrfToken, err := generateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	registerIndex := login.RegisterIndex(false, "", h.MinPasswordLength, csrfToken)
-	register := login.Register("Register", false, registerIndex)
-	if err := Render(c, register); err != nil {
-		log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+	register := login.RegisterIndex(false, message, h.MinPasswordLength, csrfToken)
+	return Render(c, register)
+}
+
+func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
+	csrfToken, err := generateCSRFCookie(c)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	return nil
+	loginPage := login.LoginIndex(false, message, h.MinPasswordLength, csrfToken)
+	return Render(c, loginPage)
+}
+
+func (h *Handler) HandleViewRegister(c echo.Context) error {
+	return h.renderRegisterWithError(c, "")
 }
 
 func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on register", "ip", c.RealIP())
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Failed to render register page after CSRF failure", "error", err)
-			return err
-		}
-		return nil
+		return h.renderRegisterWithError(c, "Invalid request. Please try again.")
 	}
 
 	username := c.FormValue("username")
@@ -187,50 +153,17 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 	if taken {
 		log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Username Taken", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
+		return h.renderRegisterWithError(c, "Username Taken")
 	}
 
 	if password != confirmPassword {
 		log.Warn(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Passwords Do Not Match", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
+		return h.renderRegisterWithError(c, "Passwords Do Not Match")
 	}
 
 	if len(password) < h.MinPasswordLength {
 		log.Warn(c.Request().Context(), "Password too short for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength), h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
+		return h.renderRegisterWithError(c, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength))
 	}
 
 	var hasUpper, hasLower, hasDigit bool
@@ -246,18 +179,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	}
 	if !hasUpper || !hasLower || !hasDigit {
 		log.Warn(c.Request().Context(), "Password does not meet complexity requirements for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Password must contain at least one uppercase letter, one lowercase letter, and one digit", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
+		return h.renderRegisterWithError(c, "Password must contain at least one uppercase letter, one lowercase letter, and one digit")
 	}
 
 	log.Info(c.Request().Context(), "Valid registration for user", "username", username)

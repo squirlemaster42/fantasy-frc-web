@@ -15,10 +15,9 @@ import (
 
 func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	page, err := strconv.Atoi(c.QueryParam("page"))

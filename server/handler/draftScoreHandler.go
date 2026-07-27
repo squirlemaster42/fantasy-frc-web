@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/types"
@@ -20,10 +19,9 @@ import (
 
 func (h *Handler) HandleDraftScore(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -70,13 +68,10 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 }
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Draft Team Score")
-
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -98,8 +93,6 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
 	teamNumber := c.Param("teamNumber")
-	assert.AddContext("teamNumber", teamNumber)
-	assert.AddContext("draftId", draftId)
 
 	scores, err := h.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
 	if err != nil {

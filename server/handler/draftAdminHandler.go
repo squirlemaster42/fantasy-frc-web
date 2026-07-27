@@ -29,10 +29,9 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve draft admin page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		username = ""
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))

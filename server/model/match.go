@@ -30,11 +30,7 @@ func addMatch(ctx context.Context, database *sql.DB, tbaId string) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AddMatch: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "AddMatch")
 	_, err = stmt.ExecContext(ctx, tbaId, false, 0, 0)
 	if err != nil {
 		log.Error(ctx, "Failed to add match", "matchTbaId", tbaId, "error", err)
@@ -49,11 +45,7 @@ func updateScore(ctx context.Context, database *sql.DB, tbaId string, redScore i
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateScore: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateScore")
 	_, err = stmt.ExecContext(ctx, true, redScore, blueScore, tbaId)
 	if err != nil {
 		log.Error(ctx, "Failed to update score", "matchTbaId", tbaId, "redScore", redScore, "blueScore", blueScore, "error", err)
@@ -69,11 +61,7 @@ func getMatch(ctx context.Context, database *sql.DB, tbaId string) (*Match, erro
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetMatch: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetMatch")
 	match := Match{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {

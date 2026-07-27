@@ -13,7 +13,7 @@ import (
 func TestCancelInvite_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
 		ExpectExec().
@@ -28,7 +28,7 @@ func TestCancelInvite_Success(t *testing.T) {
 func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
 		ExpectExec().
@@ -43,7 +43,7 @@ func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 func TestUninvitePlayer_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -65,7 +65,7 @@ func TestUninvitePlayer_Success(t *testing.T) {
 func TestUninvitePlayer_NotOwner(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	requesterUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
@@ -84,7 +84,7 @@ func TestUninvitePlayer_NotOwner(t *testing.T) {
 func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -107,7 +107,7 @@ func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 func TestGetOutstandingInvitesForDraft(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "InvitedUserUuid"}).
 		AddRow(1, "player1", "550e8400-e29b-41d4-a716-446655440000").
@@ -129,7 +129,7 @@ func TestGetOutstandingInvitesForDraft(t *testing.T) {
 func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "InvitedUserUuid"})
 
@@ -147,7 +147,7 @@ func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 func TestGetInvite_ExcludesCanceled(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.Id = \$1(.+)And di.Status != 'canceled';`).
 		ExpectQuery().
@@ -164,7 +164,7 @@ func TestGetInvite_ExcludesCanceled(t *testing.T) {
 func TestGetInvites_ExcludesCanceled(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "DisplayName"}).
 		AddRow(1, "inviter", "Test Draft")

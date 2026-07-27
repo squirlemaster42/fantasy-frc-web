@@ -28,11 +28,7 @@ func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetTeam: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetTeam")
 	team := Team{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
 	if err != nil {
@@ -50,11 +46,7 @@ func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CreateTeam: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "CreateTeam")
 	_, err = stmt.ExecContext(ctx, tbaId, name)
 	if err != nil {
 		return fmt.Errorf("failed to create team: %w", err)
@@ -68,11 +60,7 @@ func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateTeamAllianceScore: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateTeamAllianceScore")
 	_, err = stmt.ExecContext(ctx, allianceScore, tbaId)
 	return err
 }
@@ -102,21 +90,13 @@ func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetMatchScores: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetMatchScores")
 
 	rows, err := stmt.QueryContext(ctx, tbaId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get match scores for team: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetMatchScores: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetMatchScores")
 
 	var matches []MatchTeamScore
 	for rows.Next() {
@@ -156,11 +136,7 @@ func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]i
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetScore: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetScore")
 
 	var allianceScore int
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&allianceScore)
@@ -186,11 +162,7 @@ func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]i
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetScore: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetScore")
 
 	var displayName string
 	var matchScore int
@@ -198,11 +170,7 @@ func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]i
 	if err != nil {
 		return nil, fmt.Errorf("failed to get score for team: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetScore: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, rows, "GetScore")
 
 	scores := make(map[string]int)
 	total := 0

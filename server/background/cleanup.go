@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"server/database"
 	"server/log"
 	"sync"
 	"time"
@@ -61,11 +62,7 @@ func (c *CleanupService) cleanExpiredSessionTokens(ctx context.Context) {
 		log.Error(ctx, "CleanExpiredSessionTokens: Failed to prepare statement", "error", err)
 		return
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CleanExpiredSessionTokens: Failed to close statement", "error", err)
-		}
-	}()
+	defer database.CloseStatement(ctx, stmt, "CleanExpiredSessionTokens")
 	_, err = stmt.ExecContext(ctx)
 	if err != nil {
 		log.Error(ctx, "CleanExpiredSessionTokens: Failed to cleanup session tokens", "error", err)

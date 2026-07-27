@@ -17,10 +17,9 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 	userUuid := userUuidVal.(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 	discordId, err := h.UserStore.GetDiscordId(c.Request().Context(), userUuid)
 	if err != nil {
@@ -44,10 +43,9 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
 	userUuid := userUuidVal.(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	discordId := c.FormValue("discordId")

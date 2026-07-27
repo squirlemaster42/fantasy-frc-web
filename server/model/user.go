@@ -30,11 +30,7 @@ func registerUser(ctx context.Context, database *sql.DB, username string, passwo
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "RegisterUser: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "RegisterUser")
 	userUuid := uuid.New()
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	if err != nil {
@@ -53,11 +49,7 @@ func usernameTaken(ctx context.Context, database *sql.DB, username string) (bool
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UsernameTaken: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UsernameTaken")
 	var count int
 	err = stmt.QueryRowContext(ctx, username).Scan(&count)
 	if err != nil {
@@ -72,11 +64,7 @@ func getUserUuidByUsername(ctx context.Context, database *sql.DB, username strin
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetUserUuidByUsername: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetUserUuidByUsername")
 	var userUuid uuid.UUID
 	err = stmt.QueryRowContext(ctx, username).Scan(&userUuid)
 	if err != nil {
@@ -91,11 +79,7 @@ func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (str
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetUsername: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetUsername")
 	var username string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&username)
 	if err != nil {
@@ -110,11 +94,7 @@ func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (st
 	if err != nil {
 		return "", err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDiscordId: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetDiscordId")
 	var discordId string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&discordId)
 	if err != nil {
@@ -129,11 +109,7 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateDiscordId: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateDiscordId")
 	_, err = stmt.ExecContext(ctx, discordId, userUuid)
 	if err != nil {
 		return fmt.Errorf("failed to update discord id: %w", err)
@@ -151,11 +127,7 @@ func validateLogin(ctx context.Context, database *sql.DB, username string, passw
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "ValidateLogin: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "ValidateLogin")
 	var dbPassword string
 	err = stmt.QueryRowContext(ctx, username).Scan(&dbPassword)
 	if err != nil {
@@ -183,11 +155,7 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, newP
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdatePassword: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdatePassword")
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
 	if err != nil {
 		return fmt.Errorf("failed to generate password hash: %w", err)
@@ -205,11 +173,7 @@ func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "RegisterSession: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "RegisterSession")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -225,11 +189,7 @@ func unregisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UnRegisterSession: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UnRegisterSession")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, hasher.Sum(nil))
@@ -245,11 +205,7 @@ func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetUserBySessionToken: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "GetUserBySessionToken")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var userUuid uuid.UUID
@@ -269,11 +225,7 @@ func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (boo
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UserIsAdmin: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UserIsAdmin")
 	var isAdmin bool
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&isAdmin)
 	if err != nil {
@@ -289,11 +241,7 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "UpdateSessionExpiration: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "UpdateSessionExpiration")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -311,11 +259,7 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 	if err != nil {
 		return false, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "ValidateSessionToken: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "ValidateSessionToken")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var count int
@@ -336,11 +280,7 @@ func invalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, user
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "InvalidateAllUserSessionsExcept: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "InvalidateAllUserSessionsExcept")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(keepSessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -391,11 +331,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "SearchUsers: Failed to close statement", "error", err)
-		}
-	}()
+	defer db.CloseStatement(ctx, stmt, "SearchUsers")
 
 	var userRows *sql.Rows
 	if searchString != "" {
@@ -406,11 +342,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := userRows.Close(); err != nil {
-			log.Error(ctx, "SearchUsers: Failed to close rows", "error", err)
-		}
-	}()
+	defer db.CloseRows(ctx, userRows, "SearchUsers")
 
 	users := make([]User, 0)
 
