@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
@@ -15,22 +14,32 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type Handler struct {
-	DraftStore          model.DraftStore
-	UserStore           model.UserStore
-	TeamStore           model.TeamStore
-	TBAHandler          tbaHandler.TBAHandler
-	DraftActorMap 		*draft.DraftActorMap
-	DraftDaemon         *background.DraftDaemon
-	Scorer              *scorer.Scorer
-	AvatarStore         *cache.AvatarStore
+type StorageGroup struct {
+	DraftStore model.DraftStore
+	UserStore  model.UserStore
+	TeamStore  model.TeamStore
+}
+
+type ServiceGroup struct {
+	TBAHandler        tbaHandler.TBAInterface
+	DraftActorMap     *draft.DraftActorMap
+	Scorer            *scorer.Scorer
+	AvatarStore       cache.AvatarStoreInterface
+	DiscordWebhookBus discord.DiscordNotifier
+}
+
+type ConfigGroup struct {
 	TbaWebhookSecret    string
 	TbaVerificationCode string
-	DiscordWebhookBus   *discord.DiscordWebhookBus
 	SecureHttpCookie    bool
 	MinPasswordLength   int
-	CsrfSecret          string
 	AllowedOrigin       string
+}
+
+type Handler struct {
+	Stores   StorageGroup
+	Services ServiceGroup
+	Config   ConfigGroup
 }
 
 func (h *Handler) csrfToken(c echo.Context) string {
@@ -39,7 +48,7 @@ func (h *Handler) csrfToken(c echo.Context) string {
 }
 
 func (h *Handler) getAuthenticatedUsername(c echo.Context, userUuid uuid.UUID) (string, error) {
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get username", "error", err)
 		return "", echo.NewHTTPError(http.StatusInternalServerError, "An error occurred")

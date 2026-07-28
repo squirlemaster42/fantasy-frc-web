@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -78,8 +79,7 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
 		},
 	}, nil).Once()
-	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
-	mockStore.On("MakePickAvailable", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+	mockStore.On("SkipAndMakeNextPickAvailable", mock.Anything, pickId, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: pickId},
@@ -200,10 +200,9 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 		},
 		Players: players,
 	}, nil).Once()
-	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("SkipAndMakeNextPickAvailable", mock.Anything, pickId, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 3).Return(model.User{Username: "Charlie"}, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 4).Return(model.User{Username: "David"}, nil).Once()
-	mockStore.On("MakePickAvailable", mock.Anything, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id:          draftId,
 		Status:      model.PICKING,
@@ -287,8 +286,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 		CurrentPick: model.Pick{Id: pickId},
 	}, nil).Once()
 	mockStore.On("GetPreviousPick", mock.Anything, draftId, pickId).Return(model.Pick{Id: 41}, nil).Once()
-	mockStore.On("DeletePick", mock.Anything, pickId).Return(nil).Once()
-	mockStore.On("ResetPick", mock.Anything, 41, mock.Anything).Return(nil).Once()
+	mockStore.On("UndoLastPick", mock.Anything, pickId, 41, mock.Anything).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: 41},
@@ -423,13 +421,25 @@ func TestDraftActor_handleMessage_UnknownType(t *testing.T) {
 	assert.Contains(t, result.Error.Error(), "unknown message type")
 }
 
-func TestDraftActor_handleTransferDraftOwnership_NotSupported(t *testing.T) {
-	actor := &DraftActor{}
+func TestDraftActor_handleTransferDraftOwnership_Success(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	newOwnerUuid := uuid.New()
+	actor := &DraftActor{
+		draftStore: mockStore,
+		draftState: model.DraftModel{
+			Id:    1,
+			Owner: model.User{UserUuid: uuid.New()},
+		},
+	}
+	mockStore.On("TransferOwnership", mock.Anything, 1, newOwnerUuid).Return(nil).Once()
 
-	result := actor.handleTransferDraftOwnership(t.Context(), TransferDraftOwnershipMessage{})
+	result := actor.handleTransferDraftOwnership(t.Context(), TransferDraftOwnershipMessage{
+		UpdatedOwnerId: newOwnerUuid,
+	})
 
-	assert.Error(t, result.Error)
-	assert.Contains(t, result.Error.Error(), "not yet supported")
+	assert.NoError(t, result.Error)
+	assert.Equal(t, newOwnerUuid, actor.draftState.Owner.UserUuid)
+	mockStore.AssertExpectations(t)
 }
 
 func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
@@ -646,6 +656,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 		Status: model.FILLING,
 		CurrentPick: model.Pick{Id: 42},
 	}, nil).Once()
+	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil).Return(nil).Maybe()
 
 	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil)
 	assert.NoError(t, err)
@@ -666,7 +677,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 					Reply:   replyChan,
 				}
 			case 1, 2:
-				// These return errors without DB calls
+				// TransferDraftOwnershipMessage: calls TransferOwnership on the store
 				msg = Message{
 					Content: TransferDraftOwnershipMessage{Initiator: idx},
 					Reply:   replyChan,

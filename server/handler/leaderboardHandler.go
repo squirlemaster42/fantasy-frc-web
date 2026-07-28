@@ -27,7 +27,7 @@ func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
 
 	perPage := 25
 
-	leaderboardPage, err := h.DraftStore.GetOverallLeaderboard(c.Request().Context(), page, perPage)
+	leaderboardPage, err := h.Stores.DraftStore.GetOverallLeaderboard(c.Request().Context(), page, perPage)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get overall leaderboard", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

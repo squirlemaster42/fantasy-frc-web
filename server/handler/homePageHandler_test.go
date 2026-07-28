@@ -24,8 +24,10 @@ func TestHandleViewHome(t *testing.T) {
 		mockDraftStore.On("GetDraftsForUser", c.Request().Context(), userUuid).Return([]model.DraftModel{}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleViewHome(c)
@@ -45,8 +47,10 @@ func TestHandleViewCreateDraft(t *testing.T) {
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleViewCreateDraft(c)
@@ -67,8 +71,10 @@ func TestHandleCreateDraftPost(t *testing.T) {
 		mockDraftStore.On("CreateDraft", c.Request().Context(), mock.AnythingOfType("*model.DraftModel")).Return(42, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleCreateDraftPost(c)

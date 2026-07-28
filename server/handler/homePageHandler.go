@@ -18,7 +18,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	}
 
 	log.Debug(c.Request().Context(), "Loading drafts for user", "username", username)
-	drafts, err := h.DraftStore.GetDraftsForUser(c.Request().Context(), userUuid)
+	drafts, err := h.Stores.DraftStore.GetDraftsForUser(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load drafts")

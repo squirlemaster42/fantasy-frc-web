@@ -162,22 +162,27 @@ func main() {
 		redisAddr = "localhost:6379"
 	}
 
-	avatarStore, err := cache.NewAvatarStore(ctx, *tbaHandler, redisAddr, redisPassword, redisAvatarDB)
+	avatarStore, err := cache.NewAvatarStore(ctx, tbaHandler, redisAddr, redisPassword, redisAvatarDB)
 	assert.NoError(ctx, err, "Failed to create avatar store")
 
 	handler := handler.Handler{
-		DraftStore:        draftStore,
-		UserStore:         userStore,
-		TeamStore:         teamStore,
-		TBAHandler:        *tbaHandler,
-		DraftActorMap: draftActorMap,
-		Scorer:            scorer,
-		AvatarStore:       &avatarStore,
-		DiscordWebhookBus: discordWebhookBus,
-		SecureHttpCookie:  secureHttpCookie,
-		MinPasswordLength: minPasswordLength,
-		CsrfSecret:        csrfSecret,
-		AllowedOrigin:     allowedOrigin,
+		Stores: handler.StorageGroup{
+			DraftStore: draftStore,
+			UserStore:  userStore,
+			TeamStore:  teamStore,
+		},
+		Services: handler.ServiceGroup{
+			TBAHandler:        tbaHandler,
+			DraftActorMap:     draftActorMap,
+			Scorer:            scorer,
+			AvatarStore:       &avatarStore,
+			DiscordWebhookBus: discordWebhookBus,
+		},
+		Config: handler.ConfigGroup{
+			SecureHttpCookie:  secureHttpCookie,
+			MinPasswordLength: minPasswordLength,
+			AllowedOrigin:     allowedOrigin,
+		},
 	}
 
 	// Load the tba webhook secret
@@ -190,10 +195,10 @@ func main() {
 		if err != nil {
 			log.Warn(ctx, "Failed to read tba webhook file body", "error", err)
 		} else {
-			handler.TbaVerificationCode = string(body)
+			handler.Config.TbaVerificationCode = string(body)
 		}
 	}
-	handler.TbaWebhookSecret = tbaWebhookSecret
+	handler.Config.TbaWebhookSecret = tbaWebhookSecret
 
 	app, otelShutdown := CreateServer(ctx, ServerConfig{
 		ServerPort:       serverPort,

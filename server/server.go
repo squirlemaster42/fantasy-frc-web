@@ -39,7 +39,7 @@ type ServerConfig struct {
 
 func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(context.Context) error) {
 	log.Info(ctx, "Starting Server")
-	auth := authentication.NewAuth(cfg.Handler.UserStore)
+	auth := authentication.NewAuth(cfg.Handler.Stores.UserStore)
 	app := echo.New()
 	if cfg.TrustProxy {
 		app.IPExtractor = echo.ExtractIPFromXFFHeader(echo.TrustLoopback(true))
@@ -75,7 +75,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		if userUuidVal := c.Get(string(authentication.UserUuidKey)); userUuidVal != nil {
 			if userUuid, ok := userUuidVal.(uuid.UUID); ok {
 				fromProtected = true
-				name, err := cfg.Handler.UserStore.GetUsername(c.Request().Context(), userUuid)
+				name, err := cfg.Handler.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
 				if err == nil {
 					username = name
 				}
@@ -135,9 +135,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	app.Use(middleware.CorrelationID())
 	app.Use(otelecho.Middleware("fantasy-frc-web"))
 	app.Use(metrics.MetricsMiddleware())
-	app.Use(middleware.SecurityHeaders(cfg.Handler.SecureHttpCookie))
+	app.Use(middleware.SecurityHeaders(cfg.Handler.Config.SecureHttpCookie))
 
-	csrf := middleware.NewCSRF(cfg.CsrfSecret, cfg.Handler.SecureHttpCookie)
+	csrf := middleware.NewCSRF(cfg.CsrfSecret, cfg.Handler.Config.SecureHttpCookie)
 	var rateLimiter *middleware.RateLimiter
 	if cfg.RateLimitEnabled {
 		rateLimiter = middleware.NewRateLimiter(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisRateLimitDB)
@@ -152,22 +152,40 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	}
 
 	//Setup Routes
-	app.GET("/", cfg.Handler.HandleViewLanding, echomiddleware.Gzip())
-	app.GET("/login", cfg.Handler.HandleViewLogin, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
-	app.POST("/login", cfg.Handler.HandleLoginPost, loginPostMiddleware...)
-	app.GET("/register", cfg.Handler.HandleViewRegister, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
-	app.POST("/register", cfg.Handler.HandlerRegisterPost, registerPostMiddleware...)
-	app.POST("/tbaWebhook", cfg.Handler.ConsumeTbaWebhook, echomiddleware.Gzip())
+	registerPublicRoutes(app, cfg, auth, loginPostMiddleware, registerPostMiddleware)
 
 	metricAuth := authentication.NewMetricAuth(cfg.MetricSecret)
-	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
-
-	app.GET("/healthz", func(c echo.Context) error {
-		return c.String(http.StatusOK, "ok")
-	})
+	registerSystemRoutes(app, cfg, metricAuth)
 
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
+	registerProtectedRoutes(protected, cfg)
+
+	admin := protected.Group("/admin", auth.CheckAdmin)
+	registerAdminRoutes(admin, cfg)
+
+	registerCatchAll(app)
+
+	return app, shutdown
+}
+
+func registerPublicRoutes(app *echo.Echo, cfg ServerConfig, auth *authentication.Authenticator, loginMiddleware, registerMiddleware []echo.MiddlewareFunc) {
+	app.GET("/", cfg.Handler.HandleViewLanding, echomiddleware.Gzip())
+	app.GET("/login", cfg.Handler.HandleViewLogin, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
+	app.POST("/login", cfg.Handler.HandleLoginPost, loginMiddleware...)
+	app.GET("/register", cfg.Handler.HandleViewRegister, auth.RedirectIfAuthenticated, echomiddleware.Gzip())
+	app.POST("/register", cfg.Handler.HandlerRegisterPost, registerMiddleware...)
+	app.POST("/tbaWebhook", cfg.Handler.ConsumeTbaWebhook, echomiddleware.Gzip())
+}
+
+func registerSystemRoutes(app *echo.Echo, cfg ServerConfig, metricAuth *authentication.MetricAuth) {
+	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
+	app.GET("/healthz", func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+}
+
+func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.POST("/logout", cfg.Handler.HandleLogoutPost)
 	protected.GET("/home", cfg.Handler.HandleViewHome)
 	protected.GET("/createDraft", cfg.Handler.HandleViewCreateDraft)
@@ -198,19 +216,18 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	protected.GET("/team/:id/avatar", cfg.Handler.GetTeamAvatar)
 	protected.GET("/userProfile", cfg.Handler.HandleViewUserProfile)
 	protected.POST("/userProfile", cfg.Handler.HandleUpdateUserProfile)
+}
 
-	admin := protected.Group("/admin", auth.CheckAdmin)
+func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
 	admin.POST("/processCommand", cfg.Handler.HandleRunCommand)
+}
 
-	// Catch-all for unmatched routes on all HTTP methods
+func registerCatchAll(app *echo.Echo) {
 	app.Any("/*", func(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound)
 	})
-
-	return app, shutdown
 }
-
 
 func cacheControlMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {

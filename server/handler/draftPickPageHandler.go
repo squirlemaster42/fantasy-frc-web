@@ -49,7 +49,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 	log.Debug(c.Request().Context(), "Got request for player to make pick in draft", "userUuid", userUuid, "pick", pick, "draftId", draftId)
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -59,8 +59,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
 
 	// Make the pick
-	// TODO we could move this to the actor so we dont have to call the db
-	draftPlayer, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayer, err := draftActor.GetDraftPlayerIdByUuid(userUuid)
 	if err != nil {
 		return err
 	}
@@ -93,7 +92,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -104,12 +103,12 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
 	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
 	isOwner := draftState.Owner.UserUuid == userUuid
-	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayerId, err := h.Stores.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "draftId", draftId, "userUuid", userUuid, "error", err)
 		draftPlayerId = -1
 	}
-	isSkipping, err := h.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
+	isSkipping, err := h.Stores.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to check if pick should be skipped", "draftPlayerId", draftPlayerId, "error", err)
 		isSkipping = false
@@ -153,8 +152,8 @@ func (h *Handler) newUpgrader() *websocket.Upgrader {
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
-			if h.AllowedOrigin != "" {
-				return origin == h.AllowedOrigin
+			if h.Config.AllowedOrigin != "" {
+				return origin == h.Config.AllowedOrigin
 			}
 			// No explicit origin configured: allow same-origin and localhost for local dev
 			if origin == "" {
@@ -188,14 +187,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 		_ = conn.Close()
 		return c.NoContent(http.StatusNotFound)
 	}
 
-	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
+	watcher := draft.RegisterWatcher(ctx, h.Services.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "draftId", draftId)
 		_ = conn.Close()
@@ -228,7 +227,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	ticker := time.NewTicker(30 * time.Second)
 	defer func() {
 		ticker.Stop()
-		draft.UnregisterWatcher(ctx, h.DraftActorMap, watcher)
+		draft.UnregisterWatcher(ctx, h.Services.DraftActorMap, watcher)
 		_ = conn.Close()
 		<-done
 	}()
@@ -281,7 +280,7 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 		return err
 	}
 
-	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayerId, err := h.Stores.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft player", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return err
@@ -290,5 +289,5 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	shouldSkip := c.FormValue("skipping") != ""
 	log.Debug(c.Request().Context(), "Marking should skip", "shouldSkip", shouldSkip, "draftPlayerId", draftPlayerId)
 
-	return h.DraftStore.MarkShouldSkipPick(c.Request().Context(), draftPlayerId, shouldSkip)
+	return h.Stores.DraftStore.MarkShouldSkipPick(c.Request().Context(), draftPlayerId, shouldSkip)
 }

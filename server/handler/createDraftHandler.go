@@ -63,7 +63,7 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		Status:      model.FILLING,
 	}
 
-	draftId, err := h.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
+	draftId, err := h.Stores.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to create draft", "interval", intInterval, "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")

@@ -10,12 +10,12 @@ import (
 )
 
 type PickValidator struct {
-    handler *tbaHandler.TBAHandler
+    handler tbaHandler.TBAInterface
     draftStore model.DraftStore
 	draftId int
 }
 
-func NewPickValidator(handler *tbaHandler.TBAHandler, draftStore model.DraftStore, draftId int) PickValidator {
+func NewPickValidator(handler tbaHandler.TBAInterface, draftStore model.DraftStore, draftId int) PickValidator {
     return PickValidator{
         handler: handler,
         draftStore: draftStore,

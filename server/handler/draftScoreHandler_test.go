@@ -30,8 +30,10 @@ func TestHandleDraftScore(t *testing.T) {
 		mockDraftStore.On("GetDraftScore", c.Request().Context(), 42).Return([]model.DraftPlayer{}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftScore(c)
@@ -61,9 +63,11 @@ func TestHandleDraftTeamScore(t *testing.T) {
 		mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
-			TeamStore:  mockTeamStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+				TeamStore:  mockTeamStore,
+			},
 		}
 
 		err := h.HandleDraftTeamScore(c)

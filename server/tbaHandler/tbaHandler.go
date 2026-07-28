@@ -17,6 +17,15 @@ import (
 	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
+type TBAInterface interface {
+	MakeEventListReq(ctx context.Context, teamId string) []string
+	MakeMatchReq(ctx context.Context, matchId string) swagger.Match
+	MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string
+	MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team
+	MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance
+	MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error)
+}
+
 const (
 	BASE_URL = "https://www.thebluealliance.com/api/v3/"
 )

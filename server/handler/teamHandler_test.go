@@ -20,7 +20,9 @@ func TestHandleTeamScore(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 	h := &Handler{
-		UserStore: mockUserStore,
+		Stores: StorageGroup{
+			UserStore: mockUserStore,
+		},
 	}
 
 	err := h.HandleTeamScore(c)
@@ -37,7 +39,9 @@ func TestHandleGetTeamScore(t *testing.T) {
 	mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{}, nil)
 
 	h := &Handler{
-		TeamStore: mockTeamStore,
+		Stores: StorageGroup{
+			TeamStore: mockTeamStore,
+		},
 	}
 
 	err := h.HandleGetTeamScore(c)

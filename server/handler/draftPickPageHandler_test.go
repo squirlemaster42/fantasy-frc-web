@@ -25,8 +25,10 @@ func TestServePickPage(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.ServePickPage(c)
@@ -55,8 +57,10 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		mockDraftStore.On("MarkShouldSkipPick", c.Request().Context(), 7, true).Return(nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleSkipPickToggle(c)
@@ -80,8 +84,10 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleSkipPickToggle(c)

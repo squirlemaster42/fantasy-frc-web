@@ -13,7 +13,7 @@ import (
 )
 
 type Scorer struct {
-	tbaHandler       *tbaHandler.TBAHandler
+	tbaHandler       tbaHandler.TBAInterface
 	matchStore       model.MatchStore
 	matchTeamStore   model.MatchTeamStore
 	teamStore        model.TeamStore
@@ -21,7 +21,7 @@ type Scorer struct {
 	queue            *MatchQueue
 }
 
-func NewScorer(tbaHandler *tbaHandler.TBAHandler, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
+func NewScorer(tbaHandler tbaHandler.TBAInterface, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
 	return &Scorer{
 		tbaHandler:       tbaHandler,
 		matchStore:       matchStore,

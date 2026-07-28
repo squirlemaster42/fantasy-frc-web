@@ -15,7 +15,7 @@ func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool)
 		return uuid.UUID{}, "", false
 	}
 
-	isValid, err := h.UserStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
+	isValid, err := h.Stores.UserStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to validate session token for landing page", "ip", c.RealIP(), "error", err)
 		return uuid.UUID{}, "", false
@@ -24,13 +24,13 @@ func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool)
 		return uuid.UUID{}, "", false
 	}
 
-	userUuid, err := h.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
+	userUuid, err := h.Stores.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get user by session token for landing page", "ip", c.RealIP(), "error", err)
 		return uuid.UUID{}, "", false
 	}
 
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get username for landing page", "userUuid", userUuid, "error", err)
 		return userUuid, "", true

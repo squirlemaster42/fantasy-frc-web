@@ -16,7 +16,7 @@ func TestNewAvatarStore_WithRedis(t *testing.T) {
 	defer s.Close()
 
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, store.client)
@@ -25,7 +25,7 @@ func TestNewAvatarStore_WithRedis(t *testing.T) {
 
 func TestNewAvatarStore_WithoutRedis(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, "localhost:1", "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, "localhost:1", "", 0)
 
 	assert.NoError(t, err)
 	assert.Nil(t, store.client)
@@ -41,7 +41,7 @@ func TestAvatarStore_storeAvatarAndCheckCache(t *testing.T) {
 	defer s.Close()
 
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
 	defer func() { _ = store.Close() }()
 
@@ -59,7 +59,7 @@ func TestAvatarStore_checkCache_Miss(t *testing.T) {
 	defer s.Close()
 
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
 	defer func() { _ = store.Close() }()
 
@@ -81,7 +81,7 @@ func TestAvatarStore_GetAvatar_CacheHit(t *testing.T) {
 	defer s.Close()
 
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, s.Addr(), "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
 	assert.NoError(t, err)
 	defer func() { _ = store.Close() }()
 
@@ -97,7 +97,7 @@ func TestAvatarStore_GetAvatar_CacheHit(t *testing.T) {
 
 func TestAvatarStore_GetAvatar_NoRedis(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler("", nil)
-	store, err := NewAvatarStore(context.Background(), *tbaHandler, "localhost:1", "", 0)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, "localhost:1", "", 0)
 	assert.NoError(t, err)
 
 	// Without Redis, the store falls back to the TBA handler, which will fail

@@ -44,4 +44,7 @@ type DraftStore interface {
 	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error
 	GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error)
 	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
+	SkipAndMakeNextPickAvailable(ctx context.Context, currentPickId int, nextDraftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error)
+	UndoLastPick(ctx context.Context, currentPickId int, previousPickId int, previousPickExpirationTime time.Time) error
+	TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error
 }

@@ -51,11 +51,15 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 	return db, nil
 }
 
+type DBTX interface {
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+}
+
 func createConnectionString(username string, password string, ip string, dbName string) string {
 	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
 }
 
-func Prepare(ctx context.Context, db *sql.DB, query string) (*sql.Stmt, error) {
+func Prepare(ctx context.Context, db DBTX, query string) (*sql.Stmt, error) {
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {

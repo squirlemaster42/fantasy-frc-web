@@ -252,57 +252,73 @@ func getDraftsForUser(ctx context.Context, database *sql.DB, userUuid uuid.UUID)
 			Players: make([]DraftPlayer, 0),
 		}
 
-		pick := Pick{}
-		if status == PICKING {
-			pick, err = getCurrentPick(ctx, database, draftId)
-			if err != nil {
-				return []DraftModel{}, err
-			}
-
-			if pick.Id != 0 {
-				user, err := getDraftPlayerUser(ctx, database, pick.Player)
-				if err != nil {
-					return []DraftModel{}, err
-				}
-
-				draftModel.NextPick = DraftPlayer{
-					Id:   pick.Player,
-					User: user,
-				}
-			}
+		err = loadDraftPickingInfo(ctx, database, &draftModel)
+		if err != nil {
+			return []DraftModel{}, err
 		}
 
-		playerRows, err := playerStmt.QueryContext(ctx, draftId)
+		err = loadPlayersForDraftInList(ctx, playerStmt, draftId, &draftModel)
 		if err != nil {
 			return nil, err
 		}
-
-		for playerRows.Next() {
-			var userUuid uuid.UUID
-			var username string
-			var accepted bool
-
-			err = playerRows.Scan(&userUuid, &username, &accepted)
-			if err != nil {
-				db.CloseRows(ctx, playerRows, "GetDraftsForUser")
-				return nil, err
-			}
-			draftPlayer := DraftPlayer{
-				User: User{
-					UserUuid: userUuid,
-					Username: username,
-				},
-				Pending: !accepted,
-			}
-
-			draftModel.Players = append(draftModel.Players, draftPlayer)
-		}
-		db.CloseRows(ctx, playerRows, "GetDraftsForUser")
 
 		drafts = append(drafts, draftModel)
 	}
 
 	return drafts, nil
+}
+
+func loadDraftPickingInfo(ctx context.Context, database *sql.DB, draftModel *DraftModel) error {
+	if draftModel.Status != PICKING {
+		return nil
+	}
+	pick, err := getCurrentPick(ctx, database, draftModel.Id)
+	if err != nil {
+		return err
+	}
+
+	if pick.Id != 0 {
+		user, err := getDraftPlayerUser(ctx, database, pick.Player)
+		if err != nil {
+			return err
+		}
+
+		draftModel.NextPick = DraftPlayer{
+			Id:   pick.Player,
+			User: user,
+		}
+	}
+	return nil
+}
+
+func loadPlayersForDraftInList(ctx context.Context, playerStmt *sql.Stmt, draftId int, draftModel *DraftModel) error {
+	playerRows, err := playerStmt.QueryContext(ctx, draftId)
+	if err != nil {
+		return err
+	}
+	defer db.CloseRows(ctx, playerRows, "GetDraftsForUser")
+
+	for playerRows.Next() {
+		var userUuid uuid.UUID
+		var username string
+		var accepted bool
+
+		err = playerRows.Scan(&userUuid, &username, &accepted)
+		if err != nil {
+			return err
+		}
+		draftPlayer := DraftPlayer{
+			User: User{
+				UserUuid: userUuid,
+				Username: username,
+			},
+			Pending: !accepted,
+		}
+
+		draftModel.Players = append(draftModel.Players, draftPlayer)
+	}
+
+	return nil
 }
 
 func createDraft(ctx context.Context, database *sql.DB, draft *DraftModel) (int, error) {
@@ -355,7 +371,7 @@ func updateDraftStatus(ctx context.Context, database *sql.DB, draftId int, statu
 	return nil
 }
 
-func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
+func queryDraftRow(ctx context.Context, database *sql.DB, draftId int) (DraftModel, uuid.UUID, error) {
 	log.Debug(ctx, "model.GetDraft: starting", "draftId", draftId)
 	query := `Select
         DisplayName,
@@ -371,7 +387,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return DraftModel{}, err
+		return DraftModel{}, uuid.UUID{}, err
 	}
 	defer db.CloseStatement(ctx, stmt, "GetDraft")
 	log.Debug(ctx, "model.GetDraft: executing query", "draftId", draftId)
@@ -390,24 +406,28 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 	log.Debug(ctx, "model.GetDraft: query completed", "draftId", draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to load draft", "draftId", draftId, "error", err)
-		return DraftModel{}, errors.New("failed to load draft")
+		return DraftModel{}, uuid.UUID{}, errors.New("failed to load draft")
 	}
 
-	// Get Current Pick
-	currentPick, err := getCurrentPick(ctx, database, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get current pick for draft", "draftId", draftId, "error", err)
-	} else {
-		draftModel.CurrentPick = currentPick
-	}
+	return draftModel, ownerId, nil
+}
 
-	picks, err := getPicks(ctx, database, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get picks for draft", "draftId", draftId, "error", err)
-		return DraftModel{}, errors.New("failed to get picks for draft")
+func loadCurrentPickIfPicking(ctx context.Context, database *sql.DB, draftModel *DraftModel) error {
+	log.Debug(ctx, "Checking if we need to get the current pick for the draft", "statusCode", draftModel.Status, "picking", PICKING)
+	if draftModel.Status == PICKING {
+		log.Debug(ctx, "Getting the current pick for the draft")
+		currPick, err := getCurrentPick(ctx, database, draftModel.Id)
+		if err != nil {
+			return err
+		}
+		draftModel.NextPick = DraftPlayer{
+			Id: currPick.Player,
+		}
 	}
-	draftModel.Picks = picks
+	return nil
+}
 
+func loadDraftPlayers(ctx context.Context, database *sql.DB, draftId int, draftModel *DraftModel, ownerId uuid.UUID) error {
 	playerQuery := `SELECT
                         UserUuid,
 	                    USERNAME,
@@ -443,27 +463,15 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 
 	playerStmt, err := db.Prepare(ctx, database, playerQuery)
 	if err != nil {
-		return DraftModel{}, err
+		return err
 	}
 	defer db.CloseStatement(ctx, playerStmt, "GetDraft")
 	playerRows, err := playerStmt.QueryContext(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to load players for draft", "draftId", draftId, "error", err)
-		return DraftModel{}, errors.New("failed to load draft")
+		return errors.New("failed to load draft")
 	}
 	defer db.CloseRows(ctx, playerRows, "GetDraft")
-
-	log.Debug(ctx, "Checking if we need to get the current pick for the draft", "statusCode", draftModel.Status, "picking", PICKING)
-	if draftModel.Status == PICKING {
-		log.Debug(ctx, "Getting the current pick for the draft")
-		currPick, err := getCurrentPick(ctx, database, draftId)
-		if err != nil {
-			return DraftModel{}, err
-		}
-		draftModel.NextPick = DraftPlayer{
-			Id: currPick.Player,
-		}
-	}
 
 	for playerRows.Next() {
 		var userUuid uuid.UUID
@@ -476,7 +484,7 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId, &inviteId)
 
 		if err != nil {
-			return DraftModel{}, err
+			return err
 		}
 
 		if userUuid == ownerId {
@@ -502,7 +510,6 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 			InviteId:    inviteId,
 		}
 
-		//Get picks for the player
 		picks, err := getDraftPlayerPicks(ctx, database, draftPlayer.Id)
 		if err != nil {
 			log.Error(ctx, "Failed to get picks for player", "draftPlayerId", draftPlayer.Id, "error", err)
@@ -511,6 +518,39 @@ func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, e
 		}
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
+	}
+
+	return nil
+}
+
+func getDraft(ctx context.Context, database *sql.DB, draftId int) (DraftModel, error) {
+	draftModel, ownerId, err := queryDraftRow(ctx, database, draftId)
+	if err != nil {
+		return DraftModel{}, err
+	}
+
+	currentPick, err := getCurrentPick(ctx, database, draftId)
+	if err != nil {
+		log.Error(ctx, "Failed to get current pick for draft", "draftId", draftId, "error", err)
+	} else {
+		draftModel.CurrentPick = currentPick
+	}
+
+	picks, err := getPicks(ctx, database, draftId)
+	if err != nil {
+		log.Error(ctx, "Failed to get picks for draft", "draftId", draftId, "error", err)
+		return DraftModel{}, errors.New("failed to get picks for draft")
+	}
+	draftModel.Picks = picks
+
+	err = loadCurrentPickIfPicking(ctx, database, &draftModel)
+	if err != nil {
+		return DraftModel{}, err
+	}
+
+	err = loadDraftPlayers(ctx, database, draftId, &draftModel, ownerId)
+	if err != nil {
+		return DraftModel{}, err
 	}
 
 	return draftModel, nil
@@ -891,7 +931,7 @@ func getDraftPlayerUser(ctx context.Context, database *sql.DB, draftPlayerId int
 	return user, nil
 }
 
-func makePickAvailable(ctx context.Context, database *sql.DB, draftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
+func makePickAvailable(ctx context.Context, database db.DBTX, draftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
 	query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
 
 	stmt, err := db.Prepare(ctx, database, query)
@@ -1178,7 +1218,7 @@ func getCurrentPick(ctx context.Context, database *sql.DB, draftId int) (Pick, e
 	return pick, nil
 }
 
-func skipPick(ctx context.Context, database *sql.DB, pickId int) error {
+func skipPick(ctx context.Context, database db.DBTX, pickId int) error {
 	query := `Update Picks Set Skipped = true Where Id = $1`
 
 	stmt, err := db.Prepare(ctx, database, query)
@@ -1244,7 +1284,7 @@ func getPreviousPick(ctx context.Context, database *sql.DB, draftId int, current
 	return pick, nil
 }
 
-func deletePick(ctx context.Context, database *sql.DB, pickId int) error {
+func deletePick(ctx context.Context, database db.DBTX, pickId int) error {
 	query := `Delete From Picks Where Id = $1`
 
 	stmt, err := db.Prepare(ctx, database, query)
@@ -1256,7 +1296,7 @@ func deletePick(ctx context.Context, database *sql.DB, pickId int) error {
 	return err
 }
 
-func resetPick(ctx context.Context, database *sql.DB, pickId int, expirationTime time.Time) error {
+func resetPick(ctx context.Context, database db.DBTX, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set Pick = Null, PickTime = Null, Skipped = false, ExpirationTime = $1 Where Id = $2`
 
 	stmt, err := db.Prepare(ctx, database, query)
@@ -1507,6 +1547,22 @@ func getOverallLeaderboard(ctx context.Context, database *sql.DB, page int, perP
 		PerPage:     perPage,
 		Total:       total,
 	}, nil
+}
+
+func transferOwnership(ctx context.Context, database *sql.DB, draftId int, newOwnerUuid uuid.UUID) error {
+	query := `Update Drafts Set OwnerUserUuid = $1 Where Id = $2;`
+	stmt, err := db.Prepare(ctx, database, query)
+	if err != nil {
+		return err
+	}
+	defer db.CloseStatement(ctx, stmt, "TransferOwnership")
+	_, err = stmt.ExecContext(ctx, newOwnerUuid, draftId)
+	if err != nil {
+		log.Error(ctx, "Failed to transfer draft ownership", "draftId", draftId, "newOwnerUuid", newOwnerUuid, "error", err)
+		return err
+	}
+	log.Info(ctx, "Transferred draft ownership", "draftId", draftId, "newOwnerUuid", newOwnerUuid)
+	return nil
 }
 
 func CanStartDraft(draftModel DraftModel) bool {

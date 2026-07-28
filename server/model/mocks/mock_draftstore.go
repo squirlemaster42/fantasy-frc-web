@@ -831,6 +831,34 @@ func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int)
 	return r0, r1
 }
 
+// SkipAndMakeNextPickAvailable provides a mock function with given fields: ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime
+func (_m *MockDraftStore) SkipAndMakeNextPickAvailable(ctx context.Context, currentPickId int, nextDraftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
+	ret := _m.Called(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SkipAndMakeNextPickAvailable")
+	}
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time, time.Time) (int, error)); ok {
+		return rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time, time.Time) int); ok {
+		r0 = rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, time.Time, time.Time) error); ok {
+		r1 = rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SkipPick provides a mock function with given fields: ctx, pickId
 func (_m *MockDraftStore) SkipPick(ctx context.Context, pickId int) error {
 	ret := _m.Called(ctx, pickId)
@@ -842,6 +870,42 @@ func (_m *MockDraftStore) SkipPick(ctx context.Context, pickId int) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
 		r0 = rf(ctx, pickId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// TransferOwnership provides a mock function with given fields: ctx, draftId, newOwnerUuid
+func (_m *MockDraftStore) TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error {
+	ret := _m.Called(ctx, draftId, newOwnerUuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TransferOwnership")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) error); ok {
+		r0 = rf(ctx, draftId, newOwnerUuid)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UndoLastPick provides a mock function with given fields: ctx, currentPickId, previousPickId, previousPickExpirationTime
+func (_m *MockDraftStore) UndoLastPick(ctx context.Context, currentPickId int, previousPickId int, previousPickExpirationTime time.Time) error {
+	ret := _m.Called(ctx, currentPickId, previousPickId, previousPickExpirationTime)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UndoLastPick")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time) error); ok {
+		r0 = rf(ctx, currentPickId, previousPickId, previousPickExpirationTime)
 	} else {
 		r0 = ret.Error(0)
 	}

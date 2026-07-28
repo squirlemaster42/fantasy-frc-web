@@ -21,7 +21,9 @@ func TestHandleViewUserProfile(t *testing.T) {
 		mockUserStore.On("GetDiscordId", c.Request().Context(), userUuid).Return("12345678901234567", nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
 		}
 
 		err := h.HandleViewUserProfile(c)
@@ -52,7 +54,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "12345678901234567").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -74,7 +76,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("InvalidateAllUserSessionsExcept", c.Request().Context(), userUuid, "test-session").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -93,7 +95,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -112,7 +114,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -132,7 +134,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)

@@ -30,6 +30,52 @@ func generateSessionToken() (string, error) {
 	return base32.StdEncoding.EncodeToString(randomBytes), nil
 }
 
+func validatePassword(password string, confirmPassword string, minLength int) string {
+	if password != confirmPassword {
+		return "Passwords Do Not Match"
+	}
+	if len(password) < minLength {
+		return fmt.Sprintf("Password must be at least %d characters", minLength)
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, ch := range password {
+		switch {
+		case unicode.IsUpper(ch):
+			hasUpper = true
+		case unicode.IsLower(ch):
+			hasLower = true
+		case unicode.IsDigit(ch):
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return "Password must contain at least one uppercase letter, one lowercase letter, and one digit"
+	}
+	return ""
+}
+
+func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID) error {
+	sessionTok, err := generateSessionToken()
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to create session")
+	}
+	if err := h.Stores.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
+		log.Error(c.Request().Context(), "Failed to register session", "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to create session")
+	}
+	cookie := new(http.Cookie)
+	cookie.Name = "sessionToken"
+	cookie.Value = sessionTok
+	cookie.HttpOnly = true
+	cookie.Secure = h.Config.SecureHttpCookie
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Path = "/"
+	c.SetCookie(cookie)
+	c.Response().Header().Set("HX-Redirect", "/u/home")
+	return nil
+}
+
 func (h *Handler) HandleLoginPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
@@ -39,7 +85,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	valid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, password)
+	valid, err := h.Stores.UserStore.ValidateLogin(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
@@ -47,7 +93,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 
 	if valid {
 		log.Info(c.Request().Context(), "Valid login attempt for user", "username", username)
-		userUuid, err := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
+		userUuid, err := h.Stores.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
 		if err != nil {
 			log.Error(c.Request().Context(), "Failed to get user uuid", "username", username, "error", err)
 			return c.String(http.StatusInternalServerError, "Failed to validate login")
@@ -56,31 +102,12 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 		// Session fixation prevention: invalidate any pre-existing session token
 		oldTok, err := c.Cookie("sessionToken")
 		if err == nil && oldTok.Value != "" {
-			if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
+			if unregisterErr := h.Stores.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
 				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "error", unregisterErr)
 			}
 		}
 
-		sessionTok, err := generateSessionToken()
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to create session")
-		}
-		if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-			log.Error(c.Request().Context(), "Failed to register session", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to create session")
-		}
-
-		cookie := new(http.Cookie)
-		cookie.Name = "sessionToken"
-		cookie.Value = sessionTok
-		cookie.HttpOnly = true
-		cookie.Secure = h.SecureHttpCookie
-		cookie.SameSite = http.SameSiteLaxMode
-		cookie.Path = "/"
-		c.SetCookie(cookie)
-		c.Response().Header().Set("HX-Redirect", "/u/home")
-		return nil
+		return h.setSessionAndRedirect(c, userUuid)
 	}
 
 	log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
@@ -95,7 +122,7 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	log.Info(c.Request().Context(), "User logged out", "userUuid", userUuidStr, "ip", c.RealIP())
 	userTok, err := c.Cookie("sessionToken")
 	if err == nil && userTok.Value != "" {
-		if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
+		if unregisterErr := h.Stores.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
 			log.Warn(c.Request().Context(), "Failed to unregister session", "error", unregisterErr)
 		}
 	}
@@ -103,7 +130,7 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	cookie.Name = "sessionToken"
 	cookie.Value = ""
 	cookie.HttpOnly = true
-	cookie.Secure = h.SecureHttpCookie
+	cookie.Secure = h.Config.SecureHttpCookie
 	cookie.SameSite = http.SameSiteLaxMode
 	cookie.Path = "/"
 	cookie.MaxAge = -1
@@ -118,7 +145,7 @@ func (h *Handler) renderRegisterWithError(c echo.Context, message string) error 
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	register := login.RegisterIndex(false, message, h.MinPasswordLength, csrfToken)
+	register := login.RegisterIndex(false, message, h.Config.MinPasswordLength, csrfToken)
 	return Render(c, register)
 }
 
@@ -128,7 +155,7 @@ func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	loginPage := login.LoginIndex(false, message, h.MinPasswordLength, csrfToken)
+	loginPage := login.LoginIndex(false, message, h.Config.MinPasswordLength, csrfToken)
 	return Render(c, loginPage)
 }
 
@@ -146,7 +173,7 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	password := c.FormValue("password")
 	confirmPassword := c.FormValue("confirmPassword")
 
-	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
+	taken, err := h.Stores.UserStore.UsernameTaken(c.Request().Context(), username)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to check username availability")
@@ -156,55 +183,16 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 		return h.renderRegisterWithError(c, "Username Taken")
 	}
 
-	if password != confirmPassword {
-		log.Warn(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "username", username)
-		return h.renderRegisterWithError(c, "Passwords Do Not Match")
-	}
-
-	if len(password) < h.MinPasswordLength {
-		log.Warn(c.Request().Context(), "Password too short for user attempting to register", "username", username)
-		return h.renderRegisterWithError(c, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength))
-	}
-
-	var hasUpper, hasLower, hasDigit bool
-	for _, ch := range password {
-		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
-		}
-	}
-	if !hasUpper || !hasLower || !hasDigit {
-		log.Warn(c.Request().Context(), "Password does not meet complexity requirements for user attempting to register", "username", username)
-		return h.renderRegisterWithError(c, "Password must contain at least one uppercase letter, one lowercase letter, and one digit")
+	if errMsg := validatePassword(password, confirmPassword, h.Config.MinPasswordLength); errMsg != "" {
+		log.Warn(c.Request().Context(), "Registration password validation failed", "username", username)
+		return h.renderRegisterWithError(c, errMsg)
 	}
 
 	log.Info(c.Request().Context(), "Valid registration for user", "username", username)
-	userUuid, err := h.UserStore.RegisterUser(c.Request().Context(), username, password)
+	userUuid, err := h.Stores.UserStore.RegisterUser(c.Request().Context(), username, password)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to register user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create account")
 	}
-	sessionTok, err := generateSessionToken()
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
-	if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-		log.Error(c.Request().Context(), "Failed to register session", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
-	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
-	cookie.Value = sessionTok
-	cookie.HttpOnly = true
-	cookie.Secure = h.SecureHttpCookie
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Path = "/"
-	c.SetCookie(cookie)
-	c.Response().Header().Set("HX-Redirect", "/u/home")
-	return nil
+	return h.setSessionAndRedirect(c, userUuid)
 }

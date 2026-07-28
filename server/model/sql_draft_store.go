@@ -159,3 +159,45 @@ func (s *SQLDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, draft
 func (s *SQLDraftStore) GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error) {
 	return getOverallLeaderboard(ctx, s.database, page, perPage)
 }
+
+func (s *SQLDraftStore) SkipAndMakeNextPickAvailable(ctx context.Context, currentPickId int, nextDraftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
+	tx, err := s.database.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := skipPick(ctx, tx, currentPickId); err != nil {
+		return 0, err
+	}
+	pickId, err := makePickAvailable(ctx, tx, nextDraftPlayerId, availableTime, expirationTime)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return pickId, nil
+}
+
+func (s *SQLDraftStore) TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error {
+	return transferOwnership(ctx, s.database, draftId, newOwnerUuid)
+}
+
+func (s *SQLDraftStore) UndoLastPick(ctx context.Context, currentPickId int, previousPickId int, previousPickExpirationTime time.Time) error {
+	tx, err := s.database.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := deletePick(ctx, tx, currentPickId); err != nil {
+		return err
+	}
+	if err := resetPick(ctx, tx, previousPickId, previousPickExpirationTime); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}

@@ -40,7 +40,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to visit admin for invalid draft", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
@@ -74,7 +74,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 		return renderAdminMessage(c, "Invalid draft ID", false)
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Draft not found for skip pick", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -85,7 +85,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 		return renderAdminMessage(c, "Permission denied", false)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -112,7 +112,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 		return renderAdminMessage(c, "Invalid draft ID", false)
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Draft not found for extend time", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -143,7 +143,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	}
 
 	log.Info(c.Request().Context(), "Extending pick", "extensionTime", duration)
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -170,7 +170,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		return renderAdminMessage(c, "Invalid draft ID", false)
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Draft not found for admin make pick", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -192,7 +192,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 
 	tbaId := "frc" + teamStr
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -232,7 +232,7 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 		return renderAdminMessage(c, "Invalid draft ID", false)
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Draft not found for undo pick", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)
@@ -243,7 +243,7 @@ func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 		return renderAdminMessage(c, "Permission denied", false)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return renderAdminMessage(c, "Draft not found", false)

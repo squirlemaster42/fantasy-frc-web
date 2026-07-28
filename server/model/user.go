@@ -267,9 +267,17 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 	if err != nil {
 		return false, fmt.Errorf("failed to validate session: %w", err)
 	}
-	//If the count is greater than one there is a problem
-	//It probably means that we inserted the same token twice which shouldn't happen
-	//Do we want to invalidate the session in that case
+	if count > 1 {
+		log.Error(ctx, "Duplicate session token detected, cleaning up", "count", count)
+		deleteQuery := `Delete From UserSessions Where sessionToken = $1;`
+		delStmt, err := db.Prepare(ctx, database, deleteQuery)
+		if err != nil {
+			return false, err
+		}
+		defer db.CloseStatement(ctx, delStmt, "CleanupDuplicateSessions")
+		_, _ = delStmt.ExecContext(ctx, hasher.Sum(nil))
+		return false, nil
+	}
 	return count == 1, nil
 }
 

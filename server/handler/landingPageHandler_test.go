@@ -15,7 +15,7 @@ func TestHandleViewLanding_Unauthenticated(t *testing.T) {
 
 	mockUserStore := mocks.NewMockUserStore(t)
 	h := &Handler{
-		UserStore: mockUserStore,
+		Stores: StorageGroup{UserStore: mockUserStore},
 	}
 
 	err := h.HandleViewLanding(c)
@@ -35,7 +35,7 @@ func TestHandleViewLanding_Authenticated(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("TestUser", nil)
 
 	h := &Handler{
-		UserStore: mockUserStore,
+		Stores: StorageGroup{UserStore: mockUserStore},
 	}
 
 	err := h.HandleViewLanding(c)
@@ -54,7 +54,7 @@ func TestHandleViewLanding_InvalidSession(t *testing.T) {
 	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "invalid-token").Return(false, nil)
 
 	h := &Handler{
-		UserStore: mockUserStore,
+		Stores: StorageGroup{UserStore: mockUserStore},
 	}
 
 	err := h.HandleViewLanding(c)

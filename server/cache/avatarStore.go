@@ -13,15 +13,20 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type AvatarStoreInterface interface {
+	GetAvatar(ctx context.Context, teamNum int) ([]byte, error)
+	Close() error
+}
+
 // I think that there will be too much variance in the avatars requested for this
 // to be a reasonable LRU cache and we should always just go to redis.
 // Redis should be fast enough anyways since we are loading these after the page loads.
 type AvatarStore struct {
 	client     *redis.Client
-	tbaHandler tbaHandler.TBAHandler
+	tbaHandler tbaHandler.TBAInterface
 }
 
-func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAHandler, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
+func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAInterface, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,

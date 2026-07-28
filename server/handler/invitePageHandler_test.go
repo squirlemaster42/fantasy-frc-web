@@ -25,8 +25,10 @@ func TestHandleViewInvites(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleViewInvites(c)
@@ -46,8 +48,10 @@ func TestHandleAcceptInvite_InviteNotFound(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleAcceptInvite(c)
@@ -73,8 +77,10 @@ func TestHandleAcceptInvite_WrongUser(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleAcceptInvite(c)
@@ -105,9 +111,13 @@ func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore:    mockDraftStore,
-		UserStore:     mockUserStore,
-		DraftActorMap: draftActorMap,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
 	}
 
 	err := h.HandleAcceptInvite(c)
@@ -143,9 +153,13 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore:    mockDraftStore,
-		UserStore:     mockUserStore,
-		DraftActorMap: draftActorMap,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
 	}
 
 	err := h.HandleAcceptInvite(c)
@@ -165,8 +179,10 @@ func TestHandleAcceptInvite_DatabaseError(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleAcceptInvite(c)
@@ -200,9 +216,13 @@ func TestHandleDeclineInvite_Success(t *testing.T) {
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore:    mockDraftStore,
-		UserStore:     mockUserStore,
-		DraftActorMap: draftActorMap,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -222,8 +242,10 @@ func TestHandleDeclineInvite_InviteNotFound(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -253,9 +275,13 @@ func TestHandleDeclineInvite_WrongUser(t *testing.T) {
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore:    mockDraftStore,
-		UserStore:     mockUserStore,
-		DraftActorMap: draftActorMap,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -293,9 +319,13 @@ func TestHandleDeclineInvite_RevertsToFilling(t *testing.T) {
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
 	h := &Handler{
-		DraftStore:    mockDraftStore,
-		UserStore:     mockUserStore,
-		DraftActorMap: draftActorMap,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
 	}
 
 	err := h.HandleDeclineInvite(c)
@@ -314,8 +344,10 @@ func TestHandleDeclineInvite_InvalidInviteId(t *testing.T) {
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	h := &Handler{
-		DraftStore: mockDraftStore,
-		UserStore:  mockUserStore,
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
 	}
 
 	err := h.HandleDeclineInvite(c)

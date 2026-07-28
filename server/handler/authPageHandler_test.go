@@ -25,8 +25,12 @@ func TestHandleLoginPost(t *testing.T) {
 		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string")).Return(nil)
 
 		h := &Handler{
-			UserStore:        mockUserStore,
-			SecureHttpCookie: true,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				SecureHttpCookie: true,
+			},
 		}
 
 		err := h.HandleLoginPost(c)
@@ -54,8 +58,12 @@ func TestHandleLoginPost(t *testing.T) {
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
 
 		h := &Handler{
-			UserStore:        mockUserStore,
-			SecureHttpCookie: true,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				SecureHttpCookie: true,
+			},
 		}
 
 		err := h.HandleLoginPost(c)
@@ -73,8 +81,12 @@ func TestHandleLoginPost(t *testing.T) {
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "newuser", "secret").Return(false, nil)
 
 		h := &Handler{
-			UserStore:        mockUserStore,
-			SecureHttpCookie: true,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				SecureHttpCookie: true,
+			},
 		}
 
 		err := h.HandleLoginPost(c)
@@ -92,8 +104,12 @@ func TestHandleLoginPost(t *testing.T) {
 		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "secret").Return(false, errors.New("connection refused"))
 
 		h := &Handler{
-			UserStore:        mockUserStore,
-			SecureHttpCookie: true,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				SecureHttpCookie: true,
+			},
 		}
 
 		err := h.HandleLoginPost(c)
@@ -111,7 +127,9 @@ func TestHandleLogoutPost(t *testing.T) {
 		mockUserStore.On("UnRegisterSession", c.Request().Context(), "test-session").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
 		}
 
 		err := h.HandleLogoutPost(c)
@@ -144,8 +162,12 @@ func TestHandlerRegisterPost(t *testing.T) {
 		mockUserStore.On("RegisterSession", c.Request().Context(), userUuid, mock.AnythingOfType("string")).Return(nil)
 
 		h := &Handler{
-			UserStore:         mockUserStore,
-			MinPasswordLength: 8,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				MinPasswordLength: 8,
+			},
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -173,8 +195,12 @@ func TestHandlerRegisterPost(t *testing.T) {
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "existing").Return(true, nil)
 
 		h := &Handler{
-			UserStore:         mockUserStore,
-			MinPasswordLength: 8,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				MinPasswordLength: 8,
+			},
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -192,8 +218,12 @@ func TestHandlerRegisterPost(t *testing.T) {
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, nil)
 
 		h := &Handler{
-			UserStore:         mockUserStore,
-			MinPasswordLength: 8,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				MinPasswordLength: 8,
+			},
 		}
 
 		err := h.HandlerRegisterPost(c)
@@ -211,8 +241,12 @@ func TestHandlerRegisterPost(t *testing.T) {
 		mockUserStore.On("UsernameTaken", c.Request().Context(), "newuser").Return(false, errors.New("connection refused"))
 
 		h := &Handler{
-			UserStore:         mockUserStore,
-			MinPasswordLength: 8,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				MinPasswordLength: 8,
+			},
 		}
 
 		err := h.HandlerRegisterPost(c)

@@ -30,7 +30,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft id was not an int")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
@@ -42,7 +42,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
-	userDraftScore, err := h.DraftStore.GetDraftScore(c.Request().Context(), draftId)
+	userDraftScore, err := h.Stores.DraftStore.GetDraftScore(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft score", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -80,7 +80,7 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft id was not an int")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
@@ -94,14 +94,14 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 
 	teamNumber := c.Param("teamNumber")
 
-	scores, err := h.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
+	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
 	// Get qualification matches
-	qualificationMatches, err := h.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
+	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get match scores", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

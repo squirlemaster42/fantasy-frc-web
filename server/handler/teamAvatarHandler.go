@@ -14,7 +14,7 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return errors.New("id must be a valid team number")
 	}
 
-	avatar, err := h.AvatarStore.GetAvatar(c.Request().Context(), teamNum)
+	avatar, err := h.Services.AvatarStore.GetAvatar(c.Request().Context(), teamNum)
 	if err != nil {
 		return err
 	}
