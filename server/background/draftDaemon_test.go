@@ -122,3 +122,43 @@ func TestDraftDaemon_Run_RespectsStop(t *testing.T) {
 		return !daemon.IsRunning()
 	}, time.Second, 10*time.Millisecond)
 }
+
+func TestDraftDaemon_Run_DoesNotDeadlockOnSecondTick(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	// GetActor tries to create a draft actor, which loads the draft.
+	// Returning an error lets the daemon log and continue without creating a real actor.
+	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, assert.AnError).Maybe()
+
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	daemon := NewDraftDaemon(mockStore, actorMap)
+	daemon.tickInterval = 10 * time.Millisecond
+
+	ctx := context.Background()
+
+	err := daemon.AddDraft(ctx, 1)
+	assert.NoError(t, err)
+
+	err = daemon.Start(ctx)
+	assert.NoError(t, err)
+
+	// Wait long enough for at least two ticks to run
+	time.Sleep(25 * time.Millisecond)
+
+	// Stop must be able to acquire the write lock. If Run still holds the read
+	// lock across ticks, Stop will deadlock.
+	stopCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		_ = daemon.Stop(stopCtx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		assert.False(t, daemon.IsRunning())
+	case <-stopCtx.Done():
+		t.Fatal("draft daemon deadlocked on second tick")
+	}
+}
