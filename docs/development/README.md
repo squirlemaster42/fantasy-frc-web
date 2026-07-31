@@ -15,7 +15,7 @@ Complete development environment setup:
 ## 🎯 Development Workflow
 
 ### 1. Environment Setup
-- Install required tools (Go, PostgreSQL, Templ)
+- Install required tools (Go, PostgreSQL, Templ, Redis)
 - Configure development database
 - Set up environment variables
 - Verify installation with test run
