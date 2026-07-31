@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"server/assert"
 	"server/log"
+	"strings"
 	"time"
 
 	"github.com/XSAM/otelsql"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/pgconn"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
@@ -59,13 +62,43 @@ func createConnectionString(username string, password string, ip string, dbName 
 	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
 }
 
+func sqlState(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code
+	}
+	return ""
+}
+
+// isProgrammingError reports whether err is a PostgreSQL schema, syntax, or
+// statement error that indicates a code/schema mismatch. These errors should
+// crash the process because retrying will not resolve them.
+func isProgrammingError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch {
+		case strings.HasPrefix(pgErr.Code, "42"): // Syntax / Access Rule Violation
+			return true
+		case strings.HasPrefix(pgErr.Code, "22"): // Data Exception
+			return true
+		case strings.HasPrefix(pgErr.Code, "26"): // Invalid SQL Statement Name
+			return true
+		}
+	}
+	return false
+}
+
 func Prepare(ctx context.Context, db DBTX, query string) (*sql.Stmt, error) {
 	stmt, err := db.PrepareContext(ctx, query)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
+		if isProgrammingError(err) {
+			a := assert.CreateAssertWithContext("Prepare")
+			a.AddContext("query", query)
+			a.AddContext("sqlstate", sqlState(err))
+			a.NoError(ctx, err, "failed to prepare statement due to schema/syntax error")
 		}
-		log.Fatal(ctx, "Failed to prepare statement", "error", err, "query", query)
+		log.Error(ctx, "Failed to prepare statement", "error", err, "query", query)
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	return stmt, nil
 }
