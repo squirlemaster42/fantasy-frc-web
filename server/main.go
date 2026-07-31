@@ -147,9 +147,10 @@ func main() {
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
+	var waitScorer <-chan struct{}
 	if !*skipScoring {
 		log.Info(ctx, "Started Scorer")
-		scorer.RunScorer(ctx)
+		waitScorer = scorer.RunScorer(ctx)
 	}
 
 	cleanupService := background.NewCleanupService(database, 60)
@@ -229,6 +230,10 @@ func main() {
 
 	log.Info(ctx, "Shutting down gracefully...")
 	cancel()
+
+	if waitScorer != nil {
+		<-waitScorer
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()

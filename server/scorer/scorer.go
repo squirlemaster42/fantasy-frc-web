@@ -263,7 +263,7 @@ func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger
 	return scores
 }
 
-func (s *Scorer) RunScorer(ctx context.Context) {
+func (s *Scorer) RunScorer(ctx context.Context) <-chan struct{} {
 	//This function will run on its own routine
 	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
 	//We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
@@ -273,15 +273,20 @@ func (s *Scorer) RunScorer(ctx context.Context) {
 	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
 	//In this iteration we also update the valid teams
 
-	go s.scoringRunner(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.scoringRunner(ctx)
+	}()
+	return done
 }
 
 func (s *Scorer) AddMatchToScore(match swagger.Match) {
 	s.queue.PushMatch(match)
 }
 
-func (s *Scorer) getNextMatchToScore() swagger.Match {
-	return s.queue.PopMatch()
+func (s *Scorer) getNextMatchToScore(ctx context.Context) (swagger.Match, error) {
+	return s.queue.PopMatch(ctx)
 }
 
 func (s *Scorer) updateMatchInDB(ctx context.Context, dbMatch model.Match) error {
@@ -321,9 +326,20 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "Scorer shutting down")
+			return
+		default:
+		}
+
 		log.Debug(ctx, "Starting scoring iteration")
 
-		match := s.getNextMatchToScore()
+		match, err := s.getNextMatchToScore(ctx)
+		if err != nil {
+			log.Info(ctx, "Scorer shutting down")
+			return
+		}
 
 		log.Debug(ctx, "Checking if we need to get match data", "match", match)
 		if match.MatchNumber == 0 {

@@ -1,10 +1,13 @@
 package scorer
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"server/swagger"
 	"server/tbaHandler"
 	"testing"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
@@ -132,6 +135,34 @@ func TestScoreMatches(t *testing.T) {
     assert.True(t, scoredMatch.Played)
     assert.Equal(t, 0, scoredMatch.RedScore)
     assert.Equal(t, 18, scoredMatch.BlueScore)
+}
+
+type mockTBAHandler struct{}
+
+func (m *mockTBAHandler) MakeEventListReq(ctx context.Context, teamId string) []string { return nil }
+func (m *mockTBAHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.Match { return swagger.Match{} }
+func (m *mockTBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string { return nil }
+func (m *mockTBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team { return nil }
+func (m *mockTBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance { return nil }
+func (m *mockTBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) { return "", nil }
+
+func TestScorer_RunScorer_WaitReturnsAfterCancel(t *testing.T) {
+    scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil)
+
+    ctx, cancel := context.WithCancel(context.Background())
+    done := scorer.RunScorer(ctx)
+
+    // Give the goroutine a moment to enter the loop
+    time.Sleep(10 * time.Millisecond)
+
+    cancel()
+
+    select {
+    case <-done:
+        // success
+    case <-time.After(100 * time.Millisecond):
+        t.Fatal("RunScorer wait did not return after context cancellation")
+    }
 }
 
 func TestGetAllianceSelectionScores (t *testing.T) {
