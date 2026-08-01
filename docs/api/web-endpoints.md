@@ -311,7 +311,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 
 ### Draft Admin Routes (/u/draft/:id/admin/* - Authentication + Admin Required)
 
-These routes provide administrative controls for individual drafts.
+These routes provide administrative controls for individual drafts
 
 #### GET `/u/draft/:id/admin`
 - **Purpose**: Serves draft admin interface
