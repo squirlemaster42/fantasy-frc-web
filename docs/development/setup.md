@@ -14,6 +14,7 @@ This guide covers setting up a complete development environment for Fantasy FRC,
 - **Templ**: Template engine for Go
 - **Make**: Build tool
 - **Git**: Version control
+- **Redis**: Optional for rate limiting and avatar caching
 
 ## 🚀 Quick Start
 
