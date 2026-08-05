@@ -1,6 +1,6 @@
 # Fantasy FRC Database Migrations
 
-This directory contains all database schema management for Fantasy FRC using [goose](https://github.com/pressly/goose).
+This directory contains all database schema management for Fantasy FRC using [goose](https://github.com/pressly/goose)
 
 ## Prerequisites
 
