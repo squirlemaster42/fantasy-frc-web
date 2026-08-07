@@ -4,9 +4,11 @@ package mocks
 
 import (
 	context "context"
-	model "server/model"
+	database "server/database"
 
 	mock "github.com/stretchr/testify/mock"
+
+	model "server/model"
 
 	time "time"
 
@@ -475,6 +477,34 @@ func (_m *MockDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) ([
 	return r0, r1
 }
 
+// GetNumPlayersInDraft provides a mock function with given fields: ctx, draftId
+func (_m *MockDraftStore) GetNumPlayersInDraft(ctx context.Context, draftId int) (int, error) {
+	ret := _m.Called(ctx, draftId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNumPlayersInDraft")
+	}
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (int, error)); ok {
+		return rf(ctx, draftId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) int); ok {
+		r0 = rf(ctx, draftId)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNumPlayersInInvitedDraft provides a mock function with given fields: ctx, inviteId
 func (_m *MockDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error) {
 	ret := _m.Called(ctx, inviteId)
@@ -675,6 +705,24 @@ func (_m *MockDraftStore) InvitePlayer(ctx context.Context, draftId int, invitin
 	return r0, r1
 }
 
+// LockDraft provides a mock function with given fields: ctx, draftId
+func (_m *MockDraftStore) LockDraft(ctx context.Context, draftId int) error {
+	ret := _m.Called(ctx, draftId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LockDraft")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, draftId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // MakePick provides a mock function with given fields: ctx, pick
 func (_m *MockDraftStore) MakePick(ctx context.Context, pick model.Pick) error {
 	ret := _m.Called(ctx, pick)
@@ -803,6 +851,24 @@ func (_m *MockDraftStore) ResetPick(ctx context.Context, pickId int, expirationT
 	return r0
 }
 
+// RunInTransaction provides a mock function with given fields: ctx, fn
+func (_m *MockDraftStore) RunInTransaction(ctx context.Context, fn func(database.DBTX) error) error {
+	ret := _m.Called(ctx, fn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RunInTransaction")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, func(database.DBTX) error) error); ok {
+		r0 = rf(ctx, fn)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ShouldSkipPick provides a mock function with given fields: ctx, draftPlayerId
 func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int) (bool, error) {
 	ret := _m.Called(ctx, draftPlayerId)
@@ -824,34 +890,6 @@ func (_m *MockDraftStore) ShouldSkipPick(ctx context.Context, draftPlayerId int)
 
 	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
 		r1 = rf(ctx, draftPlayerId)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SkipAndMakeNextPickAvailable provides a mock function with given fields: ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime
-func (_m *MockDraftStore) SkipAndMakeNextPickAvailable(ctx context.Context, currentPickId int, nextDraftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
-	ret := _m.Called(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SkipAndMakeNextPickAvailable")
-	}
-
-	var r0 int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time, time.Time) (int, error)); ok {
-		return rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time, time.Time) int); ok {
-		r0 = rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, int, int, time.Time, time.Time) error); ok {
-		r1 = rf(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -888,24 +926,6 @@ func (_m *MockDraftStore) TransferOwnership(ctx context.Context, draftId int, ne
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) error); ok {
 		r0 = rf(ctx, draftId, newOwnerUuid)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UndoLastPick provides a mock function with given fields: ctx, currentPickId, previousPickId, previousPickExpirationTime
-func (_m *MockDraftStore) UndoLastPick(ctx context.Context, currentPickId int, previousPickId int, previousPickExpirationTime time.Time) error {
-	ret := _m.Called(ctx, currentPickId, previousPickId, previousPickExpirationTime)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UndoLastPick")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int, int, time.Time) error); ok {
-		r0 = rf(ctx, currentPickId, previousPickId, previousPickExpirationTime)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -980,6 +1000,26 @@ func (_m *MockDraftStore) UpdatePickExpirationTime(ctx context.Context, pickId i
 		r0 = rf(ctx, pickId, expirationTime)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// WithTx provides a mock function with given fields: tx
+func (_m *MockDraftStore) WithTx(tx database.DBTX) model.DraftStore {
+	ret := _m.Called(tx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WithTx")
+	}
+
+	var r0 model.DraftStore
+	if rf, ok := ret.Get(0).(func(database.DBTX) model.DraftStore); ok {
+		r0 = rf(tx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(model.DraftStore)
+		}
 	}
 
 	return r0

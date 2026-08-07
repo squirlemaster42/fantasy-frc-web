@@ -3,17 +3,44 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
+
+	"server/database"
 
 	"github.com/google/uuid"
 )
 
 type SQLDraftStore struct {
-	database *sql.DB
+	database database.DBTX
+	isTx     bool
 }
 
 func NewSQLDraftStore(database *sql.DB) *SQLDraftStore {
-	return &SQLDraftStore{database: database}
+	return &SQLDraftStore{database: database, isTx: false}
+}
+
+func (s *SQLDraftStore) RunInTransaction(ctx context.Context, fn func(database.DBTX) error) error {
+	if s.isTx {
+		return fn(s.database)
+	}
+	sqlDB, ok := s.database.(*sql.DB)
+	if !ok {
+		return errors.New("RunInTransaction called on a store without an underlying *sql.DB")
+	}
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *SQLDraftStore) WithTx(tx database.DBTX) DraftStore {
+	return &SQLDraftStore{database: tx, isTx: true}
 }
 
 func (s *SQLDraftStore) GetDraft(ctx context.Context, draftId int) (DraftModel, error) {
@@ -37,7 +64,16 @@ func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID
 }
 
 func (s *SQLDraftStore) CreateDraft(ctx context.Context, draft *DraftModel) (int, error) {
-	return createDraft(ctx, s.database, draft)
+	var draftId int
+	err := s.RunInTransaction(ctx, func(tx database.DBTX) error {
+		var err error
+		draftId, err = createDraft(ctx, tx, draft)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return draftId, nil
 }
 
 func (s *SQLDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error) {
@@ -50,6 +86,14 @@ func (s *SQLDraftStore) GetInvite(ctx context.Context, inviteId int) (DraftInvit
 
 func (s *SQLDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error) {
 	return getNumPlayersInInvitedDraft(ctx, s.database, inviteId)
+}
+
+func (s *SQLDraftStore) GetNumPlayersInDraft(ctx context.Context, draftId int) (int, error) {
+	return getNumPlayersInDraft(ctx, s.database, draftId)
+}
+
+func (s *SQLDraftStore) LockDraft(ctx context.Context, draftId int) error {
+	return lockDraft(ctx, s.database, draftId)
 }
 
 func (s *SQLDraftStore) CancelOutstandingInvites(ctx context.Context, draftId int) error {
@@ -160,44 +204,6 @@ func (s *SQLDraftStore) GetOverallLeaderboard(ctx context.Context, page int, per
 	return getOverallLeaderboard(ctx, s.database, page, perPage)
 }
 
-func (s *SQLDraftStore) SkipAndMakeNextPickAvailable(ctx context.Context, currentPickId int, nextDraftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
-	tx, err := s.database.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := skipPick(ctx, tx, currentPickId); err != nil {
-		return 0, err
-	}
-	pickId, err := makePickAvailable(ctx, tx, nextDraftPlayerId, availableTime, expirationTime)
-	if err != nil {
-		return 0, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, err
-	}
-	return pickId, nil
-}
-
 func (s *SQLDraftStore) TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error {
 	return transferOwnership(ctx, s.database, draftId, newOwnerUuid)
-}
-
-func (s *SQLDraftStore) UndoLastPick(ctx context.Context, currentPickId int, previousPickId int, previousPickExpirationTime time.Time) error {
-	tx, err := s.database.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := deletePick(ctx, tx, currentPickId); err != nil {
-		return err
-	}
-	if err := resetPick(ctx, tx, previousPickId, previousPickExpirationTime); err != nil {
-		return err
-	}
-
-	return tx.Commit()
 }

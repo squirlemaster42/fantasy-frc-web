@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"server/draft"
 	"server/model"
@@ -104,8 +105,8 @@ func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
 	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 		Id: 42,
 	}, nil).Once()
-	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(8, nil)
-	mockDraftStore.On("CancelOutstandingInvites", c.Request().Context(), 42).Return(nil)
+	mockDraftStore.On("RunInTransaction", mock.Anything, mock.Anything).Return(draft.ErrTooManyPlayers).Once()
+	mockDraftStore.On("CancelOutstandingInvites", mock.Anything, 42).Return(nil).Once()
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
@@ -130,7 +131,6 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/accept", "inviteId=123", "test-session")
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	c.Set("userUuid", userUuid)
-	playerUuid := uuid.MustParse("770e8400-e29b-41d4-a716-446655440002")
 	mockUserStore := mocks.NewMockUserStore(t)
 	mockDraftStore := mocks.NewMockDraftStore(t)
 
@@ -142,9 +142,7 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 		Id: 42,
 	}, nil).Once()
-	mockDraftStore.On("GetNumPlayersInInvitedDraft", c.Request().Context(), 123).Return(3, nil)
-	mockDraftStore.On("AcceptInvite", c.Request().Context(), 123).Return(42, playerUuid, nil)
-	mockDraftStore.On("AddPlayerToDraft", c.Request().Context(), 42, playerUuid).Return(nil)
+	mockDraftStore.On("RunInTransaction", mock.Anything, mock.Anything).Return(nil).Once()
 	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
 		Id: 42,
 	}, nil).Once()

@@ -22,7 +22,7 @@ func (t *Team) String() string {
 		t.TbaId, t.Name, t.AllianceScore)
 }
 
-func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error) {
+func getTeam(ctx context.Context, database db.DBTX, tbaId string) (*Team, error) {
 	query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
@@ -40,7 +40,7 @@ func getTeam(ctx context.Context, database *sql.DB, tbaId string) (*Team, error)
 	return &team, nil
 }
 
-func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string) error {
+func createTeam(ctx context.Context, database db.DBTX, tbaId string, name string) error {
 	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
@@ -54,7 +54,7 @@ func createTeam(ctx context.Context, database *sql.DB, tbaId string, name string
 	return nil
 }
 
-func updateTeamAllianceScore(ctx context.Context, database *sql.DB, tbaId string, allianceScore int16) error {
+func updateTeamAllianceScore(ctx context.Context, database db.DBTX, tbaId string, allianceScore int16) error {
 	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
@@ -74,7 +74,7 @@ type MatchTeamScore struct {
 }
 
 // GetQualificationReturns individual qualification match scores for a team
-func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]MatchTeamScore, error) {
+func getMatchScores(ctx context.Context, database db.DBTX, tbaId string) ([]MatchTeamScore, error) {
 	query := `
 		Select
 			mt.Match_tbaId,
@@ -126,7 +126,7 @@ func getMatchScores(ctx context.Context, database *sql.DB, tbaId string) ([]Matc
 // Keys are the string that represents display name and the value is the score
 // for that display name
 // Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
-func getScore(ctx context.Context, database *sql.DB, tbaId string) (map[string]int, error) {
+func getScore(ctx context.Context, database db.DBTX, tbaId string) (map[string]int, error) {
 	query := `Select
                 COALESCE(t.AllianceScore, 0) As AllianceScore
             From Teams t

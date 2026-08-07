@@ -12,14 +12,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
+	"server/database"
 	"server/discord"
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type testDiscordStore struct {
@@ -33,6 +34,14 @@ func (t *testDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId
 
 func (t *testDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (string, error) {
 	return t.webhooks[draftId], nil
+}
+
+func mockRunInTransaction(mockStore *mocks.MockDraftStore) {
+	mockStore.On("WithTx", mock.Anything).Return(mockStore).Maybe()
+	mockStore.On("RunInTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(database.DBTX) error)
+		_ = fn(nil)
+	}).Return(nil).Once()
 }
 
 func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
@@ -79,7 +88,9 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
 		},
 	}, nil).Once()
-	mockStore.On("SkipAndMakeNextPickAvailable", mock.Anything, pickId, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: pickId},
@@ -120,15 +131,8 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Picks:       picks,
 		Players:     players,
 	}, nil).Once()
+	mockRunInTransaction(mockStore)
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
-	// MakePickAvailable should NOT be called when the draft is already at 64 picks
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:          draftId,
-		Status:      model.PICKING,
-		CurrentPick: model.Pick{Id: pickId},
-		Picks:       picks,
-		Players:     players,
-	}, nil).Once()
 	// State transition to TEAMS_PLAYING after the last pick
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
@@ -147,10 +151,38 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
 	assert.True(t, skipped)
 
-	// Give the actor a moment to process the state transition message
-	// it posts internally after the skip.
-	time.Sleep(100 * time.Millisecond)
+	mockStore.AssertExpectations(t)
+}
 
+func TestDraftActorMap_AcceptInvite(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	inviteId := 123
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id: draftId,
+	}, nil).Once()
+	mockStore.On("GetInvite", mock.Anything, inviteId).Return(model.DraftInvite{
+		Id:              inviteId,
+		DraftId:         draftId,
+		InvitedUserUuid: userUuid,
+	}, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("LockDraft", mock.Anything, draftId).Return(nil).Once()
+	mockStore.On("GetNumPlayersInDraft", mock.Anything, draftId).Return(3, nil).Once()
+	mockStore.On("AcceptInvite", mock.Anything, inviteId).Return(draftId, userUuid, nil).Once()
+	mockStore.On("AddPlayerToDraft", mock.Anything, draftId, userUuid).Return(nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id: draftId,
+	}, nil).Once()
+
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	err = AcceptInvite(t.Context(), draftActor, inviteId, userUuid)
+	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
 
@@ -200,7 +232,9 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 		},
 		Players: players,
 	}, nil).Once()
-	mockStore.On("SkipAndMakeNextPickAvailable", mock.Anything, pickId, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 3).Return(model.User{Username: "Charlie"}, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 4).Return(model.User{Username: "David"}, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
@@ -286,7 +320,9 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 		CurrentPick: model.Pick{Id: pickId},
 	}, nil).Once()
 	mockStore.On("GetPreviousPick", mock.Anything, draftId, pickId).Return(model.Pick{Id: 41}, nil).Once()
-	mockStore.On("UndoLastPick", mock.Anything, pickId, 41, mock.Anything).Return(nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("DeletePick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("ResetPick", mock.Anything, 41, mock.Anything).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: 41},
@@ -350,6 +386,7 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 	}, nil).Once()
 
 	// FILLING -> PICKING transition now randomizes order and sets up the first pick
+	mockRunInTransaction(mockStore)
 	mockStore.On("RandomizePickOrder", mock.Anything, draftId).Return(nil).Once()
 	mockStore.On("NextPick", mock.Anything, draftId).Return(nextPickPlayer, nil).Once()
 	mockStore.On("MakePickAvailable", mock.Anything, nextPickPlayer.Id, mock.Anything, mock.Anything).Return(1, nil).Once()

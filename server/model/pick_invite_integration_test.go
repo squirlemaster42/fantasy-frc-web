@@ -3,8 +3,12 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"server/database"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -665,4 +669,269 @@ func TestGetOverallLeaderboard_MultiplePicks_Integration(t *testing.T) {
 	require.NotNil(t, foundEntry, "Entry for test user not found")
 	assert.Equal(t, 20, foundEntry.Score, "Two picks with allianceScore=10 should sum to 20")
 	assert.Len(t, foundEntry.Picks, 2)
+}
+
+func setupPickingDraft(t *testing.T, db *sql.DB, store DraftStore, numPlayers int) (DraftModel, []User) {
+	t.Helper()
+
+	ctx := context.Background()
+	owner := createTestUser(t, db)
+	users := []User{owner}
+	draft := createTestDraft(t, db, owner)
+
+	for i := 1; i < numPlayers; i++ {
+		user := createTestUser(t, db)
+		users = append(users, user)
+		inviteId, err := store.InvitePlayer(ctx, draft.Id, owner.UserUuid, user.UserUuid)
+		require.NoError(t, err)
+		_, _, err = store.AcceptInvite(ctx, inviteId)
+		require.NoError(t, err)
+		err = store.AddPlayerToDraft(ctx, draft.Id, user.UserUuid)
+		require.NoError(t, err)
+	}
+
+	err := store.RandomizePickOrder(ctx, draft.Id)
+	require.NoError(t, err)
+	err = store.UpdateDraftStatus(ctx, draft.Id, PICKING)
+	require.NoError(t, err)
+
+	return draft, users
+}
+
+func TestRunInTransaction_MakePickAndCreateNext_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	draft, users := setupPickingDraft(t, db, store, 3)
+
+	team := "frc" + randomString(4)
+	createTestTeam(t, db, team)
+
+	firstPlayerId, err := store.GetDraftPlayerId(ctx, draft.Id, users[0].UserUuid)
+	require.NoError(t, err)
+
+	// Create the first available pick
+	firstPickId, err := store.MakePickAvailable(ctx, firstPlayerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+	require.NoError(t, err)
+
+	pick := Pick{
+		Id:       firstPickId,
+		Player:   firstPlayerId,
+		Pick:     sql.NullString{String: team, Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+
+	// Determine the next pick using the same logic as the actor
+	loadedDraft, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	nextPickPlayer, err := DetermineNextPick(loadedDraft.Players, loadedDraft.Picks)
+	require.NoError(t, err)
+
+	// Make the pick and advance atomically under a transaction
+	err = store.RunInTransaction(ctx, func(tx database.DBTX) error {
+		storeTx := store.WithTx(tx)
+		if err := storeTx.MakePick(ctx, pick); err != nil {
+			return err
+		}
+		_, err := storeTx.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+		return err
+	})
+	require.NoError(t, err)
+
+	// Verify the original pick was recorded
+	loadedDraft, err = store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+
+	madePick := false
+	for _, p := range loadedDraft.Picks {
+		if p.Id == firstPickId && p.Pick.String == team {
+			madePick = true
+		}
+	}
+	assert.True(t, madePick, "Original pick should be recorded")
+
+	// Verify a new available pick was created
+	currentPick, err := store.GetCurrentPick(ctx, draft.Id)
+	require.NoError(t, err)
+	assert.NotEqual(t, firstPickId, currentPick.Id, "A new pick should be available after advancing")
+	assert.Equal(t, nextPickPlayer.Id, currentPick.Player, "Next pick should be assigned to the computed next player")
+}
+
+func TestRunInTransaction_FinalPick_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	draft, users := setupPickingDraft(t, db, store, 1)
+
+	playerId, err := store.GetDraftPlayerId(ctx, draft.Id, users[0].UserUuid)
+	require.NoError(t, err)
+
+	// Create 64 pick rows directly, marking 63 as already made and leaving the 64th available
+	availablePickId := 0
+	for i := 0; i < 64; i++ {
+		pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+		require.NoError(t, err)
+		if i < 63 {
+			team := fmt.Sprintf("frc%02d", i)
+			_, err = db.ExecContext(ctx, "INSERT INTO Teams (tbaId, name, allianceScore) VALUES ($1, $2, $3) ON CONFLICT (tbaId) DO NOTHING", team, "Test Team", 0)
+			require.NoError(t, err)
+			pick := Pick{
+				Id:       pickId,
+				Player:   playerId,
+				Pick:     sql.NullString{String: team, Valid: true},
+				PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+			}
+			err = store.MakePick(ctx, pick)
+			require.NoError(t, err)
+		} else {
+			availablePickId = pickId
+		}
+	}
+
+	team := "frcfinal"
+	_, err = db.ExecContext(ctx, "INSERT INTO Teams (tbaId, name, allianceScore) VALUES ($1, $2, $3) ON CONFLICT (tbaId) DO NOTHING", team, "Test Team", 0)
+	require.NoError(t, err)
+
+	pick := Pick{
+		Id:       availablePickId,
+		Player:   playerId,
+		Pick:     sql.NullString{String: team, Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+
+	// Make the final pick and transition the draft status under a transaction
+	err = store.RunInTransaction(ctx, func(tx database.DBTX) error {
+		storeTx := store.WithTx(tx)
+		if err := storeTx.MakePick(ctx, pick); err != nil {
+			return err
+		}
+		return storeTx.UpdateDraftStatus(ctx, draft.Id, TEAMS_PLAYING)
+	})
+	require.NoError(t, err)
+
+	// Verify the final pick was recorded and status transitioned
+	loadedDraft, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	assert.Equal(t, TEAMS_PLAYING, loadedDraft.Status)
+
+	madeFinalPick := false
+	for _, p := range loadedDraft.Picks {
+		if p.Id == availablePickId && p.Pick.String == team {
+			madeFinalPick = true
+			break
+		}
+	}
+	assert.True(t, madeFinalPick, "Final pick should be recorded")
+}
+
+func TestRunInTransaction_RollsBackOnError_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	draft, users := setupPickingDraft(t, db, store, 1)
+
+	team := "frc" + randomString(4)
+	createTestTeam(t, db, team)
+
+	playerId, err := store.GetDraftPlayerId(ctx, draft.Id, users[0].UserUuid)
+	require.NoError(t, err)
+
+	pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+	require.NoError(t, err)
+
+	pick := Pick{
+		Id:       pickId,
+		Player:   playerId,
+		Pick:     sql.NullString{String: team, Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+
+	// Pass an invalid nextPickPlayerId to force the advance step to fail
+	err = store.RunInTransaction(ctx, func(tx database.DBTX) error {
+		storeTx := store.WithTx(tx)
+		if err := storeTx.MakePick(ctx, pick); err != nil {
+			return err
+		}
+		_, err := storeTx.MakePickAvailable(ctx, -1, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+		return err
+	})
+	assert.Error(t, err)
+
+	// Verify the pick was NOT recorded because the transaction rolled back
+	loadedDraft, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	for _, p := range loadedDraft.Picks {
+		if p.Id == pickId {
+			assert.False(t, p.Pick.Valid, "Pick should not have been recorded after rollback")
+		}
+	}
+}
+
+func TestCreateDraft_RollsBackOnError_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	// Use a user UUID that does not exist in the Users table so the owner player insert fails.
+	draft := &DraftModel{
+		DisplayName: "Rollback Test Draft",
+		Description: "Should rollback",
+		Interval:    3600,
+		Owner:       User{UserUuid: uuid.New(), Username: "nonexistent"},
+		Status:      FILLING,
+	}
+
+	_, err := store.CreateDraft(ctx, draft)
+	assert.Error(t, err)
+
+	// Verify no draft row was left behind.
+	var count int
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM Drafts WHERE DisplayName = $1", draft.DisplayName).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "Draft row should have been rolled back")
+}
+
+func TestAcceptInvite_RollsBackOnError_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	owner := createTestUser(t, db)
+	invited := createTestUser(t, db)
+	draft := createTestDraft(t, db, owner)
+
+	inviteId, err := store.InvitePlayer(ctx, draft.Id, owner.UserUuid, invited.UserUuid)
+	require.NoError(t, err)
+
+	// Accepting the invite should fail when AddPlayerToDraft references a non-existent user,
+	// and the transaction should roll back so the invite remains pending.
+	err = store.RunInTransaction(ctx, func(tx database.DBTX) error {
+		storeTx := store.WithTx(tx)
+		if err := storeTx.LockDraft(ctx, draft.Id); err != nil {
+			return err
+		}
+		numPlayers, err := storeTx.GetNumPlayersInDraft(ctx, draft.Id)
+		if err != nil {
+			return err
+		}
+		if numPlayers >= 8 {
+			return errors.New("too many players")
+		}
+		draftId, _, err := storeTx.AcceptInvite(ctx, inviteId)
+		if err != nil {
+			return err
+		}
+		// Force a foreign-key violation so the transaction rolls back.
+		return storeTx.AddPlayerToDraft(ctx, draftId, uuid.New())
+	})
+	assert.Error(t, err)
+
+	// Verify the invite is still pending after rollback.
+	var status string
+	err = db.QueryRowContext(ctx, "SELECT Status FROM DraftInvites WHERE Id = $1", inviteId).Scan(&status)
+	require.NoError(t, err)
+	assert.Equal(t, "pending", status)
 }
