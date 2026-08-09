@@ -1,6 +1,6 @@
 # Draft Agent
 
-AI-powered agent that automates fantasy FRC draft picks by integrating with the Fantasy FRC web application.
+AI-powered agent that automates fantasy FRC draft picks by integrating with the Fantasy FRC web application
 
 ## Overview
 
