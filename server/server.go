@@ -39,7 +39,7 @@ type ServerConfig struct {
 
 func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(context.Context) error) {
 	log.Info(ctx, "Starting Server")
-	auth := authentication.NewAuth(cfg.Handler.Stores.UserStore)
+	auth := authentication.NewAuth(cfg.Handler.Services.AuthService, cfg.Handler.Stores.UserStore)
 	app := echo.New()
 	if cfg.TrustProxy {
 		app.IPExtractor = echo.ExtractIPFromXFFHeader(echo.TrustLoopback(true))

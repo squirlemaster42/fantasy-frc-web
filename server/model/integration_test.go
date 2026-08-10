@@ -11,6 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"server/database"
 )
@@ -59,7 +60,9 @@ func createTestUser(t *testing.T, db *sql.DB) User {
 	ctx := context.Background()
 
 	username := "testuser_" + randomString(8)
-	userUuid, err := store.RegisterUser(ctx, username, "Password123!")
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("Password123!"), bcrypt.MinCost)
+	require.NoError(t, err)
+	userUuid, err := store.RegisterUser(ctx, username, string(passwordHash))
 	require.NoError(t, err)
 
 	user := User{

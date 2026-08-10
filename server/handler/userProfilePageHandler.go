@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
+	"server/authentication"
 	"server/log"
 	"server/view/userProfile"
 
@@ -78,34 +79,16 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 			return renderProfile("New password is required")
 		}
 
-		if newPassword != confirmNewPassword {
-			return renderProfile("New passwords do not match")
-		}
-
-		if len(newPassword) < h.Config.MinPasswordLength {
-			return renderProfile(fmt.Sprintf("New password must be at least %d characters", h.Config.MinPasswordLength))
-		}
-
-		valid, err := h.Stores.UserStore.ValidateLogin(c.Request().Context(), username, currentPassword)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to validate current password", "username", username, "error", err)
-			return renderProfile("An error occurred. Please try again.")
-		}
-		if !valid {
-			log.Warn(c.Request().Context(), "Invalid current password attempt for user", "username", username)
-			return renderProfile("Current password is incorrect")
-		}
-
-		log.Debug(c.Request().Context(), "Updating password for user", "username", username)
-		if err := h.Stores.UserStore.UpdatePassword(c.Request().Context(), username, newPassword); err != nil {
-			log.Error(c.Request().Context(), "Failed to update password", "username", username, "error", err)
-			return renderProfile("An error occurred. Please try again.")
-		}
-		// Invalidate all other sessions on password change
-		userTok, _ := c.Cookie("sessionToken")
-		if userTok != nil && userTok.Value != "" {
-			if err := h.Stores.UserStore.InvalidateAllUserSessionsExcept(c.Request().Context(), userUuid, userTok.Value); err != nil {
-				log.Error(c.Request().Context(), "Failed to invalidate other sessions", "username", username, "error", err)
+		if err := h.Services.AuthService.ChangePassword(c.Request().Context(), userUuid, username, currentPassword, newPassword); err != nil {
+			switch {
+			case errors.Is(err, authentication.ErrInvalidCredentials):
+				log.Warn(c.Request().Context(), "Invalid current password attempt for user", "username", username)
+				return renderProfile("Current password is incorrect")
+			case authentication.IsValidationError(err):
+				return renderProfile(err.Error())
+			default:
+				log.Error(c.Request().Context(), "Failed to change password", "username", username, "error", err)
+				return renderProfile("An error occurred. Please try again.")
 			}
 		}
 	}

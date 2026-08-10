@@ -15,18 +15,9 @@ func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool)
 		return uuid.UUID{}, "", false
 	}
 
-	isValid, err := h.Stores.UserStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
+	userUuid, err := h.Services.AuthService.ValidateSession(c.Request().Context(), userTok.Value)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to validate session token for landing page", "ip", c.RealIP(), "error", err)
-		return uuid.UUID{}, "", false
-	}
-	if !isValid {
-		return uuid.UUID{}, "", false
-	}
-
-	userUuid, err := h.Stores.UserStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get user by session token for landing page", "ip", c.RealIP(), "error", err)
+		log.Error(c.Request().Context(), "Failed to validate session for landing page", "ip", c.RealIP(), "error", err)
 		return uuid.UUID{}, "", false
 	}
 

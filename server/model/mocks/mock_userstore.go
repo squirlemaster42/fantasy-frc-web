@@ -44,6 +44,34 @@ func (_m *MockUserStore) GetDiscordId(ctx context.Context, userUuid uuid.UUID) (
 	return r0, r1
 }
 
+// GetPasswordHashByUsername provides a mock function with given fields: ctx, username
+func (_m *MockUserStore) GetPasswordHashByUsername(ctx context.Context, username string) (string, error) {
+	ret := _m.Called(ctx, username)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPasswordHashByUsername")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return rf(ctx, username)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, username)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, username)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetUserBySessionToken provides a mock function with given fields: ctx, sessionToken
 func (_m *MockUserStore) GetUserBySessionToken(ctx context.Context, sessionToken string) (uuid.UUID, error) {
 	ret := _m.Called(ctx, sessionToken)
@@ -168,9 +196,9 @@ func (_m *MockUserStore) RegisterSession(ctx context.Context, userUuid uuid.UUID
 	return r0
 }
 
-// RegisterUser provides a mock function with given fields: ctx, username, password
-func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, password string) (uuid.UUID, error) {
-	ret := _m.Called(ctx, username, password)
+// RegisterUser provides a mock function with given fields: ctx, username, passwordHash
+func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, passwordHash string) (uuid.UUID, error) {
+	ret := _m.Called(ctx, username, passwordHash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RegisterUser")
@@ -179,10 +207,10 @@ func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, pass
 	var r0 uuid.UUID
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, error)); ok {
-		return rf(ctx, username, password)
+		return rf(ctx, username, passwordHash)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) uuid.UUID); ok {
-		r0 = rf(ctx, username, password)
+		r0 = rf(ctx, username, passwordHash)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
@@ -190,7 +218,7 @@ func (_m *MockUserStore) RegisterUser(ctx context.Context, username string, pass
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, username, password)
+		r1 = rf(ctx, username, passwordHash)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -264,9 +292,9 @@ func (_m *MockUserStore) UpdateDiscordId(ctx context.Context, userUuid uuid.UUID
 	return r0
 }
 
-// UpdatePassword provides a mock function with given fields: ctx, username, newPassword
-func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, newPassword string) error {
-	ret := _m.Called(ctx, username, newPassword)
+// UpdatePassword provides a mock function with given fields: ctx, username, passwordHash
+func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, passwordHash string) error {
+	ret := _m.Called(ctx, username, passwordHash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdatePassword")
@@ -274,7 +302,7 @@ func (_m *MockUserStore) UpdatePassword(ctx context.Context, username string, ne
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, username, newPassword)
+		r0 = rf(ctx, username, passwordHash)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -331,34 +359,6 @@ func (_m *MockUserStore) UsernameTaken(ctx context.Context, username string) (bo
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, username)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ValidateLogin provides a mock function with given fields: ctx, username, password
-func (_m *MockUserStore) ValidateLogin(ctx context.Context, username string, password string) (bool, error) {
-	ret := _m.Called(ctx, username, password)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ValidateLogin")
-	}
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
-		return rf(ctx, username, password)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
-		r0 = rf(ctx, username, password)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, username, password)
 	} else {
 		r1 = ret.Error(1)
 	}

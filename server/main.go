@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"server/assert"
+	"server/authentication"
 	"server/background"
 	"server/cache"
 	"server/database"
@@ -27,6 +28,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -80,6 +82,12 @@ func main() {
 		usernameAllowedSpecialChars = "_-"
 	}
 
+	bcryptCost := utils.GetEnvInt("BCRYPT_COST", 14)
+	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {
+		log.Warn(ctx, "BCRYPT_COST out of range, using default", "value", bcryptCost, "default", 14)
+		bcryptCost = 14
+	}
+
 	redisRateLimitDB := utils.GetEnvInt("REDIS_RATE_LIMIT_DB", 1)
 
 	redisAvatarDB := utils.GetEnvInt("REDIS_AVATAR_DB", 2)
@@ -122,6 +130,19 @@ func main() {
 	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(database)
 	userStore := model.NewSQLUserStore(database)
+
+	passwordHasher, err := authentication.NewBcryptPasswordHasher(bcryptCost)
+	if err != nil {
+		assert.NoError(ctx, err, "Failed to create password hasher")
+	}
+
+	authService := authentication.NewAuthService(userStore, passwordHasher, authentication.AuthConfig{
+		MinPasswordLength:           minPasswordLength,
+		MinUsernameLength:           minUsernameLength,
+		MaxUsernameLength:           maxUsernameLength,
+		UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
+	})
+
 	teamStore := model.NewSQLTeamStore(database)
 	discordStore := model.NewSQLDiscordStore(database)
 	matchStore := model.NewSQLMatchStore(database)
@@ -180,6 +201,7 @@ func main() {
 			TeamStore:  teamStore,
 		},
 		Services: handler.ServiceGroup{
+			AuthService:       authService,
 			TBAHandler:        tbaHandler,
 			DraftActorMap:     draftActorMap,
 			Scorer:            scorer,

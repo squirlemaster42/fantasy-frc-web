@@ -4,13 +4,11 @@ import (
 	"context"
 	"crypto"
 	"database/sql"
-	"errors"
 	"fmt"
 	db "server/database"
 	"server/log"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -24,7 +22,7 @@ func (u *User) String() string {
 	return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
 }
 
-func registerUser(ctx context.Context, database *sql.DB, username string, password string) (uuid.UUID, error) {
+func registerUser(ctx context.Context, database *sql.DB, username string, passwordHash string) (uuid.UUID, error) {
 	query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
@@ -32,11 +30,7 @@ func registerUser(ctx context.Context, database *sql.DB, username string, passwo
 	}
 	defer db.CloseStatement(ctx, stmt, "RegisterUser")
 	userUuid := uuid.New()
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to generate password hash: %w", err)
-	}
-	err = stmt.QueryRowContext(ctx, userUuid, username, string(hashedPassword)).Scan(&userUuid)
+	err = stmt.QueryRowContext(ctx, userUuid, username, passwordHash).Scan(&userUuid)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to register user: %w", err)
 	}
@@ -117,59 +111,32 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	return nil
 }
 
-// dummyPasswordHash is a valid bcrypt hash used for constant-time comparison on unknown usernames.
-// It is generated at package initialization so it is guaranteed to be parseable by bcrypt.
-var dummyPasswordHash []byte
-
-func init() {
-	var err error
-	dummyPasswordHash, err = bcrypt.GenerateFromPassword([]byte("dummy-password-that-is-never-correct"), bcrypt.MinCost)
-	if err != nil {
-		panic(fmt.Sprintf("failed to generate dummy password hash: %v", err))
-	}
-}
-
-// ValidateLogin validates credentials in constant time regardless of username existence.
-func validateLogin(ctx context.Context, database *sql.DB, username string, password string) (bool, error) {
+func getPasswordHashByUsername(ctx context.Context, database *sql.DB, username string) (string, error) {
 	query := `Select password From Users Where username = $1;`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	defer db.CloseStatement(ctx, stmt, "ValidateLogin")
-	var dbPassword string
-	err = stmt.QueryRowContext(ctx, username).Scan(&dbPassword)
+	defer db.CloseStatement(ctx, stmt, "GetPasswordHashByUsername")
+	var passwordHash string
+	err = stmt.QueryRowContext(ctx, username).Scan(&passwordHash)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Constant-time dummy comparison to prevent username enumeration
-			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to validate login: %w", err)
+		return "", err
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
-	valid := err == nil
-	if !valid {
-		log.Warn(ctx, "Failed login attempt", "username", username)
-	}
-	return valid, nil
+	return passwordHash, nil
 }
 
 // The old password logic should happen before this
 // Should we move more logic here? No, we want to be able to
 // send back error messages which we should need to check the database for
-func updatePassword(ctx context.Context, database *sql.DB, username string, newPassword string) error {
+func updatePassword(ctx context.Context, database *sql.DB, username string, passwordHash string) error {
 	query := `Update Users Set password = $1 Where username = $2;`
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
 		return err
 	}
 	defer db.CloseStatement(ctx, stmt, "UpdatePassword")
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
-	if err != nil {
-		return fmt.Errorf("failed to generate password hash: %w", err)
-	}
-	_, err = stmt.ExecContext(ctx, string(hashedPassword), username)
+	_, err = stmt.ExecContext(ctx, passwordHash, username)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
 	}

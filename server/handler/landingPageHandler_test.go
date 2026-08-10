@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	authmocks "server/authentication/mocks"
 	"server/model/mocks"
 )
 
@@ -29,13 +31,14 @@ func TestHandleViewLanding_Authenticated(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	_, c, rec := setupTestContext(t, http.MethodGet, "/", "", "valid-token")
 
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "valid-token").Return(true, nil)
-	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "valid-token").Return(userUuid, nil)
+	mockAuthService.On("ValidateSession", c.Request().Context(), "valid-token").Return(userUuid, nil)
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("TestUser", nil)
 
 	h := &Handler{
-		Stores: StorageGroup{UserStore: mockUserStore},
+		Services: ServiceGroup{AuthService: mockAuthService},
+		Stores:   StorageGroup{UserStore: mockUserStore},
 	}
 
 	err := h.HandleViewLanding(c)
@@ -44,22 +47,24 @@ func TestHandleViewLanding_Authenticated(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "TestUser")
 	assert.Contains(t, rec.Body.String(), "/u/home")
 	assert.NotContains(t, rec.Body.String(), "Sign Up")
+	mockAuthService.AssertExpectations(t)
 	mockUserStore.AssertExpectations(t)
 }
 
 func TestHandleViewLanding_InvalidSession(t *testing.T) {
 	_, c, rec := setupTestContext(t, http.MethodGet, "/", "", "invalid-token")
 
-	mockUserStore := mocks.NewMockUserStore(t)
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "invalid-token").Return(false, nil)
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockAuthService.On("ValidateSession", c.Request().Context(), "invalid-token").Return(uuid.UUID{}, errors.New("invalid session"))
 
 	h := &Handler{
-		Stores: StorageGroup{UserStore: mockUserStore},
+		Services: ServiceGroup{AuthService: mockAuthService},
+		Stores:   StorageGroup{UserStore: mocks.NewMockUserStore(t)},
 	}
 
 	err := h.HandleViewLanding(c)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Log In")
-	mockUserStore.AssertExpectations(t)
+	mockAuthService.AssertExpectations(t)
 }

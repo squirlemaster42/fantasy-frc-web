@@ -1,14 +1,11 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/base32"
-	"fmt"
+	"errors"
 	"net/http"
+	"server/authentication"
 	"server/log"
 	"server/view/login"
-	"strings"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -19,84 +16,19 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 	return h.renderLoginWithError(c, "")
 }
 
-// We generate a 128 bit session token
-// This token then needs to be hashed in the db and send back to the user
-// We need to choose an expiration date too
-func generateSessionToken() (string, error) {
-	randomBytes := make([]byte, 16)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	return base32.StdEncoding.EncodeToString(randomBytes), nil
-}
-
-// validateUsername trims whitespace and checks length and allowed characters.
-// It returns the normalized username and an empty string if valid, otherwise an error message.
-func validateUsername(username string, minLength, maxLength int, allowedSpecialChars string) (string, string) {
-	normalized := strings.TrimSpace(username)
-	if len(normalized) < len(username) {
-		return "", "Username cannot contain leading or trailing spaces"
-	}
-	if strings.ContainsAny(normalized, " \t\n\r") {
-		return "", "Username cannot contain spaces"
-	}
-	if len(normalized) < minLength {
-		return "", fmt.Sprintf("Username must be at least %d characters", minLength)
-	}
-	if len(normalized) > maxLength {
-		return "", fmt.Sprintf("Username must be at most %d characters", maxLength)
-	}
-	for _, ch := range normalized {
-		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && !strings.ContainsRune(allowedSpecialChars, ch) {
-			return "", fmt.Sprintf("Username can only contain letters, numbers, and %s", allowedSpecialChars)
-		}
-	}
-	return normalized, ""
-}
-
-func validatePassword(password string, confirmPassword string, minLength int) string {
-	if password != confirmPassword {
-		return "Passwords Do Not Match"
-	}
-	if len(password) < minLength {
-		return fmt.Sprintf("Password must be at least %d characters", minLength)
-	}
-	var hasUpper, hasLower, hasDigit bool
-	for _, ch := range password {
-		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
-		}
-	}
-	if !hasUpper || !hasLower || !hasDigit {
-		return "Password must contain at least one uppercase letter, one lowercase letter, and one digit"
-	}
-	return ""
-}
-
-func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID) error {
-	sessionTok, err := generateSessionToken()
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
-	if err := h.Stores.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-		log.Error(c.Request().Context(), "Failed to register session", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
+func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
 	cookie := new(http.Cookie)
 	cookie.Name = "sessionToken"
-	cookie.Value = sessionTok
+	cookie.Value = sessionToken
 	cookie.HttpOnly = true
 	cookie.Secure = h.Config.SecureHttpCookie
 	cookie.SameSite = http.SameSiteLaxMode
 	cookie.Path = "/"
 	c.SetCookie(cookie)
+}
+
+func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID, sessionToken string) error {
+	h.setSessionCookie(c, sessionToken)
 	c.Response().Header().Set("HX-Redirect", "/u/home")
 	return nil
 }
@@ -110,33 +42,25 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	valid, err := h.Stores.UserStore.ValidateLogin(c.Request().Context(), username, password)
+	// Session fixation prevention: invalidate any pre-existing session token
+	oldTok, err := c.Cookie("sessionToken")
+	if err == nil && oldTok.Value != "" {
+		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), oldTok.Value); logoutErr != nil {
+			log.Warn(c.Request().Context(), "Failed to logout old session during login", "error", logoutErr)
+		}
+	}
+
+	userUuid, sessionToken, err := h.Services.AuthService.Login(c.Request().Context(), username, password)
 	if err != nil {
+		if errors.Is(err, authentication.ErrInvalidCredentials) {
+			log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
+			return h.renderLoginWithError(c, "You have entered an invalid username or password")
+		}
 		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
-	if valid {
-		log.Info(c.Request().Context(), "Valid login attempt for user", "username", username)
-		userUuid, err := h.Stores.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to get user uuid", "username", username, "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to validate login")
-		}
-
-		// Session fixation prevention: invalidate any pre-existing session token
-		oldTok, err := c.Cookie("sessionToken")
-		if err == nil && oldTok.Value != "" {
-			if unregisterErr := h.Stores.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
-				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "error", unregisterErr)
-			}
-		}
-
-		return h.setSessionAndRedirect(c, userUuid)
-	}
-
-	log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
-	return h.renderLoginWithError(c, "You have entered an invalid username or password")
+	return h.setSessionAndRedirect(c, userUuid, sessionToken)
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -147,8 +71,8 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	log.Info(c.Request().Context(), "User logged out", "userUuid", userUuidStr, "ip", c.RealIP())
 	userTok, err := c.Cookie("sessionToken")
 	if err == nil && userTok.Value != "" {
-		if unregisterErr := h.Stores.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
-			log.Warn(c.Request().Context(), "Failed to unregister session", "error", unregisterErr)
+		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), userTok.Value); logoutErr != nil {
+			log.Warn(c.Request().Context(), "Failed to logout session", "error", logoutErr)
 		}
 	}
 	cookie := new(http.Cookie)
@@ -196,35 +120,21 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
-	confirmPassword := c.FormValue("confirmPassword")
 
-	normalizedUsername, errMsg := validateUsername(username, h.Config.MinUsernameLength, h.Config.MaxUsernameLength, h.Config.UsernameAllowedSpecialChars)
-	if errMsg != "" {
-		log.Warn(c.Request().Context(), "Registration username validation failed", "username", username)
-		return h.renderRegisterWithError(c, errMsg)
-	}
-	username = normalizedUsername
-
-	taken, err := h.Stores.UserStore.UsernameTaken(c.Request().Context(), username)
+	userUuid, sessionToken, err := h.Services.AuthService.Register(c.Request().Context(), username, password)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to check username availability")
-	}
-	if taken {
-		log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
-		return h.renderRegisterWithError(c, "Username Taken")
+		switch {
+		case errors.Is(err, authentication.ErrUsernameTaken):
+			log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
+			return h.renderRegisterWithError(c, "Username Taken")
+		case authentication.IsValidationError(err):
+			log.Warn(c.Request().Context(), "Registration validation failed", "username", username)
+			return h.renderRegisterWithError(c, err.Error())
+		default:
+			log.Error(c.Request().Context(), "Failed to register user", "error", err)
+			return c.String(http.StatusInternalServerError, "Failed to create account")
+		}
 	}
 
-	if errMsg := validatePassword(password, confirmPassword, h.Config.MinPasswordLength); errMsg != "" {
-		log.Warn(c.Request().Context(), "Registration password validation failed", "username", username)
-		return h.renderRegisterWithError(c, errMsg)
-	}
-
-	log.Info(c.Request().Context(), "Valid registration for user", "username", username)
-	userUuid, err := h.Stores.UserStore.RegisterUser(c.Request().Context(), username, password)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to register user", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create account")
-	}
-	return h.setSessionAndRedirect(c, userUuid)
+	return h.setSessionAndRedirect(c, userUuid, sessionToken)
 }

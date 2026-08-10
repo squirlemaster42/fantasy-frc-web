@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"server/authentication"
 	"server/cache"
 	"server/discord"
 	"server/draft"
@@ -21,6 +22,7 @@ type StorageGroup struct {
 }
 
 type ServiceGroup struct {
+	AuthService       authentication.AuthService
 	TBAHandler        tbaHandler.TBAInterface
 	DraftActorMap     *draft.DraftActorMap
 	Scorer            *scorer.Scorer

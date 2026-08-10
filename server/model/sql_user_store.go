@@ -35,12 +35,12 @@ func (s *SQLUserStore) UsernameTaken(ctx context.Context, username string) (bool
 	return usernameTaken(ctx, s.database, username)
 }
 
-func (s *SQLUserStore) ValidateLogin(ctx context.Context, username string, password string) (bool, error) {
-	return validateLogin(ctx, s.database, username, password)
-}
-
 func (s *SQLUserStore) GetUserUuidByUsername(ctx context.Context, username string) (uuid.UUID, error) {
 	return getUserUuidByUsername(ctx, s.database, username)
+}
+
+func (s *SQLUserStore) GetPasswordHashByUsername(ctx context.Context, username string) (string, error) {
+	return getPasswordHashByUsername(ctx, s.database, username)
 }
 
 func (s *SQLUserStore) RegisterSession(ctx context.Context, userUuid uuid.UUID, sessionToken string) error {
@@ -51,8 +51,8 @@ func (s *SQLUserStore) UnRegisterSession(ctx context.Context, sessionToken strin
 	return unregisterSession(ctx, s.database, sessionToken)
 }
 
-func (s *SQLUserStore) RegisterUser(ctx context.Context, username string, password string) (uuid.UUID, error) {
-	return registerUser(ctx, s.database, username, password)
+func (s *SQLUserStore) RegisterUser(ctx context.Context, username string, passwordHash string) (uuid.UUID, error) {
+	return registerUser(ctx, s.database, username, passwordHash)
 }
 
 func (s *SQLUserStore) GetDiscordId(ctx context.Context, userUuid uuid.UUID) (string, error) {
@@ -63,8 +63,8 @@ func (s *SQLUserStore) UpdateDiscordId(ctx context.Context, userUuid uuid.UUID, 
 	return updateDiscordId(ctx, s.database, userUuid, discordId)
 }
 
-func (s *SQLUserStore) UpdatePassword(ctx context.Context, username string, newPassword string) error {
-	return updatePassword(ctx, s.database, username, newPassword)
+func (s *SQLUserStore) UpdatePassword(ctx context.Context, username string, passwordHash string) error {
+	return updatePassword(ctx, s.database, username, passwordHash)
 }
 
 func (s *SQLUserStore) InvalidateAllUserSessionsExcept(ctx context.Context, userUuid uuid.UUID, keepSessionToken string) error {
