@@ -379,9 +379,6 @@ func queryDraftRow(ctx context.Context, database db.DBTX, draftId int) (DraftMod
         COALESCE(EXTRACT(EPOCH FROM Interval)::int, 0) As Interval
     From Drafts Where Id = $1;`
 
-	assert := assert.CreateAssertWithContext("Get Draft")
-	assert.AddContext("draftId", draftId)
-
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
 		return DraftModel{}, uuid.UUID{}, err
@@ -951,7 +948,6 @@ func makePickAvailable(ctx context.Context, database db.DBTX, draftPlayerId int,
 func makePick(ctx context.Context, database db.DBTX, pick Pick) error {
 	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
 
-	assert := assert.CreateAssertWithContext("Make Pick")
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
 		return err
@@ -963,7 +959,10 @@ func makePick(ctx context.Context, database db.DBTX, pick Pick) error {
 		log.Error(ctx, "Failed to make pick", "error", err)
 		return err
 	}
-	assert.RunAssert(ctx, pick.Id == updatedId, "Updated id does not match or no pick was updated")
+	if updatedId != pick.Id {
+		log.Error(ctx, "Pick id returned from database does not match expected id", "expected", pick.Id, "actual", updatedId)
+		return fmt.Errorf("pick id returned from database does not match expected id")
+	}
 	log.Info(ctx, "Made pick", "pickId", pick.Id, "team", pick.Pick.String, "player", pick.Player)
 	return nil
 }
@@ -1370,9 +1369,9 @@ func getDraftsInStatus(ctx context.Context, database db.DBTX, status DraftState)
 }
 
 func getDraftScore(ctx context.Context, database db.DBTX, draftId int) ([]DraftPlayer, error) {
-	assert := assert.CreateAssertWithContext("Get Draft Score")
-	assert.AddContext("draftId", draftId)
-	assert.RunAssert(ctx, draftId != 0, "Draft Id Should Not Be 0")
+	if draftId == 0 {
+		return nil, fmt.Errorf("draft id must be greater than zero")
+	}
 
 	query := `Select
         dp.Id,
@@ -1441,7 +1440,8 @@ func getDraftScore(ctx context.Context, database db.DBTX, draftId int) ([]DraftP
 		playerScores = append(playerScores, draftPlayer)
 	}
 
-	assert.RunAssert(ctx, len(picks) == len(usernames), "Picks and usernames maps have inconsistent lengths")
+	// Both maps are populated from the same result set rows, so their key sets must match
+	assert.AssertCF(ctx, len(picks) == len(usernames), "Picks and usernames maps have inconsistent lengths")
 	return playerScores, nil
 }
 
