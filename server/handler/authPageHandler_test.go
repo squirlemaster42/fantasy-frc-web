@@ -166,7 +166,10 @@ func TestHandlerRegisterPost(t *testing.T) {
 				UserStore: mockUserStore,
 			},
 			Config: ConfigGroup{
-				MinPasswordLength: 8,
+				MinPasswordLength:           8,
+				MinUsernameLength:           3,
+				MaxUsernameLength:           32,
+				UsernameAllowedSpecialChars: "_-",
 			},
 		}
 
@@ -199,7 +202,10 @@ func TestHandlerRegisterPost(t *testing.T) {
 				UserStore: mockUserStore,
 			},
 			Config: ConfigGroup{
-				MinPasswordLength: 8,
+				MinPasswordLength:           8,
+				MinUsernameLength:           3,
+				MaxUsernameLength:           32,
+				UsernameAllowedSpecialChars: "_-",
 			},
 		}
 
@@ -222,7 +228,10 @@ func TestHandlerRegisterPost(t *testing.T) {
 				UserStore: mockUserStore,
 			},
 			Config: ConfigGroup{
-				MinPasswordLength: 8,
+				MinPasswordLength:           8,
+				MinUsernameLength:           3,
+				MaxUsernameLength:           32,
+				UsernameAllowedSpecialChars: "_-",
 			},
 		}
 
@@ -245,7 +254,10 @@ func TestHandlerRegisterPost(t *testing.T) {
 				UserStore: mockUserStore,
 			},
 			Config: ConfigGroup{
-				MinPasswordLength: 8,
+				MinPasswordLength:           8,
+				MinUsernameLength:           3,
+				MaxUsernameLength:           32,
+				UsernameAllowedSpecialChars: "_-",
 			},
 		}
 
@@ -254,6 +266,59 @@ func TestHandlerRegisterPost(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Failed to check username availability")
 	})
+
+	t.Run("invalid username", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=bad%20user&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+
+		mockUserStore := mocks.NewMockUserStore(t)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
+			Config: ConfigGroup{
+				MinPasswordLength:           8,
+				MinUsernameLength:           3,
+				MaxUsernameLength:           32,
+				UsernameAllowedSpecialChars: "_-",
+			},
+		}
+
+		err := h.HandlerRegisterPost(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Username cannot contain spaces")
+	})
+}
+
+func TestValidateUsername(t *testing.T) {
+	tests := []struct {
+		name      string
+		username  string
+		wantUser  string
+		wantError string
+	}{
+		{"valid lowercase", "newuser", "newuser", ""},
+		{"valid with hyphen", "new-user", "new-user", ""},
+		{"valid with underscore", "new_user", "new_user", ""},
+		{"valid mixed alphanumeric", "user123", "user123", ""},
+		{"too short", "ab", "", "Username must be at least 3 characters"},
+		{"too long", "thisusernameiswaytoolongtobeacceptable", "", "Username must be at most 32 characters"},
+		{"leading space", " newuser", "", "Username cannot contain leading or trailing spaces"},
+		{"trailing space", "newuser ", "", "Username cannot contain leading or trailing spaces"},
+		{"internal space", "new user", "", "Username cannot contain spaces"},
+		{"invalid character", "new@user", "", "Username can only contain letters, numbers, and _-"},
+		{"empty", "", "", "Username must be at least 3 characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotUser, gotError := validateUsername(tt.username, 3, 32, "_-")
+			assert.Equal(t, tt.wantUser, gotUser)
+			assert.Equal(t, tt.wantError, gotError)
+		})
+	}
 }
 
 func TestHandleViewLogin(t *testing.T) {

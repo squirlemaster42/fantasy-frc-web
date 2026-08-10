@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"server/log"
 	"server/view/login"
+	"strings"
 	"unicode"
 
 	"github.com/google/uuid"
@@ -28,6 +29,30 @@ func generateSessionToken() (string, error) {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
 	return base32.StdEncoding.EncodeToString(randomBytes), nil
+}
+
+// validateUsername trims whitespace and checks length and allowed characters.
+// It returns the normalized username and an empty string if valid, otherwise an error message.
+func validateUsername(username string, minLength, maxLength int, allowedSpecialChars string) (string, string) {
+	normalized := strings.TrimSpace(username)
+	if len(normalized) < len(username) {
+		return "", "Username cannot contain leading or trailing spaces"
+	}
+	if strings.ContainsAny(normalized, " \t\n\r") {
+		return "", "Username cannot contain spaces"
+	}
+	if len(normalized) < minLength {
+		return "", fmt.Sprintf("Username must be at least %d characters", minLength)
+	}
+	if len(normalized) > maxLength {
+		return "", fmt.Sprintf("Username must be at most %d characters", maxLength)
+	}
+	for _, ch := range normalized {
+		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && !strings.ContainsRune(allowedSpecialChars, ch) {
+			return "", fmt.Sprintf("Username can only contain letters, numbers, and %s", allowedSpecialChars)
+		}
+	}
+	return normalized, ""
 }
 
 func validatePassword(password string, confirmPassword string, minLength int) string {
@@ -172,6 +197,13 @@ func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 	confirmPassword := c.FormValue("confirmPassword")
+
+	normalizedUsername, errMsg := validateUsername(username, h.Config.MinUsernameLength, h.Config.MaxUsernameLength, h.Config.UsernameAllowedSpecialChars)
+	if errMsg != "" {
+		log.Warn(c.Request().Context(), "Registration username validation failed", "username", username)
+		return h.renderRegisterWithError(c, errMsg)
+	}
+	username = normalizedUsername
 
 	taken, err := h.Stores.UserStore.UsernameTaken(c.Request().Context(), username)
 	if err != nil {

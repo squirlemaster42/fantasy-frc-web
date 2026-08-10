@@ -18,11 +18,11 @@ import (
 )
 
 type TBAInterface interface {
-	MakeEventListReq(ctx context.Context, teamId string) []string
-	MakeMatchReq(ctx context.Context, matchId string) swagger.Match
-	MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string
-	MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team
-	MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance
+	MakeEventListReq(ctx context.Context, teamId string) ([]string, error)
+	MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error)
+	MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error)
+	MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error)
+	MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error)
 	MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error)
 }
 
@@ -97,13 +97,12 @@ func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, bod
 // makeRequest makes a request to The Blue Alliance API.
 // url: The full URL to request
 // endpoint: The endpoint template for metrics (e.g., "/team/{team}/event/{event}/matches")
-func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint string) []byte {
+func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint string) ([]byte, error) {
 	log.Debug(ctx, "Making TBA request", "url", url, "endpoint", endpoint)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Error(ctx, "Failed to construct tba request", "error", err)
-		return nil
+		return nil, fmt.Errorf("failed to construct tba request: %w", err)
 	}
 
 	log.PropagateCorrelationID(ctx, req)
@@ -126,9 +125,8 @@ func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint strin
 	duration := time.Since(start)
 
 	if err != nil {
-		log.Error(ctx, "Failed to run tba request", "error", err)
 		metrics.RecordTbaRequest(endpoint, 0, duration)
-		return nil
+		return nil, fmt.Errorf("failed to run tba request: %w", err)
 	}
 
 	defer func() {
@@ -144,21 +142,25 @@ func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint strin
 		log.Debug(ctx, "Got not modified from tba, using cache data", "url", url)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
 		metrics.RecordTbaCacheHit("not_modified")
-		return body
+		return body, nil
 	case http.StatusNotFound:
 		log.Debug(ctx, "TBA returned 404", "url", url)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
-		return nil
+		return nil, nil
 	default:
 		if resp.StatusCode >= http.StatusInternalServerError {
 			log.Error(ctx, "TBA returned server error", "url", url, "statusCode", resp.StatusCode)
 			metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
-			return nil
+			return nil, fmt.Errorf("tba returned server error: %d", resp.StatusCode)
 		}
 		if resp.StatusCode == http.StatusTooManyRequests {
 			log.Warn(ctx, "TBA returned rate limit", "url", url, "statusCode", resp.StatusCode)
 			metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
-			return nil
+			return nil, fmt.Errorf("tba returned rate limit: %d", resp.StatusCode)
+		}
+		if resp.StatusCode != http.StatusOK {
+			metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
+			return nil, fmt.Errorf("tba returned unexpected status: %d", resp.StatusCode)
 		}
 		log.Debug(ctx, "Request to Tba returned", "url", url, "statusCode", resp.StatusCode)
 		metrics.RecordTbaRequest(endpoint, resp.StatusCode, duration)
@@ -167,8 +169,7 @@ func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint strin
 
 	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error(ctx, "Failed to read tba request body", "error", err)
-		return nil
+		return nil, fmt.Errorf("failed to read tba request body: %w", err)
 	}
 
 	etag = resp.Header.Get("Etag")
@@ -176,140 +177,140 @@ func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint strin
 		t.cacheData(ctx, url, etag, body)
 	}
 
-	return body
+	return body, nil
 }
 
 // MakeMatchListReq requests the list of matches for a team at an event from The Blue Alliance.
-func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventId string) []swagger.Match {
+func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventId string) ([]swagger.Match, error) {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
 	endpoint := "/team/{team}/event/{event}/matches"
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	var matches []swagger.Match
-	err := json.Unmarshal(jsonData, &matches)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse match list from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return matches
+	var matches []swagger.Match
+	err = json.Unmarshal(jsonData, &matches)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse match list from tba: %w", err)
+	}
+	return matches, nil
 }
 
 // MakeEventListReq requests the list of events for a team from The Blue Alliance.
-func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) []string {
+func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
 	url := BASE_URL + "team/" + teamId + "/events/2026/keys"
 	endpoint := "/team/{team}/events/{year}/keys"
-	var events []string
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &events)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse event list from tba", "messageData", jsonData, "team", teamId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return events
+	var events []string
+	err = json.Unmarshal(jsonData, &events)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse event list from tba: %w", err)
+	}
+	return events, nil
 }
 
 // MakeMatchReq requests a single match from The Blue Alliance.
-func (t *TBAHandler) MakeMatchReq(ctx context.Context, matchId string) swagger.Match {
+func (t *TBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error) {
 	url := BASE_URL + "match/" + matchId
 	endpoint := "/match/{match}"
-	var match swagger.Match
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &match)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse match from tba", "messageData", jsonData, "match", matchId, "error", err)
-		return swagger.Match{}
+		return swagger.Match{}, err
 	}
-
-	return match
+	var match swagger.Match
+	err = json.Unmarshal(jsonData, &match)
+	if err != nil {
+		return swagger.Match{}, fmt.Errorf("failed to parse match from tba: %w", err)
+	}
+	return match, nil
 }
 
 // MakeMatchKeysRequest requests the match keys for a team at an event from The Blue Alliance.
-func (t *TBAHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, eventId string) []string {
+func (t *TBAHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, eventId string) ([]string, error) {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
 	endpoint := "/team/{team}/event/{event}/matches/keys"
-	var keys []string
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &keys)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse match key list from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return keys
+	var keys []string
+	err = json.Unmarshal(jsonData, &keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse match key list from tba: %w", err)
+	}
+	return keys, nil
 }
 
 // MakeEventMatchKeysRequest requests the match keys for an event from The Blue Alliance.
-func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) []string {
+func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error) {
 	url := BASE_URL + "event/" + eventId + "/matches/keys"
 	endpoint := "/event/{event}/matches/keys"
-	var keys []string
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &keys)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse event match key list from tba", "messageData", jsonData, "event", eventId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return keys
+	var keys []string
+	err = json.Unmarshal(jsonData, &keys)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse event match key list from tba: %w", err)
+	}
+	return keys, nil
 }
 
 // MakeMatchKeysYearRequest requests the match keys for a team in a specific year from The Blue Alliance.
-func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) []string {
+func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) ([]string, error) {
 	url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
 	endpoint := "/team/{team}/matches/{year}/keys"
-	var matches []string
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &matches)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse match key year list from tba", "messageData", jsonData, "team", teamId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return matches
+	var matches []string
+	err = json.Unmarshal(jsonData, &matches)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse match key year list from tba: %w", err)
+	}
+	return matches, nil
 }
 
 // MakeTeamEventStatusRequest requests the team event status from The Blue Alliance.
-func (t *TBAHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId string, eventId string) swagger.TeamEventStatus {
+func (t *TBAHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId string, eventId string) (swagger.TeamEventStatus, error) {
 	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
 	endpoint := "/team/{team}/event/{event}/status"
-	var event swagger.TeamEventStatus
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &event)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse event status from tba", "messageData", jsonData, "team", teamId, "event", eventId, "error", err)
-		return swagger.TeamEventStatus{}
+		return swagger.TeamEventStatus{}, err
 	}
-
-	return event
+	var event swagger.TeamEventStatus
+	err = json.Unmarshal(jsonData, &event)
+	if err != nil {
+		return swagger.TeamEventStatus{}, fmt.Errorf("failed to parse event status from tba: %w", err)
+	}
+	return event, nil
 }
 
 // MakeTeamsAtEventRequest requests the teams at an event from The Blue Alliance.
-func (t *TBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) []swagger.Team {
+func (t *TBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
 	url := BASE_URL + "event/" + eventId + "/teams/simple"
 	endpoint := "/event/{event}/teams/simple"
-	var teams []swagger.Team
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &teams)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
-		log.Error(ctx, "Failed to parse teams at event list from tba", "messageData", jsonData, "event", eventId, "error", err)
-		return nil
+		return nil, err
 	}
-
-	return teams
+	var teams []swagger.Team
+	err = json.Unmarshal(jsonData, &teams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse teams at event list from tba: %w", err)
+	}
+	return teams, nil
 }
 
 // MakeEliminationAllianceRequest requests the elimination alliances for an event from The Blue Alliance.
 // Retries with exponential backoff when TBA returns an empty alliance list (up to 5 retries).
-func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) []swagger.EliminationAlliance {
+func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
 	url := BASE_URL + "event/" + eventId + "/alliances"
 	endpoint := "/event/{event}/alliances"
 
@@ -317,16 +318,17 @@ func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 	var alliances []swagger.EliminationAlliance
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		jsonData := t.makeRequest(ctx, url, endpoint)
-		err := json.Unmarshal(jsonData, &alliances)
-
+		jsonData, err := t.makeRequest(ctx, url, endpoint)
 		if err != nil {
-			log.Error(ctx, "Failed to parse elimination alliances from tba", "messageData", jsonData, "event", eventId, "error", err)
-			return nil
+			return nil, err
+		}
+		err = json.Unmarshal(jsonData, &alliances)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse elimination alliances from tba: %w", err)
 		}
 
 		if len(alliances) > 0 {
-			return alliances
+			return alliances, nil
 		}
 
 		if attempt < maxRetries {
@@ -337,19 +339,21 @@ func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 	}
 
 	log.Warn(ctx, "TBA returned empty alliances after all retries", "event", eventId, "attempts", maxRetries+1)
-	return alliances
+	return alliances, nil
 }
 
 // MakeTeamAvatarRequest requests the team avatar/media from The Blue Alliance.
 func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
 	url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
 	endpoint := "/team/{team}/media/{year}"
-	var media []swagger.TeamMedia
-	jsonData := t.makeRequest(ctx, url, endpoint)
-	err := json.Unmarshal(jsonData, &media)
-
+	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
 		return "", err
+	}
+	var media []swagger.TeamMedia
+	err = json.Unmarshal(jsonData, &media)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse team media from tba: %w", err)
 	}
 
 	for _, m := range media {
@@ -358,5 +362,5 @@ func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (
 		}
 	}
 
-	return "", errors.New("failed to find avatar in response: " + string(jsonData))
+	return "", errors.New("failed to find avatar in response")
 }

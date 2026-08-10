@@ -2,7 +2,7 @@
 
 Generated from a comprehensive codebase analysis of the current `main` branch. Items are organized by priority and include current file paths/line numbers.
 
-Last updated: 2026-07-31
+Last updated: 2026-08-07
 
 ## 🚨 Critical — fix first
 
@@ -24,12 +24,12 @@ Last updated: 2026-07-31
 |---|------|-------|-------|----------------|
 | 8 | `server/model/draft.go` | 168–269 | `getDraftsForUser` calls `loadDraftPickingInfo` and `loadPlayersForDraftInList` for **every row** returned. | Fold these into the main query or batch the per-draft calls. |
 | 9 | `server/model/draft.go` | ~1438–1550 | `getOverallLeaderboard` calls `getScore` for every team, generating at least one DB query per row. | Join team score data in the leaderboard query. |
-| 10 | `server/tbaHandler/tbaHandler.go` | 100–179 | `makeRequest` returns `nil` for most errors and has no `error` return value; callers silently ignore failures. | Return `([]byte, error)` and propagate errors. |
-| 11 | `server/handler/tbaWebhookEventHandler.go` | 56–60 | Invalid TBA webhook HMAC returns `200 OK` and logs the full request body. | Return `401/403` and avoid logging untrusted bodies. |
+| 10 | `server/tbaHandler/tbaHandler.go` | 100–179 | `makeRequest` returns `nil` for most errors and has no `error` return value; callers silently ignore failures. | ~~Return `([]byte, error)` and propagate errors.~~ **Fixed** — `makeRequest` now returns `([]byte, error)`; all public request methods and the `TBAInterface` return errors; callers in `scorer`, `draft/pickValidator`, `handler/adminPageHandler`, and `cache/avatarStore` handle or propagate them. |
+| 11 | `server/handler/tbaWebhookEventHandler.go` | 56–60 | Invalid TBA webhook HMAC returns `200 OK` and logs the full request body. | ~~Return `401/403` and avoid logging untrusted bodies.~~ **Fixed** — invalid HMAC now returns `401 Unauthorized` and the request body is no longer logged on auth failure or JSON decode errors. |
 | 12 | `server/draft/draftActor.go` | 306–380 | `handleAcceptInvite` performs multiple independent DB writes without a transaction. | ~~Wrap in a transaction.~~ **Fixed** — `handleAcceptInvite` now runs under `RunInTransaction`, locks the draft row with `SELECT ... FOR UPDATE`, checks player count, then atomically accepts the invite, adds the player, and cancels outstanding invites. Schema migration adds unique constraints to prevent duplicate players/pending invites. |
 | 13 | `server/model/draft.go` | 324–354 | `createDraft` inserts the draft and the owner player in two separate statements. | ~~Wrap in a transaction.~~ **Fixed** — `SQLDraftStore.CreateDraft` now wraps `createDraft` in `RunInTransaction`. |
-| 14 | `server/model/user.go` | 121–145 | Dummy bcrypt hash used for username-enumeration resistance may not be a valid bcrypt hash. | Generate a valid dummy hash at startup. |
-| 15 | `server/handler/authPageHandler.go` | 166–198 | Username format, length, and whitespace are not validated on registration. | Add username normalization and validation rules. |
+| 14 | `server/model/user.go` | 121–145 | Dummy bcrypt hash used for username-enumeration resistance may not be a valid bcrypt hash. | ~~Generate a valid dummy hash at startup.~~ **Fixed** — `dummyPasswordHash` is now generated with `bcrypt.GenerateFromPassword` in `init()` so it is always parseable. |
+| 15 | `server/handler/authPageHandler.go` | 166–198 | Username format, length, and whitespace are not validated on registration. | ~~Add username normalization and validation rules.~~ **Fixed** — registration now trims whitespace, rejects spaces, enforces 3–32 character length, and restricts characters to letters, digits, underscores, and hyphens. |
 | 16 | `server/utils/utils.go` | 90, 110–139 | `PICK_TIME = 1h` and daily pick windows (8–22, 17–22) are hardcoded globally. | Move to env/config and add constants. |
 
 ---
@@ -86,8 +86,6 @@ Last updated: 2026-07-31
 
 | # | File | Line | TODO |
 |---|------|------|------|
-| 51 | `server/draft/draftActor.go` | 734 | `// TODO: Wrap SkipPick and MakePickAvailable in a database transaction` |
-| 52 | `server/draft/draftActor.go` | 826 | `// TODO: Wrap DeletePick and ResetPick in a database transaction` |
 | 53 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` |
 | 54 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` |
 | 55 | `server/draft/draftActor.go` | 82 | `// TODO Does tba handler need to be a pointer?` |

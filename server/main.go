@@ -73,6 +73,13 @@ func main() {
 
 	minPasswordLength := utils.GetEnvInt("MIN_PASSWORD_LENGTH", 12)
 
+	minUsernameLength := utils.GetEnvInt("MIN_USERNAME_LENGTH", 3)
+	maxUsernameLength := utils.GetEnvInt("MAX_USERNAME_LENGTH", 32)
+	usernameAllowedSpecialChars := os.Getenv("USERNAME_ALLOWED_SPECIAL_CHARS")
+	if usernameAllowedSpecialChars == "" {
+		usernameAllowedSpecialChars = "_-"
+	}
+
 	redisRateLimitDB := utils.GetEnvInt("REDIS_RATE_LIMIT_DB", 1)
 
 	redisAvatarDB := utils.GetEnvInt("REDIS_AVATAR_DB", 2)
@@ -180,9 +187,12 @@ func main() {
 			DiscordWebhookBus: discordWebhookBus,
 		},
 		Config: handler.ConfigGroup{
-			SecureHttpCookie:  secureHttpCookie,
-			MinPasswordLength: minPasswordLength,
-			AllowedOrigin:     allowedOrigin,
+			SecureHttpCookie:            secureHttpCookie,
+			MinPasswordLength:           minPasswordLength,
+			MinUsernameLength:           minUsernameLength,
+			MaxUsernameLength:           maxUsernameLength,
+			UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
+			AllowedOrigin:               allowedOrigin,
 		},
 	}
 

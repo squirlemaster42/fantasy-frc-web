@@ -41,7 +41,10 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 		return errors.New("team already picked")
 	}
 
-	events := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	events, err := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	if err != nil {
+		return err
+	}
 	draftEvents := utils.Events()
 
 	validEvent := false

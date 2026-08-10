@@ -310,7 +310,12 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 	log.Info(ctx, "Scorer started")
 
 	for _, event := range utils.Events() {
-		for _, match := range s.tbaHandler.MakeEventMatchKeysRequest(ctx, event) {
+		matchKeys, err := s.tbaHandler.MakeEventMatchKeysRequest(ctx, event)
+		if err != nil {
+			log.Error(ctx, "Failed to get event match keys", "event", event, "error", err)
+			continue
+		}
+		for _, match := range matchKeys {
 			s.AddMatchToScore(swagger.Match{
 				Key: match,
 			})
@@ -344,7 +349,11 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 		log.Debug(ctx, "Checking if we need to get match data", "match", match)
 		if match.MatchNumber == 0 {
 			log.Debug(ctx, "Loading match data", "match", match.Key)
-			match = s.tbaHandler.MakeMatchReq(ctx, match.Key)
+			match, err = s.tbaHandler.MakeMatchReq(ctx, match.Key)
+			if err != nil {
+				log.Error(ctx, "Failed to get match data", "matchKey", match.Key, "error", err)
+				continue
+			}
 			if match.Key == "" {
 				log.Warn(ctx, "MakeMatchReq returned empty match data", "matchKey", match.Key)
 				continue
@@ -385,7 +394,11 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 }
 
 func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
-	alliances := s.tbaHandler.MakeEliminationAllianceRequest(ctx, event)
+	alliances, err := s.tbaHandler.MakeEliminationAllianceRequest(ctx, event)
+	if err != nil {
+		log.Error(ctx, "Failed to get elimination alliances", "event", event, "error", err)
+		return
+	}
 	log.Debug(ctx, "Made alliance selection request", "allianceLength", len(alliances))
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(ctx, alliance)

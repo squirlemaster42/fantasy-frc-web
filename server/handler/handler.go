@@ -29,11 +29,14 @@ type ServiceGroup struct {
 }
 
 type ConfigGroup struct {
-	TbaWebhookSecret    string
-	TbaVerificationCode string
-	SecureHttpCookie    bool
-	MinPasswordLength   int
-	AllowedOrigin       string
+	TbaWebhookSecret            string
+	TbaVerificationCode         string
+	SecureHttpCookie            bool
+	MinPasswordLength           int
+	MinUsernameLength           int
+	MaxUsernameLength           int
+	UsernameAllowedSpecialChars string
+	AllowedOrigin               string
 }
 
 type Handler struct {

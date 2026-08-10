@@ -117,8 +117,17 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	return nil
 }
 
-// Precomputed dummy bcrypt hash for constant-time comparison on unknown usernames
-var dummyPasswordHash = []byte("$2a$14$abcdefghijklmnopqrstuuxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+// dummyPasswordHash is a valid bcrypt hash used for constant-time comparison on unknown usernames.
+// It is generated at package initialization so it is guaranteed to be parseable by bcrypt.
+var dummyPasswordHash []byte
+
+func init() {
+	var err error
+	dummyPasswordHash, err = bcrypt.GenerateFromPassword([]byte("dummy-password-that-is-never-correct"), bcrypt.MinCost)
+	if err != nil {
+		panic(fmt.Sprintf("failed to generate dummy password hash: %v", err))
+	}
+}
 
 // ValidateLogin validates credentials in constant time regardless of username existence.
 func validateLogin(ctx context.Context, database *sql.DB, username string, password string) (bool, error) {

@@ -47,7 +47,11 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tb
 
 	for _, event := range utils.Events() {
 		log.Debug(ctx, "Creating teams for event", "event", event)
-		teams := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
+		teams, err := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
+		if err != nil {
+			log.Error(ctx, "Failed to get teams for event", "event", event, "error", err)
+			continue
+		}
 		for _, t := range teams {
 			log.Debug(ctx, "Checking if team is needed", "team", t.Key, "event", event)
 			team, err := teamStore.GetTeam(ctx, t.Key)

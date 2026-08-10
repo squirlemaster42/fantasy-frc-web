@@ -56,14 +56,14 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	valid := validMAC(body, messageMac, []byte(h.Config.TbaWebhookSecret))
 
 	if !valid {
-		log.Warn(c.Request().Context(), "Webhook event authentication failed", "message", string(body))
-		return c.NoContent(http.StatusOK)
+		log.Warn(c.Request().Context(), "Webhook event authentication failed")
+		return c.NoContent(http.StatusUnauthorized)
 	}
 
 	var event TbaWebsocketEvent
 	err = json.Unmarshal(body, &event)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to decode webhook message", "error", err, "message", string(body))
+		log.Error(c.Request().Context(), "Failed to decode webhook message", "error", err)
 		return c.NoContent(http.StatusBadRequest)
 	}
 
