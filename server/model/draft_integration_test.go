@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
@@ -230,4 +231,68 @@ func TestGetDraftsForUser_PickingStatus_Integration(t *testing.T) {
 	assert.Equal(t, playerId, drafts[0].NextPick.Id)
 	assert.Equal(t, owner.UserUuid, drafts[0].NextPick.User.UserUuid)
 	assert.Equal(t, owner.Username, drafts[0].NextPick.User.Username)
+}
+
+func TestGetDraft_PlayerPicksGrouped_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	owner := createTestUser(t, db)
+	invited := createTestUser(t, db)
+	draft := createTestDraft(t, db, owner)
+
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	inviteId, err := store.InvitePlayer(ctx, draft.Id, owner.UserUuid, invited.UserUuid)
+	require.NoError(t, err)
+	_, _, err = store.AcceptInvite(ctx, inviteId)
+	require.NoError(t, err)
+	err = store.AddPlayerToDraft(ctx, draft.Id, invited.UserUuid)
+	require.NoError(t, err)
+
+	ownerPlayerId, err := store.GetDraftPlayerId(ctx, draft.Id, owner.UserUuid)
+	require.NoError(t, err)
+	invitedPlayerId, err := store.GetDraftPlayerId(ctx, draft.Id, invited.UserUuid)
+	require.NoError(t, err)
+
+	now := time.Now().UTC()
+	ownerPickId, err := store.MakePickAvailable(ctx, ownerPlayerId, now, now.Add(time.Hour))
+	require.NoError(t, err)
+	invitedPickId, err := store.MakePickAvailable(ctx, invitedPlayerId, now.Add(time.Minute), now.Add(time.Hour).Add(time.Minute))
+	require.NoError(t, err)
+
+	pickA := Pick{Id: ownerPickId, Player: ownerPlayerId, Pick: sql.NullString{String: "frc254", Valid: true}}
+	pickB := Pick{Id: invitedPickId, Player: invitedPlayerId, Pick: sql.NullString{String: "frc971", Valid: true}}
+	err = store.MakePick(ctx, pickA)
+	require.NoError(t, err)
+	err = store.MakePick(ctx, pickB)
+	require.NoError(t, err)
+
+	loaded, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	require.Len(t, loaded.Players, 2)
+
+	playerPicks := make(map[int][]Pick)
+	for _, p := range loaded.Players {
+		playerPicks[p.Id] = p.Picks
+	}
+
+	require.Len(t, playerPicks[ownerPlayerId], 1)
+	assert.Equal(t, "frc254", playerPicks[ownerPlayerId][0].Pick.String)
+
+	require.Len(t, playerPicks[invitedPlayerId], 1)
+	assert.Equal(t, "frc971", playerPicks[invitedPlayerId][0].Pick.String)
+}
+
+func TestGetDraft_NoPicks_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	owner := createTestUser(t, db)
+	draft := createTestDraft(t, db, owner)
+
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	loaded, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	require.Len(t, loaded.Players, 1)
+	assert.Empty(t, loaded.Players[0].Picks)
 }

@@ -557,6 +557,11 @@ func loadDraftPlayers(ctx context.Context, database db.DBTX, draftId int, draftM
 	}
 	defer db.CloseRows(ctx, playerRows, "GetDraft")
 
+	picksByPlayer := make(map[int][]Pick)
+	for _, pick := range draftModel.Picks {
+		picksByPlayer[pick.Player] = append(picksByPlayer[pick.Player], pick)
+	}
+
 	for playerRows.Next() {
 		var userUuid uuid.UUID
 		var username string
@@ -592,13 +597,7 @@ func loadDraftPlayers(ctx context.Context, database db.DBTX, draftId int, draftM
 			PlayerOrder: playerOrder,
 			Pending:     !accepted,
 			InviteId:    inviteId,
-		}
-
-		picks, err := getDraftPlayerPicks(ctx, database, draftPlayer.Id)
-		if err != nil {
-			log.Error(ctx, "Failed to get picks for player", "draftPlayerId", draftPlayer.Id, "error", err)
-		} else {
-			draftPlayer.Picks = picks
+			Picks:       picksByPlayer[playerId],
 		}
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
@@ -638,46 +637,6 @@ func getDraft(ctx context.Context, database db.DBTX, draftId int) (DraftModel, e
 	}
 
 	return draftModel, nil
-}
-
-func getDraftPlayerPicks(ctx context.Context, database db.DBTX, draftPlayerId int) ([]Pick, error) {
-	query := `SELECT
-                Picks.id,
-                Picks.player,
-                Picks.pick,
-                Picks.pickTime,
-                Picks.ExpirationTime,
-				Picks.Skipped
-              From Picks
-              Where Picks.player = $1
-              Order By Picks.AvailableTime Asc;`
-
-	stmt, err := db.Prepare(ctx, database, query)
-	if err != nil {
-		return nil, err
-	}
-	defer db.CloseStatement(ctx, stmt, "GetDraftPlayerPicks")
-
-	rows, err := stmt.QueryContext(ctx, draftPlayerId)
-	if err != nil {
-		return nil, err
-	}
-	defer db.CloseRows(ctx, rows, "GetDraftPlayerPicks")
-
-	var picks []Pick
-	for rows.Next() {
-		pick := Pick{}
-		err = rows.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.ExpirationTime, &pick.Skipped)
-
-		if err != nil {
-			log.Error(ctx, "Failed to get draft player picks", "draftPlayerId", draftPlayerId, "error", err)
-			return nil, err
-		}
-
-		picks = append(picks, pick)
-	}
-
-	return picks, nil
 }
 
 func updateDraft(ctx context.Context, database db.DBTX, draft *DraftModel) error {
@@ -945,7 +904,7 @@ func getPicks(ctx context.Context, database db.DBTX, draftId int) ([]Pick, error
     From Picks
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
-    Order By Picks.Id Asc;`
+    Order By Picks.AvailableTime Asc;`
 
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
