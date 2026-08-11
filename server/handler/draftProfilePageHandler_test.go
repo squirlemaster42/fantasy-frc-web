@@ -14,6 +14,7 @@ import (
 	"server/draft"
 	"server/model"
 	"server/model/mocks"
+	"server/utils"
 )
 
 func TestHandleViewDraftProfile(t *testing.T) {
@@ -47,7 +48,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 				Status: model.FILLING,
 			}, nil)
 
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 		h := &Handler{
 			Stores: StorageGroup{
@@ -127,7 +128,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			On("GetDraft", c.Request().Context(), 42).
 			Return(model.DraftModel{}, sql.ErrNoRows)
 
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 		h := &Handler{
 			Stores: StorageGroup{

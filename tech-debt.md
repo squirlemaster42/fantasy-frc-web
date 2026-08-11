@@ -30,7 +30,7 @@ Last updated: 2026-08-10
 | 13 | `server/model/draft.go` | 324–354 | `createDraft` inserts the draft and the owner player in two separate statements. | ~~Wrap in a transaction.~~ **Fixed** — `SQLDraftStore.CreateDraft` now wraps `createDraft` in `RunInTransaction`. |
 | 14 | `server/model/user.go` / `server/authentication/password.go` | 121–145 | Dummy bcrypt hash used for username-enumeration resistance may not be a valid bcrypt hash. | ~~Generate a valid dummy hash at startup.~~ **Fixed** — `BcryptPasswordHasher` in `server/authentication` generates the dummy hash on demand using the same cost as real passwords, eliminating a timing leak between unknown and existing usernames. |
 | 15 | `server/handler/authPageHandler.go` / `server/authentication/validation.go` | 166–198 | Username format, length, and whitespace are not validated on registration. | ~~Add username normalization and validation rules.~~ **Fixed** — registration validation is centralized in `server/authentication`, trimmed whitespace, rejects spaces, enforces 3–32 character length, and restricts characters to letters, digits, underscores, and hyphens. |
-| 16 | `server/utils/utils.go` | 90, 110–139 | `PICK_TIME = 1h` and daily pick windows (8–22, 17–22) are hardcoded globally. | Move to env/config and add constants. |
+| 16 | `server/utils/utils.go` / `server/utils/pick_window_config.go` / `config/pick-windows.json` | 90, 110–139 | `PICK_TIME = 1h` and daily pick windows (8–22, 17–22) are hardcoded globally. | ~~Move to env/config and add constants.~~ **Fixed** — pick time and per-day windows are now loaded from `config/pick-windows.json` via `PICK_WINDOWS_CONFIG_FILE`; defaults are preserved when the file is missing. Config is threaded through `DraftActorMap` / `DraftActor`. |
 
 ---
 
@@ -53,7 +53,7 @@ Last updated: 2026-08-10
 | 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | Change to pointer receiver. |
 | 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | Standardize on `db` parameter names and lowercase, no-period errors. |
 | 31 | `server/main.go` | 55–117 | Required env vars are not validated early; malformed bool parsing silently defaults. | Fail fast with clear messages. |
-| 32 | `server/draft/draftActor.go` | 704 | Undo pick hardcodes a `3 * time.Hour` expiration reset. | Reuse the configured pick window/expiration logic. |
+| 32 | `server/draft/draftActor.go` | 704 | Undo pick hardcodes a `3 * time.Hour` expiration reset. | ~~Reuse the configured pick window/expiration logic.~~ **Fixed** — undo now uses `d.pickConfig.GetPickExpirationTime(..., d.pickConfig.PickTime)` instead of the hardcoded `3 * time.Hour`. |
 
 ---
 

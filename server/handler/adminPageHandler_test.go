@@ -12,6 +12,7 @@ import (
 	"server/model"
 	"server/model/mocks"
 	"server/tbaHandler"
+	"server/utils"
 )
 
 func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
@@ -499,7 +500,7 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 	t.Run("draft not found", func(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 		mockDraftStore.On("GetDraft", ctx, 999).Return(model.DraftModel{}, sql.ErrNoRows)
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 		cmd := &StartDraftCommand{}
 		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=999")
@@ -518,7 +519,7 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 				{Pending: false},
 			},
 		}, nil)
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 		cmd := &StartDraftCommand{}
 		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=5")

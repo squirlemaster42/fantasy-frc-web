@@ -6,6 +6,7 @@ import (
 	"server/model"
 	"server/picking"
 	"server/tbaHandler"
+	"server/utils"
 	"sync"
 )
 
@@ -18,15 +19,17 @@ type DraftActorMap struct {
 	discordStore model.DiscordStore
 	discordWebhookBus discord.DiscordNotifier
 	pickNotifier *picking.PickNotifier
+	pickConfig utils.PickWindowConfig
 }
 
-func NewDraftActorMap(draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordWebhookBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) *DraftActorMap {
+func NewDraftActorMap(draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordWebhookBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig) *DraftActorMap {
 	return &DraftActorMap{
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordStore: discordStore,
 		discordWebhookBus: discordWebhookBus,
 		pickNotifier: pickNotifier,
+		pickConfig: pickConfig,
 	}
 }
 
@@ -43,7 +46,7 @@ func (d *DraftActorMap) GetActor(ctx context.Context, draftId int) (*DraftActor,
 			return actor.(*DraftActor), nil
 		}
 
-		newActor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier)
+		newActor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier, d.pickConfig)
 		if err != nil {
 			return nil, err
 		}

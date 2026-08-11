@@ -17,6 +17,7 @@ import (
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
+	"server/utils"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +50,7 @@ func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 	// First call creates the actor
 	actor1, err := actorMap.GetActor(t.Context(), draftId)
@@ -69,7 +70,7 @@ func TestDraftActorMap_GetActor_ReturnsError(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{}, errors.New("db error")).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.Error(t, err)
@@ -99,7 +100,7 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 		},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -143,7 +144,7 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Players:     players,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -177,7 +178,7 @@ func TestDraftActorMap_AcceptInvite(t *testing.T) {
 		Id: draftId,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -252,7 +253,7 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 	bus := discord.NewBus()
 	defer bus.Stop()
 
-	actorMap := NewDraftActorMap(mockStore, nil, discordStore, bus, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, discordStore, bus, nil, utils.DefaultPickWindowConfig())
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -284,7 +285,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	}, nil).Once()
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, pickId, mock.Anything).Return(nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -302,7 +303,7 @@ func TestDraftActorMap_GetCurrentPick(t *testing.T) {
 		CurrentPick: expectedPick,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -328,7 +329,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 		CurrentPick: model.Pick{Id: 41},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -343,7 +344,7 @@ func TestDraftActorMap_GetDraft(t *testing.T) {
 	expectedDraft := model.DraftModel{Id: draftId, DisplayName: "Test Draft"}
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(expectedDraft, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -358,7 +359,7 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 	mockStore.On("UpdateDraft", mock.Anything, mock.Anything).Return(nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -398,7 +399,7 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 		Status: model.PICKING,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -415,7 +416,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	notifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),
 	}
-	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier)
+	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier, utils.DefaultPickWindowConfig())
 
 	draftId := 1
 	watcher := RegisterWatcher(t.Context(), actorMap, draftId)
@@ -560,7 +561,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime_StalePickId(t *testing.T)
 		CurrentPick: model.Pick{Id: currentPickId, ExpirationTime: time.Now()},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -592,7 +593,7 @@ func TestDraftActor_Shutdown(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
@@ -617,7 +618,7 @@ func TestDraftActorMap_ConcurrentGetActor(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 
 	var actors []*DraftActor
 	var mu sync.Mutex
@@ -695,7 +696,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 	}, nil).Once()
 	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil).Return(nil).Maybe()
 
-	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil)
+	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 

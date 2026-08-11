@@ -81,6 +81,7 @@ type DraftActor struct {
 	discordBus discord.DiscordNotifier
 	tbaHandler tbaHandler.TBAInterface
 	pickNotifier *picking.PickNotifier
+	pickConfig utils.PickWindowConfig
 	states map[model.DraftState]*state
 	shutdown bool
 	mu sync.RWMutex
@@ -106,7 +107,7 @@ func (e *invalidStateTransitionError) Error() string {
 	return fmt.Sprintf("Invalid state transition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig) (*DraftActor, error) {
 	actor := &DraftActor {
 		inbox: make(chan Message, 100),
 		draftStore: draftStore,
@@ -114,6 +115,7 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 		discordStore: discordStore,
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
+		pickConfig: pickConfig,
 		states: setupStates(ctx, draftStore),
 	}
 
@@ -130,18 +132,18 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 }
 
 type stateTransition interface {
-	executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel) error
+	executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error
 }
 
 type ToStartTransition struct{}
 
-func (tst *ToStartTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel) error {
+func (tst *ToStartTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
 	return store.UpdateDraftStatus(ctx, draft.Id, model.WAITING_TO_START)
 }
 
 type ToPickingTransition struct{}
 
-func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel) error {
+func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
 	if err := store.RandomizePickOrder(ctx, draft.Id); err != nil {
 		return err
 	}
@@ -150,7 +152,7 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store mod
 		log.Error(ctx, "failed to get next pick when transitioning to picking", "draftId", draft.Id, "error", err)
 		return err
 	}
-	if _, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)); err != nil {
+	if _, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), pickConfig.GetPickExpirationTime(ctx, time.Now(), pickConfig.PickTime)); err != nil {
 		log.Error(ctx, "failed to make first pick available", "draftId", draft.Id, "error", err)
 		return err
 	}
@@ -163,7 +165,7 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store mod
 
 type ToPlayingTransition struct{}
 
-func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel) error {
+func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
 	log.Info(ctx, "Executing TEAMS_PLAYING playing transition", "draftId", draft.Id)
 	if err := store.UpdateDraftStatus(ctx, draft.Id, model.TEAMS_PLAYING); err != nil {
 		log.Error(ctx, "Failed to update draft status", "draftId", draft.Id, "error", err)
@@ -176,7 +178,7 @@ func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, store mod
 
 type ToCompleteTransition struct{}
 
-func (tct *ToCompleteTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel) error {
+func (tct *ToCompleteTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
 	return store.UpdateDraftStatus(ctx, draft.Id, model.COMPLETE)
 }
 
@@ -503,9 +505,9 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 	}
 
 	log.Info(ctx, "Executing Draft State Transition", "draftId", d.draftState.Id, "requestedState", msg.RequestedState)
-	err := d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		err := d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
 		transactedStore := d.draftStore.WithTx(tx)
-		return transition.executeTransition(ctx, transactedStore, d.draftState)
+		return transition.executeTransition(ctx, transactedStore, d.draftState, d.pickConfig)
 	})
 	if err != nil {
 		log.Error(ctx, "Failed to execute draft state transition", "draftId", d.draftState.Id, "error", err)
@@ -538,7 +540,7 @@ func (d *DraftActor) executeTransition(ctx context.Context, store model.DraftSto
 			requestedState: requestedState,
 		}
 	}
-	return transition.executeTransition(ctx, store, d.draftState)
+	return transition.executeTransition(ctx, store, d.draftState, d.pickConfig)
 }
 
 
@@ -569,7 +571,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	previouslyPickedTeam := msg.Pick.Pick.String
 
 	pickingComplete := len(d.draftState.Picks) == 64
-	expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
+	expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now(), d.pickConfig.PickTime)
 
 	var nextPickPlayer model.DraftPlayer
 	var nextPickErr error
@@ -629,7 +631,7 @@ func (d *DraftActor) handleModifyExpirationTime(ctx context.Context, msg ModifyE
 		}
 	}
 
-	newExpirationTime := utils.GetPickExpirationTime(ctx, d.draftState.CurrentPick.ExpirationTime, msg.Extension)
+	newExpirationTime := d.pickConfig.GetPickExpirationTime(ctx, d.draftState.CurrentPick.ExpirationTime, msg.Extension)
 	log.Debug(ctx, "Setting new pick expiration time", "currentPickTime", d.draftState.CurrentPick.ExpirationTime, "newExpirationTime", newExpirationTime, "pickId", d.draftState.CurrentPick.Id)
 
 	err := d.draftStore.UpdatePickExpirationTime(ctx, d.draftState.CurrentPick.Id, newExpirationTime)
@@ -679,7 +681,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 			if err := store.SkipPick(ctx, d.draftState.CurrentPick.Id); err != nil {
 				return err
 			}
-			_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
+			_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime))
 			return err
 		})
 		if err != nil {
@@ -729,7 +731,7 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 		}
 	}
 
-	newExpirationTime := time.Now().UTC().Add(3 * time.Hour)
+	newExpirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
 
 	err = d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
 		store := d.draftStore.WithTx(tx)
@@ -849,7 +851,7 @@ func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraf
 			return discord.NextPickDiscordEvent{}, err
 		}
 
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME)
+		expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
 		event.NextPickName = nextPickUser.Username
 		event.NextPickDiscordId = nextPickDiscordId
 		event.ExpirationTime = expirationTime

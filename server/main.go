@@ -152,7 +152,12 @@ func main() {
 		Watchers: make(map[int][]picking.Watcher),
 	}
 
-	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier)
+	pickConfig, err := utils.LoadPickWindowConfigFromEnv()
+	if err != nil {
+		assert.NoError(ctx, err, "Failed to load pick window configuration")
+	}
+
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig)
 	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)

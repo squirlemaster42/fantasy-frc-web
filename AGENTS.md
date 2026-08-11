@@ -220,3 +220,19 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int
 - `TRUST_PROXY` (bool, default `false`): When `true`, configures the Echo server to extract the client IP from the `X-Forwarded-For` header (required when running behind a reverse proxy such as nginx or a Kubernetes ingress). When `false` (default), the server uses the direct connection IP. **Never set to `true` unless the application is behind a trusted proxy**, otherwise clients can spoof their IP address.
 
 - `ALLOWED_ORIGIN` (string, required when `TRUST_PROXY=true`): The exact origin allowed for WebSocket connections (e.g., `https://fantasy-frc.example.com`). When set, the server validates the `Origin` header on WebSocket upgrade requests against this value. **Must be set in production when `TRUST_PROXY=true`** to prevent cross-origin WebSocket abuse. When `TRUST_PROXY` is `false` and `ALLOWED_ORIGIN` is unset, the server falls back to allowing same-origin and `localhost` requests for local development.
+
+- `PICK_WINDOWS_CONFIG_FILE` (string, default `../config/pick-windows.json` relative to the `server/` working directory): Path to a JSON file that configures how long each pick lasts and the allowed pick windows per weekday. If the file is missing, built-in defaults are used. If the file is present but malformed, the server fails fast on startup. Example format:
+  ```json
+  {
+    "pick_time": "1h",
+    "windows": {
+      "Sunday":    {"start_hour": 8,  "end_hour": 22},
+      "Monday":    {"start_hour": 17, "end_hour": 22},
+      "Tuesday":   {"start_hour": 17, "end_hour": 22},
+      "Wednesday": {"start_hour": 17, "end_hour": 22},
+      "Thursday":  {"start_hour": 17, "end_hour": 22},
+      "Friday":    {"start_hour": 17, "end_hour": 22},
+      "Saturday":  {"start_hour": 8,  "end_hour": 22}
+    }
+  }
+  ```
