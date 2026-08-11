@@ -194,41 +194,10 @@ func getDraftsForUser(ctx context.Context, database db.DBTX, userUuid uuid.UUID)
 		return nil, err
 	}
 	defer db.CloseRows(ctx, rows, "GetDraftsForUser")
+
 	var drafts []DraftModel
-
-	playerQuery := `SELECT
-	                    UserUuid,
-	                    USERNAME,
-	                    BOOL_OR(Status = 'accepted') AS ACCEPTED
-                    FROM (
-                    SELECT
-	                    USERS.UserUuid AS UserUuid,
-	                    USERS.USERNAME,
-	                    'accepted' AS Status,
-	                    DRAFTPLAYERS.PLAYERORDER,
-	                    DraftPlayers.Id As PlayerId
-                    FROM USERS
-                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
-                    WHERE DRAFTPLAYERS.DRAFTID = $1
-                    UNION
-                    SELECT
-	                    USERS.UserUuid AS UserUuid,
-	                    USERS.USERNAME,
-	                    DRAFTINVITES.Status AS Status,
-	                    -1 AS PLAYERORDER,
-	                    -1 As PlayerId
-                    FROM USERS
-                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
-                    WHERE DRAFTINVITES.DRAFTID = $1 AND DRAFTINVITES.Status != 'canceled'
-                    ) U
-                    GROUP BY UserUuid, USERNAME
-                    ORDER BY MAX(PLAYERORDER);`
-
-	playerStmt, err := db.Prepare(ctx, database, playerQuery)
-	if err != nil {
-		return nil, err
-	}
-	defer db.CloseStatement(ctx, playerStmt, "GetDraftsForUser")
+	draftIndexById := make(map[int]int)
+	var pickingDraftIds []int
 
 	for rows.Next() {
 		var draftId int
@@ -252,73 +221,194 @@ func getDraftsForUser(ctx context.Context, database db.DBTX, userUuid uuid.UUID)
 			Players: make([]DraftPlayer, 0),
 		}
 
-		err = loadDraftPickingInfo(ctx, database, &draftModel)
-		if err != nil {
-			return []DraftModel{}, err
-		}
+		draftIndexById[draftId] = len(drafts)
+		drafts = append(drafts, draftModel)
 
-		err = loadPlayersForDraftInList(ctx, playerStmt, draftId, &draftModel)
+		if status == PICKING {
+			pickingDraftIds = append(pickingDraftIds, draftId)
+		}
+	}
+
+	if len(drafts) == 0 {
+		return drafts, nil
+	}
+
+	draftIds := make([]int, 0, len(draftIndexById))
+	for id := range draftIndexById {
+		draftIds = append(draftIds, id)
+	}
+
+	playersByDraft, err := loadDraftPlayersBatch(ctx, database, draftIds)
+	if err != nil {
+		return nil, err
+	}
+	for draftId, players := range playersByDraft {
+		idx := draftIndexById[draftId]
+		drafts[idx].Players = players
+	}
+
+	if len(pickingDraftIds) > 0 {
+		nextPicks, err := loadCurrentPicksBatch(ctx, database, pickingDraftIds)
 		if err != nil {
 			return nil, err
 		}
-
-		drafts = append(drafts, draftModel)
+		for draftId, nextPick := range nextPicks {
+			idx := draftIndexById[draftId]
+			drafts[idx].NextPick = nextPick
+		}
 	}
 
 	return drafts, nil
 }
 
-func loadDraftPickingInfo(ctx context.Context, database db.DBTX, draftModel *DraftModel) error {
-	if draftModel.Status != PICKING {
-		return nil
+func loadDraftPlayersBatch(ctx context.Context, database db.DBTX, draftIds []int) (map[int][]DraftPlayer, error) {
+	playersByDraft := make(map[int][]DraftPlayer)
+	if len(draftIds) == 0 {
+		return playersByDraft, nil
 	}
-	pick, err := getCurrentPick(ctx, database, draftModel.Id)
+
+	query := `SELECT
+		DraftId,
+		UserUuid,
+		USERNAME,
+		BOOL_OR(Status = 'accepted') AS ACCEPTED,
+		MAX(PLAYERORDER) AS PLAYERORDER
+	FROM (
+		SELECT
+			dp.DraftId,
+			u.UserUuid,
+			u.USERNAME,
+			'accepted' AS Status,
+			dp.PLAYERORDER
+		FROM USERS u
+		INNER JOIN DRAFTPLAYERS dp ON dp.UserUuid = u.UserUuid
+		WHERE dp.DraftId = ANY($1)
+		UNION ALL
+		SELECT
+			di.DraftId,
+			u.UserUuid,
+			u.USERNAME,
+			di.Status,
+			-1 AS PLAYERORDER
+		FROM USERS u
+		INNER JOIN DRAFTINVITES di ON di.InvitedUserUuid = u.UserUuid
+		WHERE di.DraftId = ANY($1) AND di.Status != 'canceled'
+	) U
+	GROUP BY DraftId, UserUuid, USERNAME
+	ORDER BY DraftId, MAX(PLAYERORDER);`
+
+	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	defer db.CloseStatement(ctx, stmt, "LoadDraftPlayersBatch")
 
-	if pick.Id != 0 {
-		user, err := getDraftPlayerUser(ctx, database, pick.Player)
-		if err != nil {
-			return err
-		}
-
-		draftModel.NextPick = DraftPlayer{
-			Id:   pick.Player,
-			User: user,
-		}
-	}
-	return nil
-}
-
-func loadPlayersForDraftInList(ctx context.Context, playerStmt *sql.Stmt, draftId int, draftModel *DraftModel) error {
-	playerRows, err := playerStmt.QueryContext(ctx, draftId)
+	rows, err := stmt.QueryContext(ctx, draftIds)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to load draft players batch: %w", err)
 	}
-	defer db.CloseRows(ctx, playerRows, "GetDraftsForUser")
+	defer db.CloseRows(ctx, rows, "LoadDraftPlayersBatch")
 
-	for playerRows.Next() {
+	for rows.Next() {
+		var draftId int
 		var userUuid uuid.UUID
 		var username string
 		var accepted bool
-
-		err = playerRows.Scan(&userUuid, &username, &accepted)
+		var playerOrder sql.NullInt16
+		err = rows.Scan(&draftId, &userUuid, &username, &accepted, &playerOrder)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("failed to scan draft player batch: %w", err)
 		}
+
 		draftPlayer := DraftPlayer{
 			User: User{
 				UserUuid: userUuid,
 				Username: username,
 			},
-			Pending: !accepted,
+			Pending:     !accepted,
+			PlayerOrder: playerOrder,
 		}
-
-		draftModel.Players = append(draftModel.Players, draftPlayer)
+		playersByDraft[draftId] = append(playersByDraft[draftId], draftPlayer)
 	}
 
-	return nil
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating draft players batch: %w", err)
+	}
+
+	return playersByDraft, nil
+}
+
+func loadCurrentPicksBatch(ctx context.Context, database db.DBTX, draftIds []int) (map[int]DraftPlayer, error) {
+	nextPicks := make(map[int]DraftPlayer)
+	if len(draftIds) == 0 {
+		return nextPicks, nil
+	}
+
+	query := `SELECT
+		p.Id,
+		p.Player,
+		COALESCE(p.Pick, '') AS Pick,
+		p.PickTime,
+		p.Skipped,
+		p.AvailableTime,
+		p.ExpirationTime,
+		dp.DraftId,
+		u.UserUuid,
+		u.Username
+	FROM Picks p
+	INNER JOIN DraftPlayers dp ON p.Player = dp.Id
+	INNER JOIN Users u ON dp.UserUuid = u.UserUuid
+	INNER JOIN (
+		SELECT dp.DraftId, MAX(p.Id) AS Id
+		FROM Picks p
+		INNER JOIN DraftPlayers dp ON p.Player = dp.Id
+		WHERE dp.DraftId = ANY($1)
+		GROUP BY dp.DraftId
+	) m ON m.Id = p.Id;`
+
+	stmt, err := db.Prepare(ctx, database, query)
+	if err != nil {
+		return nil, err
+	}
+	defer db.CloseStatement(ctx, stmt, "LoadCurrentPicksBatch")
+
+	rows, err := stmt.QueryContext(ctx, draftIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load current picks batch: %w", err)
+	}
+	defer db.CloseRows(ctx, rows, "LoadCurrentPicksBatch")
+
+	for rows.Next() {
+		var pick Pick
+		var draftId int
+		var user User
+		err = rows.Scan(
+			&pick.Id,
+			&pick.Player,
+			&pick.Pick,
+			&pick.PickTime,
+			&pick.Skipped,
+			&pick.AvailableTime,
+			&pick.ExpirationTime,
+			&draftId,
+			&user.UserUuid,
+			&user.Username,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan current pick batch: %w", err)
+		}
+
+		nextPicks[draftId] = DraftPlayer{
+			Id:   pick.Player,
+			User: user,
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating current picks batch: %w", err)
+	}
+
+	return nextPicks, nil
 }
 
 func createDraft(ctx context.Context, database db.DBTX, draft *DraftModel) (int, error) {
@@ -1411,6 +1501,23 @@ func getDraftScore(ctx context.Context, database db.DBTX, draftId int) ([]DraftP
 		picks[playerId] = append(picks[playerId], pick)
 	}
 
+	uniqueTeams := make(map[string]struct{})
+	for _, playerPicks := range picks {
+		for _, pick := range playerPicks {
+			uniqueTeams[pick] = struct{}{}
+		}
+	}
+
+	teamTbaIds := make([]string, 0, len(uniqueTeams))
+	for tbaId := range uniqueTeams {
+		teamTbaIds = append(teamTbaIds, tbaId)
+	}
+
+	teamScores, err := getScoresBatch(ctx, database, teamTbaIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get scores for draft: %w", err)
+	}
+
 	var playerScores []DraftPlayer
 	for player, playerPicks := range picks {
 		draftPlayer := DraftPlayer{
@@ -1422,18 +1529,19 @@ func getDraftScore(ctx context.Context, database db.DBTX, draftId int) ([]DraftP
 		}
 
 		for _, pick := range playerPicks {
-			score, err := getScore(ctx, database, pick)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get score for pick %s: %w", pick, err)
+			scores, ok := teamScores[pick]
+			if !ok {
+				return nil, fmt.Errorf("failed to get score for pick %s: %w", pick, sql.ErrNoRows)
 			}
-			draftPlayer.Score += score["Total Score"]
+			totalScore := scores["Total Score"]
+			draftPlayer.Score += totalScore
 
 			team := Pick{
 				Pick: sql.NullString{
 					Valid:  true,
 					String: pick,
 				},
-				Score: score["Total Score"],
+				Score: totalScore,
 			}
 			draftPlayer.Picks = append(draftPlayer.Picks, team)
 		}
@@ -1511,6 +1619,21 @@ func getOverallLeaderboard(ctx context.Context, database db.DBTX, page int, perP
 		draftId  int
 	}
 
+	uniqueTeams := make(map[string]struct{})
+	for _, r := range rawPicks {
+		uniqueTeams[r.pick] = struct{}{}
+	}
+
+	teamTbaIds := make([]string, 0, len(uniqueTeams))
+	for tbaId := range uniqueTeams {
+		teamTbaIds = append(teamTbaIds, tbaId)
+	}
+
+	teamScores, err := getScoresBatch(ctx, database, teamTbaIds)
+	if err != nil {
+		return LeaderboardPage{}, fmt.Errorf("failed to get scores for leaderboard: %w", err)
+	}
+
 	entryMap := make(map[entryKey]*LeaderboardEntry)
 	for _, r := range rawPicks {
 		key := entryKey{userUuid: r.userUuid, draftId: r.draftId}
@@ -1524,11 +1647,11 @@ func getOverallLeaderboard(ctx context.Context, database db.DBTX, page int, perP
 			entryMap[key] = entry
 		}
 
-		score, err := getScore(ctx, database, r.pick)
-		if err != nil {
-			return LeaderboardPage{}, fmt.Errorf("failed to get score for pick %s: %w", r.pick, err)
+		scores, ok := teamScores[r.pick]
+		if !ok {
+			return LeaderboardPage{}, fmt.Errorf("failed to get score for pick %s: %w", r.pick, sql.ErrNoRows)
 		}
-		totalScore := score["Total Score"]
+		totalScore := scores["Total Score"]
 		entry.Score += totalScore
 		entry.Picks = append(entry.Picks, Pick{
 			Pick:  sql.NullString{Valid: true, String: r.pick},

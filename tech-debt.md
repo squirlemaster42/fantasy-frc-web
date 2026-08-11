@@ -2,7 +2,7 @@
 
 Generated from a comprehensive codebase analysis of the current `main` branch. Items are organized by priority and include current file paths/line numbers.
 
-Last updated: 2026-08-07
+Last updated: 2026-08-10
 
 ## 🚨 Critical — fix first
 
@@ -10,7 +10,7 @@ Last updated: 2026-08-07
 |---|------|-------|-------|----------------|
 | 1 | `server/background/draftDaemon.go` | 51–74 | `defer d.mu.RUnlock()` is inside the `for` loop. Defer is function-scoped, so the RLock is **never released between iterations** and the daemon will deadlock on the second tick. | ~~Move the lock/unlock to explicit calls inside the loop body.~~ **Fixed** — removed the lock from `Run` and rely on `IsRunning()`; added `tickInterval` for testability. |
 | 2 | `server/database/databaseDriver.go` | 62–70 | `Prepare()` calls `log.Fatal` if statement preparation fails. | ~~Return the error; do not crash the server on a transient DB failure.~~ **Fixed** — `Prepare` now crashes via `assert` for schema/syntax/statement errors (`42xxx`, `22xxx`, `26xxx` SQLSTATE classes) and returns wrapped errors for transient failures. `background/cleanup.go` updated to use `database.Prepare` so all prepares go through the wrapper. |
-| 3 | `server/assert/assert.go` | 29–73 | `RunAssert`, `NoError`, `AssertCF`, and `NoErrorCF` all call `log.Fatal` → `os.Exit(1)`. | In production/request paths, return errors instead of terminating the process. |
+| 3 | `server/assert/assert.go` / call sites | 29–73 | `RunAssert`, `NoError`, `AssertCF`, and `NoErrorCF` all call `log.Fatal` → `os.Exit(1)`. | ~~Audit call sites.~~ **Fixed** — audited all call sites; removed dead `assert` setup in `queryDraftRow`, converted `makePick` id-mismatch and `getDraftScore` zero-id checks to returned errors, and kept true invariants in `main.go`, `draftDaemon.go`, `databaseDriver.go`, and `getDraftScore` map-length check. Package is documented in `AGENTS.md` as intentional fail-fast behavior. |
 | 4 | `server/draft/draftActor.go` | 555–603 | `handlePick` is not transactional: `MakePick`, `reloadDraftState`, `advanceToNextPick`, and notification are separate DB calls. | ~~Wrap the whole pick-and-advance flow in a transaction.~~ **Fixed** — `DraftStore` now has `RunInTransaction` and `WithTx`; `handlePick` runs `MakePick` + `MakePickAvailable`/`TEAMS_PLAYING` state transition inside one transaction; `advanceToNextPick` removed as dead code. |
 | 5 | `server/draft/draftActor.go` | 637–693 | `handleSkipCurrentPick` has the same transaction gap as `handlePick`. | ~~Wrap skip-and-advance in a transaction.~~ **Fixed** — `handleSkipCurrentPick` uses `RunInTransaction` for `SkipPick` + `MakePickAvailable`/`TEAMS_PLAYING` transition; `handleUndoLastPick` uses `RunInTransaction` for `DeletePick` + `ResetPick`. |
 | 6 | `server/model/draft.go` | 526–557, 559–597 | `getDraft` loads all picks once, then `loadDraftPlayers` calls `getDraftPlayerPicks` **per player**, causing an N+1 query. | Load all picks once and map them to players in memory. |
@@ -22,14 +22,14 @@ Last updated: 2026-08-07
 
 | # | File | Lines | Issue | Recommendation |
 |---|------|-------|-------|----------------|
-| 8 | `server/model/draft.go` | 168–269 | `getDraftsForUser` calls `loadDraftPickingInfo` and `loadPlayersForDraftInList` for **every row** returned. | Fold these into the main query or batch the per-draft calls. |
-| 9 | `server/model/draft.go` | ~1438–1550 | `getOverallLeaderboard` calls `getScore` for every team, generating at least one DB query per row. | Join team score data in the leaderboard query. |
+| 8 | `server/model/draft.go` | 168–269 | `getDraftsForUser` calls `loadDraftPickingInfo` and `loadPlayersForDraftInList` for **every row** returned. | ~~Fold these into the main query or batch the per-draft calls.~~ **Fixed** — players/invites and current-pick info are now loaded in two batched queries using `ANY($1::int[])`, reducing the request to a constant number of DB round-trips. |
+| 9 | `server/model/draft.go` / `server/model/team.go` | ~1438–1550 | `getOverallLeaderboard` and `getDraftScore` call `getScore` for every team, generating at least one DB query per row. | ~~Join team score data in the leaderboard query.~~ **Fixed** — added `getScoresBatch` to score many teams in a single query; `getScore` now delegates to it, and both `getDraftScore` and `getOverallLeaderboard` batch all team scores in one call. |
 | 10 | `server/tbaHandler/tbaHandler.go` | 100–179 | `makeRequest` returns `nil` for most errors and has no `error` return value; callers silently ignore failures. | ~~Return `([]byte, error)` and propagate errors.~~ **Fixed** — `makeRequest` now returns `([]byte, error)`; all public request methods and the `TBAInterface` return errors; callers in `scorer`, `draft/pickValidator`, `handler/adminPageHandler`, and `cache/avatarStore` handle or propagate them. |
 | 11 | `server/handler/tbaWebhookEventHandler.go` | 56–60 | Invalid TBA webhook HMAC returns `200 OK` and logs the full request body. | ~~Return `401/403` and avoid logging untrusted bodies.~~ **Fixed** — invalid HMAC now returns `401 Unauthorized` and the request body is no longer logged on auth failure or JSON decode errors. |
 | 12 | `server/draft/draftActor.go` | 306–380 | `handleAcceptInvite` performs multiple independent DB writes without a transaction. | ~~Wrap in a transaction.~~ **Fixed** — `handleAcceptInvite` now runs under `RunInTransaction`, locks the draft row with `SELECT ... FOR UPDATE`, checks player count, then atomically accepts the invite, adds the player, and cancels outstanding invites. Schema migration adds unique constraints to prevent duplicate players/pending invites. |
 | 13 | `server/model/draft.go` | 324–354 | `createDraft` inserts the draft and the owner player in two separate statements. | ~~Wrap in a transaction.~~ **Fixed** — `SQLDraftStore.CreateDraft` now wraps `createDraft` in `RunInTransaction`. |
-| 14 | `server/model/user.go` | 121–145 | Dummy bcrypt hash used for username-enumeration resistance may not be a valid bcrypt hash. | ~~Generate a valid dummy hash at startup.~~ **Fixed** — `dummyPasswordHash` is now generated with `bcrypt.GenerateFromPassword` in `init()` so it is always parseable. |
-| 15 | `server/handler/authPageHandler.go` | 166–198 | Username format, length, and whitespace are not validated on registration. | ~~Add username normalization and validation rules.~~ **Fixed** — registration now trims whitespace, rejects spaces, enforces 3–32 character length, and restricts characters to letters, digits, underscores, and hyphens. |
+| 14 | `server/model/user.go` / `server/authentication/password.go` | 121–145 | Dummy bcrypt hash used for username-enumeration resistance may not be a valid bcrypt hash. | ~~Generate a valid dummy hash at startup.~~ **Fixed** — `BcryptPasswordHasher` in `server/authentication` generates the dummy hash on demand using the same cost as real passwords, eliminating a timing leak between unknown and existing usernames. |
+| 15 | `server/handler/authPageHandler.go` / `server/authentication/validation.go` | 166–198 | Username format, length, and whitespace are not validated on registration. | ~~Add username normalization and validation rules.~~ **Fixed** — registration validation is centralized in `server/authentication`, trimmed whitespace, rejects spaces, enforces 3–32 character length, and restricts characters to letters, digits, underscores, and hyphens. |
 | 16 | `server/utils/utils.go` | 90, 110–139 | `PICK_TIME = 1h` and daily pick windows (8–22, 17–22) are hardcoded globally. | Move to env/config and add constants. |
 
 ---
@@ -65,7 +65,7 @@ Last updated: 2026-08-07
 | 34 | `server/middleware/ratelimit.go` | 59–64 | Login (5), register (3), window (15m), and default general rate (100) are hardcoded. | Config or constants. |
 | 35 | `server/server.go` | 234 | `Cache-Control: public, max-age=2592000` is a raw number. | Named constant with comment. |
 | 36 | `server/cache/avatarStore.go` | 58 | Redis TTL is `4*7*24*time.Hour`. | `AvatarCacheTTL` constant. |
-| 37 | `server/model/user.go` | 35, 171, 239 | bcrypt cost `14`, session expiration `10 days`, and duplicate-session threshold are hardcoded. | Constants/env. |
+| 37 | `server/model/user.go` / `server/authentication` | 35, 171, 239 | bcrypt cost `14`, session expiration `10 days`, and duplicate-session threshold are hardcoded. | ~~Constants/env.~~ **Partially fixed** — `BCRYPT_COST` is now configurable via env; hashing and session logic moved to `server/authentication`. Session expiration still hardcoded; duplicate-session threshold check no longer exists (was removed during refactor). |
 | 38 | `server/background/cleanup.go` | 59 | Cleanup deletes sessions expiring before `now + 2 hours`. | Constant or env. |
 | 39 | `server/utils/utils.go` | 14–25 | `Events()` returns a hardcoded 2026 event list. | Move to config/env. |
 | 40 | `server/scorer/scorer.go` | 230–239, 160–166, 72–109 | Alliance-selection scores, playoff match points, and bonus points are hardcoded. | Define constants/season config. |

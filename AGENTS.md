@@ -1,4 +1,4 @@
-u# AGENTS.md - Development Guidelines for Fantasy FRC Web
+# AGENTS.md - Development Guidelines for Fantasy FRC Web
 
 This file contains build/lint/test commands and code style guidelines for agentic coding assistants working on this Go, templ, Htmx, Postgres web application.
 
@@ -120,12 +120,25 @@ import (
 
 ### Error Handling
 
-- Use the custom `assert` package for database operations and critical paths
-- **Never use `assert.Fatal` in authentication hot paths or user-facing handlers** — always return errors gracefully to avoid crashing the server on invalid user input
 - Provide context when creating assertions: `assert := assert.CreateAssertWithContext("Function Name")`
 - Add context to assertions: `assert.AddContext("User ID", userId)`
 - Use `slog` for non-critical errors and informational logging
 - Return errors from functions when appropriate, especially for model operations
+
+#### Custom `assert` Package
+
+The `server/assert` package is for *invariant* conditions — states that should be impossible if the code, schema, and data are correct (e.g., a SQL update affecting zero rows when exactly one was expected, an internal map being nil, a schema/statement preparation failure). It is **not** for user input errors, authentication failures, missing resources, or transient database/network issues.
+
+`RunAssert`, `NoError`, `AssertCF`, and `NoErrorCF` call `log.Fatal` and crash the process on failure. This is intentional fail-fast behavior. The project follows principles aligned with NASA software safety guidance (see [NASA-STD-8719.13C — Software Safety Standard](https://standards.nasa.gov/standard/nasa/nasa-std-871913)): detect unsafe or inconsistent state as early as possible, prevent propagation of bad state, and return to a known-good state on restart.
+
+Because the application runs in Kubernetes, a momentary container crash is acceptable. Kubernetes will restart the pod and the system will resume from a clean state. A transient request may fail, but the server will not continue operating on corrupt or inconsistent data.
+
+Guidelines:
+
+- Use the custom `assert` package only for conditions that should theoretically never happen.
+- **Never use `assert.Fatal` in authentication hot paths or user-facing handlers** — always return errors gracefully for invalid user input.
+- For database operations, `database.Prepare` already classifies errors and only crashes on schema/syntax/statement SQLSTATE classes (`42xxx`, `22xxx`, `26xxx`). Transient failures are returned as errors.
+- If an `assert` call can be triggered by user action, bad input, or recoverable data state, convert it to a returned error instead.
 
 ### Database Operations
 

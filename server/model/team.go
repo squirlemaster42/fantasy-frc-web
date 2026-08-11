@@ -123,72 +123,94 @@ func getMatchScores(ctx context.Context, database db.DBTX, tbaId string) ([]Matc
 	return matches, nil
 }
 
-// Keys are the string that represents display name and the value is the score
-// for that display name
-// Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
-func getScore(ctx context.Context, database db.DBTX, tbaId string) (map[string]int, error) {
+// getScoresBatch returns the score breakdown for many teams in a single query.
+// The inner map keys are: Alliance Score, Qual Score, Playoff Score, Einstein Score, Total Score.
+func getScoresBatch(ctx context.Context, database db.DBTX, tbaIds []string) (map[string]map[string]int, error) {
+	scoresByTeam := make(map[string]map[string]int)
+	if len(tbaIds) == 0 {
+		return scoresByTeam, nil
+	}
+
 	query := `Select
-                COALESCE(t.AllianceScore, 0) As AllianceScore
-            From Teams t
-            Where t.TbaId = $1`
+		t.TbaId,
+		COALESCE(t.AllianceScore, 0) AS "Alliance Score",
+		COALESCE(SUM(CASE WHEN mt.match_tbaId Like '%_qm%' THEN
+			CASE WHEN mt.Alliance = 'Red' THEN m.redscore
+			     WHEN mt.Alliance = 'Blue' THEN m.bluescore
+			     ELSE 0 END
+			ELSE 0 END), 0) AS "Qual Score",
+		COALESCE(SUM(CASE WHEN mt.match_tbaId Not Like '%_qm%' AND mt.match_tbaId Not Like '%cmptx%' THEN
+			CASE WHEN mt.Alliance = 'Red' THEN m.redscore
+			     WHEN mt.Alliance = 'Blue' THEN m.bluescore
+			     ELSE 0 END
+			ELSE 0 END), 0) AS "Playoff Score",
+		COALESCE(SUM(CASE WHEN mt.match_tbaId Like '%cmptx%' THEN
+			CASE WHEN mt.Alliance = 'Red' THEN m.redscore
+			     WHEN mt.Alliance = 'Blue' THEN m.bluescore
+			     ELSE 0 END
+			ELSE 0 END), 0) AS "Einstein Score",
+		COALESCE(t.AllianceScore, 0) +
+		COALESCE(SUM(CASE WHEN mt.Alliance = 'Red' THEN m.redscore
+			     WHEN mt.Alliance = 'Blue' THEN m.bluescore
+			     ELSE 0 END), 0) AS "Total Score"
+	From Teams t
+	Left Join Matches_Teams mt On mt.Team_TbaId = t.TbaId And mt.Isdqed = false
+	Left Join Matches m On mt.Match_tbaId = m.tbaId
+	Where t.TbaId = ANY($1)
+	Group By t.TbaId, t.AllianceScore
+	Order By t.TbaId`
 
 	stmt, err := db.Prepare(ctx, database, query)
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetScore")
+	defer db.CloseStatement(ctx, stmt, "GetScoresBatch")
 
-	var allianceScore int
-	err = stmt.QueryRowContext(ctx, tbaId).Scan(&allianceScore)
+	rows, err := stmt.QueryContext(ctx, tbaIds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get alliance score for team: %w", err)
+		return nil, fmt.Errorf("failed to get scores batch: %w", err)
+	}
+	defer db.CloseRows(ctx, rows, "GetScoresBatch")
+
+	for rows.Next() {
+		var tbaId string
+		var allianceScore, qualScore, playoffScore, einsteinScore, totalScore int
+		err = rows.Scan(&tbaId, &allianceScore, &qualScore, &playoffScore, &einsteinScore, &totalScore)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan scores batch: %w", err)
+		}
+
+		scoresByTeam[tbaId] = map[string]int{
+			"Alliance Score": allianceScore,
+			"Qual Score":     qualScore,
+			"Playoff Score":  playoffScore,
+			"Einstein Score": einsteinScore,
+			"Total Score":    totalScore,
+		}
 	}
 
-	query = `Select
-                Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
-                     Else 'Playoff Score' End As DisplayName,
-                Sum(Case When mt.Alliance = 'Red' then m.redscore When mt.Alliance = 'Blue' Then m.bluescore Else 0 End) As Score
-             From Matches_Teams mt
-             Inner Join Matches m On mt.Match_tbaId = m.tbaId
-             Where mt.Team_TbaId = $1
-             And mt.Isdqed = false
-             Group By mt.Team_TbaId, Case When mt.match_tbaId Like '%_qm%' Then 'Qual Score'
-                     When mt.match_tbaId Like '%cmptx%' Then 'Einstein Score'
-                     Else 'Playoff Score' End
-             Order By mt.Team_TbaId`
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating scores batch: %w", err)
+	}
 
-	stmt, err = db.Prepare(ctx, database, query)
+	return scoresByTeam, nil
+}
+
+// Keys are the string that represents display name and the value is the score
+// for that display name
+// Display names: Qual Score, Playoff Score, Alliance Score, Einstein Score, Total Score
+func getScore(ctx context.Context, database db.DBTX, tbaId string) (map[string]int, error) {
+	scores, err := getScoresBatch(ctx, database, []string{tbaId})
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetScore")
 
-	var displayName string
-	var matchScore int
-	rows, err := stmt.QueryContext(ctx, tbaId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get score for team: %w", err)
-	}
-	defer db.CloseRows(ctx, rows, "GetScore")
-
-	scores := make(map[string]int)
-	total := 0
-	for rows.Next() {
-		err = rows.Scan(&displayName, &matchScore)
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan scores for team: %w", err)
-		}
-
-		total += matchScore
-		scores[displayName] = matchScore
+	teamScores, ok := scores[tbaId]
+	if !ok {
+		return nil, fmt.Errorf("failed to get score for team: %w", sql.ErrNoRows)
 	}
 
-	scores["Alliance Score"] = allianceScore
-	scores["Total Score"] = total + allianceScore
+	log.Debug(ctx, "Got scores for team", "team", tbaId, "scores", teamScores)
 
-	log.Debug(ctx, "Got scores for team", "team", tbaId, "scores", scores)
-
-	return scores, nil
+	return teamScores, nil
 }
