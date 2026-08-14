@@ -27,6 +27,12 @@ const (
 	COMPLETE         DraftState = "Complete"
 )
 
+const (
+	DraftPlayerCount = 8
+	PicksPerPlayer   = 8
+	PicksPerDraft    = DraftPlayerCount * PicksPerPlayer // 64
+)
+
 type DraftModel struct {
 	Id             int
 	DisplayName    string
@@ -1681,5 +1687,5 @@ func CanStartDraft(draftModel DraftModel) bool {
 			numAccepted++
 		}
 	}
-	return numAccepted == 8
+	return numAccepted == DraftPlayerCount
 }

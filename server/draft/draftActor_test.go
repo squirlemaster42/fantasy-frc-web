@@ -115,8 +115,8 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	draftId := 1
 	pickId := 42
 
-	// Build 64 picks so the draft is at the final pick
-	picks := make([]model.Pick, 64)
+	// Build PicksPerDraft picks so the draft is at the final pick
+	picks := make([]model.Pick, model.PicksPerDraft)
 	for i := range picks {
 		picks[i] = model.Pick{Id: i + 1}
 	}

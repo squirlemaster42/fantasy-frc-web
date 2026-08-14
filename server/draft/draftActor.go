@@ -327,7 +327,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		if err != nil {
 			return err
 		}
-		if numPlayers >= 8 {
+		if numPlayers >= model.DraftPlayerCount {
 			return ErrTooManyPlayers
 		}
 
@@ -339,7 +339,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			return err
 		}
 
-		if numPlayers >= 7 {
+		if numPlayers >= model.DraftPlayerCount-1 {
 			return store.CancelOutstandingInvites(ctx, d.draftState.Id)
 		}
 		return nil
@@ -404,7 +404,7 @@ func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteM
 		}
 	}
 
-	if acceptedPlayers < 8 && d.draftState.Status == model.WAITING_TO_START {
+	if acceptedPlayers < model.DraftPlayerCount && d.draftState.Status == model.WAITING_TO_START {
 		err = d.draftStore.UpdateDraftStatus(ctx, d.draftState.Id, model.FILLING)
 		if err != nil {
 			log.Error(ctx, "Failed to revert draft status to filling after decline", "error", err, "draftId", d.draftState.Id)
@@ -570,7 +570,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	previousPickPlayerId := d.draftState.CurrentPick.Player
 	previouslyPickedTeam := msg.Pick.Pick.String
 
-	pickingComplete := len(d.draftState.Picks) == 64
+	pickingComplete := len(d.draftState.Picks) == model.PicksPerDraft
 	expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now(), d.pickConfig.PickTime)
 
 	var nextPickPlayer model.DraftPlayer
@@ -667,7 +667,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	var nextPickPlayer model.DraftPlayer
 	var pickingComplete bool
 
-	if len(d.draftState.Picks) < 64 {
+	if len(d.draftState.Picks) < model.PicksPerDraft {
 		nextPick, err := d.getNextPick(ctx)
 		if err != nil {
 			log.Error(ctx, "Failed to get next pick when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)

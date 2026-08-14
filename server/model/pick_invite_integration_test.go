@@ -768,9 +768,9 @@ func TestRunInTransaction_FinalPick_Integration(t *testing.T) {
 	playerId, err := store.GetDraftPlayerId(ctx, draft.Id, users[0].UserUuid)
 	require.NoError(t, err)
 
-	// Create 64 pick rows directly, marking 63 as already made and leaving the 64th available
+	// Create PicksPerDraft pick rows directly, marking all but the last as already made
 	availablePickId := 0
-	for i := 0; i < 64; i++ {
+	for i := 0; i < PicksPerDraft; i++ {
 		pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
 		require.NoError(t, err)
 		if i < 63 {
@@ -917,7 +917,7 @@ func TestAcceptInvite_RollsBackOnError_Integration(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if numPlayers >= 8 {
+		if numPlayers >= DraftPlayerCount {
 			return errors.New("too many players")
 		}
 		draftId, _, err := storeTx.AcceptInvite(ctx, inviteId)
