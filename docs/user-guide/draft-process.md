@@ -8,7 +8,7 @@ This guide walks you through everything you need to know about drafting in Fanta
 ## 🎯 Draft Overview
 
 ### What is a Fantasy FRC Draft?
-A live, timed event where 8 players take turns selecting FRC teams for their fantasy roster. Each player will end up with 8 teams total.
+A live, timed event where 8 players take turns selecting FRC teams for their fantasy roster. Each player will end up with 8 teams total. Drafts of other sizes may be possible in the future.
 
 ### Draft Format
 - **8 players per draft**
