@@ -23,7 +23,6 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -62,65 +61,109 @@ func main() {
 	serverPort := os.Getenv("SERVER_PORT")
 	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
 	metricSecret := os.Getenv("METRIC_SECRET")
-	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
 	csrfSecret := os.Getenv("CSRF_SECRET")
-	trustProxyVar := os.Getenv("TRUST_PROXY")
 	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 
-	if csrfSecret == "" {
-		panic("CSRF_SECRET environment variable is required")
+	requiredEnv := map[string]string{
+		"TBA_TOKEN":          tbaTok,
+		"DB_PASSWORD":        dbPassword,
+		"DB_USERNAME":        dbUsername,
+		"DB_IP":              dbIp,
+		"DB_NAME":            dbName,
+		"SERVER_PORT":        serverPort,
+		"TBA_WEBHOOK_SECRET": tbaWebhookSecret,
+		"METRIC_SECRET":      metricSecret,
+		"CSRF_SECRET":        csrfSecret,
+	}
+	for key, val := range requiredEnv {
+		if val == "" {
+			log.Fatal(ctx, "missing required environment variable", "key", key)
+		}
 	}
 
-	minPasswordLength := utils.GetEnvInt("MIN_PASSWORD_LENGTH", 12)
+	serverPortNum, err := utils.GetEnvIntStrict("SERVER_PORT", 0)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	if serverPortNum < 1 || serverPortNum > 65535 {
+		log.Fatal(ctx, "SERVER_PORT must be between 1 and 65535", "value", serverPortNum)
+	}
 
-	minUsernameLength := utils.GetEnvInt("MIN_USERNAME_LENGTH", 3)
-	maxUsernameLength := utils.GetEnvInt("MAX_USERNAME_LENGTH", 32)
+	minPasswordLength, err := utils.GetEnvIntStrict("MIN_PASSWORD_LENGTH", 12)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+
+	minUsernameLength, err := utils.GetEnvIntStrict("MIN_USERNAME_LENGTH", 3)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+
+	maxUsernameLength, err := utils.GetEnvIntStrict("MAX_USERNAME_LENGTH", 32)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+
 	usernameAllowedSpecialChars := os.Getenv("USERNAME_ALLOWED_SPECIAL_CHARS")
 	if usernameAllowedSpecialChars == "" {
 		usernameAllowedSpecialChars = "_-"
 	}
 
-	bcryptCost := utils.GetEnvInt("BCRYPT_COST", 14)
+	bcryptCost, err := utils.GetEnvIntStrict("BCRYPT_COST", 14)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
 	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {
 		log.Warn(ctx, "BCRYPT_COST out of range, using default", "value", bcryptCost, "default", 14)
 		bcryptCost = 14
 	}
 
-	redisRateLimitDB := utils.GetEnvInt("REDIS_RATE_LIMIT_DB", 1)
+	redisRateLimitDB, err := utils.GetEnvIntStrict("REDIS_RATE_LIMIT_DB", 1)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
 
-	redisAvatarDB := utils.GetEnvInt("REDIS_AVATAR_DB", 2)
+	redisAvatarDB, err := utils.GetEnvIntStrict("REDIS_AVATAR_DB", 2)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
 
-	postsPerMinute := utils.GetEnvInt64("RATE_LIMIT_POSTS_PER_MINUTE", 100)
+	postsPerMinute, err := utils.GetEnvInt64Strict("RATE_LIMIT_POSTS_PER_MINUTE", 100)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
 
-	rateLimitEnabled := utils.GetEnvBool("RATE_LIMIT_ENABLED", true)
+	rateLimitEnabled, err := utils.GetEnvBoolStrict("RATE_LIMIT_ENABLED", true)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+
+	secureHttpCookie, err := utils.GetEnvBoolStrict("SECURE_HTTP_COOKIE", true)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+
+	trustProxy, err := utils.GetEnvBoolStrict("TRUST_PROXY", false)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
+
+	if trustProxy && allowedOrigin == "" {
+		log.Fatal(ctx, "ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
+	}
 
 	log.Info(ctx, "Extracted Env Vars")
-	database, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
+	db, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
 		log.Error(ctx, "Failed to register database connection", "error", err)
 		os.Exit(1)
 	}
 	log.Info(ctx, "Registered Database Connection")
 
-	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
-
-	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
-	if err != nil {
-		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "error", err)
-		secureHttpCookie = true
-	}
-
-	trustProxy, err := strconv.ParseBool(trustProxyVar)
-	if err != nil {
-		trustProxy = false
-	}
-	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
-
-	if trustProxy && allowedOrigin == "" {
-		panic("ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
-	}
+	tbaHandler := tbaHandler.NewHandler(tbaTok, db)
 	if allowedOrigin != "" {
 		log.Info(ctx, "WebSocket origin validation configured", "ALLOWED_ORIGIN", allowedOrigin)
 	} else {
@@ -128,8 +171,8 @@ func main() {
 	}
 
 	discordWebhookBus := discord.NewBus()
-	draftStore := model.NewSQLDraftStore(database)
-	userStore := model.NewSQLUserStore(database)
+	draftStore := model.NewSQLDraftStore(db)
+	userStore := model.NewSQLUserStore(db)
 
 	passwordHasher, err := authentication.NewBcryptPasswordHasher(bcryptCost)
 	if err != nil {
@@ -143,10 +186,10 @@ func main() {
 		UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
 	})
 
-	teamStore := model.NewSQLTeamStore(database)
-	discordStore := model.NewSQLDiscordStore(database)
-	matchStore := model.NewSQLMatchStore(database)
-	matchTeamStore := model.NewSQLMatchTeamStore(database)
+	teamStore := model.NewSQLTeamStore(db)
+	discordStore := model.NewSQLDiscordStore(db)
+	matchStore := model.NewSQLMatchStore(db)
+	matchTeamStore := model.NewSQLMatchTeamStore(db)
 
 	pickNotifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),
@@ -186,7 +229,7 @@ func main() {
 		waitScorer = scorer.RunScorer(ctx)
 	}
 
-	cleanupService := background.NewCleanupService(database, 60)
+	cleanupService := background.NewCleanupService(db, 60)
 	err = cleanupService.Start(ctx)
 	if err != nil {
 		log.Error(ctx, "Failed to start cleanup service", "error", err)
@@ -241,7 +284,7 @@ func main() {
 	app, otelShutdown := CreateServer(ctx, ServerConfig{
 		ServerPort:       serverPort,
 		Handler:          handler,
-		Database:         database,
+		Database:         db,
 		MetricSecret:     metricSecret,
 		CsrfSecret:       csrfSecret,
 		RedisAddr:        redisAddr,
@@ -285,7 +328,7 @@ func main() {
 	if err := cleanupService.Stop(ctx); err != nil {
 		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
 	}
-	if err := database.Close(); err != nil {
+	if err := db.Close(); err != nil {
 		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
 }

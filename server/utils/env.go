@@ -1,10 +1,77 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
 )
+
+// RequireEnv returns the value of the environment variable with the given key.
+// If the variable is unset or empty, it returns an error.
+func RequireEnv(key string) (string, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return "", fmt.Errorf("required environment variable %s is not set", key)
+	}
+	return val, nil
+}
+
+// GetEnvBoolStrict returns the default value if the environment variable is unset.
+// If the variable is set but cannot be parsed as a bool, it returns an error.
+func GetEnvBoolStrict(key string, defaultVal bool) (bool, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal, nil
+	}
+	boolVal, err := strconv.ParseBool(val)
+	if err != nil {
+		return false, fmt.Errorf("environment variable %s has invalid bool value %q: %w", key, val, err)
+	}
+	return boolVal, nil
+}
+
+// GetEnvIntStrict returns the default value if the environment variable is unset.
+// If the variable is set but cannot be parsed as an int, it returns an error.
+func GetEnvIntStrict(key string, defaultVal int) (int, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal, nil
+	}
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s has invalid int value %q: %w", key, val, err)
+	}
+	return intVal, nil
+}
+
+// GetEnvInt64Strict returns the default value if the environment variable is unset.
+// If the variable is set but cannot be parsed as an int64, it returns an error.
+func GetEnvInt64Strict(key string, defaultVal int64) (int64, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal, nil
+	}
+	intVal, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s has invalid int64 value %q: %w", key, val, err)
+	}
+	return intVal, nil
+}
+
+// GetEnvDurationStrict returns the default value if the environment variable is unset.
+// If the variable is set but cannot be parsed as a duration, it returns an error.
+func GetEnvDurationStrict(key string, defaultVal time.Duration) (time.Duration, error) {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal, nil
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil {
+		return 0, fmt.Errorf("environment variable %s has invalid duration value %q: %w", key, val, err)
+	}
+	return d, nil
+}
 
 func GetEnvInt(key string, defaultVal int) int {
 	val := os.Getenv(key)

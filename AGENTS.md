@@ -217,9 +217,49 @@ func CreateDraft(database *sql.DB, draft *DraftModel) int
 
 ### Environment Variables
 
+The server fails fast on startup if a required variable is missing or if an optional variable is set to a malformed value (e.g., a non-bool value for a bool setting or a non-numeric `SERVER_PORT`).
+
+#### Required
+
+- `TBA_TOKEN` (string): API token for The Blue Alliance.
+- `DB_PASSWORD` (string): PostgreSQL password.
+- `DB_USERNAME` (string): PostgreSQL username.
+- `DB_IP` (string): PostgreSQL host.
+- `DB_NAME` (string): PostgreSQL database name.
+- `SERVER_PORT` (int): Port the HTTP server listens on (must be 1–65535).
+- `TBA_WEBHOOK_SECRET` (string): Secret used to verify TBA webhook HMAC signatures.
+- `METRIC_SECRET` (string): Secret required to access the metrics endpoint.
+- `CSRF_SECRET` (string): Secret used to sign CSRF tokens.
+
+#### Optional
+
 - `TRUST_PROXY` (bool, default `false`): When `true`, configures the Echo server to extract the client IP from the `X-Forwarded-For` header (required when running behind a reverse proxy such as nginx or a Kubernetes ingress). When `false` (default), the server uses the direct connection IP. **Never set to `true` unless the application is behind a trusted proxy**, otherwise clients can spoof their IP address.
 
 - `ALLOWED_ORIGIN` (string, required when `TRUST_PROXY=true`): The exact origin allowed for WebSocket connections (e.g., `https://fantasy-frc.example.com`). When set, the server validates the `Origin` header on WebSocket upgrade requests against this value. **Must be set in production when `TRUST_PROXY=true`** to prevent cross-origin WebSocket abuse. When `TRUST_PROXY` is `false` and `ALLOWED_ORIGIN` is unset, the server falls back to allowing same-origin and `localhost` requests for local development.
+
+- `SECURE_HTTP_COOKIE` (bool, default `true`): Whether session and CSRF cookies are sent with the `Secure` flag.
+
+- `RATE_LIMIT_ENABLED` (bool, default `true`): Whether HTTP rate limiting is enabled.
+
+- `RATE_LIMIT_POSTS_PER_MINUTE` (int64, default `100`): Per-minute POST rate limit when rate limiting is enabled.
+
+- `MIN_PASSWORD_LENGTH` (int, default `12`): Minimum password length for new registrations.
+
+- `MIN_USERNAME_LENGTH` (int, default `3`): Minimum username length.
+
+- `MAX_USERNAME_LENGTH` (int, default `32`): Maximum username length.
+
+- `USERNAME_ALLOWED_SPECIAL_CHARS` (string, default `_-`): Characters allowed in usernames in addition to letters and digits.
+
+- `BCRYPT_COST` (int, default `14`): bcrypt cost factor for password hashing. Values outside the bcrypt range are replaced with the default.
+
+- `REDIS_ADDR` (string, default `localhost:6379`): Redis server address. If unset, the server falls back to `localhost:6379`.
+
+- `REDIS_PASSWORD` (string, default empty): Redis password.
+
+- `REDIS_RATE_LIMIT_DB` (int, default `1`): Redis database number for rate-limit data.
+
+- `REDIS_AVATAR_DB` (int, default `2`): Redis database number for avatar cache data.
 
 - `PICK_WINDOWS_CONFIG_FILE` (string, default `../config/pick-windows.json` relative to the `server/` working directory): Path to a JSON file that configures how long each pick lasts and the allowed pick windows per weekday. If the file is missing, built-in defaults are used. If the file is present but malformed, the server fails fast on startup. Example format:
   ```json
