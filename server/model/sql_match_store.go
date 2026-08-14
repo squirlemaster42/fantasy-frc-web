@@ -6,21 +6,21 @@ import (
 )
 
 type SQLMatchStore struct {
-	database *sql.DB
+	db *sql.DB
 }
 
-func NewSQLMatchStore(database *sql.DB) *SQLMatchStore {
-	return &SQLMatchStore{database: database}
+func NewSQLMatchStore(db *sql.DB) *SQLMatchStore {
+	return &SQLMatchStore{db: db}
 }
 
 func (s *SQLMatchStore) AddMatch(ctx context.Context, tbaId string) error {
-	return addMatch(ctx, s.database, tbaId)
+	return addMatch(ctx, s.db, tbaId)
 }
 
 func (s *SQLMatchStore) UpdateScore(ctx context.Context, tbaId string, redScore int, blueScore int) error {
-	return updateScore(ctx, s.database, tbaId, redScore, blueScore)
+	return updateScore(ctx, s.db, tbaId, redScore, blueScore)
 }
 
 func (s *SQLMatchStore) GetMatch(ctx context.Context, tbaId string) (*Match, error) {
-	return getMatch(ctx, s.database, tbaId)
+	return getMatch(ctx, s.db, tbaId)
 }

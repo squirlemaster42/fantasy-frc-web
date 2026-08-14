@@ -51,7 +51,7 @@ Last updated: 2026-08-10
 | 27 | `server/tbaHandler/tbaHandler.go` | 200, 264 | Year `2026` is hardcoded in one endpoint; year `2024` is hardcoded in `MakeMatchKeysYearRequest`. | `const TbaSeasonYear` and verify the 2024 endpoint is still needed. |
 | 28 | `server/handler/draftPickPageHandler.go` | 149–269 | WebSocket upgrader, ping/pong, watcher registration, and HTML rendering are all in one handler. | Extract a dedicated WebSocket/notifier service. |
 | 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | Change to pointer receiver. |
-| 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | Standardize on `db` parameter names and lowercase, no-period errors. |
+| 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | **Fixed** — all model parameters/fields renamed to `db`, imports standardized to unaliased `server/database`, and the one Title Case error (`RunInTransaction...`) was lowercased. |
 | 31 | `server/main.go` | 55–117 | Required env vars are not validated early; malformed bool parsing silently defaults. | Fail fast with clear messages. |
 | 32 | `server/draft/draftActor.go` | 704 | Undo pick hardcodes a `3 * time.Hour` expiration reset. | ~~Reuse the configured pick window/expiration logic.~~ **Fixed** — undo now uses `d.pickConfig.GetPickExpirationTime(..., d.pickConfig.PickTime)` instead of the hardcoded `3 * time.Hour`. |
 

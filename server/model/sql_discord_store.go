@@ -6,17 +6,17 @@ import (
 )
 
 type SQLDiscordStore struct {
-	database *sql.DB
+	db *sql.DB
 }
 
-func NewSQLDiscordStore(database *sql.DB) *SQLDiscordStore {
-	return &SQLDiscordStore{database: database}
+func NewSQLDiscordStore(db *sql.DB) *SQLDiscordStore {
+	return &SQLDiscordStore{db: db}
 }
 
 func (s *SQLDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId int) (sql.NullString, error) {
-	return getPlayerDiscordId(ctx, s.database, draftPlayerId)
+	return getPlayerDiscordId(ctx, s.db, draftPlayerId)
 }
 
 func (s *SQLDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (string, error) {
-	return getDraftWebhook(ctx, s.database, draftId)
+	return getDraftWebhook(ctx, s.db, draftId)
 }

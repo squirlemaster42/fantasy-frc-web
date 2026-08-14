@@ -6,13 +6,13 @@ import (
 )
 
 type SQLMatchTeamStore struct {
-	database *sql.DB
+	db *sql.DB
 }
 
-func NewSQLMatchTeamStore(database *sql.DB) *SQLMatchTeamStore {
-	return &SQLMatchTeamStore{database: database}
+func NewSQLMatchTeamStore(db *sql.DB) *SQLMatchTeamStore {
+	return &SQLMatchTeamStore{db: db}
 }
 
 func (s *SQLMatchTeamStore) AssociateTeam(ctx context.Context, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
-	return associateTeam(ctx, s.database, matchTbaId, teamTbaId, alliance, isDqed)
+	return associateTeam(ctx, s.db, matchTbaId, teamTbaId, alliance, isDqed)
 }

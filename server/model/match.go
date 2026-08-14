@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	db "server/database"
+	"server/database"
 	"server/log"
 	"strings"
 )
@@ -24,13 +24,13 @@ func (m *Match) String() string {
 		m.TbaId, m.Played, m.RedScore, m.BlueScore, strings.Join(m.RedAlliance, ", "), strings.Join(m.BlueAlliance, ", "), strings.Join(m.DqedTeams, ", "))
 }
 
-func addMatch(ctx context.Context, database *sql.DB, tbaId string) error {
+func addMatch(ctx context.Context, db *sql.DB, tbaId string) error {
 	query := `INSERT INTO Matches (tbaid, played, redscore, bluescore) Values ($1, $2, $3, $4);`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "AddMatch")
+	defer database.CloseStatement(ctx, stmt, "AddMatch")
 	_, err = stmt.ExecContext(ctx, tbaId, false, 0, 0)
 	if err != nil {
 		log.Error(ctx, "Failed to add match", "matchTbaId", tbaId, "error", err)
@@ -39,13 +39,13 @@ func addMatch(ctx context.Context, database *sql.DB, tbaId string) error {
 	return nil
 }
 
-func updateScore(ctx context.Context, database *sql.DB, tbaId string, redScore int, blueScore int) error {
+func updateScore(ctx context.Context, db *sql.DB, tbaId string, redScore int, blueScore int) error {
 	query := `UPDATE Matches Set played = $1, redscore = $2, bluescore = $3 Where tbaid = $4;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "UpdateScore")
+	defer database.CloseStatement(ctx, stmt, "UpdateScore")
 	_, err = stmt.ExecContext(ctx, true, redScore, blueScore, tbaId)
 	if err != nil {
 		log.Error(ctx, "Failed to update score", "matchTbaId", tbaId, "redScore", redScore, "blueScore", blueScore, "error", err)
@@ -55,13 +55,13 @@ func updateScore(ctx context.Context, database *sql.DB, tbaId string, redScore i
 }
 
 // All validity checks should be done before now, so we can have this many asserts here
-func getMatch(ctx context.Context, database *sql.DB, tbaId string) (*Match, error) {
+func getMatch(ctx context.Context, db *sql.DB, tbaId string) (*Match, error) {
 	query := `Select tbaid, played, redscore, bluescore From Matches Where tbaid = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetMatch")
+	defer database.CloseStatement(ctx, stmt, "GetMatch")
 	match := Match{}
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {

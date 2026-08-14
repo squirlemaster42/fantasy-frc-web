@@ -5,7 +5,7 @@ import (
 	"crypto"
 	"database/sql"
 	"fmt"
-	db "server/database"
+	"server/database"
 	"server/log"
 
 	"github.com/google/uuid"
@@ -22,13 +22,13 @@ func (u *User) String() string {
 	return fmt.Sprintf("User: {\n UserUuid: %s\n Username: %s\n}", u.UserUuid.String(), u.Username)
 }
 
-func registerUser(ctx context.Context, database *sql.DB, username string, passwordHash string) (uuid.UUID, error) {
+func registerUser(ctx context.Context, db *sql.DB, username string, passwordHash string) (uuid.UUID, error) {
 	query := `INSERT INTO Users (UserUuid, username, password) Values ($1, $2, $3) Returning UserUuid;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer db.CloseStatement(ctx, stmt, "RegisterUser")
+	defer database.CloseStatement(ctx, stmt, "RegisterUser")
 	userUuid := uuid.New()
 	err = stmt.QueryRowContext(ctx, userUuid, username, passwordHash).Scan(&userUuid)
 	if err != nil {
@@ -37,13 +37,13 @@ func registerUser(ctx context.Context, database *sql.DB, username string, passwo
 	return userUuid, nil
 }
 
-func usernameTaken(ctx context.Context, database *sql.DB, username string) (bool, error) {
+func usernameTaken(ctx context.Context, db *sql.DB, username string) (bool, error) {
 	query := `Select count(UserUuid) From Users Where username = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return false, err
 	}
-	defer db.CloseStatement(ctx, stmt, "UsernameTaken")
+	defer database.CloseStatement(ctx, stmt, "UsernameTaken")
 	var count int
 	err = stmt.QueryRowContext(ctx, username).Scan(&count)
 	if err != nil {
@@ -52,13 +52,13 @@ func usernameTaken(ctx context.Context, database *sql.DB, username string) (bool
 	return count > 0, nil
 }
 
-func getUserUuidByUsername(ctx context.Context, database *sql.DB, username string) (uuid.UUID, error) {
+func getUserUuidByUsername(ctx context.Context, db *sql.DB, username string) (uuid.UUID, error) {
 	query := `Select UserUuid From Users Where username = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetUserUuidByUsername")
+	defer database.CloseStatement(ctx, stmt, "GetUserUuidByUsername")
 	var userUuid uuid.UUID
 	err = stmt.QueryRowContext(ctx, username).Scan(&userUuid)
 	if err != nil {
@@ -67,13 +67,13 @@ func getUserUuidByUsername(ctx context.Context, database *sql.DB, username strin
 	return userUuid, nil
 }
 
-func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (string, error) {
+func getUsername(ctx context.Context, db *sql.DB, userUuid uuid.UUID) (string, error) {
 	query := `Select Username From Users Where UserUuid = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return "", err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetUsername")
+	defer database.CloseStatement(ctx, stmt, "GetUsername")
 	var username string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&username)
 	if err != nil {
@@ -82,13 +82,13 @@ func getUsername(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (str
 	return username, nil
 }
 
-func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (string, error) {
+func getDiscordId(ctx context.Context, db *sql.DB, userUuid uuid.UUID) (string, error) {
 	query := `Select Coalesce(discordId, '') From Users Where UserUuid = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return "", err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetDiscordId")
+	defer database.CloseStatement(ctx, stmt, "GetDiscordId")
 	var discordId string
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&discordId)
 	if err != nil {
@@ -97,13 +97,13 @@ func getDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (st
 	return discordId, nil
 }
 
-func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, discordId string) error {
+func updateDiscordId(ctx context.Context, db *sql.DB, userUuid uuid.UUID, discordId string) error {
 	query := `Update Users Set discordId = $1 Where UserUuid = $2;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "UpdateDiscordId")
+	defer database.CloseStatement(ctx, stmt, "UpdateDiscordId")
 	_, err = stmt.ExecContext(ctx, discordId, userUuid)
 	if err != nil {
 		return fmt.Errorf("failed to update discord id: %w", err)
@@ -111,13 +111,13 @@ func updateDiscordId(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	return nil
 }
 
-func getPasswordHashByUsername(ctx context.Context, database *sql.DB, username string) (string, error) {
+func getPasswordHashByUsername(ctx context.Context, db *sql.DB, username string) (string, error) {
 	query := `Select password From Users Where username = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return "", err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetPasswordHashByUsername")
+	defer database.CloseStatement(ctx, stmt, "GetPasswordHashByUsername")
 	var passwordHash string
 	err = stmt.QueryRowContext(ctx, username).Scan(&passwordHash)
 	if err != nil {
@@ -129,13 +129,13 @@ func getPasswordHashByUsername(ctx context.Context, database *sql.DB, username s
 // The old password logic should happen before this
 // Should we move more logic here? No, we want to be able to
 // send back error messages which we should need to check the database for
-func updatePassword(ctx context.Context, database *sql.DB, username string, passwordHash string) error {
+func updatePassword(ctx context.Context, db *sql.DB, username string, passwordHash string) error {
 	query := `Update Users Set password = $1 Where username = $2;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "UpdatePassword")
+	defer database.CloseStatement(ctx, stmt, "UpdatePassword")
 	_, err = stmt.ExecContext(ctx, passwordHash, username)
 	if err != nil {
 		return fmt.Errorf("failed to update password: %w", err)
@@ -143,13 +143,13 @@ func updatePassword(ctx context.Context, database *sql.DB, username string, pass
 	return nil
 }
 
-func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
+func registerSession(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamptz + '10 days');`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "RegisterSession")
+	defer database.CloseStatement(ctx, stmt, "RegisterSession")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -159,13 +159,13 @@ func registerSession(ctx context.Context, database *sql.DB, userUuid uuid.UUID, 
 	return nil
 }
 
-func unregisterSession(ctx context.Context, database *sql.DB, sessionToken string) error {
+func unregisterSession(ctx context.Context, db *sql.DB, sessionToken string) error {
 	query := `Delete From UserSessions Where sessionToken = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "UnRegisterSession")
+	defer database.CloseStatement(ctx, stmt, "UnRegisterSession")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, hasher.Sum(nil))
@@ -175,13 +175,13 @@ func unregisterSession(ctx context.Context, database *sql.DB, sessionToken strin
 	return nil
 }
 
-func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken string) (uuid.UUID, error) {
+func getUserBySessionToken(ctx context.Context, db *sql.DB, sessionToken string) (uuid.UUID, error) {
 	query := `Select UserUuid From UserSessions Where sessionToken = $1 and now()::timestamptz <= expirationTime;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
-	defer db.CloseStatement(ctx, stmt, "GetUserBySessionToken")
+	defer database.CloseStatement(ctx, stmt, "GetUserBySessionToken")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var userUuid uuid.UUID
@@ -189,19 +189,19 @@ func getUserBySessionToken(ctx context.Context, database *sql.DB, sessionToken s
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to get user: %w", err)
 	}
-	if err := updateSessionExpiration(ctx, database, userUuid, sessionToken); err != nil {
+	if err := updateSessionExpiration(ctx, db, userUuid, sessionToken); err != nil {
 		log.Error(ctx, "Failed to update session expiration", "error", err)
 	}
 	return userUuid, nil
 }
 
-func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (bool, error) {
+func userIsAdmin(ctx context.Context, db *sql.DB, userUuid uuid.UUID) (bool, error) {
 	query := `Select COALESCE(IsAdmin, false) From Users Where UserUuid = $1;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return false, err
 	}
-	defer db.CloseStatement(ctx, stmt, "UserIsAdmin")
+	defer database.CloseStatement(ctx, stmt, "UserIsAdmin")
 	var isAdmin bool
 	err = stmt.QueryRowContext(ctx, userUuid).Scan(&isAdmin)
 	if err != nil {
@@ -210,14 +210,14 @@ func userIsAdmin(ctx context.Context, database *sql.DB, userUuid uuid.UUID) (boo
 	return isAdmin, nil
 }
 
-func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uuid.UUID, sessionToken string) error {
+func updateSessionExpiration(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	//We want to make sure we only update the session token that the user logged in with
 	query := `Update UserSessions Set expirationTime = now()::timestamptz + '10 days' Where userUuid = $1 And sessionToken = $2;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "UpdateSessionExpiration")
+	defer database.CloseStatement(ctx, stmt, "UpdateSessionExpiration")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -228,14 +228,14 @@ func updateSessionExpiration(ctx context.Context, database *sql.DB, userUuid uui
 }
 
 // Check if the session token is in the database and that it is not expired
-func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken string) (bool, error) {
+func validateSessionToken(ctx context.Context, db *sql.DB, sessionToken string) (bool, error) {
 	//I think <= is fine, it probably doesn't matter though
 	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamptz <= expirationTime;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return false, err
 	}
-	defer db.CloseStatement(ctx, stmt, "ValidateSessionToken")
+	defer database.CloseStatement(ctx, stmt, "ValidateSessionToken")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
 	var count int
@@ -246,11 +246,11 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 	if count > 1 {
 		log.Error(ctx, "Duplicate session token detected, cleaning up", "count", count)
 		deleteQuery := `Delete From UserSessions Where sessionToken = $1;`
-		delStmt, err := db.Prepare(ctx, database, deleteQuery)
+		delStmt, err := database.Prepare(ctx, db, deleteQuery)
 		if err != nil {
 			return false, err
 		}
-		defer db.CloseStatement(ctx, delStmt, "CleanupDuplicateSessions")
+		defer database.CloseStatement(ctx, delStmt, "CleanupDuplicateSessions")
 		_, _ = delStmt.ExecContext(ctx, hasher.Sum(nil))
 		return false, nil
 	}
@@ -258,13 +258,13 @@ func validateSessionToken(ctx context.Context, database *sql.DB, sessionToken st
 }
 
 // InvalidateAllUserSessionsExcept deletes all sessions for a user except the given token.
-func invalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
+func invalidateAllUserSessionsExcept(ctx context.Context, db *sql.DB, userUuid uuid.UUID, keepSessionToken string) error {
 	query := `Delete From UserSessions Where userUuid = $1 And sessionToken != $2;`
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
 	}
-	defer db.CloseStatement(ctx, stmt, "InvalidateAllUserSessionsExcept")
+	defer database.CloseStatement(ctx, stmt, "InvalidateAllUserSessionsExcept")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(keepSessionToken))
 	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
@@ -274,7 +274,7 @@ func invalidateAllUserSessionsExcept(ctx context.Context, database *sql.DB, user
 	return nil
 }
 
-func searchUsers(ctx context.Context, database *sql.DB, searchString string, draftId int) ([]User, error) {
+func searchUsers(ctx context.Context, db *sql.DB, searchString string, draftId int) ([]User, error) {
 	query := `SELECT
                     Users.UserUuid,
                     Users.Username
@@ -311,11 +311,11 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	} else {
 		query += ";"
 	}
-	stmt, err := db.Prepare(ctx, database, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseStatement(ctx, stmt, "SearchUsers")
+	defer database.CloseStatement(ctx, stmt, "SearchUsers")
 
 	var userRows *sql.Rows
 	if searchString != "" {
@@ -326,7 +326,7 @@ func searchUsers(ctx context.Context, database *sql.DB, searchString string, dra
 	if err != nil {
 		return nil, err
 	}
-	defer db.CloseRows(ctx, userRows, "SearchUsers")
+	defer database.CloseRows(ctx, userRows, "SearchUsers")
 
 	users := make([]User, 0)
 
