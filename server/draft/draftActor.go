@@ -243,6 +243,12 @@ func (d *DraftActor) run() {
 	for message := range d.inbox {
 		if _, isShutdown := message.Content.(ShutdownMessage); isShutdown {
 			d.close()
+			if message.Reply != nil {
+				select {
+				case message.Reply <- Result{}:
+				case <-time.After(5 * time.Second):
+				}
+			}
 			break
 		}
 
@@ -251,7 +257,7 @@ func (d *DraftActor) run() {
 		if message.Reply != nil {
 			select {
 			case message.Reply <- result:
-			case <- time.After(5 * time.Second):
+			case <-time.After(5 * time.Second):
 			}
 		}
 	}
@@ -912,6 +918,12 @@ func (d *DraftActor) close() {
 	d.mu.Lock()
 	d.shutdown = true
 	d.mu.Unlock()
+}
+
+func (d *DraftActor) IsShutdown() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.shutdown
 }
 
 func (d *DraftActor) GetDraftPlayerIdByUuid(userUuid uuid.UUID) (int, error) {

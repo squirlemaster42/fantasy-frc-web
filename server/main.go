@@ -155,6 +155,14 @@ func main() {
 		log.Fatal(ctx, "ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
 	}
 
+	draftActorCacheSize, err := utils.GetEnvIntStrict("DRAFT_ACTOR_CACHE_SIZE", 128)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	if draftActorCacheSize < 1 {
+		log.Fatal(ctx, "DRAFT_ACTOR_CACHE_SIZE must be at least 1", "value", draftActorCacheSize)
+	}
+
 	log.Info(ctx, "Extracted Env Vars")
 	db, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
@@ -200,7 +208,7 @@ func main() {
 		assert.NoError(ctx, err, "Failed to load pick window configuration")
 	}
 
-	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig)
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig, draftActorCacheSize)
 	//Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)

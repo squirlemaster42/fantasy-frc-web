@@ -11,21 +11,16 @@ import (
 )
 
 func Events() []string {
-	return []string{
-		"2026arc",
-		"2026cur",
-		"2026dal",
-		"2026gal",
-		"2026hop",
-		"2026joh",
-		"2026mil",
-		"2026new",
-		"2026cmptx",
+	eventCodes := []string{"arc", "cur", "dal", "gal", "hop", "joh", "mil", "new", "cmptx"}
+	events := make([]string, len(eventCodes))
+	for i, code := range eventCodes {
+		events[i] = fmt.Sprintf("%d%s", TbaSeasonYear, code)
 	}
+	return events
 }
 
 func Einstein() string {
-	return "2026cmptx"
+	return fmt.Sprintf("%dcmptx", TbaSeasonYear)
 }
 
 func GetUpdateUrl(draftId int) string {

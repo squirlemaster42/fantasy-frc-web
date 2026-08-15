@@ -165,18 +165,17 @@ func ExecuteDraftStateTransition(ctx context.Context, draftActor *DraftActor, re
 }
 
 func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) error {
-	actor, ok := actorMap.actorMap.Load(draftId)
+	actor, ok := actorMap.actorCache.Get(draftId)
 	if !ok {
 		return nil
 	}
 
-	draftActor := actor.(*DraftActor)
 	replyChan := make(chan Result)
 	message := Message{
 		Content: ShutdownMessage{},
 		Reply:   replyChan,
 	}
-	err := draftActor.PostMessage(ctx, message)
+	err := actor.PostMessage(ctx, message)
 	if err != nil {
 		return err
 	}
@@ -186,7 +185,7 @@ func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) er
 		log.Warn(ctx, "Shutdown message timed out", "draftId", draftId)
 	}
 
-	actorMap.actorMap.Delete(draftId)
+	actorMap.actorCache.Remove(draftId)
 	log.Info(ctx, "Evicted draft actor from map", "draftId", draftId)
 	return nil
 }

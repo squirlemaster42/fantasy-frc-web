@@ -38,7 +38,7 @@ Last updated: 2026-08-10
 
 | # | File | Lines | Issue | Recommendation |
 |---|------|-------|-------|----------------|
-| 17 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` Actor cache is unbounded. | Decide on a max actor count / LRU policy and implement it. |
+| 17 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` Actor cache is unbounded. | **Fixed** — replaced `sync.Map` with `hashicorp/golang-lru/v2` cache; size configurable via `DRAFT_ACTOR_CACHE_SIZE` (default 128); evicted actors are shut down asynchronously. |
 | 18 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` — no watchdog exists for stuck drafts. | Implement a watchdog that auto-skips expired picks, or remove the TODO. |
 | 19 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` — pick windows are global. | Make pick windows configurable per draft. |
 | 20 | `server/model/draft.go` ~1135 / `server/draft/draftActor.go` ~920 | — | Next-pick snake-draft algorithm exists in two places (`nextPick` vs `getNextPick`). | Extract the core algorithm into a shared helper. |
@@ -48,7 +48,7 @@ Last updated: 2026-08-10
 | 24 | `server/handler/*.go` | Many | `userUuid := c.Get("userUuid").(uuid.UUID)` + `getAuthenticatedUsername` block is repeated in almost every protected handler. | Consider a middleware that stashes the username in the context, or a single helper. |
 | 25 | `server/model/draft.go` | 1576 | `CanStartDraft` requires exactly `8` players as a magic number. | ~~`const DraftPlayerCount = 8`~~ **Fixed** — added `DraftPlayerCount`, `PicksPerPlayer`, and `PicksPerDraft` constants; replaced all backend and template magic numbers. |
 | 26 | `server/model/draft.go` / `server/draft/draftActor.go` | 649, 864 | Draft completion uses `len(picks) < 64` magic number. | ~~`const PicksPerDraft = 64`~~ **Fixed** — `PicksPerDraft = DraftPlayerCount * PicksPerPlayer` and used in `handlePick`, `handleSkipCurrentPick`, and tests. |
-| 27 | `server/tbaHandler/tbaHandler.go` | 200, 264 | Year `2026` is hardcoded in one endpoint; year `2024` is hardcoded in `MakeMatchKeysYearRequest`. | `const TbaSeasonYear` and verify the 2024 endpoint is still needed. |
+| 27 | `server/tbaHandler/tbaHandler.go` / `server/utils/utils.go` | 200, 264 | Year `2026` is hardcoded in one endpoint; year `2024` is hardcoded in `MakeMatchKeysYearRequest`; `Events()` also hardcodes 2026 event keys. | **Fixed** — added `utils.TbaSeasonYear` and `utils.TbaHistoricMatchYear` constants and replaced all hardcoded years. |
 | 28 | `server/handler/draftPickPageHandler.go` | 149–269 | WebSocket upgrader, ping/pong, watcher registration, and HTML rendering are all in one handler. | Extract a dedicated WebSocket/notifier service. |
 | 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | Change to pointer receiver. |
 | 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | **Fixed** — all model parameters/fields renamed to `db`, imports standardized to unaliased `server/database`, and the one Title Case error (`RunInTransaction...`) was lowercased. |

@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	db "server/database"
 	"server/log"
 	"server/metrics"
 	"server/swagger"
+	"server/utils"
 	"time"
 
 	otelhttp "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -198,7 +200,7 @@ func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventI
 
 // MakeEventListReq requests the list of events for a team from The Blue Alliance.
 func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
-	url := BASE_URL + "team/" + teamId + "/events/2026/keys"
+	url := BASE_URL + "team/" + teamId + "/events/" + strconv.Itoa(utils.TbaSeasonYear) + "/keys"
 	endpoint := "/team/{team}/events/{year}/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -262,7 +264,7 @@ func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId stri
 
 // MakeMatchKeysYearRequest requests the match keys for a team in a specific year from The Blue Alliance.
 func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) ([]string, error) {
-	url := BASE_URL + "team/" + teamId + "/matches/2024/keys"
+	url := BASE_URL + "team/" + teamId + "/matches/" + strconv.Itoa(utils.TbaHistoricMatchYear) + "/keys"
 	endpoint := "/team/{team}/matches/{year}/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
