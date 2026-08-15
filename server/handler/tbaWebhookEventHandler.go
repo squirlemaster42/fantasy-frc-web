@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"server/log"
 	"server/swagger"
 	"server/utils"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -183,15 +181,7 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 			}
 
 			// Username by default but use discord id if found
-			discordId := row.Username
-			if row.DiscordId.Valid {
-				// discord IDs must be 17+ characters and all numbers, so this is a quick way to mostly validate
-				// that the id in the database is not just a random string
-				_, err := strconv.ParseUint(row.DiscordId.String, 10, 64)
-				if len(row.DiscordId.String) >= 17 && err == nil {
-					discordId = fmt.Sprintf("<@%s>", row.DiscordId.String)
-				}
-			}
+			discordId := discord.Identifier(row.Username, row.DiscordId)
 
 			// add user with that pick to that draft
 			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)

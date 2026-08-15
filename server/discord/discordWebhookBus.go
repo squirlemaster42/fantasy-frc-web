@@ -155,29 +155,34 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 	}
 }
 
-func discordIdentifier(name string, discordId sql.NullString) string {
+// Identifier returns a Discord mention ("<@id>") if discordId is a valid
+// 17+ digit snowflake; otherwise it returns the provided fallback name.
+func Identifier(name string, discordId sql.NullString) string {
 	if !discordId.Valid {
 		return name
 	}
 
 	id := discordId.String
-	// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
-	_, err := strconv.ParseUint(id, 10, 64)
-	if len(id) >= 17 && err == nil {
+	if IsValidId(id) {
 		return fmt.Sprintf("<@%s>", id)
 	}
 	return name
 }
 
+// IsValidId reports whether s looks like a Discord snowflake (a 17+ digit integer).
+func IsValidId(s string) bool {
+	if len(s) < 17 {
+		return false
+	}
+	_, err := strconv.ParseUint(s, 10, 64)
+	return err == nil
+}
+
 func buildInProgressWebhook(event NextPickDiscordEvent, previousIdentifier string, nextIdentifier string, previousPickedTeam string) DiscordWebhook {
 	var allowedUserMentions []string
-	if event.NextPickDiscordId.Valid {
-		nextPickId := event.NextPickDiscordId.String
-		_, err := strconv.ParseUint(nextPickId, 10, 64)
-		if len(nextPickId) >= 17 && err == nil {
-			allowedUserMentions = []string{
-				nextPickId,
-			}
+	if event.NextPickDiscordId.Valid && IsValidId(event.NextPickDiscordId.String) {
+		allowedUserMentions = []string{
+			event.NextPickDiscordId.String,
 		}
 	}
 
@@ -247,7 +252,7 @@ func (d *DiscordWebhookBus) sendWebhookRequest(webhookURL string, webhook Discor
 }
 
 func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
-	previousIdentifier := discordIdentifier(event.PreviousPickName, event.PreviousPickDiscordId)
+	previousIdentifier := Identifier(event.PreviousPickName, event.PreviousPickDiscordId)
 
 	var webhook DiscordWebhook
 	if event.DraftComplete {
@@ -261,7 +266,7 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 			AllowedMentions: AllowedMentions{},
 		}
 	} else {
-		nextIdentifier := discordIdentifier(event.NextPickName, event.NextPickDiscordId)
+		nextIdentifier := Identifier(event.NextPickName, event.NextPickDiscordId)
 		webhook = buildInProgressWebhook(event, previousIdentifier, nextIdentifier, strings.Trim(event.PreviousPickedTeam, "frc"))
 	}
 
