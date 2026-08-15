@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"server/authentication"
 	"server/log"
 
 	"github.com/labstack/echo/v4"
@@ -51,14 +52,14 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 			}
 
 			// Get expected token from session and store it in context
-			sessionCookie, err := ctx.Cookie("sessionToken")
+			sessionCookie, err := ctx.Cookie(authentication.SessionCookieName)
 			if err == nil && sessionCookie.Value != "" {
 				expectedToken := c.GenerateToken(sessionCookie.Value)
 				ctx.Set(string(CsrfTokenKey), expectedToken)
 
 				// Set non-HttpOnly cookie so JS can read it for HTMX requests
 				csrfCookie := new(http.Cookie)
-				csrfCookie.Name = "csrf_token"
+				csrfCookie.Name = CsrfTokenFieldName
 				csrfCookie.Value = expectedToken
 				csrfCookie.Path = "/"
 				csrfCookie.SameSite = http.SameSiteLaxMode
@@ -80,10 +81,10 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 
 			// Get token from form or header
 			var submittedToken string
-			if ctx.Request().FormValue("csrf_token") != "" {
-				submittedToken = ctx.Request().FormValue("csrf_token")
+			if ctx.Request().FormValue(CsrfTokenFieldName) != "" {
+				submittedToken = ctx.Request().FormValue(CsrfTokenFieldName)
 			} else {
-				submittedToken = ctx.Request().Header.Get("X-CSRF-Token")
+				submittedToken = ctx.Request().Header.Get(CsrfTokenHeaderName)
 			}
 
 			expectedToken := c.GenerateToken(sessionCookie.Value)

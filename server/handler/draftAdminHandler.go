@@ -190,7 +190,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 		return Render(c, draftView.AdminMessage("Team number must be numeric", false))
 	}
 
-	tbaId := "frc" + teamStr
+	tbaId := teamPrefix + teamStr
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {

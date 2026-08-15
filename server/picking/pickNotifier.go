@@ -44,7 +44,7 @@ func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
 
 	watcher := Watcher{
 		WatcherId:     uuid.New(),
-		NotifierQueue: make(chan bool, 10),
+		NotifierQueue: make(chan bool, PickNotifierQueueBuffer()),
 	}
 
 	pn.Watchers[draftId] = append(pn.Watchers[draftId], watcher)
@@ -92,7 +92,7 @@ func (pn *PickNotifier) ReceivePickEvent(ctx context.Context, pickEvent PickEven
 		select {
 		case watcher.NotifierQueue <- true:
 			// Sent successfully
-		case <-time.After(5 * time.Second):
+		case <-time.After(PickNotifierSendTimeout()):
 			log.Warn(ctx, "Timeout sending to watcher, skipping", "watcherId", watcher.WatcherId)
 			// Continue notifying remaining watchers; do not return error
 		}
@@ -110,7 +110,7 @@ func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
 	for _, watcher := range watchers {
 		select {
 		case watcher.NotifierQueue <- true:
-		case <-time.After(5 * time.Second):
+		case <-time.After(PickNotifierSendTimeout()):
 			log.Warn(ctx, "Timeout notifying watcher", "watcherId", watcher.WatcherId)
 		}
 	}

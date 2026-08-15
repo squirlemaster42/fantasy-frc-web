@@ -11,9 +11,9 @@ import (
 )
 
 func Events() []string {
-	eventCodes := []string{"arc", "cur", "dal", "gal", "hop", "joh", "mil", "new", "cmptx"}
-	events := make([]string, len(eventCodes))
-	for i, code := range eventCodes {
+	codes := eventCodes()
+	events := make([]string, len(codes))
+	for i, code := range codes {
 		events[i] = fmt.Sprintf("%d%s", TbaSeasonYear, code)
 	}
 	return events
@@ -24,7 +24,7 @@ func Einstein() string {
 }
 
 func GetUpdateUrl(draftId int) string {
-	if draftId == -1 {
+	if draftId == CreateDraftId {
 		return "/u/createDraft"
 	} else {
 		return fmt.Sprintf("/u/draft/%d/updateDraft", draftId)
@@ -88,7 +88,7 @@ var EasternLocation *time.Location
 
 func init() {
 	var err error
-	EasternLocation, err = time.LoadLocation("America/New_York")
+	EasternLocation, err = time.LoadLocation(Timezone())
 	if err != nil {
 		log.Fatal(context.Background(), "Failed to load Eastern timezone", "Error", err)
 	}
@@ -167,7 +167,7 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 		return false, fmt.Errorf("match levels are not the same: %q vs %q", matchALevel, matchBLevel)
 	}
 
-	if matchALevel == "qm" {
+	if matchALevel == MatchLevelQual {
 		splitMatchA := strings.Split(matchA, "_")
 		splitMatchB := strings.Split(matchB, "_")
 		if len(splitMatchA) != 2 {
@@ -189,12 +189,12 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 		return matchANum < matchBNum, nil
 	}
 
-	if matchALevel == "f" {
-		return comparePlayoffMatch(matchA, matchB, 1)
+	if matchALevel == MatchLevelFinals {
+		return comparePlayoffMatch(matchA, matchB, matchLevelPrefixLengthShort)
 	}
 
-	if matchALevel == "sf" {
-		return comparePlayoffMatch(matchA, matchB, 2)
+	if matchALevel == MatchLevelSemifinals {
+		return comparePlayoffMatch(matchA, matchB, matchLevelPrefixLengthLong)
 	}
 
 	return false, fmt.Errorf("unknown match type %q", matchALevel)
@@ -202,10 +202,10 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 
 func matchPrecidence() map[string]int {
 	return map[string]int{
-		"qm": 0,
-		"qf": 1,
-		"sf": 2,
-		"f":  3,
+		MatchLevelQual:       0,
+		MatchLevelQuarters:   1,
+		MatchLevelSemifinals: 2,
+		MatchLevelFinals:     3,
 	}
 }
 
@@ -219,5 +219,5 @@ func getMatchLevel(matchKey string) (string, error) {
 }
 
 func GetWebhookFilePath() string {
-	return "./webhookSecret.txt"
+	return WebhookSecretFile()
 }

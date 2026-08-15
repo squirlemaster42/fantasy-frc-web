@@ -24,7 +24,6 @@ import (
 	"server/tbaHandler"
 	"server/utils"
 	"syscall"
-	"time"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -237,7 +236,7 @@ func main() {
 		waitScorer = scorer.RunScorer(ctx)
 	}
 
-	cleanupService := background.NewCleanupService(db, 60)
+	cleanupService := background.NewCleanupService(db, background.CleanupIntervalMinutes())
 	err = cleanupService.Start(ctx)
 	if err != nil {
 		log.Error(ctx, "Failed to start cleanup service", "error", err)
@@ -323,7 +322,7 @@ func main() {
 		<-waitScorer
 	}
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), ServerShutdownTimeout())
 	defer shutdownCancel()
 
 	if err := app.Shutdown(shutdownCtx); err != nil {

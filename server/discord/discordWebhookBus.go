@@ -31,9 +31,9 @@ type DiscordWebhookBus struct {
 func NewBus() *DiscordWebhookBus {
 	d := &DiscordWebhookBus{
 		client: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: DiscordWebhookTimeout(),
 		},
-		preMatchCh: make(chan PreMatchDiscordEvent, 100),
+		preMatchCh: make(chan PreMatchDiscordEvent, DiscordPreMatchQueueBuffer()),
 		stopCh:     make(chan struct{}),
 	}
 	d.wg.Add(1)
@@ -171,7 +171,7 @@ func Identifier(name string, discordId sql.NullString) string {
 
 // IsValidId reports whether s looks like a Discord snowflake (a 17+ digit integer).
 func IsValidId(s string) bool {
-	if len(s) < 17 {
+	if len(s) < DiscordMinIdLength() {
 		return false
 	}
 	_, err := strconv.ParseUint(s, 10, 64)

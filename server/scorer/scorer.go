@@ -34,9 +34,9 @@ func NewScorer(tbaHandler tbaHandler.TBAInterface, matchStore model.MatchStore, 
 
 func playoffMatchCompLevels() map[string]bool {
 	return map[string]bool{
-		"f":  true,
-		"sf": true,
-		"qf": true,
+		utils.MatchLevelFinals:     true,
+		utils.MatchLevelSemifinals: true,
+		utils.MatchLevelQuarters:   true,
 	}
 }
 
@@ -53,7 +53,7 @@ func (s *Scorer) scoreMatch(ctx context.Context, match swagger.Match, rescore bo
 		return scoredMatch, false
 	}
 
-	if match.CompLevel == "qm" {
+	if match.CompLevel == utils.MatchLevelQual {
 		scoredMatch.RedScore, scoredMatch.BlueScore = getQualMatchScore(ctx, match)
 	} else if playoffMatchCompLevels()[match.CompLevel] {
 		scoredMatch.RedScore, scoredMatch.BlueScore = getPlayoffMatchScore(ctx, match)
@@ -72,39 +72,39 @@ func (s *Scorer) scoreMatch(ctx context.Context, match swagger.Match, rescore bo
 func getQualMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 	log.Debug(ctx, "Scoring qual match", "match", match.Key, "winningAlliance", match.WinningAlliance)
 
-	redScore, blueScore := getWinningAllianceScores(ctx, match, 3)
+	redScore, blueScore := getWinningAllianceScores(ctx, match, QualWinPoints())
 
 	if match.ScoreBreakdown == nil {
 		return redScore, blueScore
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.EnergizedAchieved {
-		redScore += 1
+		redScore += EnergizedBonusPoints()
 		log.Debug(ctx, "Red Energized Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.SuperchargedAchieved {
-		redScore += 1
+		redScore += SuperchargedBonusPoints()
 		log.Debug(ctx, "Red Supercharded Bonus Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Red != nil && match.ScoreBreakdown.Red.TraversalAchieved {
-		redScore += 2
+		redScore += TraversalBonusPoints()
 		log.Debug(ctx, "Red Traversal Bonus Achieved", "score", redScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.EnergizedAchieved {
-		blueScore += 1
+		blueScore += EnergizedBonusPoints()
 		log.Debug(ctx, "Blue Energized Bonus Achieved", "score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.SuperchargedAchieved {
-		blueScore += 1
+		blueScore += SuperchargedBonusPoints()
 		log.Debug(ctx, "Blue Supercharged Bonus Achieved", "score", blueScore)
 	}
 
 	if match.ScoreBreakdown.Blue != nil && match.ScoreBreakdown.Blue.TraversalAchieved {
-		blueScore += 2
+		blueScore += TraversalBonusPoints()
 		log.Debug(ctx, "Blue Traversal Bonus Achieved", "score", blueScore)
 	}
 
@@ -112,26 +112,11 @@ func getQualMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 }
 
 func getUpperBracketMatchIds() map[int32]bool {
-	return map[int32]bool{
-		1:  true,
-		2:  true,
-		3:  true,
-		4:  true,
-		7:  true,
-		8:  true,
-		11: true,
-	}
+	return UpperBracketMatchIds
 }
 
 func getLowerBracketMatchIds() map[int32]bool {
-	return map[int32]bool{
-		5:  true,
-		6:  true,
-		9:  true,
-		10: true,
-		12: true,
-		13: true,
-	}
+	return LowerBracketMatchIds
 }
 
 // Red score, blue score
@@ -156,20 +141,20 @@ func getPlayoffMatchScore(ctx context.Context, match swagger.Match) (int, int) {
 	var matchPoints int
 
 	switch match.CompLevel {
-	case "f":
-		matchPoints = 18
-	case "sf":
+	case utils.MatchLevelFinals:
+		matchPoints = PlayoffFinalsPoints()
+	case utils.MatchLevelSemifinals:
 		if getLowerBracketMatchIds()[match.SetNumber] {
-			matchPoints = 9
+			matchPoints = PlayoffLowerBracketPoints()
 		} else if getUpperBracketMatchIds()[match.SetNumber] {
-			matchPoints = 15
+			matchPoints = PlayoffUpperBracketPoints()
 		}
 	default:
 		log.Warn(ctx, "Attempted to get playoff score for non playoff match", "match", match.Key, "compLevel", match.CompLevel)
 	}
 
 	if match.EventKey == utils.Einstein() {
-		matchPoints *= 2
+		matchPoints *= EinsteinMultiplier()
 	}
 
 	return getWinningAllianceScores(ctx, match, matchPoints)
@@ -227,17 +212,6 @@ func isDqed(team string, dqedTeams []string) bool {
 	return false
 }
 
-var ALLIANCE_SCORES = map[int][]int16{
-	1: {32, 31, 9, 8},
-	2: {30, 29, 10, 7},
-	3: {28, 27, 11, 6},
-	4: {26, 25, 12, 5},
-	5: {24, 23, 13, 4},
-	6: {22, 21, 14, 3},
-	7: {20, 19, 15, 2},
-	8: {18, 17, 16, 1},
-}
-
 func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int16 {
 	scores := make(map[string]int16)
 
@@ -255,9 +229,9 @@ func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger
 		log.Error(ctx, "Unsupported alliance number", "Alliance", alliance.Name)
 	}
 
-	scoreArr := ALLIANCE_SCORES[allianceNum]
+	scoreArr := AllianceSelectionBaseScores[allianceNum]
 	for i, team := range alliance.Picks {
-		scores[team] = scoreArr[i] * 2
+		scores[team] = scoreArr[i] * int16(AlliancePickMultiplier())
 	}
 
 	return scores
@@ -347,7 +321,7 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 		}
 
 		log.Debug(ctx, "Checking if we need to get match data", "match", match)
-		if match.MatchNumber == 0 {
+		if match.MatchNumber == unloadedMatchNumber {
 			log.Debug(ctx, "Loading match data", "match", match.Key)
 			match, err = s.tbaHandler.MakeMatchReq(ctx, match.Key)
 			if err != nil {

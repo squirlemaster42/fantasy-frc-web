@@ -109,7 +109,7 @@ func (e *invalidStateTransitionError) Error() string {
 
 func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig) (*DraftActor, error) {
 	actor := &DraftActor {
-		inbox: make(chan Message, 100),
+		inbox: make(chan Message, DraftActorInboxBuffer()),
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordStore: discordStore,
@@ -234,7 +234,7 @@ func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout posting message to draft actor inbox")
 	}
 }
@@ -246,7 +246,7 @@ func (d *DraftActor) run() {
 			if message.Reply != nil {
 				select {
 				case message.Reply <- Result{}:
-				case <-time.After(5 * time.Second):
+				case <-time.After(DraftActorRequestTimeout()):
 				}
 			}
 			break
@@ -257,7 +257,7 @@ func (d *DraftActor) run() {
 		if message.Reply != nil {
 			select {
 			case message.Reply <- result:
-			case <-time.After(5 * time.Second):
+			case <-time.After(DraftActorRequestTimeout()):
 			}
 		}
 	}

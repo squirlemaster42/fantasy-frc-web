@@ -117,7 +117,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 // SearchPlayers searches for users to invite to a draft and returns the results as HTML.
 func (h *Handler) SearchPlayers(c echo.Context) error {
-	currentUrl := c.Request().Header.Get("Hx-Current-Url")
+	currentUrl := c.Request().Header.Get(htmxCurrentUrlHeader)
 	if currentUrl == "" {
 		log.Warn(c.Request().Context(), "Missing Hx-Current-Url header")
 		return c.String(http.StatusBadRequest, "Missing required header")

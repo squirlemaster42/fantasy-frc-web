@@ -67,7 +67,7 @@ func (d *DraftActorMap) onEvicted(draftId int, actor *DraftActor) {
 		select {
 		case <-reply:
 			log.Info(ctx, "evicted draft actor shut down", "draftId", draftId)
-		case <-time.After(5 * time.Second):
+		case <-time.After(DraftActorRequestTimeout()):
 			log.Warn(ctx, "evicted draft actor shutdown timed out", "draftId", draftId)
 		}
 	}()

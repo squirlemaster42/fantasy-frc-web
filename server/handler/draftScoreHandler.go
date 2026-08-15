@@ -94,14 +94,14 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 
 	teamNumber := c.Param("teamNumber")
 
-	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
+	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
 	// Get qualification matches
-	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
+	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get match scores", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

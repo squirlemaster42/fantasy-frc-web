@@ -8,7 +8,6 @@ import (
 	"server/log"
 	"server/tbaHandler"
 	"strconv"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -27,12 +26,12 @@ type AvatarStore struct {
 }
 
 func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAInterface, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: redisPassword,
-		DB:       redisDB,
-		Protocol: 2,
-	})
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     redisAddr,
+			Password: redisPassword,
+			DB:       redisDB,
+			Protocol: redisProtocolVersion,
+		})
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		log.Error(ctx, "AvatarStore: Redis unavailable, avatar caching disabled", "error", err)
@@ -54,8 +53,8 @@ func (a *AvatarStore) Close() error {
 }
 
 func (a *AvatarStore) storeAvatar(ctx context.Context, teamNum int, avatar []byte) error {
-	// Store the avatar for 4 weeks
-	return a.client.Set(ctx, strconv.Itoa(teamNum), avatar, 4*7*24*time.Hour).Err()
+	// Store the avatar for the configured TTL.
+	return a.client.Set(ctx, strconv.Itoa(teamNum), avatar, AvatarCacheTTL()).Err()
 }
 
 func (a *AvatarStore) checkCache(ctx context.Context, teamNum int) ([]byte, error) {

@@ -25,7 +25,7 @@ func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
 		page = 1
 	}
 
-	perPage := 25
+	perPage := LeaderboardPerPage()
 
 	leaderboardPage, err := h.Stores.DraftStore.GetOverallLeaderboard(c.Request().Context(), page, perPage)
 	if err != nil {

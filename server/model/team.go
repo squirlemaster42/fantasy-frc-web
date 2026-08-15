@@ -181,11 +181,11 @@ func getScoresBatch(ctx context.Context, db database.DBTX, tbaIds []string) (map
 		}
 
 		scoresByTeam[tbaId] = map[string]int{
-			"Alliance Score": allianceScore,
-			"Qual Score":     qualScore,
-			"Playoff Score":  playoffScore,
-			"Einstein Score": einsteinScore,
-			"Total Score":    totalScore,
+			allianceScoreLabel: allianceScore,
+			qualScoreLabel:     qualScore,
+			playoffScoreLabel:  playoffScore,
+			einsteinScoreLabel: einsteinScore,
+			totalScoreLabel:    totalScore,
 		}
 	}
 

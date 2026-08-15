@@ -30,14 +30,14 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Getting score for team", "teamNumber", teamNumber)
 
 	//Get team score
-	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
+	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "teamNumber", teamNumber, "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
 	// Get qualification matches
-	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
+	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get match scores", "teamNumber", teamNumber, "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

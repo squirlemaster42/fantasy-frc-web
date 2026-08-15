@@ -18,14 +18,14 @@ var (
 		[]string{"endpoint", "status"},
 	)
 	// tbaRequestDuration tracks TBA API request duration by endpoint.
-	tbaRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "tba_request_duration_seconds",
-			Help:    "TBA request duration in seconds",
-			Buckets: []float64{.1, .25, .5, 1, 2.5, 5, 10},
-		},
-		[]string{"endpoint"},
-	)
+		tbaRequestDuration = prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "tba_request_duration_seconds",
+				Help:    "TBA request duration in seconds",
+				Buckets: tbaRequestDurationBuckets,
+			},
+			[]string{"endpoint"},
+		)
 	// tbaCacheHits tracks TBA cache hits and misses.
 	tbaCacheHits = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -39,7 +39,7 @@ var (
 // RecordTbaRequest records a TBA API request's endpoint, status code, and duration.
 func RecordTbaRequest(endpoint string, status int, duration time.Duration) {
 	if endpoint == "" {
-		endpoint = "unknown"
+		endpoint = unknownRouteLabel
 	}
 
 	tbaRequestCount.WithLabelValues(

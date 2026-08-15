@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -19,6 +20,6 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return err
 	}
 
-	c.Response().Header().Set("Cache-Control", "private, max-age=604800")
+	c.Response().Header().Set("Cache-Control", fmt.Sprintf("private, max-age=%d", AvatarHttpCacheMaxAgeSeconds()))
 	return c.Blob(http.StatusOK, "image/png", avatar)
 }

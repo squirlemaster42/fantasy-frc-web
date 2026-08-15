@@ -144,7 +144,7 @@ func updatePassword(ctx context.Context, db *sql.DB, username string, passwordHa
 }
 
 func registerSession(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessionToken string) error {
-	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamptz + '10 days');`
+	query := `Insert Into UserSessions (userUuid, sessionToken, expirationTime) Values ($1, $2, now()::timestamptz + make_interval(days => $3));`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func registerSession(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessio
 	defer database.CloseStatement(ctx, stmt, "RegisterSession")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
-	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
+	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil), SessionExpirationDays())
 	if err != nil {
 		return fmt.Errorf("failed to register session: %w", err)
 	}
@@ -212,7 +212,7 @@ func userIsAdmin(ctx context.Context, db *sql.DB, userUuid uuid.UUID) (bool, err
 
 func updateSessionExpiration(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessionToken string) error {
 	//We want to make sure we only update the session token that the user logged in with
-	query := `Update UserSessions Set expirationTime = now()::timestamptz + '10 days' Where userUuid = $1 And sessionToken = $2;`
+	query := `Update UserSessions Set expirationTime = now()::timestamptz + make_interval(days => $3) Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return err
@@ -220,7 +220,7 @@ func updateSessionExpiration(ctx context.Context, db *sql.DB, userUuid uuid.UUID
 	defer database.CloseStatement(ctx, stmt, "UpdateSessionExpiration")
 	hasher := crypto.SHA256.New()
 	hasher.Write([]byte(sessionToken))
-	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil))
+	_, err = stmt.ExecContext(ctx, userUuid, hasher.Sum(nil), SessionExpirationDays())
 	if err != nil {
 		return fmt.Errorf("failed to update session expiration: %w", err)
 	}

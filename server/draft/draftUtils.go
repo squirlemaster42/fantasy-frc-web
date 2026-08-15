@@ -38,7 +38,7 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 		} else {
 			skipped = true
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		log.Warn(ctx, "Skipping current pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
 		skipped = false
 	}
@@ -61,7 +61,7 @@ func ModifyCurrentPickExpirationTime(ctx context.Context, draftActor *DraftActor
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout modifying pick expiration time")
 	}
 }
@@ -88,7 +88,7 @@ func MakePick(ctx context.Context, draftActor *DraftActor, pick model.Pick) erro
 		if result.Error != nil {
 			pickError = result.Error
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout making pick")
 	}
 	return pickError
@@ -109,7 +109,7 @@ func UndoLastPick(ctx context.Context, draftActor *DraftActor) error {
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout undoing last pick")
 	}
 }
@@ -136,7 +136,7 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout updating draft")
 	}
 }
@@ -158,7 +158,7 @@ func ExecuteDraftStateTransition(ctx context.Context, draftActor *DraftActor, re
 		if result.Error != nil {
 			return result.Error
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout executing draft state transition")
 	}
 	return nil
@@ -181,7 +181,7 @@ func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) er
 	}
 	select {
 	case <-message.Reply:
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		log.Warn(ctx, "Shutdown message timed out", "draftId", draftId)
 	}
 
@@ -205,7 +205,7 @@ func InvitePlayer(ctx context.Context, draftActor *DraftActor, invite model.Draf
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout inviting player")
 	}
 }
@@ -227,7 +227,7 @@ func UninvitePlayer(ctx context.Context, draftActor *DraftActor, draftId int, ow
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout uninviting player")
 	}
 }
@@ -248,7 +248,7 @@ func DeclineInvite(ctx context.Context, draftActor *DraftActor, inviteId int, us
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout declining invite")
 	}
 }
@@ -269,7 +269,7 @@ func AcceptInvite(ctx context.Context, draftActor *DraftActor, inviteId int, acc
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout accepting invite")
 	}
 }

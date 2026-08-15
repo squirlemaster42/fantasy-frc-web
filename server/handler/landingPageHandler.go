@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"server/authentication"
 	"server/log"
 	"server/view"
 
@@ -10,7 +11,7 @@ import (
 )
 
 func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool) {
-	userTok, err := c.Cookie("sessionToken")
+	userTok, err := c.Cookie(authentication.SessionCookieName)
 	if err != nil {
 		return uuid.UUID{}, "", false
 	}

@@ -8,7 +8,6 @@ import (
 	"server/assert"
 	"server/log"
 	"strings"
-	"time"
 
 	"github.com/XSAM/otelsql"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -47,9 +46,9 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	db.SetMaxOpenConns(90)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetMaxOpenConns(MaxOpenConns())
+	db.SetMaxIdleConns(MaxIdleConns())
+	db.SetConnMaxLifetime(ConnMaxLifetime())
 
 	return db, nil
 }
@@ -77,11 +76,11 @@ func isProgrammingError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		switch {
-		case strings.HasPrefix(pgErr.Code, "42"): // Syntax / Access Rule Violation
+		case strings.HasPrefix(pgErr.Code, sqlStateSyntaxPrefix): // Syntax / Access Rule Violation
 			return true
-		case strings.HasPrefix(pgErr.Code, "22"): // Data Exception
+		case strings.HasPrefix(pgErr.Code, sqlStateDataExceptionPrefix): // Data Exception
 			return true
-		case strings.HasPrefix(pgErr.Code, "26"): // Invalid SQL Statement Name
+		case strings.HasPrefix(pgErr.Code, sqlStateInvalidStatementPrefix): // Invalid SQL Statement Name
 			return true
 		}
 	}

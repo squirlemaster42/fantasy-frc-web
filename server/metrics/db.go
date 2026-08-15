@@ -96,8 +96,9 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		}
 
 		queryID := queryText
-		if len(queryID) > 100 {
-			queryID = queryID[:100] + "..."
+		maxLen := MetricsQueryIdMaxLength()
+		if len(queryID) > maxLen {
+			queryID = queryID[:maxLen] + "..."
 		}
 
 		dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)

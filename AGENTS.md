@@ -278,3 +278,55 @@ The server fails fast on startup if a required variable is missing or if an opti
     }
   }
   ```
+
+- `DB_MAX_OPEN_CONNS` (int, default `90`): Maximum open database connections.
+- `DB_MAX_IDLE_CONNS` (int, default `25`): Maximum idle database connections.
+- `DB_CONN_MAX_LIFETIME` (duration, default `30m`): Maximum lifetime of a database connection.
+- `SESSION_CLEANUP_LEEWAY_HOURS` (int, default `2`): How far before a session's expiration time the cleanup service removes it.
+- `CLEANUP_INTERVAL_MINUTES` (int, default `60`): Minutes between cleanup service runs.
+- `DRAFT_DAEMON_TICK_INTERVAL` (duration, default `1m`): How often the draft daemon checks for expired/skipped picks.
+- `DRAFT_DAEMON_TICK_TIMEOUT` (duration, default `55s`): Per-tick context timeout for the draft daemon.
+- `RATE_LIMIT_LOGIN_ATTEMPTS` (int64, default `5`): Login attempts allowed per `RATE_LIMIT_AUTH_WINDOW`.
+- `RATE_LIMIT_REGISTER_ATTEMPTS` (int64, default `3`): Registration attempts allowed per `RATE_LIMIT_AUTH_WINDOW`.
+- `RATE_LIMIT_AUTH_WINDOW` (duration, default `15m`): Sliding window for login/register rate limits.
+- `RATE_LIMIT_REDIS_PING_TIMEOUT` (duration, default `2s`): Redis availability check timeout when initializing rate limiting.
+- `HSTS_MAX_AGE_SECONDS` (int, default `63072000`): `Strict-Transport-Security` max-age in seconds.
+- `SESSION_TOKEN_BYTES` (int, default `16`): Number of random bytes in a session token.
+- `SESSION_EXPIRATION_DAYS` (int, default `10`): Number of days until a session token expires.
+- `AVATAR_CACHE_TTL` (duration, default `672h`): Redis TTL for cached team avatars.
+- `AVATAR_HTTP_CACHE_MAX_AGE_SECONDS` (int, default `604800`): `Cache-Control` max-age for HTTP avatar responses.
+- `DRAFT_ACTOR_INBOX_BUFFER` (int, default `100`): Capacity of each draft actor's inbox channel.
+- `DRAFT_ACTOR_REQUEST_TIMEOUT` (duration, default `5s`): Timeout when posting to or receiving a reply from a draft actor.
+- `PICK_NOTIFIER_QUEUE_BUFFER` (int, default `10`): Capacity of each WebSocket watcher notification channel.
+- `PICK_NOTIFIER_SEND_TIMEOUT` (duration, default `5s`): Timeout when sending a notification to a watcher.
+- `DISCORD_WEBHOOK_TIMEOUT` (duration, default `15s`): HTTP client timeout for Discord webhook calls.
+- `DISCORD_PREMATCH_QUEUE_BUFFER` (int, default `100`): Capacity of the Discord pre-match notification channel.
+- `DISCORD_MIN_ID_LENGTH` (int, default `17`): Minimum valid Discord snowflake length.
+- `TBA_ALLIANCE_MAX_RETRIES` (int, default `5`): Retries when TBA returns an empty elimination alliance list.
+- `TBA_ALLIANCE_BACKOFF_BASE` (duration, default `1s`): Base duration for exponential backoff between alliance retries.
+- `SCORER_QUAL_WIN_POINTS` (int, default `3`): Points awarded to the winning alliance of a qualification match.
+- `SCORER_ENERGIZED_BONUS_POINTS` (int, default `1`): Bonus points for the Energized ranking point.
+- `SCORER_SUPERCHARGED_BONUS_POINTS` (int, default `1`): Bonus points for the Supercharged ranking point.
+- `SCORER_TRAVERSAL_BONUS_POINTS` (int, default `2`): Bonus points for the Traversal ranking point.
+- `SCORER_PLAYOFF_FINALS_POINTS` (int, default `18`): Points for a finals playoff match win.
+- `SCORER_PLAYOFF_UPPER_BRACKET_POINTS` (int, default `15`): Points for an upper-bracket semifinals playoff match win.
+- `SCORER_PLAYOFF_LOWER_BRACKET_POINTS` (int, default `9`): Points for a lower-bracket semifinals playoff match win.
+- `SCORER_EINSTEIN_MULTIPLIER` (int, default `2`): Multiplier applied to playoff points at Einstein.
+- `SCORER_ALLIANCE_PICK_MULTIPLIER` (int, default `2`): Multiplier applied to alliance selection base scores.
+- `LEADERBOARD_PER_PAGE` (int, default `25`): Number of leaderboard entries per page.
+- `WS_READ_BUFFER_SIZE` (int, default `1024`): WebSocket upgrader read buffer size.
+- `WS_WRITE_BUFFER_SIZE` (int, default `1024`): WebSocket upgrader write buffer size.
+- `WS_READ_TIMEOUT` (duration, default `120s`): WebSocket read/pong deadline.
+- `WS_PING_INTERVAL` (duration, default `30s`): WebSocket ping ticker interval.
+- `WS_WRITE_TIMEOUT` (duration, default `10s`): WebSocket write/control-frame deadline.
+- `TBA_WEBHOOK_MAX_BODY_BYTES` (int64, default `1048576`): Maximum TBA webhook body size.
+- `TBA_UPCOMING_MATCH_TEAM_COUNT` (int, default `6`): Expected number of teams in an upcoming match notification.
+- `TBA_EVENT_CODES` (string, comma-separated, default `arc,cur,dal,gal,hop,joh,mil,new,cmptx`): Championship event codes for the current season.
+- `TBA_WEBHOOK_SECRET_FILE` (string, default `./webhookSecret.txt`): Path to the TBA webhook verification file.
+- `STATIC_ASSET_MAX_AGE_SECONDS` (int, default `2592000`): `Cache-Control` max-age for static assets.
+- `SERVER_SHUTDOWN_TIMEOUT` (duration, default `10s`): Graceful shutdown timeout.
+- `METRICS_ACTIVE_USER_TICK_INTERVAL` (duration, default `10s`): How often active-user gauges are updated.
+- `METRICS_QUERY_ID_MAX_LENGTH` (int, default `100`): Maximum length of a query ID metric label before truncation.
+- `DB_QUERY_THRESHOLD_MS` (int, default `50`): Minimum mean query time (ms) for a statement to appear in metrics.
+- `DB_QUERY_POLL_INTERVAL` (duration, default `30s`): How often database query stats are collected.
+- `DB_QUERY_MAX_COUNT` (int, default `50`): Maximum number of queries returned by the database stats collector.

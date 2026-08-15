@@ -37,7 +37,7 @@ func validMAC(message []byte, messageMAC string, key []byte) bool {
 
 func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Received webhook message")
-	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, 1<<20) // 1 MB
+	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, TbaWebhookMaxBodyBytes())
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		var maxBytesErr *http.MaxBytesError
@@ -152,7 +152,7 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 		return
 	}
 
-	if len(tbaEvent.TeamKeys) != 6 {
+	if len(tbaEvent.TeamKeys) != TbaUpcomingMatchTeamCount() {
 		log.Warn(ctx, "Upcoming match received without 6 teams", "TeamCount", len(tbaEvent.TeamKeys))
 		return
 	}
@@ -282,7 +282,7 @@ func (h *Handler) HandleVerificationEvent(ctx context.Context, messageData json.
 	// Only create the file if it doesn't already exist
 	_, err = os.Stat(utils.GetWebhookFilePath())
 	if os.IsNotExist(err) {
-		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.Config.TbaVerificationCode), 0600)
+		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.Config.TbaVerificationCode), webhookSecretFileMode)
 		if err != nil {
 			log.Error(ctx, "Failed to write tba webhook file body", "error", err)
 		}

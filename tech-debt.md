@@ -38,10 +38,10 @@ Last updated: 2026-08-10
 
 | # | File | Lines | Issue | Recommendation |
 |---|------|-------|-------|----------------|
-| 17 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` Actor cache is unbounded. | **Fixed** — replaced `sync.Map` with `hashicorp/golang-lru/v2` cache; size configurable via `DRAFT_ACTOR_CACHE_SIZE` (default 128); evicted actors are shut down asynchronously. |
+| 17 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` Actor cache is unbounded. | **Fixed** — replaced `sync.Map` with a custom stdlib LRU cache; size configurable via `DRAFT_ACTOR_CACHE_SIZE` (default 128); evicted actors are shut down asynchronously. |
 | 18 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` — no watchdog exists for stuck drafts. | Implement a watchdog that auto-skips expired picks, or remove the TODO. |
 | 19 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` — pick windows are global. | Make pick windows configurable per draft. |
-| 20 | `server/model/draft.go` ~1135 / `server/draft/draftActor.go` ~920 | — | Next-pick snake-draft algorithm exists in two places (`nextPick` vs `getNextPick`). | Extract the core algorithm into a shared helper. |
+| 20 | `server/model/draft.go` ~1135 / `server/draft/draftActor.go` ~920 | — | Next-pick snake-draft algorithm exists in two places (`nextPick` vs `getNextPick`). | **Fixed** — the snake-draft algorithm is already shared via `model.DetermineNextPick`. |
 | 21 | `server/handler/adminPageHandler.go` | 154–206, 282–358 | `SkipPickCommand` and `AdminPickCommand` reimplement actor send/receive logic instead of reusing helpers. | Route admin actions through `draft.SkipCurrentPick`, `draft.MakePick`, etc. |
 | 22 | `server/draft/draftActor.go` | 555–603, 637–693 | `handlePick` and `handleSkipCurrentPick` are 60+ lines and mix validation, DB, state, and notifications. | Extract `completePick`, `advanceToNextPick`, `notifyPickComplete`. |
 | 23 | `server/discord/discordWebhookBus.go` / `server/handler/tbaWebhookEventHandler.go` | 158–169, 190–193 | Discord ID validation/formatting is duplicated in two places. | **Fixed** — extracted `discord.Identifier` and `discord.IsValidId` helpers and replaced both inline implementations. |
@@ -50,7 +50,7 @@ Last updated: 2026-08-10
 | 26 | `server/model/draft.go` / `server/draft/draftActor.go` | 649, 864 | Draft completion uses `len(picks) < 64` magic number. | ~~`const PicksPerDraft = 64`~~ **Fixed** — `PicksPerDraft = DraftPlayerCount * PicksPerPlayer` and used in `handlePick`, `handleSkipCurrentPick`, and tests. |
 | 27 | `server/tbaHandler/tbaHandler.go` / `server/utils/utils.go` | 200, 264 | Year `2026` is hardcoded in one endpoint; year `2024` is hardcoded in `MakeMatchKeysYearRequest`; `Events()` also hardcodes 2026 event keys. | **Fixed** — added `utils.TbaSeasonYear` and `utils.TbaHistoricMatchYear` constants and replaced all hardcoded years. |
 | 28 | `server/handler/draftPickPageHandler.go` | 149–269 | WebSocket upgrader, ping/pong, watcher registration, and HTML rendering are all in one handler. | Extract a dedicated WebSocket/notifier service. |
-| 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | Change to pointer receiver. |
+| 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | **Fixed** — `Match.String()` already uses a pointer receiver. |
 | 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | **Fixed** — all model parameters/fields renamed to `db`, imports standardized to unaliased `server/database`, and the one Title Case error (`RunInTransaction...`) was lowercased. |
 | 31 | `server/main.go` | 55–117 | Required env vars are not validated early; malformed bool parsing silently defaults. | **Fixed** — added `utils.RequireEnv` and strict parsing helpers; `main.go` now validates all required vars, enforces `SERVER_PORT` range, and fails fast on malformed bool/int values. |
 | 32 | `server/draft/draftActor.go` | 704 | Undo pick hardcodes a `3 * time.Hour` expiration reset. | ~~Reuse the configured pick window/expiration logic.~~ **Fixed** — undo now uses `d.pickConfig.GetPickExpirationTime(..., d.pickConfig.PickTime)` instead of the hardcoded `3 * time.Hour`. |
@@ -61,16 +61,16 @@ Last updated: 2026-08-10
 
 | # | File | Lines | Issue | Recommendation |
 |---|------|-------|-------|----------------|
-| 33 | `server/database/databaseDriver.go` | 47–49 | Pool settings (`90`, `25`, `30m`) are hardcoded. | Env vars or named constants. |
-| 34 | `server/middleware/ratelimit.go` | 59–64 | Login (5), register (3), window (15m), and default general rate (100) are hardcoded. | Config or constants. |
-| 35 | `server/server.go` | 234 | `Cache-Control: public, max-age=2592000` is a raw number. | Named constant with comment. |
-| 36 | `server/cache/avatarStore.go` | 58 | Redis TTL is `4*7*24*time.Hour`. | `AvatarCacheTTL` constant. |
-| 37 | `server/model/user.go` / `server/authentication` | 35, 171, 239 | bcrypt cost `14`, session expiration `10 days`, and duplicate-session threshold are hardcoded. | ~~Constants/env.~~ **Partially fixed** — `BCRYPT_COST` is now configurable via env; hashing and session logic moved to `server/authentication`. Session expiration still hardcoded; duplicate-session threshold check no longer exists (was removed during refactor). |
-| 38 | `server/background/cleanup.go` | 59 | Cleanup deletes sessions expiring before `now + 2 hours`. | Constant or env. |
-| 39 | `server/utils/utils.go` | 14–25 | `Events()` returns a hardcoded 2026 event list. | Move to config/env. |
-| 40 | `server/scorer/scorer.go` | 230–239, 160–166, 72–109 | Alliance-selection scores, playoff match points, and bonus points are hardcoded. | Define constants/season config. |
-| 41 | `server/handler/draftPickPageHandler.go` | 207, 227, 241/259 | WebSocket read deadline (120s), ping ticker (30s), and write deadlines (10s) are hardcoded. | Constants. |
-| 42 | `server/draft/draftActor.go` | 110, 250, 267 | Inbox buffer (100) and message/reply timeouts (5s) are repeated throughout the actor. | Centralized constants. |
+| 33 | `server/database/databaseDriver.go` | 47–49 | Pool settings (`90`, `25`, `30m`) are hardcoded. | **Fixed** — configurable via `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, and `DB_CONN_MAX_LIFETIME`; defaults in `database/defaults.go`. |
+| 34 | `server/middleware/ratelimit.go` | 59–64 | Login (5), register (3), window (15m), and default general rate (100) are hardcoded. | **Fixed** — login/register limits and window are configurable via `RATE_LIMIT_LOGIN_ATTEMPTS`, `RATE_LIMIT_REGISTER_ATTEMPTS`, and `RATE_LIMIT_AUTH_WINDOW`; defaults in `middleware/defaults.go`. General rate is already env-driven. |
+| 35 | `server/server.go` | 234 | `Cache-Control: public, max-age=2592000` is a raw number. | **Fixed** — configurable via `STATIC_ASSET_MAX_AGE_SECONDS`; default and constant in `server/defaults.go`. |
+| 36 | `server/cache/avatarStore.go` | 58 | Redis TTL is `4*7*24*time.Hour`. | **Fixed** — configurable via `AVATAR_CACHE_TTL`; default and constant in `cache/defaults.go`. |
+| 37 | `server/model/user.go` / `server/authentication` | 35, 171, 239 | bcrypt cost `14`, session expiration `10 days`, and duplicate-session threshold are hardcoded. | **Fixed** — `BCRYPT_COST` is configurable via env; session expiration is configurable via `SESSION_EXPIRATION_DAYS`; defaults and constants live in `authentication/defaults.go` and `model/defaults.go`. Duplicate-session threshold check no longer exists (was removed during refactor). |
+| 38 | `server/background/cleanup.go` | 59 | Cleanup deletes sessions expiring before `now + 2 hours`. | **Fixed** — configurable via `SESSION_CLEANUP_LEEWAY_HOURS`; default and constant in `background/defaults.go`. |
+| 39 | `server/utils/utils.go` | 14–25 | `Events()` returns a hardcoded 2026 event list. | **Fixed** — event codes are configurable via `TBA_EVENT_CODES` (comma-separated); defaults and constants in `utils/defaults.go`. The year is already centralized in `utils.TbaSeasonYear`. |
+| 40 | `server/scorer/scorer.go` | 230–239, 160–166, 72–109 | Alliance-selection scores, playoff match points, and bonus points are hardcoded. | **Fixed** — all scoring values are configurable via `SCORER_*` env vars; defaults and constants in `scorer/defaults.go`. |
+| 41 | `server/handler/draftPickPageHandler.go` | 207, 227, 241/259 | WebSocket read deadline (120s), ping ticker (30s), and write deadlines (10s) are hardcoded. | **Fixed** — configurable via `WS_READ_TIMEOUT`, `WS_PING_INTERVAL`, and `WS_WRITE_TIMEOUT`; defaults and constants in `handler/defaults.go`. |
+| 42 | `server/draft/draftActor.go` | 110, 250, 267 | Inbox buffer (100) and message/reply timeouts (5s) are repeated throughout the actor. | **Fixed** — configurable via `DRAFT_ACTOR_INBOX_BUFFER` and `DRAFT_ACTOR_REQUEST_TIMEOUT`; defaults and constants in `draft/defaults.go`. |
 | 43 | `server/draft/pickValidator.go` | 44–61 | O(n×m) event-validity loop (lists are tiny). | Use a map for draft events. |
 | 44 | `server/picking/pickNotifier.go` | 16 | `PickEvent.Err` field is never consumed. | Remove it or wire it into error UI. |
 | 45 | `server/main.go` | 79–117 | Repeated env-var parsing blocks (copy of pattern in `metrics/db.go`). | Reuse `getEnvAsInt`/`getEnvAsDuration` from `metrics/db.go`. |
@@ -86,8 +86,6 @@ Last updated: 2026-08-10
 
 | # | File | Line | TODO |
 |---|------|------|------|
-| 53 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` |
-| 54 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` |
 | 55 | `server/draft/draftActor.go` | 82 | `// TODO Does tba handler need to be a pointer?` |
 | 56 | `server/draft/draftActor.go` | 902 | `// TODO: Add store method for transferring ownership when available` |
 | 57 | `server/handler/draftPickPageHandler.go` | 62 | `// TODO we could move this to the actor so we dont have to call the db` |

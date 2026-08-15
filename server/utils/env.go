@@ -59,6 +59,55 @@ func GetEnvInt64Strict(key string, defaultVal int64) (int64, error) {
 	return intVal, nil
 }
 
+// MustGetEnvBool returns the default value if the environment variable is unset.
+// It panics if the variable is set but cannot be parsed as a bool.
+func MustGetEnvBool(key string, defaultVal bool) bool {
+	val, err := GetEnvBoolStrict(key, defaultVal)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+// MustGetEnvInt returns the default value if the environment variable is unset.
+// It panics if the variable is set but cannot be parsed as an int.
+func MustGetEnvInt(key string, defaultVal int) int {
+	val, err := GetEnvIntStrict(key, defaultVal)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+// MustGetEnvInt64 returns the default value if the environment variable is unset.
+// It panics if the variable is set but cannot be parsed as an int64.
+func MustGetEnvInt64(key string, defaultVal int64) int64 {
+	val, err := GetEnvInt64Strict(key, defaultVal)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+// MustGetEnvDuration returns the default value if the environment variable is unset.
+// It panics if the variable is set but cannot be parsed as a duration.
+func MustGetEnvDuration(key string, defaultVal time.Duration) time.Duration {
+	val, err := GetEnvDurationStrict(key, defaultVal)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+// MustGetEnvString returns the default value if the environment variable is unset.
+// An empty value is treated as unset.
+func MustGetEnvString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok && val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 // GetEnvDurationStrict returns the default value if the environment variable is unset.
 // If the variable is set but cannot be parsed as a duration, it returns an error.
 func GetEnvDurationStrict(key string, defaultVal time.Duration) (time.Duration, error) {

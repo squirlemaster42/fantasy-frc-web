@@ -16,14 +16,14 @@ var (
 		},
 		[]string{"method", "route", "status", "status_class"},
 	)
-	httpRequestDuration = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "http_request_duration_seconds",
-			Help:    "HTTP request duration in seconds",
-			Buckets: []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5},
-		},
-		[]string{"method", "route", "status_class"},
-	)
+		httpRequestDuration = prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "http_request_duration_seconds",
+				Help:    "HTTP request duration in seconds",
+				Buckets: httpRequestDurationBuckets,
+			},
+			[]string{"method", "route", "status_class"},
+		)
 	authenticatedRequestCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "authenticated_requests_total",
@@ -45,7 +45,7 @@ func MetricsMiddleware() echo.MiddlewareFunc {
 			method := c.Request().Method
 			route := c.Path()
 			if route == "" {
-				route = "unknown"
+				route = unknownRouteLabel
 			}
 			statusClass := strconv.Itoa(status / 100)
 

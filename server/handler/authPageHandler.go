@@ -18,7 +18,7 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 
 func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
 	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
+	cookie.Name = authentication.SessionCookieName
 	cookie.Value = sessionToken
 	cookie.HttpOnly = true
 	cookie.Secure = h.Config.SecureHttpCookie
@@ -43,7 +43,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	password := c.FormValue("password")
 
 	// Session fixation prevention: invalidate any pre-existing session token
-	oldTok, err := c.Cookie("sessionToken")
+	oldTok, err := c.Cookie(authentication.SessionCookieName)
 	if err == nil && oldTok.Value != "" {
 		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), oldTok.Value); logoutErr != nil {
 			log.Warn(c.Request().Context(), "Failed to logout old session during login", "error", logoutErr)
@@ -69,14 +69,14 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 		userUuidStr = userUuid.String()
 	}
 	log.Info(c.Request().Context(), "User logged out", "userUuid", userUuidStr, "ip", c.RealIP())
-	userTok, err := c.Cookie("sessionToken")
+	userTok, err := c.Cookie(authentication.SessionCookieName)
 	if err == nil && userTok.Value != "" {
 		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), userTok.Value); logoutErr != nil {
 			log.Warn(c.Request().Context(), "Failed to logout session", "error", logoutErr)
 		}
 	}
 	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
+	cookie.Name = authentication.SessionCookieName
 	cookie.Value = ""
 	cookie.HttpOnly = true
 	cookie.Secure = h.Config.SecureHttpCookie

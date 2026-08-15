@@ -305,7 +305,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 	}
 
 	// Format team ID (e.g., "254" -> "frc254")
-	tbaId := "frc" + teamStr
+	tbaId := teamPrefix + teamStr
 
 	draftActor, err := draftActorMap.GetActor(ctx, draftId)
 	if err != nil {

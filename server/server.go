@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"server/assets"
 	"server/authentication"
@@ -104,7 +105,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	}
 
 	// Initialize OpenTelemetry
-	shutdown := otel.InitTracer("fantasy-frc-web")
+	shutdown := otel.InitTracer(otelServiceName)
 
 	if err := metrics.InitMetrics(ctx, cfg.Database); err != nil {
 		log.Warn(ctx, "Failed to initialize metrics", "error", err)
@@ -133,7 +134,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
-	app.Use(otelecho.Middleware("fantasy-frc-web"))
+	app.Use(otelecho.Middleware(otelServiceName))
 	app.Use(metrics.MetricsMiddleware())
 	app.Use(middleware.SecurityHeaders(cfg.Handler.Config.SecureHttpCookie))
 
@@ -231,7 +232,7 @@ func registerCatchAll(app *echo.Echo) {
 
 func cacheControlMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		c.Response().Header().Set("Cache-Control", "public, max-age=2592000")
+		c.Response().Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", StaticAssetMaxAgeSeconds()))
 		return next(c)
 	}
 }

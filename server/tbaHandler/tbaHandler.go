@@ -316,7 +316,7 @@ func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 	url := BASE_URL + "event/" + eventId + "/alliances"
 	endpoint := "/event/{event}/alliances"
 
-	const maxRetries = 5
+	maxRetries := TbaAllianceMaxRetries()
 	var alliances []swagger.EliminationAlliance
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
@@ -334,7 +334,7 @@ func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 		}
 
 		if attempt < maxRetries {
-			backoff := time.Duration(1<<attempt) * time.Second
+			backoff := time.Duration(1<<attempt) * TbaAllianceBackoffBase()
 			log.Debug(ctx, "TBA returned empty alliances, retrying", "event", eventId, "attempt", attempt+1, "backoff", backoff)
 			time.Sleep(backoff)
 		}

@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
+	"server/middleware"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
@@ -38,20 +39,20 @@ func RenderToString(ctx context.Context, component templ.Component) (string, err
 // (login/register). It returns the token to embed in the form.
 func generateCSRFCookie(c echo.Context) (string, error) {
 	// Check if cookie already exists
-	existing, err := c.Cookie("csrf_cookie")
+	existing, err := c.Cookie(middleware.CsrfCookieName)
 	if err == nil && existing.Value != "" {
 		return existing.Value, nil
 	}
 
 	// Generate new random token
-	b := make([]byte, 32)
+	b := make([]byte, middleware.CsrfTokenLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	token := hex.EncodeToString(b)
 
 	cookie := new(http.Cookie)
-	cookie.Name = "csrf_cookie"
+	cookie.Name = middleware.CsrfCookieName
 	cookie.Value = token
 	cookie.Path = "/"
 	cookie.SameSite = http.SameSiteLaxMode
@@ -64,11 +65,11 @@ func generateCSRFCookie(c echo.Context) (string, error) {
 
 // validateCSRFCookie checks the double-submit CSRF token for unauthenticated forms.
 func validateCSRFCookie(c echo.Context) bool {
-	submitted := c.FormValue("csrf_token")
+	submitted := c.FormValue(middleware.CsrfTokenFieldName)
 	if submitted == "" {
 		return false
 	}
-	cookie, err := c.Cookie("csrf_cookie")
+	cookie, err := c.Cookie(middleware.CsrfCookieName)
 	if err != nil || cookie.Value == "" {
 		return false
 	}

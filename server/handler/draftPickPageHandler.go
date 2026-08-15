@@ -40,7 +40,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
-	pick := "frc" + c.FormValue("pickInput")
+	pick := teamPrefix + c.FormValue("pickInput")
 	log.Debug(c.Request().Context(), "Attempting to pick team", "team", pick)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
@@ -78,7 +78,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 
 	var pickError error
-	if pick == "frc" || !isCurrentPick {
+	if pick == teamPrefix || !isCurrentPick {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "isCurrentPick", isCurrentPick, "pick", pick, "userUuid", userUuid)
         pickError = errors.New("you must be the picking player to make a pick")
         return h.renderPickPage(c, draftId, userUuid, pickError, false)
@@ -148,8 +148,8 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 func (h *Handler) newUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  WsReadBufferSize(),
+		WriteBufferSize: WsWriteBufferSize(),
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
 			if h.Config.AllowedOrigin != "" {
@@ -204,12 +204,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(WsReadTimeout()))
 		if err != nil {
 			log.Warn(c.Request().Context(), "Failed to set context read deadline", "error", err)
 		}
 		conn.SetPongHandler(func(string) error {
-			return conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+			return conn.SetReadDeadline(time.Now().Add(WsReadTimeout()))
 		})
 		for {
 			_, _, err := conn.ReadMessage()
@@ -224,7 +224,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(WsPingInterval())
 	defer func() {
 		ticker.Stop()
 		draft.UnregisterWatcher(ctx, h.Services.DraftActorMap, watcher)
@@ -238,11 +238,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Debug(ctx, "Client disconnected, closing pick notifier", "draftId", draftId, "userUuid", userUuid)
 			return nil
 		case <-ticker.C:
-			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(WsWriteTimeout()))
 			if err != nil {
 				log.Warn(ctx, "Failed to set context deadline for pick notifier", "draftId", draftId, "error", err)
 			}
-			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(WsWriteTimeout())); err != nil {
 				log.Error(ctx, "Failed to write ping message", "draftId", draftId, "error", err)
 				return err
 			}
@@ -256,7 +256,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 				continue
 			}
 
-			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(WsWriteTimeout()))
 			if err != nil {
 				log.Warn(ctx, "failed to set context deadline on websocket context", "draftId", draftId, "error", err)
 			}
