@@ -18,8 +18,7 @@ import (
 )
 
 func (h *Handler) HandleDraftScore(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -68,8 +67,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 }
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}

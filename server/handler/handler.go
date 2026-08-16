@@ -60,3 +60,30 @@ func (h *Handler) getAuthenticatedUsername(c echo.Context, userUuid uuid.UUID) (
 	}
 	return username, nil
 }
+
+// requireUserUuid returns the authenticated user's UUID from the Echo context.
+// If the UUID is missing or has the wrong type, it redirects to /login.
+func (h *Handler) requireUserUuid(c echo.Context) (uuid.UUID, error) {
+	userUuidVal := c.Get("userUuid")
+	userUuid, ok := userUuidVal.(uuid.UUID)
+	if !ok {
+		log.Warn(c.Request().Context(), "Missing or invalid user uuid in context", "ip", c.RealIP(), "path", c.Request().URL.Path)
+		return uuid.UUID{}, c.Redirect(http.StatusSeeOther, "/login")
+	}
+	return userUuid, nil
+}
+
+// requireUser returns the authenticated user's UUID and username.
+// If the UUID is missing or has the wrong type, it redirects to /login.
+// If the username lookup fails, it returns an internal server error.
+func (h *Handler) requireUser(c echo.Context) (uuid.UUID, string, error) {
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return uuid.UUID{}, "", err
+	}
+	username, err := h.getAuthenticatedUsername(c, userUuid)
+	if err != nil {
+		return uuid.UUID{}, "", err
+	}
+	return userUuid, username, nil
+}

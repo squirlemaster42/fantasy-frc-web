@@ -19,8 +19,7 @@ import (
 func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -71,7 +70,10 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid interval")
 	}
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 
 	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
@@ -143,7 +145,10 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner, h.csrfToken(c))
@@ -156,7 +161,10 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 
 // InviteDraftPlayer invites a user to join the draft.
 func (h *Handler) InviteDraftPlayer(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftIdStr := c.Param("id")
 	invitingUserUuid := userUuid
 	draftId, err := strconv.Atoi(draftIdStr)
@@ -226,7 +234,10 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 func (h *Handler) HandleStartDraft(c echo.Context) error {
 	draftIdStr := c.Param("id")
 	log.Debug(c.Request().Context(), "Got a request to start a draft", "draftId", draftIdStr)
-	requestingUser := c.Get("userUuid").(uuid.UUID)
+	requestingUser, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not parse draftId", "draftIdString", draftIdStr, "error", err)
@@ -292,7 +303,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 // HandleUninvitePlayer removes a pending invite from the draft.
 func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Warn(c.Request().Context(), "Invalid draft id", "error", err)

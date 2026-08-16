@@ -453,8 +453,7 @@ var commands = map[string]Command{
 func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to render admin console")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -469,8 +468,7 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 }
 
 func (h *Handler) HandleRunCommand(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}

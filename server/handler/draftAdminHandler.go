@@ -28,8 +28,7 @@ func renderAdminMessage(c echo.Context, message string, success bool) error {
 func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve draft admin page")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -66,7 +65,10 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to skip pick")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -104,7 +106,10 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to extend pick time")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -162,7 +167,10 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to make admin pick")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -224,7 +232,10 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to undo pick")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
