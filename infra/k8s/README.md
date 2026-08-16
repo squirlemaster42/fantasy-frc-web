@@ -2,7 +2,7 @@
 
 > **Superseded by `infra/ansible/`**
 >
-> The automated Ansible setup in [`infra/ansible/`](../ansible/) is now the recommended way to provision the cluster **and** deploy the full Fantasy FRC stack. Use it for both single-node home labs and multi-node HA clusters.
+> The automated Ansible setup in [`infra/ansible/`](../ansible/) is now the recommended way to provision the cluster **and** deploy the full Fantasy FRC stack. Use it for both single-node home labs and multi-node HA clusters
 >
 > This directory is kept as a reference for the raw Kubernetes manifests, Helm values, and manual scripts that the Ansible playbooks automate.
 

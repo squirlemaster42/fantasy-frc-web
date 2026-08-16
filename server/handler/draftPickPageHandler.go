@@ -40,7 +40,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 	draftIdStr := c.Param("id")
-	pick := "frc" + c.FormValue("pickInput")
+	pick := teamPrefix + c.FormValue("pickInput")
 	log.Debug(c.Request().Context(), "Attempting to pick team", "team", pick)
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
@@ -49,7 +49,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 	log.Debug(c.Request().Context(), "Got request for player to make pick in draft", "userUuid", userUuid, "pick", pick, "draftId", draftId)
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -59,8 +59,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
 
 	// Make the pick
-	// TODO we could move this to the actor so we dont have to call the db
-	draftPlayer, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayer, err := draftActor.GetDraftPlayerIdByUuid(userUuid)
 	if err != nil {
 		return err
 	}
@@ -79,7 +78,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	}
 
 	var pickError error
-	if pick == "frc" || !isCurrentPick {
+	if pick == teamPrefix || !isCurrentPick {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "isCurrentPick", isCurrentPick, "pick", pick, "userUuid", userUuid)
         pickError = errors.New("you must be the picking player to make a pick")
         return h.renderPickPage(c, draftId, userUuid, pickError, false)
@@ -93,7 +92,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 }
 
 func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -104,12 +103,12 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 	skipUrl := fmt.Sprintf("/u/draft/%d/skipPickToggle", draftId)
 	isCurrentPick := draftState.NextPick.User.UserUuid == userUuid
 	isOwner := draftState.Owner.UserUuid == userUuid
-	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayerId, err := h.Stores.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Attempting to get draft player", "draftId", draftId, "userUuid", userUuid, "error", err)
 		draftPlayerId = -1
 	}
-	isSkipping, err := h.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
+	isSkipping, err := h.Stores.DraftStore.ShouldSkipPick(c.Request().Context(), draftPlayerId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to check if pick should be skipped", "draftPlayerId", draftPlayerId, "error", err)
 		isSkipping = false
@@ -128,10 +127,9 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	pickPageIndex := draftView.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
-		username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+		username, err := h.getAuthenticatedUsername(c, userUuid)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to get username", "error", err)
-			username = ""
+			return err
 		}
 		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, types.NewPageData(draftId, draftActor.GetDraftState().DisplayName, isOwner))
 		if err := Render(c, pickPageView); err != nil {
@@ -150,12 +148,12 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 func (h *Handler) newUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  WsReadBufferSize(),
+		WriteBufferSize: WsWriteBufferSize(),
 		CheckOrigin: func(r *http.Request) bool {
 			origin := r.Header.Get("Origin")
-			if h.AllowedOrigin != "" {
-				return origin == h.AllowedOrigin
+			if h.Config.AllowedOrigin != "" {
+				return origin == h.Config.AllowedOrigin
 			}
 			// No explicit origin configured: allow same-origin and localhost for local dev
 			if origin == "" {
@@ -189,14 +187,14 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 		_ = conn.Close()
 		return c.NoContent(http.StatusNotFound)
 	}
 
-	watcher := draft.RegisterWatcher(ctx, h.DraftActorMap, draftId)
+	watcher := draft.RegisterWatcher(ctx, h.Services.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "draftId", draftId)
 		_ = conn.Close()
@@ -206,12 +204,12 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		err := conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(WsReadTimeout()))
 		if err != nil {
 			log.Warn(c.Request().Context(), "Failed to set context read deadline", "error", err)
 		}
 		conn.SetPongHandler(func(string) error {
-			return conn.SetReadDeadline(time.Now().Add(120 * time.Second))
+			return conn.SetReadDeadline(time.Now().Add(WsReadTimeout()))
 		})
 		for {
 			_, _, err := conn.ReadMessage()
@@ -226,10 +224,10 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(WsPingInterval())
 	defer func() {
 		ticker.Stop()
-		draft.UnregisterWatcher(ctx, h.DraftActorMap, watcher)
+		draft.UnregisterWatcher(ctx, h.Services.DraftActorMap, watcher)
 		_ = conn.Close()
 		<-done
 	}()
@@ -240,11 +238,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Debug(ctx, "Client disconnected, closing pick notifier", "draftId", draftId, "userUuid", userUuid)
 			return nil
 		case <-ticker.C:
-			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(WsWriteTimeout()))
 			if err != nil {
 				log.Warn(ctx, "Failed to set context deadline for pick notifier", "draftId", draftId, "error", err)
 			}
-			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(10*time.Second)); err != nil {
+			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(WsWriteTimeout())); err != nil {
 				log.Error(ctx, "Failed to write ping message", "draftId", draftId, "error", err)
 				return err
 			}
@@ -252,19 +250,17 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 			log.Debug(ctx, "Received pick event notification, re-rendering picks", "draftId", draftId)
 			draftModel := draft.GetDraft(draftActor)
 
-			var html strings.Builder
-			pickPage := draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid)
-			err = pickPage.Render(ctx, &html)
+			html, err := RenderToString(ctx, draftView.RenderPicks(draftModel, draftModel.NextPick.User.UserUuid == userUuid))
 			if err != nil {
 				log.Error(ctx, "Failed to render picks for notifier", "error", err)
 				continue
 			}
 
-			err = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.SetWriteDeadline(time.Now().Add(WsWriteTimeout()))
 			if err != nil {
 				log.Warn(ctx, "failed to set context deadline on websocket context", "draftId", draftId, "error", err)
 			}
-			err = conn.WriteMessage(websocket.TextMessage, []byte(html.String()))
+			err = conn.WriteMessage(websocket.TextMessage, []byte(html))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "draftId", draftId, "error", err)
 				return err
@@ -284,7 +280,7 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 		return err
 	}
 
-	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
+	draftPlayerId, err := h.Stores.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft player", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return err
@@ -293,5 +289,5 @@ func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
 	shouldSkip := c.FormValue("skipping") != ""
 	log.Debug(c.Request().Context(), "Marking should skip", "shouldSkip", shouldSkip, "draftPlayerId", draftPlayerId)
 
-	return h.DraftStore.MarkShouldSkipPick(c.Request().Context(), draftPlayerId, shouldSkip)
+	return h.Stores.DraftStore.MarkShouldSkipPick(c.Request().Context(), draftPlayerId, shouldSkip)
 }

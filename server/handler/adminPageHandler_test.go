@@ -12,6 +12,7 @@ import (
 	"server/model"
 	"server/model/mocks"
 	"server/tbaHandler"
+	"server/utils"
 )
 
 func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
@@ -56,7 +57,7 @@ func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &ModifyPickTimeCommand{}
-			result := cmd.ProcessCommand(t.Context(), tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(t.Context(), &tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -246,7 +247,7 @@ func TestAdminPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &AdminPickCommand{}
-			result := cmd.ProcessCommand(t.Context(), tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(t.Context(), &tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -336,7 +337,7 @@ func TestRenameDraftCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &RenameDraftCommand{}
-			result := cmd.ProcessCommand(t.Context(), tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(t.Context(), &tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -366,7 +367,7 @@ func TestUndoPickCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &UndoPickCommand{}
-			result := cmd.ProcessCommand(t.Context(), tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(t.Context(), &tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -390,7 +391,7 @@ func TestPopulateTeamsCommandArgumentParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := &PopulateTeamsCommand{}
-			result := cmd.ProcessCommand(t.Context(), tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
+			result := cmd.ProcessCommand(t.Context(), &tbaHandler.TBAHandler{}, nil, nil, nil, nil, tt.args)
 			assert.Equal(t, tt.expectedResult, result, tt.description)
 		})
 	}
@@ -455,7 +456,7 @@ func TestListDraftsCommand(t *testing.T) {
 		}, nil)
 
 		cmd := &ListDraftsCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"")
 
 		assert.Contains(t, result, "Id    |  Name")
 		assert.Contains(t, result, "   1  | Test Draft One")
@@ -467,7 +468,7 @@ func TestListDraftsCommand(t *testing.T) {
 		mockDraftStore.On("GetDraftsByName", ctx, "").Return([]model.DraftModel{}, nil)
 
 		cmd := &ListDraftsCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"")
 
 		assert.Contains(t, result, "Id    |  Name")
 		assert.NotContains(t, result, "Test Draft")
@@ -480,7 +481,7 @@ func TestListDraftsCommand(t *testing.T) {
 		}, nil)
 
 		cmd := &ListDraftsCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"-s=playoffs")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, nil,"-s=playoffs")
 
 		assert.Contains(t, result, "   7  | Playoffs Draft")
 	})
@@ -491,7 +492,7 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 
 	t.Run("invalid draft id", func(t *testing.T) {
 		cmd := &StartDraftCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, nil, nil, nil, nil, "-id=abc")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, nil, nil, nil, nil, "-id=abc")
 
 		assert.Equal(t, "Draft Id Could Not Be Converted To An Int", result)
 	})
@@ -499,10 +500,10 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 	t.Run("draft not found", func(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 		mockDraftStore.On("GetDraft", ctx, 999).Return(model.DraftModel{}, sql.ErrNoRows)
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 
 		cmd := &StartDraftCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=999")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=999")
 
 		assert.Equal(t, "Draft Id Does Not Match A Valid Draft", result)
 	})
@@ -518,10 +519,10 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 				{Pending: false},
 			},
 		}, nil)
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 
 		cmd := &StartDraftCommand{}
-		result := cmd.ProcessCommand(ctx, tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=5")
+		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, "-id=5")
 
 		assert.Equal(t, "Not Enough Players Have Accepted The Draft", result)
 	})

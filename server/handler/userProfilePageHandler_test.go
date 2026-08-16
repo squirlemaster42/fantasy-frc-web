@@ -7,6 +7,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"server/authentication"
+	authmocks "server/authentication/mocks"
 	"server/model/mocks"
 )
 
@@ -21,7 +23,9 @@ func TestHandleViewUserProfile(t *testing.T) {
 		mockUserStore.On("GetDiscordId", c.Request().Context(), userUuid).Return("12345678901234567", nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{
+				UserStore: mockUserStore,
+			},
 		}
 
 		err := h.HandleViewUserProfile(c)
@@ -52,7 +56,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "12345678901234567").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -66,15 +70,15 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
+		mockAuthService := authmocks.NewMockAuthService(t)
 
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "oldpass").Return(true, nil)
-		mockUserStore.On("UpdatePassword", c.Request().Context(), "testuser", "newpass123").Return(nil)
-		mockUserStore.On("InvalidateAllUserSessionsExcept", c.Request().Context(), userUuid, "test-session").Return(nil)
+		mockAuthService.On("ChangePassword", c.Request().Context(), userUuid, "testuser", "oldpass", "newpass123").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores:   StorageGroup{UserStore: mockUserStore},
+			Services: ServiceGroup{AuthService: mockAuthService},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -93,7 +97,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores: StorageGroup{UserStore: mockUserStore},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
@@ -107,18 +111,21 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
+		mockAuthService := authmocks.NewMockAuthService(t)
 
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
+		mockAuthService.On("ChangePassword", c.Request().Context(), userUuid, "testuser", "oldpass", "newpass").Return(&authentication.ValidationError{Message: "Passwords Do Not Match"})
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores:   StorageGroup{UserStore: mockUserStore},
+			Services: ServiceGroup{AuthService: mockAuthService},
 		}
 
 		err := h.HandleUpdateUserProfile(c)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Contains(t, rec.Body.String(), "New passwords do not match")
+		assert.Contains(t, rec.Body.String(), "Passwords Do Not Match")
 	})
 
 	t.Run("invalid current password", func(t *testing.T) {
@@ -126,13 +133,15 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
+		mockAuthService := authmocks.NewMockAuthService(t)
 
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 		mockUserStore.On("UpdateDiscordId", c.Request().Context(), userUuid, "").Return(nil)
-		mockUserStore.On("ValidateLogin", c.Request().Context(), "testuser", "wrong").Return(false, nil)
+		mockAuthService.On("ChangePassword", c.Request().Context(), userUuid, "testuser", "wrong", "newpass123").Return(authentication.ErrInvalidCredentials)
 
 		h := &Handler{
-			UserStore: mockUserStore,
+			Stores:   StorageGroup{UserStore: mockUserStore},
+			Services: ServiceGroup{AuthService: mockAuthService},
 		}
 
 		err := h.HandleUpdateUserProfile(c)

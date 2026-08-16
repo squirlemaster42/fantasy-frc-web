@@ -11,25 +11,20 @@ import (
 )
 
 func Events() []string {
-	return []string{
-		"2026arc",
-		"2026cur",
-		"2026dal",
-		"2026gal",
-		"2026hop",
-		"2026joh",
-		"2026mil",
-		"2026new",
-		"2026cmptx",
+	codes := eventCodes()
+	events := make([]string, len(codes))
+	for i, code := range codes {
+		events[i] = fmt.Sprintf("%d%s", TbaSeasonYear, code)
 	}
+	return events
 }
 
 func Einstein() string {
-	return "2026cmptx"
+	return fmt.Sprintf("%dcmptx", TbaSeasonYear)
 }
 
 func GetUpdateUrl(draftId int) string {
-	if draftId == -1 {
+	if draftId == CreateDraftId {
 		return "/u/createDraft"
 	} else {
 		return fmt.Sprintf("/u/draft/%d/updateDraft", draftId)
@@ -87,94 +82,15 @@ func ParseArgString(argStr string) (map[string]string, error) {
 	return argMap, nil
 }
 
-var PICK_TIME time.Duration = 1 * time.Hour
-
 // EasternLocation is the canonical America/New_York timezone used for all
 // draft scheduling, pick windows, and user-facing time display.
 var EasternLocation *time.Location
 
 func init() {
 	var err error
-	EasternLocation, err = time.LoadLocation("America/New_York")
+	EasternLocation, err = time.LoadLocation(Timezone())
 	if err != nil {
 		log.Fatal(context.Background(), "Failed to load Eastern timezone", "Error", err)
-	}
-}
-
-type TimeRange struct {
-	startHour int
-	endHour   int
-}
-
-// todo we should make it so this in configurable per draft
-var ALLOWED_TIMES = map[time.Weekday]TimeRange{
-	time.Sunday: {
-		startHour: 8,
-		endHour:   22,
-	},
-	time.Monday: {
-		startHour: 17,
-		endHour:   22,
-	},
-	time.Tuesday: {
-		startHour: 17,
-		endHour:   22,
-	},
-	time.Wednesday: {
-		startHour: 17,
-		endHour:   22,
-	},
-	time.Thursday: {
-		startHour: 17,
-		endHour:   22,
-	},
-	time.Friday: {
-		startHour: 17,
-		endHour:   22,
-	},
-	time.Saturday: {
-		startHour: 8,
-		endHour:   22,
-	},
-}
-
-func GetPickExpirationTime(ctx context.Context, t time.Time, expirationDuration time.Duration) time.Time {
-	// All pick scheduling is done in Eastern time.
-	t = t.In(EasternLocation)
-	log.Info(ctx, "Getting Expiration Time", "Current Time", t)
-	expirationTime := t.Add(expirationDuration)
-	validTime := ALLOWED_TIMES[expirationTime.Weekday()]
-	nextDay := t.Add(24 * time.Hour)
-
-	//If the expiration time is in the pick window and we are currently in the pick window
-	if expirationTime.Hour() >= validTime.startHour && expirationTime.Hour() <= validTime.endHour &&
-		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Debug(ctx, "Expiration Time and Current Time in Window")
-		return expirationTime
-	}
-
-	//If the expiration time is not in the pick window but the current time is
-	if (expirationTime.Hour() < validTime.startHour || expirationTime.Hour() > validTime.endHour) &&
-		t.Hour() >= validTime.startHour && t.Hour() <= validTime.endHour {
-		log.Debug(ctx, "Expiration Time not in window and Current Time in Window")
-		nextWindow := ALLOWED_TIMES[nextDay.Weekday()]
-		diff := int(expirationDuration.Hours()) - (validTime.endHour - t.Hour())
-		expirationTime = time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), nextWindow.startHour, nextDay.Minute(), nextDay.Second(), nextDay.Nanosecond(), EasternLocation)
-		return expirationTime.Add(time.Duration(diff) * time.Hour)
-	}
-
-	//If the current time is not in the pick window
-	//We need to find the next pick windows and set the expiraton time to
-	//expirationDuration after the start of that window
-	//To find the next window we get the window for the current day
-	//If we are before that window we take that one, if not we take the next one
-	log.Debug(ctx, "Current Time not in Window")
-	if t.Hour() > validTime.endHour {
-		//If we are after the window move the valid time to the next day
-		validTime = ALLOWED_TIMES[nextDay.Weekday()]
-		return time.Date(nextDay.Year(), nextDay.Month(), nextDay.Day(), validTime.startHour, 0, 0, 0, EasternLocation).Add(expirationDuration)
-	} else {
-		return time.Date(t.Year(), t.Month(), t.Day(), validTime.startHour, 0, 0, 0, EasternLocation).Add(expirationDuration)
 	}
 }
 
@@ -251,7 +167,7 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 		return false, fmt.Errorf("match levels are not the same: %q vs %q", matchALevel, matchBLevel)
 	}
 
-	if matchALevel == "qm" {
+	if matchALevel == MatchLevelQual {
 		splitMatchA := strings.Split(matchA, "_")
 		splitMatchB := strings.Split(matchB, "_")
 		if len(splitMatchA) != 2 {
@@ -273,12 +189,12 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 		return matchANum < matchBNum, nil
 	}
 
-	if matchALevel == "f" {
-		return comparePlayoffMatch(matchA, matchB, 1)
+	if matchALevel == MatchLevelFinals {
+		return comparePlayoffMatch(matchA, matchB, matchLevelPrefixLengthShort)
 	}
 
-	if matchALevel == "sf" {
-		return comparePlayoffMatch(matchA, matchB, 2)
+	if matchALevel == MatchLevelSemifinals {
+		return comparePlayoffMatch(matchA, matchB, matchLevelPrefixLengthLong)
 	}
 
 	return false, fmt.Errorf("unknown match type %q", matchALevel)
@@ -286,10 +202,10 @@ func CompareMatchOrder(ctx context.Context, matchA string, matchB string) (bool,
 
 func matchPrecidence() map[string]int {
 	return map[string]int{
-		"qm": 0,
-		"qf": 1,
-		"sf": 2,
-		"f":  3,
+		MatchLevelQual:       0,
+		MatchLevelQuarters:   1,
+		MatchLevelSemifinals: 2,
+		MatchLevelFinals:     3,
 	}
 }
 
@@ -303,5 +219,5 @@ func getMatchLevel(matchKey string) (string, error) {
 }
 
 func GetWebhookFilePath() string {
-	return "./webhookSecret.txt"
+	return WebhookSecretFile()
 }

@@ -10,20 +10,24 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 
+	authmocks "server/authentication/mocks"
 	"server/model/mocks"
 )
 
 func TestNewAuth(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	assert.NotNil(t, auth)
+	assert.Equal(t, mockAuthService, auth.authService)
 	assert.Equal(t, mockUserStore, auth.userStore)
 }
 
 func TestAuthenticate_NoSessionCookie(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
@@ -41,8 +45,9 @@ func TestAuthenticate_NoSessionCookie(t *testing.T) {
 }
 
 func TestAuthenticate_InvalidSession(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
@@ -50,7 +55,7 @@ func TestAuthenticate_InvalidSession(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "invalid-token").Return(false, nil)
+	mockAuthService.On("ValidateSession", c.Request().Context(), "invalid-token").Return(uuid.UUID{}, ErrInvalidCredentials)
 
 	handler := auth.Authenticate(func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
@@ -60,12 +65,13 @@ func TestAuthenticate_InvalidSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
-	mockUserStore.AssertExpectations(t)
+	mockAuthService.AssertExpectations(t)
 }
 
 func TestAuthenticate_ValidSession(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -75,8 +81,7 @@ func TestAuthenticate_ValidSession(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "valid-token").Return(true, nil)
-	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "valid-token").Return(userUuid, nil)
+	mockAuthService.On("ValidateSession", c.Request().Context(), "valid-token").Return(userUuid, nil)
 
 	var contextUuid uuid.UUID
 	handler := auth.Authenticate(func(c echo.Context) error {
@@ -88,12 +93,13 @@ func TestAuthenticate_ValidSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, userUuid, contextUuid)
-	mockUserStore.AssertExpectations(t)
+	mockAuthService.AssertExpectations(t)
 }
 
 func TestAuthenticate_ValidateSessionError(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
@@ -101,7 +107,7 @@ func TestAuthenticate_ValidateSessionError(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "token").Return(false, errors.New("db error"))
+	mockAuthService.On("ValidateSession", c.Request().Context(), "token").Return(uuid.UUID{}, errors.New("db error"))
 
 	handler := auth.Authenticate(func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
@@ -111,36 +117,13 @@ func TestAuthenticate_ValidateSessionError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
-	mockUserStore.AssertExpectations(t)
-}
-
-func TestAuthenticate_GetUserBySessionError(t *testing.T) {
-	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"})
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	mockUserStore.On("ValidateSessionToken", c.Request().Context(), "token").Return(true, nil)
-	mockUserStore.On("GetUserBySessionToken", c.Request().Context(), "token").Return(uuid.UUID{}, errors.New("db error"))
-
-	handler := auth.Authenticate(func(c echo.Context) error {
-		return c.String(http.StatusOK, "ok")
-	})
-
-	err := handler(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusSeeOther, rec.Code)
-	assert.Equal(t, "/login", rec.Header().Get("Location"))
-	mockUserStore.AssertExpectations(t)
+	mockAuthService.AssertExpectations(t)
 }
 
 func TestCheckAdmin_NoUserUuid(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/u/admin/console", nil)
@@ -158,8 +141,9 @@ func TestCheckAdmin_NoUserUuid(t *testing.T) {
 }
 
 func TestCheckAdmin_UserIsAdmin(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -185,8 +169,9 @@ func TestCheckAdmin_UserIsAdmin(t *testing.T) {
 }
 
 func TestCheckAdmin_UserIsNotAdmin(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -210,8 +195,9 @@ func TestCheckAdmin_UserIsNotAdmin(t *testing.T) {
 }
 
 func TestCheckAdmin_UserIsAdminError(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
 	mockUserStore := mocks.NewMockUserStore(t)
-	auth := NewAuth(mockUserStore)
+	auth := NewAuth(mockAuthService, mockUserStore)
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
@@ -232,6 +218,97 @@ func TestCheckAdmin_UserIsAdminError(t *testing.T) {
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	mockUserStore.AssertExpectations(t)
+}
+
+func TestRedirectIfAuthenticated_NoSessionCookie(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockAuthService, mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestRedirectIfAuthenticated_InvalidSession(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockAuthService, mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockAuthService.On("ValidateSession", c.Request().Context(), "invalid-token").Return(uuid.UUID{}, ErrInvalidCredentials)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	mockAuthService.AssertExpectations(t)
+}
+
+func TestRedirectIfAuthenticated_ValidSession(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockAuthService, mockUserStore)
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockAuthService.On("ValidateSession", c.Request().Context(), "valid-token").Return(userUuid, nil)
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusSeeOther, rec.Code)
+	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
+	mockAuthService.AssertExpectations(t)
+}
+
+func TestRedirectIfAuthenticated_ValidateSessionError(t *testing.T) {
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	auth := NewAuth(mockAuthService, mockUserStore)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"})
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockAuthService.On("ValidateSession", c.Request().Context(), "token").Return(uuid.UUID{}, errors.New("db error"))
+
+	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	mockAuthService.AssertExpectations(t)
 }
 
 func TestNewMetricAuth_PanicsOnEmptySecret(t *testing.T) {

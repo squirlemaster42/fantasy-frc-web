@@ -3,11 +3,10 @@ package metrics
 import (
 	"context"
 	"database/sql"
-	"os"
-	"strconv"
-	"time"
-
+	"server/database"
 	"server/log"
+	"server/utils"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -37,36 +36,10 @@ var (
 )
 
 var (
-	queryThresholdMs = getEnvAsInt(context.Background(), "DB_QUERY_THRESHOLD_MS", 50)
-	pollInterval     = getEnvAsDuration(context.Background(), "DB_QUERY_POLL_INTERVAL", 30*time.Second)
-	maxQueries       = getEnvAsInt(context.Background(), "DB_QUERY_MAX_COUNT", 50)
+	queryThresholdMs = utils.GetEnvInt("DB_QUERY_THRESHOLD_MS", 50)
+	pollInterval     = utils.GetEnvDuration("DB_QUERY_POLL_INTERVAL", 30*time.Second)
+	maxQueries       = utils.GetEnvInt("DB_QUERY_MAX_COUNT", 50)
 )
-
-func getEnvAsInt(ctx context.Context, key string, defaultVal int) int {
-	val := os.Getenv(key)
-	if val == "" {
-		return defaultVal
-	}
-	intVal, err := strconv.Atoi(val)
-	if err != nil {
-		log.Warn(ctx, "Invalid env var, using default", "key", key, "value", val, "error", err)
-		return defaultVal
-	}
-	return intVal
-}
-
-func getEnvAsDuration(ctx context.Context, key string, defaultVal time.Duration) time.Duration {
-	val := os.Getenv(key)
-	if val == "" {
-		return defaultVal
-	}
-	d, err := time.ParseDuration(val)
-	if err != nil {
-		log.Warn(ctx, "Invalid env var, using default", "key", key, "value", val, "error", err)
-		return defaultVal
-	}
-	return d
-}
 
 func InitDBQueryStats(ctx context.Context, db *sql.DB) {
 	prometheus.MustRegister(dbQueryMeanTime, dbQueryCalls, dbQueryRows)
@@ -104,7 +77,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		log.Error(ctx, "Failed to query pg_stat_statements", "error", err)
 		return
 	}
-	defer func() { _ = rows.Close() }()
+	defer database.CloseRows(ctx, rows, "collectQueryStatsIteration")
 
 	dbQueryMeanTime.Reset()
 	dbQueryCalls.Reset()
@@ -123,8 +96,9 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		}
 
 		queryID := queryText
-		if len(queryID) > 100 {
-			queryID = queryID[:100] + "..."
+		maxLen := MetricsQueryIdMaxLength()
+		if len(queryID) > maxLen {
+			queryID = queryID[:maxLen] + "..."
 		}
 
 		dbQueryMeanTime.WithLabelValues(queryID).Set(meanTime / 1000.0)

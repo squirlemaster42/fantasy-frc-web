@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"server/assert"
 	"server/log"
 	"server/model"
 	"server/types"
@@ -20,10 +19,9 @@ import (
 
 func (h *Handler) HandleDraftScore(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -32,7 +30,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft id was not an int")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
@@ -44,7 +42,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
-	userDraftScore, err := h.DraftStore.GetDraftScore(c.Request().Context(), draftId)
+	userDraftScore, err := h.Stores.DraftStore.GetDraftScore(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft score", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -70,13 +68,10 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 }
 
 func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
-	assert := assert.CreateAssertWithContext("Handle Draft Team Score")
-
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -85,7 +80,7 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Draft id was not an int")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
@@ -98,17 +93,15 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
 	teamNumber := c.Param("teamNumber")
-	assert.AddContext("teamNumber", teamNumber)
-	assert.AddContext("draftId", draftId)
 
-	scores, err := h.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
+	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
 	// Get qualification matches
-	qualificationMatches, err := h.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
+	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get match scores", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

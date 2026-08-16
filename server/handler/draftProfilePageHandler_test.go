@@ -11,8 +11,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 
+	"server/draft"
 	"server/model"
 	"server/model/mocks"
+	"server/utils"
 )
 
 func TestHandleViewDraftProfile(t *testing.T) {
@@ -46,9 +48,16 @@ func TestHandleViewDraftProfile(t *testing.T) {
 				Status: model.FILLING,
 			}, nil)
 
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
@@ -80,8 +89,10 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			Return("testuser", nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
@@ -117,9 +128,16 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			On("GetDraft", c.Request().Context(), 42).
 			Return(model.DraftModel{}, sql.ErrNoRows)
 
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
@@ -181,8 +199,10 @@ func TestSearchPlayers(t *testing.T) {
 			}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.SearchPlayers(c)

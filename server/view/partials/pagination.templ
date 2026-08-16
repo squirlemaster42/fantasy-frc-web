@@ -1,0 +1,62 @@
+package partials
+
+import "fmt"
+
+templ Pagination(currentPage int, totalPages int, baseUrl string) {
+    if totalPages > 1 {
+        <div class="flex items-center justify-center gap-2 mt-6">
+            if currentPage > 1 {
+                <a
+                    href={templ.URL(fmt.Sprintf("%s?page=%d", baseUrl, currentPage-1))}
+                    class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content flex items-center gap-1"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                    Previous
+                </a>
+            } else {
+                <button class="btn btn-ghost btn-sm text-base-content/30 flex items-center gap-1" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                    Previous
+                </button>
+            }
+
+            <div class="flex items-center gap-1">
+                for i := 1; i <= totalPages; i++ {
+                    if i == currentPage {
+                        <span class="btn btn-primary btn-sm btn-square">{ fmt.Sprintf("%d", i) }</span>
+                    } else if i == 1 || i == totalPages || (i >= currentPage-2 && i <= currentPage+2) {
+                        <a
+                            href={templ.URL(fmt.Sprintf("%s?page=%d", baseUrl, i))}
+                            class="btn btn-sm btn-square bg-base-300 border-none hover:bg-base-content/20"
+                        >{ fmt.Sprintf("%d", i) }</a>
+                    } else if i == currentPage-3 || i == currentPage+3 {
+                        <span class="px-1 text-base-content/50">...</span>
+                    }
+                }
+            </div>
+
+            if currentPage < totalPages {
+                <a
+                    href={templ.URL(fmt.Sprintf("%s?page=%d", baseUrl, currentPage+1))}
+                    class="btn btn-ghost btn-sm text-base-content/70 hover:text-base-content flex items-center gap-1"
+                >
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                </a>
+            } else {
+                <button class="btn btn-ghost btn-sm text-base-content/30 flex items-center gap-1" disabled>
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                </button>
+            }
+        </div>
+    }
+}

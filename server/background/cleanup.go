@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"server/database"
 	"server/log"
 	"sync"
 	"time"
@@ -55,18 +56,14 @@ func (c *CleanupService) Stop(ctx context.Context) error {
 
 func (c *CleanupService) cleanExpiredSessionTokens(ctx context.Context) {
 	log.Debug(ctx, "Starting iteration of cleanup service")
-	query := `Delete from UserSessions Where expirationTime < (now()::timestamptz + '2 hours');`
-	stmt, err := c.database.PrepareContext(ctx, query)
+	query := `Delete from UserSessions Where expirationTime < (now()::timestamptz + make_interval(hours => $1));`
+	stmt, err := database.Prepare(ctx, c.database, query)
 	if err != nil {
 		log.Error(ctx, "CleanExpiredSessionTokens: Failed to prepare statement", "error", err)
 		return
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "CleanExpiredSessionTokens: Failed to close statement", "error", err)
-		}
-	}()
-	_, err = stmt.ExecContext(ctx)
+	defer database.CloseStatement(ctx, stmt, "CleanExpiredSessionTokens")
+	_, err = stmt.ExecContext(ctx, CleanupSessionLeewayHours())
 	if err != nil {
 		log.Error(ctx, "CleanExpiredSessionTokens: Failed to cleanup session tokens", "error", err)
 		return

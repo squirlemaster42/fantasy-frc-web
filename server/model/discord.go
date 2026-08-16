@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"server/assert"
+	"server/database"
 	"server/log"
 	"strings"
 )
 
-func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int) (sql.NullString, error) {
+func getPlayerDiscordId(ctx context.Context, db database.DBTX, draftPlayerId int) (sql.NullString, error) {
 	query := `
 		Select
 			u.DiscordId
@@ -18,15 +18,11 @@ func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 		Where dp.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Player Discord Id")
-	assert.AddContext("Draft Player Id", draftPlayerId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetPlayerDiscordId: Failed to close statement", "error", err)
-		}
-	}()
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return sql.NullString{}, err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetPlayerDiscordId")
 
 	var discordId sql.NullString
 	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId)
@@ -37,7 +33,7 @@ func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 	return discordId, nil
 }
 
-func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string, error) {
+func getDraftWebhook(ctx context.Context, db database.DBTX, draftId int) (string, error) {
 	query := `
 		Select
 			d.DiscordWebhook
@@ -45,15 +41,11 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 		Where d.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Next Pick Discord Event")
-	assert.AddContext("draftId", draftId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftWebhook: Failed to close statement", "error", err)
-		}
-	}()
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return "", err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetDraftWebhook")
 
 	var webhook sql.NullString
 	err = stmt.QueryRowContext(ctx, draftId).Scan(&webhook)
@@ -77,7 +69,7 @@ type DraftPickRow struct {
 	Webhook   sql.NullString
 }
 
-func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) ([]DraftPickRow, error) {
+func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) ([]DraftPickRow, error) {
 	// set up query params
 	placeholders := make([]string, len(teamKeys))
 	args := make([]interface{}, len(teamKeys))
@@ -104,27 +96,19 @@ func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) 
             AND d.discordwebhook IS NOT NULL;
     `, strings.Join(placeholders, ","))
 	// prepare query
-	stmt, err := database.PrepareContext(ctx, query)
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to prepare statement", "error", err)
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftPickRows: Failed to close statement", "error", err)
-		}
-	}()
+	defer database.CloseStatement(ctx, stmt, "GetDraftPickRows")
 
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to execute query", "error", err)
 		return nil, err
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetDraftPickRows: Failed to close rows", "error", err)
-		}
-	}()
+	defer database.CloseRows(ctx, rows, "GetDraftPickRows")
 
 	var results []DraftPickRow
 

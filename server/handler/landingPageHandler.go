@@ -2,14 +2,38 @@ package handler
 
 import (
 	"net/http"
+	"server/authentication"
 	"server/log"
 	"server/view"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
+func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool) {
+	userTok, err := c.Cookie(authentication.SessionCookieName)
+	if err != nil {
+		return uuid.UUID{}, "", false
+	}
+
+	userUuid, err := h.Services.AuthService.ValidateSession(c.Request().Context(), userTok.Value)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to validate session for landing page", "ip", c.RealIP(), "error", err)
+		return uuid.UUID{}, "", false
+	}
+
+	username, err := h.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to get username for landing page", "userUuid", userUuid, "error", err)
+		return userUuid, "", true
+	}
+
+	return userUuid, username, true
+}
+
 func (h *Handler) HandleViewLanding(c echo.Context) error {
-	landing := view.Landing()
+	_, username, fromProtected := h.getAuthenticatedUser(c)
+	landing := view.Landing(fromProtected, username)
 	err := Render(c, landing)
 	if err != nil {
 		log.Error(c.Request().Context(), "Handle View Landing Failed To Render", "error", err)

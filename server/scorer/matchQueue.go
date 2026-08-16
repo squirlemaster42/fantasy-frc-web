@@ -1,36 +1,52 @@
 package scorer
 
 import (
+	"context"
 	"server/swagger"
-	"sync"
 )
 
 type MatchQueue struct {
-    lock sync.Mutex
-    notEmpty *sync.Cond
-    queue []swagger.Match
+	pushCh chan swagger.Match
+	popCh  chan swagger.Match
 }
 
 func NewMatchQueue() *MatchQueue {
-    mq := &MatchQueue{}
-    mq.notEmpty = sync.NewCond(&mq.lock)
-    return mq
+	q := &MatchQueue{
+		pushCh: make(chan swagger.Match),
+		popCh:  make(chan swagger.Match),
+	}
+	go q.loop()
+	return q
+}
+
+func (q *MatchQueue) loop() {
+	var queue []swagger.Match
+	for {
+		var popCh chan<- swagger.Match
+		var nextMatch swagger.Match
+		if len(queue) > 0 {
+			popCh = q.popCh
+			nextMatch = queue[0]
+		}
+
+		select {
+		case match := <-q.pushCh:
+			queue = append(queue, match)
+		case popCh <- nextMatch:
+			queue = queue[1:]
+		}
+	}
 }
 
 func (q *MatchQueue) PushMatch(match swagger.Match) {
-    q.lock.Lock()
-    defer q.lock.Unlock()
-    q.queue = append(q.queue, match)
-    q.notEmpty.Signal()
+	q.pushCh <- match
 }
 
-func (q *MatchQueue) PopMatch() swagger.Match {
-    q.lock.Lock()
-    defer q.lock.Unlock()
-    for len(q.queue) == 0 {
-        q.notEmpty.Wait()
-    }
-    match := q.queue[0]
-    q.queue = q.queue[1:]
-    return match
+func (q *MatchQueue) PopMatch(ctx context.Context) (swagger.Match, error) {
+	select {
+	case match := <-q.popCh:
+		return match, nil
+	case <-ctx.Done():
+		return swagger.Match{}, ctx.Err()
+	}
 }

@@ -1,9 +1,12 @@
 package model
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -97,4 +100,36 @@ func TestDraftInvite_InvitedPlayerNameField(t *testing.T) {
 		}
 		assert.Equal(t, "test_user", invite.InvitedPlayerName)
 	})
+}
+
+func TestMakePick_IdMismatch_ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	pick := Pick{
+		Id:       42,
+		Player:   7,
+		Pick:     sql.NullString{String: "frc254", Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+
+	mock.ExpectPrepare(`Update Picks Set pick = \$1, pickTime = \$2 Where Id = \$3 Returning Id;`).
+		ExpectQuery().
+		WithArgs(pick.Pick, pick.PickTime, pick.Id).
+		WillReturnRows(sqlmock.NewRows([]string{"Id"}).AddRow(99))
+
+	err = makePick(context.Background(), db, pick)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetDraftScore_ZeroDraftId_ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = getDraftScore(context.Background(), db, 0)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

@@ -10,12 +10,12 @@ import (
 )
 
 type PickValidator struct {
-    handler *tbaHandler.TBAHandler
+    handler tbaHandler.TBAInterface
     draftStore model.DraftStore
 	draftId int
 }
 
-func NewPickValidator(handler *tbaHandler.TBAHandler, draftStore model.DraftStore, draftId int) PickValidator {
+func NewPickValidator(handler tbaHandler.TBAInterface, draftStore model.DraftStore, draftId int) PickValidator {
     return PickValidator{
         handler: handler,
         draftStore: draftStore,
@@ -41,7 +41,10 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 		return errors.New("team already picked")
 	}
 
-	events := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	events, err := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	if err != nil {
+		return err
+	}
 	draftEvents := utils.Events()
 
 	validEvent := false

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -14,11 +15,11 @@ func (h *Handler) GetTeamAvatar(c echo.Context) error {
 		return errors.New("id must be a valid team number")
 	}
 
-	avatar, err := h.AvatarStore.GetAvatar(c.Request().Context(), teamNum)
+	avatar, err := h.Services.AvatarStore.GetAvatar(c.Request().Context(), teamNum)
 	if err != nil {
 		return err
 	}
 
-	c.Response().Header().Set("Cache-Control", "private, max-age=604800")
+	c.Response().Header().Set("Cache-Control", fmt.Sprintf("private, max-age=%d", AvatarHttpCacheMaxAgeSeconds()))
 	return c.Blob(http.StatusOK, "image/png", avatar)
 }

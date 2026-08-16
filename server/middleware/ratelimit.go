@@ -20,13 +20,13 @@ func NewRateLimiter(addr, password string, db int) *RateLimiter {
 	if addr == "" {
 		return &RateLimiter{}
 	}
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
-		Protocol: 2,
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: password,
+			DB:       db,
+			Protocol: redisProtocolVersion,
+		})
+	ctx, cancel := context.WithTimeout(context.Background(), RateLimitRedisPingTimeout())
 	defer cancel()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
@@ -56,15 +56,15 @@ func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, w
 }
 
 func (r *RateLimiter) RateLimitLogin() echo.MiddlewareFunc {
-	return r.rateLimitMiddleware("login", 5, 15*time.Minute)
+	return r.rateLimitMiddleware(rateLimitKeyPrefixLogin, RateLimitLoginAttempts(), RateLimitAuthWindow())
 }
 
 func (r *RateLimiter) RateLimitRegister() echo.MiddlewareFunc {
-	return r.rateLimitMiddleware("register", 3, 15*time.Minute)
+	return r.rateLimitMiddleware(rateLimitKeyPrefixRegister, RateLimitRegisterAttempts(), RateLimitAuthWindow())
 }
 
 func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc {
-	window := time.Minute
+	window := rateLimitGeneralWindow
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip safe methods (page loads, WebSocket upgrades)
@@ -82,9 +82,9 @@ func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc
 			var key string
 			userUuidVal := c.Get("userUuid")
 			if userUuidVal != nil {
-				key = fmt.Sprintf("rate_limit:general:%v", userUuidVal)
+				key = fmt.Sprintf("%s:%v", rateLimitKeyPrefixGeneral, userUuidVal)
 			} else {
-				key = fmt.Sprintf("rate_limit:general:%s", c.RealIP())
+				key = fmt.Sprintf("%s:%s", rateLimitKeyPrefixGeneral, c.RealIP())
 			}
 
 			allowed, _, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, window)
@@ -106,7 +106,7 @@ func (r *RateLimiter) rateLimitMiddleware(prefix string, limit int64, window tim
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ip := c.RealIP()
-			key := fmt.Sprintf("rate_limit:%s:%s", prefix, ip)
+			key := fmt.Sprintf("%s:%s", prefix, ip)
 			allowed, _, err := r.checkLimit(c.Request().Context(), key, limit, window)
 			if err != nil {
 				log.Warn(c.Request().Context(), "Rate limiter failing open", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix, "error", err)

@@ -18,6 +18,7 @@ type DraftDaemon struct {
 	cancel        context.CancelFunc
 	runningDrafts map[int]bool
 	draftActorMap *draft.DraftActorMap
+	tickInterval  time.Duration
 }
 
 func NewDraftDaemon(draftStore model.DraftStore, draftActorMap *draft.DraftActorMap) *DraftDaemon {
@@ -27,6 +28,7 @@ func NewDraftDaemon(draftStore model.DraftStore, draftActorMap *draft.DraftActor
 		running:       false,
 		runningDrafts: make(map[int]bool),
 		draftActorMap: draftActorMap,
+		tickInterval:  DraftDaemonTickInterval(),
 	}
 }
 
@@ -62,13 +64,13 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 		}
 
 		// Create a per-tick context with timeout so one slow operation doesn't block the daemon
-		tickCtx, cancel := context.WithTimeout(ctx, 55*time.Second)
+		tickCtx, cancel := context.WithTimeout(ctx, DraftDaemonTickTimeout())
 
 		log.Debug(tickCtx, "Starting iteration of the Draft Daemon")
 		d.checkForPicksToSkip(tickCtx)
 
 		cancel()
-		time.Sleep(1 * time.Minute)
+		time.Sleep(d.tickInterval)
 	}
 }
 

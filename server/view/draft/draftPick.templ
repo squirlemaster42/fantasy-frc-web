@@ -157,7 +157,7 @@ templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
                         </div>
                         {{lines++}}
                     }
-                    for lines < 8 {
+					for lines < model.PicksPerPlayer {
                         <div class="border border-base-300 rounded py-2 px-3 text-center text-base-content/30 text-sm">
                             --
                         </div>

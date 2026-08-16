@@ -1,6 +1,6 @@
 # Fantasy FRC Database Migrations
 
-This directory contains all database schema management for Fantasy FRC using [goose](https://github.com/pressly/goose).
+This directory contains all database schema management for Fantasy FRC using [goose](https://github.com/pressly/goose)
 
 ## Prerequisites
 
@@ -36,15 +36,14 @@ This creates a new `.sql` file in `migrations/` with `-- +goose Up` and `-- +goo
 
 Migration commands require `DB_USERNAME`, `DB_PASSWORD`, `DB_IP`, and `DB_NAME`.
 
-If you have a `.env` file in this directory, load it before running `make`:
+If you have a `.env` file in this directory, the Makefile automatically loads it for every command:
 
 ```bash
 cd database
-set -a && source .env && set +a
 make up
 ```
 
-Or export them manually:
+Or export them manually (this takes precedence over `.env`):
 
 ```bash
 export DB_USERNAME=...

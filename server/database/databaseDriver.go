@@ -3,12 +3,15 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"server/assert"
 	"server/log"
-	"time"
+	"strings"
 
 	"github.com/XSAM/otelsql"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/pgconn"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
@@ -43,13 +46,76 @@ func RegisterDatabaseConnection(ctx context.Context, username string, password s
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	db.SetMaxOpenConns(90)
-	db.SetMaxIdleConns(25)
-	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetMaxOpenConns(MaxOpenConns())
+	db.SetMaxIdleConns(MaxIdleConns())
+	db.SetConnMaxLifetime(ConnMaxLifetime())
 
 	return db, nil
 }
 
+type DBTX interface {
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+}
+
 func createConnectionString(username string, password string, ip string, dbName string) string {
 	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
+}
+
+func sqlState(err error) string {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code
+	}
+	return ""
+}
+
+// isProgrammingError reports whether err is a PostgreSQL schema, syntax, or
+// statement error that indicates a code/schema mismatch. These errors should
+// crash the process because retrying will not resolve them.
+func isProgrammingError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch {
+		case strings.HasPrefix(pgErr.Code, sqlStateSyntaxPrefix): // Syntax / Access Rule Violation
+			return true
+		case strings.HasPrefix(pgErr.Code, sqlStateDataExceptionPrefix): // Data Exception
+			return true
+		case strings.HasPrefix(pgErr.Code, sqlStateInvalidStatementPrefix): // Invalid SQL Statement Name
+			return true
+		}
+	}
+	return false
+}
+
+func Prepare(ctx context.Context, db DBTX, query string) (*sql.Stmt, error) {
+	stmt, err := db.PrepareContext(ctx, query)
+	if err != nil {
+		if isProgrammingError(err) {
+			a := assert.CreateAssertWithContext("Prepare")
+			a.AddContext("query", query)
+			a.AddContext("sqlstate", sqlState(err))
+			a.NoError(ctx, err, "failed to prepare statement due to schema/syntax error")
+		}
+		log.Error(ctx, "Failed to prepare statement", "error", err, "query", query)
+		return nil, fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	return stmt, nil
+}
+
+func CloseStatement(ctx context.Context, stmt *sql.Stmt, funcName string) {
+	if stmt == nil {
+		return
+	}
+	if err := stmt.Close(); err != nil {
+		log.Error(ctx, funcName+": failed to close statement", "error", err)
+	}
+}
+
+func CloseRows(ctx context.Context, rows *sql.Rows, funcName string) {
+	if rows == nil {
+		return
+	}
+	if err := rows.Close(); err != nil {
+		log.Error(ctx, funcName+": failed to close rows", "error", err)
+	}
 }

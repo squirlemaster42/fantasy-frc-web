@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"server/database"
+
 	"github.com/google/uuid"
 )
 
@@ -17,6 +19,8 @@ type DraftStore interface {
 	GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error)
 	GetInvite(ctx context.Context, inviteId int) (DraftInvite, error)
 	GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error)
+	GetNumPlayersInDraft(ctx context.Context, draftId int) (int, error)
+	LockDraft(ctx context.Context, draftId int) error
 	CancelOutstandingInvites(ctx context.Context, draftId int) error
 	AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error)
 	AddPlayerToDraft(ctx context.Context, draftId int, player uuid.UUID) error
@@ -43,4 +47,9 @@ type DraftStore interface {
 	CancelInvite(ctx context.Context, inviteId int) error
 	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error
 	GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error)
+	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
+	TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error
+
+	RunInTransaction(ctx context.Context, fn func(db database.DBTX) error) error
+	WithTx(tx database.DBTX) DraftStore
 }

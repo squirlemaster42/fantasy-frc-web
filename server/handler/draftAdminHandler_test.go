@@ -31,8 +31,10 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
@@ -52,8 +54,10 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
@@ -74,8 +78,10 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
@@ -101,8 +107,10 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
@@ -128,8 +136,10 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleAdminSkipPick(c)
@@ -155,8 +165,10 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleAdminSkipPick(c)

@@ -11,10 +11,9 @@ import (
 
 func (h *Handler) HandleTeamScore(c echo.Context) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	teamIndex := team.TeamScoreIndex(h.csrfToken(c))
@@ -31,14 +30,14 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Getting score for team", "teamNumber", teamNumber)
 
 	//Get team score
-	scores, err := h.TeamStore.GetScore(c.Request().Context(), "frc"+teamNumber)
+	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "teamNumber", teamNumber, "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
 	// Get qualification matches
-	qualificationMatches, err := h.TeamStore.GetMatchScores(c.Request().Context(), "frc"+teamNumber)
+	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get match scores", "teamNumber", teamNumber, "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")

@@ -12,13 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
+	"server/database"
 	"server/discord"
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
+	"server/tbaHandler"
+	"server/utils"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type testDiscordStore struct {
@@ -34,12 +38,24 @@ func (t *testDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (st
 	return t.webhooks[draftId], nil
 }
 
+func newTestActorMap(t *testing.T, draftStore model.DraftStore, handler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) *DraftActorMap {
+	return NewDraftActorMap(draftStore, handler, discordStore, discordBus, pickNotifier, utils.DefaultPickWindowConfig(), 16)
+}
+
+func mockRunInTransaction(mockStore *mocks.MockDraftStore) {
+	mockStore.On("WithTx", mock.Anything).Return(mockStore).Maybe()
+	mockStore.On("RunInTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(database.DBTX) error)
+		_ = fn(nil)
+	}).Return(nil).Once()
+}
+
 func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 
 	// First call creates the actor
 	actor1, err := actorMap.GetActor(t.Context(), draftId)
@@ -59,7 +75,7 @@ func TestDraftActorMap_GetActor_ReturnsError(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{}, errors.New("db error")).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 
 	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.Error(t, err)
@@ -78,8 +94,9 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
 		},
 	}, nil).Once()
+	mockRunInTransaction(mockStore)
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
-	mockStore.On("MakePickAvailable", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id: draftId,
 		CurrentPick: model.Pick{Id: pickId},
@@ -88,7 +105,7 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 		},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -103,8 +120,8 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	draftId := 1
 	pickId := 42
 
-	// Build 64 picks so the draft is at the final pick
-	picks := make([]model.Pick, 64)
+	// Build PicksPerDraft picks so the draft is at the final pick
+	picks := make([]model.Pick, model.PicksPerDraft)
 	for i := range picks {
 		picks[i] = model.Pick{Id: i + 1}
 	}
@@ -120,15 +137,8 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Picks:       picks,
 		Players:     players,
 	}, nil).Once()
+	mockRunInTransaction(mockStore)
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
-	// MakePickAvailable should NOT be called when the draft is already at 64 picks
-	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:          draftId,
-		Status:      model.PICKING,
-		CurrentPick: model.Pick{Id: pickId},
-		Picks:       picks,
-		Players:     players,
-	}, nil).Once()
 	// State transition to TEAMS_PLAYING after the last pick
 	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
@@ -139,7 +149,7 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 		Players:     players,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -147,10 +157,38 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
 	assert.True(t, skipped)
 
-	// Give the actor a moment to process the state transition message
-	// it posts internally after the skip.
-	time.Sleep(100 * time.Millisecond)
+	mockStore.AssertExpectations(t)
+}
 
+func TestDraftActorMap_AcceptInvite(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	inviteId := 123
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id: draftId,
+	}, nil).Once()
+	mockStore.On("GetInvite", mock.Anything, inviteId).Return(model.DraftInvite{
+		Id:              inviteId,
+		DraftId:         draftId,
+		InvitedUserUuid: userUuid,
+	}, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("LockDraft", mock.Anything, draftId).Return(nil).Once()
+	mockStore.On("GetNumPlayersInDraft", mock.Anything, draftId).Return(3, nil).Once()
+	mockStore.On("AcceptInvite", mock.Anything, inviteId).Return(draftId, userUuid, nil).Once()
+	mockStore.On("AddPlayerToDraft", mock.Anything, draftId, userUuid).Return(nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id: draftId,
+	}, nil).Once()
+
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	err = AcceptInvite(t.Context(), draftActor, inviteId, userUuid)
+	assert.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }
 
@@ -200,10 +238,11 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 		},
 		Players: players,
 	}, nil).Once()
+	mockRunInTransaction(mockStore)
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 3).Return(model.User{Username: "Charlie"}, nil).Once()
 	mockStore.On("GetDraftPlayerUser", mock.Anything, 4).Return(model.User{Username: "David"}, nil).Once()
-	mockStore.On("MakePickAvailable", mock.Anything, 4, mock.Anything, mock.Anything).Return(43, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
 		Id:          draftId,
 		Status:      model.PICKING,
@@ -219,7 +258,7 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 	bus := discord.NewBus()
 	defer bus.Stop()
 
-	actorMap := NewDraftActorMap(mockStore, nil, discordStore, bus, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, discordStore, bus, nil)
 
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
@@ -251,7 +290,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	}, nil).Once()
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, pickId, mock.Anything).Return(nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -269,7 +308,7 @@ func TestDraftActorMap_GetCurrentPick(t *testing.T) {
 		CurrentPick: expectedPick,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -287,6 +326,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 		CurrentPick: model.Pick{Id: pickId},
 	}, nil).Once()
 	mockStore.On("GetPreviousPick", mock.Anything, draftId, pickId).Return(model.Pick{Id: 41}, nil).Once()
+	mockRunInTransaction(mockStore)
 	mockStore.On("DeletePick", mock.Anything, pickId).Return(nil).Once()
 	mockStore.On("ResetPick", mock.Anything, 41, mock.Anything).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
@@ -294,7 +334,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 		CurrentPick: model.Pick{Id: 41},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -309,7 +349,7 @@ func TestDraftActorMap_GetDraft(t *testing.T) {
 	expectedDraft := model.DraftModel{Id: draftId, DisplayName: "Test Draft"}
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(expectedDraft, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -324,7 +364,7 @@ func TestDraftActorMap_UpdateDraft(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 	mockStore.On("UpdateDraft", mock.Anything, mock.Anything).Return(nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -352,6 +392,7 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 	}, nil).Once()
 
 	// FILLING -> PICKING transition now randomizes order and sets up the first pick
+	mockRunInTransaction(mockStore)
 	mockStore.On("RandomizePickOrder", mock.Anything, draftId).Return(nil).Once()
 	mockStore.On("NextPick", mock.Anything, draftId).Return(nextPickPlayer, nil).Once()
 	mockStore.On("MakePickAvailable", mock.Anything, nextPickPlayer.Id, mock.Anything, mock.Anything).Return(1, nil).Once()
@@ -363,7 +404,7 @@ func TestDraftActorMap_ExecuteDraftStateTransition(t *testing.T) {
 		Status: model.PICKING,
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -380,7 +421,7 @@ func TestDraftActorMap_RegisterAndUnregisterWatcher(t *testing.T) {
 	notifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),
 	}
-	actorMap := NewDraftActorMap(nil, nil, nil, nil, notifier)
+	actorMap := newTestActorMap(t, nil, nil, nil, nil, notifier)
 
 	draftId := 1
 	watcher := RegisterWatcher(t.Context(), actorMap, draftId)
@@ -423,13 +464,25 @@ func TestDraftActor_handleMessage_UnknownType(t *testing.T) {
 	assert.Contains(t, result.Error.Error(), "unknown message type")
 }
 
-func TestDraftActor_handleTransferDraftOwnership_NotSupported(t *testing.T) {
-	actor := &DraftActor{}
+func TestDraftActor_handleTransferDraftOwnership_Success(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	newOwnerUuid := uuid.New()
+	actor := &DraftActor{
+		draftStore: mockStore,
+		draftState: model.DraftModel{
+			Id:    1,
+			Owner: model.User{UserUuid: uuid.New()},
+		},
+	}
+	mockStore.On("TransferOwnership", mock.Anything, 1, newOwnerUuid).Return(nil).Once()
 
-	result := actor.handleTransferDraftOwnership(t.Context(), TransferDraftOwnershipMessage{})
+	result := actor.handleTransferDraftOwnership(t.Context(), TransferDraftOwnershipMessage{
+		UpdatedOwnerId: newOwnerUuid,
+	})
 
-	assert.Error(t, result.Error)
-	assert.Contains(t, result.Error.Error(), "not yet supported")
+	assert.NoError(t, result.Error)
+	assert.Equal(t, newOwnerUuid, actor.draftState.Owner.UserUuid)
+	mockStore.AssertExpectations(t)
 }
 
 func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
@@ -513,7 +566,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime_StalePickId(t *testing.T)
 		CurrentPick: model.Pick{Id: currentPickId, ExpirationTime: time.Now()},
 	}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 
@@ -545,7 +598,7 @@ func TestDraftActor_Shutdown(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 	actor, err := actorMap.GetActor(t.Context(), draftId)
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
@@ -555,8 +608,7 @@ func TestDraftActor_Shutdown(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify actor is removed from map
-	_, ok := actorMap.actorMap.Load(draftId)
-	assert.False(t, ok, "actor should be removed from map after shutdown")
+	assert.False(t, actorMap.actorCache.Contains(draftId), "actor should be removed from map after shutdown")
 
 	// Posting a message to a shutdown actor should return an error
 	msg := Message{Content: StateTransitionMessage{RequestedState: model.FILLING}}
@@ -570,7 +622,7 @@ func TestDraftActorMap_ConcurrentGetActor(t *testing.T) {
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{Id: draftId}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil)
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
 
 	var actors []*DraftActor
 	var mu sync.Mutex
@@ -646,8 +698,9 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 		Status: model.FILLING,
 		CurrentPick: model.Pick{Id: 42},
 	}, nil).Once()
+	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil).Return(nil).Maybe()
 
-	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil)
+	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 
@@ -666,7 +719,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 					Reply:   replyChan,
 				}
 			case 1, 2:
-				// These return errors without DB calls
+				// TransferDraftOwnershipMessage: calls TransferOwnership on the store
 				msg = Message{
 					Content: TransferDraftOwnershipMessage{Initiator: idx},
 					Reply:   replyChan,

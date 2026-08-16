@@ -1,0 +1,33 @@
+{
+  "pick_time": "1h",
+  "windows": {
+    "Sunday": {
+      "start_hour": 8,
+      "end_hour": 22
+    },
+    "Monday": {
+      "start_hour": 17,
+      "end_hour": 22
+    },
+    "Tuesday": {
+      "start_hour": 17,
+      "end_hour": 22
+    },
+    "Wednesday": {
+      "start_hour": 17,
+      "end_hour": 22
+    },
+    "Thursday": {
+      "start_hour": 17,
+      "end_hour": 22
+    },
+    "Friday": {
+      "start_hour": 17,
+      "end_hour": 22
+    },
+    "Saturday": {
+      "start_hour": 8,
+      "end_hour": 22
+    }
+  }
+}

@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/base32"
-	"fmt"
+	"errors"
 	"net/http"
+	"server/authentication"
 	"server/log"
 	"server/view/login"
-	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -15,109 +13,54 @@ import (
 
 // We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
-	csrfToken, err := generateCSRFCookie(c)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	loginIndex := login.LoginIndex(false, "", h.MinPasswordLength, csrfToken)
-	login := login.Login("Login", false, loginIndex)
-	err = Render(c, login)
-	if err != nil {
-		log.Error(c.Request().Context(), "Handle View Login Failed To Render", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	return nil
+	return h.renderLoginWithError(c, "")
 }
 
-// We generate a 128 bit session token
-// This token then needs to be hashed in the db and send back to the user
-// We need to choose an expiration date too
-func generateSessionToken() (string, error) {
-	randomBytes := make([]byte, 16)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	return base32.StdEncoding.EncodeToString(randomBytes), nil
+func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
+	cookie := new(http.Cookie)
+	cookie.Name = authentication.SessionCookieName
+	cookie.Value = sessionToken
+	cookie.HttpOnly = true
+	cookie.Secure = h.Config.SecureHttpCookie
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Path = "/"
+	c.SetCookie(cookie)
+}
+
+func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID, sessionToken string) error {
+	h.setSessionCookie(c, sessionToken)
+	c.Response().Header().Set("HX-Redirect", "/u/home")
+	return nil
 }
 
 func (h *Handler) HandleLoginPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		loginIndex := login.LoginIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		if err := Render(c, loginIndex); err != nil {
-			log.Error(c.Request().Context(), "Failed to render login page after CSRF failure", "error", err)
-			return err
-		}
-		return nil
+		return h.renderLoginWithError(c, "Invalid request. Please try again.")
 	}
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	valid, err := h.UserStore.ValidateLogin(c.Request().Context(), username, password)
+	// Session fixation prevention: invalidate any pre-existing session token
+	oldTok, err := c.Cookie(authentication.SessionCookieName)
+	if err == nil && oldTok.Value != "" {
+		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), oldTok.Value); logoutErr != nil {
+			log.Warn(c.Request().Context(), "Failed to logout old session during login", "error", logoutErr)
+		}
+	}
+
+	userUuid, sessionToken, err := h.Services.AuthService.Login(c.Request().Context(), username, password)
 	if err != nil {
+		if errors.Is(err, authentication.ErrInvalidCredentials) {
+			log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
+			return h.renderLoginWithError(c, "You have entered an invalid username or password")
+		}
 		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to validate login")
 	}
 
-	if valid {
-		log.Info(c.Request().Context(), "Valid login attempt for user", "username", username)
-		userUuid, err := h.UserStore.GetUserUuidByUsername(c.Request().Context(), username)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to get user uuid", "username", username, "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to validate login")
-		}
-
-		// Session fixation prevention: invalidate any pre-existing session token
-		oldTok, err := c.Cookie("sessionToken")
-		if err == nil && oldTok.Value != "" {
-			if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), oldTok.Value); unregisterErr != nil {
-				log.Warn(c.Request().Context(), "Failed to unregister old session during login", "error", unregisterErr)
-			}
-		}
-
-		sessionTok, err := generateSessionToken()
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to create session")
-		}
-		if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-			log.Error(c.Request().Context(), "Failed to register session", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to create session")
-		}
-
-		cookie := new(http.Cookie)
-		cookie.Name = "sessionToken"
-		cookie.Value = sessionTok
-		cookie.HttpOnly = true
-		cookie.Secure = h.SecureHttpCookie
-		cookie.SameSite = http.SameSiteLaxMode
-		cookie.Path = "/"
-		c.SetCookie(cookie)
-		c.Response().Header().Set("HX-Redirect", "/u/home")
-		return nil
-	}
-
-	log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
-	csrfToken, err := generateCSRFCookie(c)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
-	}
-	loginIndex := login.LoginIndex(false, "You have entered an invalid username or password", h.MinPasswordLength, csrfToken)
-	err = Render(c, loginIndex)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed To Render Login Page With Error", "error", err)
-		return err
-	}
-	return nil
+	return h.setSessionAndRedirect(c, userUuid, sessionToken)
 }
 
 func (h *Handler) HandleLogoutPost(c echo.Context) error {
@@ -126,17 +69,17 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 		userUuidStr = userUuid.String()
 	}
 	log.Info(c.Request().Context(), "User logged out", "userUuid", userUuidStr, "ip", c.RealIP())
-	userTok, err := c.Cookie("sessionToken")
+	userTok, err := c.Cookie(authentication.SessionCookieName)
 	if err == nil && userTok.Value != "" {
-		if unregisterErr := h.UserStore.UnRegisterSession(c.Request().Context(), userTok.Value); unregisterErr != nil {
-			log.Warn(c.Request().Context(), "Failed to unregister session", "error", unregisterErr)
+		if logoutErr := h.Services.AuthService.Logout(c.Request().Context(), userTok.Value); logoutErr != nil {
+			log.Warn(c.Request().Context(), "Failed to logout session", "error", logoutErr)
 		}
 	}
 	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
+	cookie.Name = authentication.SessionCookieName
 	cookie.Value = ""
 	cookie.HttpOnly = true
-	cookie.Secure = h.SecureHttpCookie
+	cookie.Secure = h.Config.SecureHttpCookie
 	cookie.SameSite = http.SameSiteLaxMode
 	cookie.Path = "/"
 	cookie.MaxAge = -1
@@ -145,144 +88,53 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleViewRegister(c echo.Context) error {
+func (h *Handler) renderRegisterWithError(c echo.Context, message string) error {
 	csrfToken, err := generateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	registerIndex := login.RegisterIndex(false, "", h.MinPasswordLength, csrfToken)
-	register := login.Register("Register", false, registerIndex)
-	if err := Render(c, register); err != nil {
-		log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
+	register := login.RegisterIndex(false, message, h.Config.MinPasswordLength, csrfToken)
+	return Render(c, register)
+}
+
+func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
+	csrfToken, err := generateCSRFCookie(c)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
-	return nil
+	loginPage := login.LoginIndex(false, message, h.Config.MinPasswordLength, csrfToken)
+	return Render(c, loginPage)
+}
+
+func (h *Handler) HandleViewRegister(c echo.Context) error {
+	return h.renderRegisterWithError(c, "")
 }
 
 func (h *Handler) HandlerRegisterPost(c echo.Context) error {
 	if !validateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on register", "ip", c.RealIP())
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Invalid request. Please try again.", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Failed to render register page after CSRF failure", "error", err)
-			return err
-		}
-		return nil
+		return h.renderRegisterWithError(c, "Invalid request. Please try again.")
 	}
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
-	confirmPassword := c.FormValue("confirmPassword")
 
-	taken, err := h.UserStore.UsernameTaken(c.Request().Context(), username)
+	userUuid, sessionToken, err := h.Services.AuthService.Register(c.Request().Context(), username, password)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to check if username is taken", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to check username availability")
-	}
-	if taken {
-		log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Username Taken", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
-	}
-
-	if password != confirmPassword {
-		log.Warn(c.Request().Context(), "Password and Confirm Password do not match for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Passwords Do Not Match", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
-	}
-
-	if len(password) < h.MinPasswordLength {
-		log.Warn(c.Request().Context(), "Password too short for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, fmt.Sprintf("Password must be at least %d characters", h.MinPasswordLength), h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
-	}
-
-	var hasUpper, hasLower, hasDigit bool
-	for _, ch := range password {
 		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
+		case errors.Is(err, authentication.ErrUsernameTaken):
+			log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
+			return h.renderRegisterWithError(c, "Username Taken")
+		case authentication.IsValidationError(err):
+			log.Warn(c.Request().Context(), "Registration validation failed", "username", username)
+			return h.renderRegisterWithError(c, err.Error())
+		default:
+			log.Error(c.Request().Context(), "Failed to register user", "error", err)
+			return c.String(http.StatusInternalServerError, "Failed to create account")
 		}
-	}
-	if !hasUpper || !hasLower || !hasDigit {
-		log.Warn(c.Request().Context(), "Password does not meet complexity requirements for user attempting to register", "username", username)
-
-		csrfToken, err := generateCSRFCookie(c)
-		if err != nil {
-			log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		register := login.RegisterIndex(false, "Password must contain at least one uppercase letter, one lowercase letter, and one digit", h.MinPasswordLength, csrfToken)
-		if err := Render(c, register); err != nil {
-			log.Error(c.Request().Context(), "Handle View Register Page Failed To Render", "error", err)
-			return c.String(http.StatusInternalServerError, "An error occurred")
-		}
-		return nil
 	}
 
-	log.Info(c.Request().Context(), "Valid registration for user", "username", username)
-	userUuid, err := h.UserStore.RegisterUser(c.Request().Context(), username, password)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to register user", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create account")
-	}
-	sessionTok, err := generateSessionToken()
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate session token", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
-	if err := h.UserStore.RegisterSession(c.Request().Context(), userUuid, sessionTok); err != nil {
-		log.Error(c.Request().Context(), "Failed to register session", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create session")
-	}
-	cookie := new(http.Cookie)
-	cookie.Name = "sessionToken"
-	cookie.Value = sessionTok
-	cookie.HttpOnly = true
-	cookie.Secure = h.SecureHttpCookie
-	cookie.SameSite = http.SameSiteLaxMode
-	cookie.Path = "/"
-	c.SetCookie(cookie)
-	c.Response().Header().Set("HX-Redirect", "/u/home")
-	return nil
+	return h.setSessionAndRedirect(c, userUuid, sessionToken)
 }

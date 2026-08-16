@@ -30,7 +30,8 @@ func TestMatchListReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    matches := handler.MakeMatchListReq(t.Context(), "frc254", "2026casnv")
+    matches, err := handler.MakeMatchListReq(t.Context(), "frc254", "2026casnv")
+    assert.NoError(t, err)
     assert.True(t, len(matches) > 0, "No matches were found")
     firstMatch := matches[0]
     if (firstMatch.EventKey != "2026casnv") {
@@ -46,7 +47,10 @@ func TestEventListReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    events := handler.MakeEventListReq(t.Context(), "frc1690")
+    events, err := handler.MakeEventListReq(t.Context(), "frc1690")
+    if err != nil {
+        t.Fatalf("Failed to get event list: %v", err)
+    }
     if (len(events) == 0) {
         t.Fatalf("No events were found")
     }
@@ -56,7 +60,10 @@ func TestMatchReq(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    match := handler.MakeMatchReq(t.Context(), "2026casnv_qm24")
+    match, err := handler.MakeMatchReq(t.Context(), "2026casnv_qm24")
+    if err != nil {
+        t.Fatalf("Failed to get match: %v", err)
+    }
     if (match.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
         t.Fatalf("Score not set correctly")
     }
@@ -66,7 +73,10 @@ func TestMatchKeysRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysRequest(t.Context(), "frc1690", "2024isde1")
+    keys, err := handler.MakeMatchKeysRequest(t.Context(), "frc1690", "2024isde1")
+    if err != nil {
+        t.Fatalf("Failed to get match keys: %v", err)
+    }
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
     }
@@ -76,7 +86,10 @@ func TestMatchKeysYearRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysYearRequest(t.Context(), "frc1690")
+    keys, err := handler.MakeMatchKeysYearRequest(t.Context(), "frc1690")
+    if err != nil {
+        t.Fatalf("Failed to get match keys by year: %v", err)
+    }
     if (len(keys) == 0) {
         t.Fatalf("No match keys found")
     }
@@ -86,7 +99,10 @@ func TestTeamEventStatusRequest(t *testing.T) {
     tbaTok := getTbaTok(t)
     assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
     handler := NewHandler(tbaTok, nil)
-    event := handler.MakeTeamEventStatusRequest(t.Context(), "frc1690", "2024isde1")
+    event, err := handler.MakeTeamEventStatusRequest(t.Context(), "frc1690", "2024isde1")
+    if err != nil {
+        t.Fatalf("Failed to get team event status: %v", err)
+    }
     if (event.LastMatchKey == "") {
         t.Fatalf("There should be a last match")
     }
@@ -125,9 +141,10 @@ func TestEliminationAllianceRequestRetrySuccess(t *testing.T) {
 	handler.client = &http.Client{Transport: mock}
 
 	start := time.Now()
-	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	alliances, err := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
 	elapsed := time.Since(start)
 
+	assert.NoError(t, err)
 	assert.Equal(t, 3, mock.requestCount, "Expected 3 requests (2 empty + 1 success)")
 	assert.Equal(t, 2, len(alliances), "Expected 2 alliances after retry")
 	assert.Equal(t, "Alliance 1", alliances[0].Name)
@@ -147,9 +164,10 @@ func TestEliminationAllianceRequestRetryExhausted(t *testing.T) {
 	handler.client = &http.Client{Transport: mock}
 
 	start := time.Now()
-	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	alliances, err := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
 	elapsed := time.Since(start)
 
+	assert.NoError(t, err)
 	assert.Equal(t, 6, mock.requestCount, "Expected 6 requests (initial + 5 retries)")
 	assert.Equal(t, 0, len(alliances), "Expected empty alliances after all retries exhausted")
 

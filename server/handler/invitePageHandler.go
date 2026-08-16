@@ -19,13 +19,12 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		username = ""
+		return err
 	}
 
-	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)
+	invites, err := h.Stores.DraftStore.GetInvites(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
 		return err
@@ -58,7 +57,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, "Invalid invite ID.", false)
 	}
 
-	invite, err := h.DraftStore.GetInvite(c.Request().Context(), inviteId)
+	invite, err := h.Stores.DraftStore.GetInvite(c.Request().Context(), inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn(c.Request().Context(), "Invite not found", "inviteId", inviteId)
@@ -77,7 +76,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	log.Info(c.Request().Context(), "Accepting invite from player", "inviteId", inviteId, "userUuid", userUuid)
 
 	// Route through the draft actor so the cached state stays in sync
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), invite.DraftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), invite.DraftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", invite.DraftId, "error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
@@ -105,7 +104,7 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 	}
 
 	// We need the draftId before routing through the actor to get the DraftActor
-	inviteForDraftId, err := h.DraftStore.GetInvite(c.Request().Context(), inviteId)
+	inviteForDraftId, err := h.Stores.DraftStore.GetInvite(c.Request().Context(), inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return renderInviteTable(h, c, true, "Invite not found. It may have been cancelled or expired.", false)
@@ -114,7 +113,7 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), inviteForDraftId.DraftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), inviteForDraftId.DraftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", inviteForDraftId.DraftId, "error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
@@ -126,7 +125,7 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, err.Error(), false)
 	}
 
-	invites, err := h.DraftStore.GetInvites(c.Request().Context(), userUuid)
+	invites, err := h.Stores.DraftStore.GetInvites(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)

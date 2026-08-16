@@ -2,11 +2,14 @@ package database
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/XSAM/otelsql"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,4 +91,41 @@ func TestRegisterDatabaseConnectionInvalidCredentials(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, db)
 	assert.Contains(t, err.Error(), "failed to ping database")
+}
+
+type failingDBTX struct {
+	err error
+}
+
+func (f *failingDBTX) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
+	return nil, f.err
+}
+
+func TestIsProgrammingError(t *testing.T) {
+	assert.True(t, isProgrammingError(&pgconn.PgError{Code: "42601"}), "syntax error should be a programming error")
+	assert.True(t, isProgrammingError(&pgconn.PgError{Code: "42P01"}), "undefined table should be a programming error")
+	assert.True(t, isProgrammingError(&pgconn.PgError{Code: "42703"}), "undefined column should be a programming error")
+	assert.True(t, isProgrammingError(&pgconn.PgError{Code: "22003"}), "data exception should be a programming error")
+	assert.True(t, isProgrammingError(&pgconn.PgError{Code: "26000"}), "invalid sql statement name should be a programming error")
+
+	assert.False(t, isProgrammingError(&pgconn.PgError{Code: "08006"}), "connection failure should not be a programming error")
+	assert.False(t, isProgrammingError(&pgconn.PgError{Code: "53300"}), "too many connections should not be a programming error")
+	assert.False(t, isProgrammingError(errors.New("random error")), "non-pg error should not be a programming error")
+}
+
+func TestPrepare_ReturnsTransientError(t *testing.T) {
+	transientErr := errors.New("transient failure")
+	stmt, err := Prepare(context.Background(), &failingDBTX{err: transientErr}, "SELECT 1")
+	assert.Error(t, err)
+	assert.Nil(t, stmt)
+	assert.ErrorIs(t, err, transientErr)
+}
+
+func TestPrepare_ReturnsContextError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	stmt, err := Prepare(ctx, &failingDBTX{err: context.Canceled}, "SELECT 1")
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, stmt)
 }

@@ -1,10 +1,10 @@
 # Draft Agent
 
-AI-powered agent that automates fantasy FRC draft picks by integrating with the Fantasy FRC web application.
+AI-powered agent that automates fantasy FRC draft picks by integrating with the Fantasy FRC web application
 
 ## Overview
 
-Draft Agent is a Go application that uses OpenCode's API to automatically make picks in a Fantasy FRC draft. It creates users, starts a draft, invites players, and uses AI to determine which teams to pick based on persona prompts.
+Draft Agent is a Go application that uses OpenCode's API to automatically make picks in a Fantasy FRC draft. It creates users, starts a draft, invites players, and uses AI to determine which teams to pick based on persona prompts. Likely broken at the moment due to login changes.
 
 ## How It Works
 

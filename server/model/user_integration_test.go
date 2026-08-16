@@ -3,11 +3,13 @@ package model
 import (
 	"context"
 	"crypto"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestRegisterUser_Integration(t *testing.T) {
@@ -16,7 +18,10 @@ func TestRegisterUser_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	username := "test_register_" + randomString(8)
-	userUuid, err := store.RegisterUser(ctx, username, "Password123!")
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("Password123!"), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	userUuid, err := store.RegisterUser(ctx, username, string(passwordHash))
 
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, userUuid)
@@ -29,32 +34,23 @@ func TestRegisterUser_Integration(t *testing.T) {
 	taken, err := store.UsernameTaken(ctx, username)
 	assert.NoError(t, err)
 	assert.True(t, taken)
+
+	storedHash, err := store.GetPasswordHashByUsername(ctx, username)
+	assert.NoError(t, err)
+	assert.Equal(t, string(passwordHash), storedHash)
 }
 
-func TestValidateLogin_Integration(t *testing.T) {
+func TestGetPasswordHashByUsername_Integration(t *testing.T) {
 	db := setupTestDB(t)
 	store := NewSQLUserStore(db)
 	ctx := context.Background()
 
 	user := createTestUser(t, db)
 
-	valid, err := store.ValidateLogin(ctx, user.Username, "Password123!")
+	passwordHash, err := store.GetPasswordHashByUsername(ctx, user.Username)
 	assert.NoError(t, err)
-	assert.True(t, valid)
-
-	valid, err = store.ValidateLogin(ctx, user.Username, "wrongpassword")
-	assert.NoError(t, err)
-	assert.False(t, valid)
-}
-
-func TestValidateLogin_UnknownUsername_Integration(t *testing.T) {
-	db := setupTestDB(t)
-	store := NewSQLUserStore(db)
-	ctx := context.Background()
-
-	valid, err := store.ValidateLogin(ctx, "definitely_not_a_user_"+randomString(8), "anypassword")
-	assert.NoError(t, err)
-	assert.False(t, valid)
+	assert.NotEmpty(t, passwordHash)
+	assert.True(t, strings.HasPrefix(passwordHash, "$2a$"), "password should be a bcrypt hash")
 }
 
 func TestSessionTokenFlow_Integration(t *testing.T) {
@@ -128,16 +124,15 @@ func TestUpdatePassword_Integration(t *testing.T) {
 
 	user := createTestUser(t, db)
 
-	err := store.UpdatePassword(ctx, user.Username, "NewPassword456!")
+	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte("NewPassword456!"), bcrypt.MinCost)
 	require.NoError(t, err)
 
-	valid, err := store.ValidateLogin(ctx, user.Username, "NewPassword456!")
-	assert.NoError(t, err)
-	assert.True(t, valid)
+	err = store.UpdatePassword(ctx, user.Username, string(newPasswordHash))
+	require.NoError(t, err)
 
-	valid, err = store.ValidateLogin(ctx, user.Username, "Password123!")
-	assert.NoError(t, err)
-	assert.False(t, valid)
+	storedHash, err := store.GetPasswordHashByUsername(ctx, user.Username)
+	require.NoError(t, err)
+	assert.Equal(t, string(newPasswordHash), storedHash)
 }
 
 func TestDiscordId_Integration(t *testing.T) {
@@ -244,4 +239,30 @@ func TestUsernameTaken_Integration(t *testing.T) {
 	taken, err = store.UsernameTaken(ctx, "totally_unique_"+randomString(16))
 	assert.NoError(t, err)
 	assert.False(t, taken)
+}
+
+func TestRegisterUser_PasswordHashStoredAsProvided(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	store := NewSQLUserStore(db)
+
+	username := "test_hash_" + randomString(8)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("Password123!"), 10)
+	require.NoError(t, err)
+
+	userUuid, err := store.RegisterUser(ctx, username, string(passwordHash))
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM Users WHERE UserUuid = $1", userUuid)
+	})
+
+	var storedHash string
+	err = db.QueryRowContext(ctx, "SELECT password FROM Users WHERE UserUuid = $1", userUuid).Scan(&storedHash)
+	require.NoError(t, err)
+	assert.Equal(t, string(passwordHash), storedHash)
+
+	hashCost, err := bcrypt.Cost([]byte(storedHash))
+	require.NoError(t, err)
+	assert.Equal(t, 10, hashCost, "stored password hash should preserve the cost it was given")
 }

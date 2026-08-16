@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"crypto/subtle"
+	"errors"
 	"net/http"
 	"server/log"
 	"server/metrics"
@@ -18,46 +19,62 @@ const UserUuidKey contextKey = "userUuid"
 const IsAdminKey contextKey = "isAdmin"
 
 type Authenticator struct {
-	userStore model.UserStore
+	authService AuthService
+	userStore   model.UserStore
 }
 
-func NewAuth(userStore model.UserStore) *Authenticator {
+func NewAuth(authService AuthService, userStore model.UserStore) *Authenticator {
 	return &Authenticator{
-		userStore: userStore,
+		authService: authService,
+		userStore:   userStore,
 	}
 }
 
 func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		//Grab the cookie from the session
-		userTok, err := c.Cookie("sessionToken")
+		userTok, err := c.Cookie(SessionCookieName)
 		if err != nil {
 			log.Debug(c.Request().Context(), "No session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
-		//Check if the cookie is valid
-		isValid, err := a.userStore.ValidateSessionToken(c.Request().Context(), userTok.Value)
+
+		userUuid, err := a.authService.ValidateSession(c.Request().Context(), userTok.Value)
 		if err != nil {
-			log.Error(c.Request().Context(), "Failed to validate session token", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
+			if errors.Is(err, ErrInvalidCredentials) {
+				log.Warn(c.Request().Context(), "Invalid session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
+			} else {
+				log.Error(c.Request().Context(), "Failed to validate session", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
+			}
 			return c.Redirect(http.StatusSeeOther, "/login")
 		}
 
-		if isValid {
-			userUuid, err := a.userStore.GetUserBySessionToken(c.Request().Context(), userTok.Value)
-			if err != nil {
-				log.Error(c.Request().Context(), "Failed to get user by session token", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
-				return c.Redirect(http.StatusSeeOther, "/login")
-			}
-			c.Set(string(UserUuidKey), userUuid)
-			metrics.RecordUserActivity(userUuid.String())
-			metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
-			log.Debug(c.Request().Context(), "User authenticated for protected route", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
-		} else {
-			log.Warn(c.Request().Context(), "Invalid session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
-			return c.Redirect(http.StatusSeeOther, "/login")
-		}
+		c.Set(string(UserUuidKey), userUuid)
+		metrics.RecordUserActivity(userUuid.String())
+		metrics.RecordAuthenticatedRequest(c.Request().Method, c.Path())
+		log.Debug(c.Request().Context(), "User authenticated for protected route", "userUuid", userUuid, "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)
 
 		return next(c)
+	}
+}
+
+func (a *Authenticator) RedirectIfAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		userTok, err := c.Cookie(SessionCookieName)
+		if err != nil {
+			return next(c)
+		}
+
+		_, err = a.authService.ValidateSession(c.Request().Context(), userTok.Value)
+		if err != nil {
+			if !errors.Is(err, ErrInvalidCredentials) {
+				log.Error(c.Request().Context(), "Failed to validate session for redirect check", "ip", c.RealIP(), "path", c.Request().URL.Path, "error", err)
+			}
+			return next(c)
+		}
+
+		log.Debug(c.Request().Context(), "Authenticated user redirected from public auth page", "ip", c.RealIP(), "path", c.Request().URL.Path)
+		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
 }
 

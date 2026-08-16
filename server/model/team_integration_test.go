@@ -103,15 +103,47 @@ func TestGetMatchScores_Integration(t *testing.T) {
 	})
 }
 
-func TestValidPick_EmptyTeam_Integration(t *testing.T) {
+func TestGetScoresBatch_Integration(t *testing.T) {
 	db := setupTestDB(t)
-	store := NewSQLDraftStore(db)
 	ctx := context.Background()
 
-	draftStore := store
-	teamStore := NewSQLTeamStore(db)
+	teamA := "frc" + randomString(4)
+	teamB := "frc" + randomString(4)
 
-	valid, err := ValidPick(ctx, draftStore, teamStore, nil, "", 1)
-	assert.Error(t, err)
-	assert.False(t, valid)
+	createTestTeam(t, db, teamA)
+	createTestTeam(t, db, teamB)
+
+	_, err := db.ExecContext(ctx, "UPDATE Teams SET allianceScore = 10 WHERE tbaId = $1", teamA)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, "UPDATE Teams SET allianceScore = 5 WHERE tbaId = $1", teamB)
+	require.NoError(t, err)
+
+	matchA := "2026cur_qm1"
+	_, err = db.ExecContext(ctx, "INSERT INTO Matches (tbaid, played, redscore, bluescore) VALUES ($1, true, 50, 30) ON CONFLICT (tbaid) DO UPDATE SET played = EXCLUDED.played, redscore = EXCLUDED.redscore, bluescore = EXCLUDED.bluescore", matchA)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, "INSERT INTO Matches_Teams (match_tbaid, team_tbaid, alliance, isdqed) VALUES ($1, $2, 'Red', false) ON CONFLICT DO NOTHING", matchA, teamA)
+	require.NoError(t, err)
+
+	matchB := "2026cur_qm2"
+	_, err = db.ExecContext(ctx, "INSERT INTO Matches (tbaid, played, redscore, bluescore) VALUES ($1, true, 20, 40) ON CONFLICT (tbaid) DO UPDATE SET played = EXCLUDED.played, redscore = EXCLUDED.redscore, bluescore = EXCLUDED.bluescore", matchB)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, "INSERT INTO Matches_Teams (match_tbaid, team_tbaid, alliance, isdqed) VALUES ($1, $2, 'Blue', false) ON CONFLICT DO NOTHING", matchB, teamB)
+	require.NoError(t, err)
+
+	scores, err := getScoresBatch(ctx, db, []string{teamA, teamB})
+	require.NoError(t, err)
+	require.Len(t, scores, 2)
+
+	assert.Equal(t, 60, scores[teamA]["Total Score"])
+	assert.Equal(t, 10, scores[teamA]["Alliance Score"])
+	assert.Equal(t, 50, scores[teamA]["Qual Score"])
+	assert.Equal(t, 45, scores[teamB]["Total Score"])
+	assert.Equal(t, 5, scores[teamB]["Alliance Score"])
+	assert.Equal(t, 40, scores[teamB]["Qual Score"])
+
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM Matches_Teams WHERE team_tbaid IN ($1, $2)", teamA, teamB)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM Matches WHERE tbaid IN ($1, $2)", matchA, matchB)
+		_, _ = db.ExecContext(context.Background(), "DELETE FROM Teams WHERE tbaId IN ($1, $2)", teamA, teamB)
+	})
 }

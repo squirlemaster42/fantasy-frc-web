@@ -20,10 +20,9 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	username, err := h.getAuthenticatedUsername(c, userUuid)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -32,13 +31,13 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	// TODO I think this should go through the draft manager
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		//We want to redirect back to the home screen
 		log.Debug(c.Request().Context(), "User attempted to visit incorrect draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
+	draftModel := draft.GetDraft(draftActor)
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
@@ -74,7 +73,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	userUuid := c.Get("userUuid").(uuid.UUID)
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
@@ -99,7 +98,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		DiscordWebhook: discordWebhook,
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -118,7 +117,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 // SearchPlayers searches for users to invite to a draft and returns the results as HTML.
 func (h *Handler) SearchPlayers(c echo.Context) error {
-	currentUrl := c.Request().Header.Get("Hx-Current-Url")
+	currentUrl := c.Request().Header.Get(htmxCurrentUrlHeader)
 	if currentUrl == "" {
 		log.Warn(c.Request().Context(), "Missing Hx-Current-Url header")
 		return c.String(http.StatusBadRequest, "Missing required header")
@@ -132,13 +131,13 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to search users", "draftId", draftId, "searchInput", searchInput, "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to search users")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Debug(c.Request().Context(), "User attempted to search for players in an invalid draft", "draftId", draftId, "error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
@@ -173,7 +172,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	// Check that the draft is in the correct state
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load draft", "draftId", draftId, "error", err)
 		return err
@@ -203,7 +202,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	searchInput := c.FormValue("search")
 
-	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to search users", "draftId", draftId, "searchInput", searchInput, "error", err)
@@ -241,7 +240,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Could not load draft", "draftId", draftId, "error", err)
 		c.Response().Status = http.StatusBadRequest
@@ -257,20 +256,12 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	// Check that eight players have accepted the draft
-	numAccepted := 0
-	for _, p := range draftModel.Players {
-		if !p.Pending {
-			numAccepted++
-		}
-	}
-
-	if numAccepted != 8 {
-		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId, "numAccepted", numAccepted)
+	if !model.CanStartDraft(draftModel) {
+		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId)
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
-			fmt.Sprintf("Draft must have exactly 8 accepted players to start (current: %d)", numAccepted),
+			"Draft must have exactly 8 accepted players to start",
 			true,
 			h.csrfToken(c),
 		)
@@ -278,7 +269,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	// Cancel the invites for players who have not accepted the draft
-	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+	if err := h.Stores.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "draftId", draftId, "error", err)
 	}
 
@@ -290,7 +281,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	// Cancel the invites for players who have not accepted the draft
-	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+	if err := h.Stores.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", draftId)
 	}
 
@@ -315,7 +306,7 @@ func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid invite ID")
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load draft", "draftId", draftId, "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load draft")
@@ -344,7 +335,7 @@ func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
 
 	// Re-fetch search results so the uninvited player reappears as invitable
 	searchInput := c.FormValue("search")
-	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to search users after uninvite", "draftId", draftId, "searchInput", searchInput, "error", err)
 	}
