@@ -13,7 +13,7 @@ import (
 )
 
 func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
-	userUuid, username, err := h.requireUser(c)
+	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}

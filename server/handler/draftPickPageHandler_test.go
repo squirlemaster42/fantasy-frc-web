@@ -24,6 +24,8 @@ func TestServePickPage(t *testing.T) {
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+
 		h := &Handler{
 			Stores: StorageGroup{
 				DraftStore: mockDraftStore,

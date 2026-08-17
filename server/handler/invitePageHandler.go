@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"server/draft"
@@ -18,8 +17,7 @@ func (h *Handler) HandleViewInvites(c echo.Context) error {
 }
 
 func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -48,7 +46,10 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 }
 
 func (h *Handler) HandleAcceptInvite(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	inviteIdStr := c.FormValue("inviteId")
 	log.Debug(c.Request().Context(), "Got request to accept invite", "userUuid", userUuid, "inviteId", inviteIdStr)
 	inviteId, err := strconv.Atoi(inviteIdStr)
@@ -92,7 +93,10 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 }
 
 func (h *Handler) HandleDeclineInvite(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	inviteIdStr := c.FormValue("inviteId")
 
 	log.Info(c.Request().Context(), "Got request to decline invite", "User", userUuid, "Invite Id", inviteIdStr)

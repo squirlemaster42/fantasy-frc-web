@@ -7,18 +7,11 @@ import (
 	"server/log"
 	"server/view/userProfile"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleViewUserProfile(c echo.Context) error {
-	userUuidVal := c.Get("userUuid")
-	if userUuidVal == nil {
-		log.Warn(c.Request().Context(), "Failed to get user uuid from context")
-		return c.Redirect(http.StatusSeeOther, "/login")
-	}
-	userUuid := userUuidVal.(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -38,13 +31,7 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 }
 
 func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
-	userUuidVal := c.Get("userUuid")
-	if userUuidVal == nil {
-		log.Warn(c.Request().Context(), "Failed to get user uuid from context")
-		return c.Redirect(http.StatusSeeOther, "/login")
-	}
-	userUuid := userUuidVal.(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
