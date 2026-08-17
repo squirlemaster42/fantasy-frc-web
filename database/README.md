@@ -81,7 +81,7 @@ cd database
 make test
 ```
 
-This spins up an ephemeral PostgreSQL container, runs all migrations up, verifies tables, then rolls everything down.
+This spins up an ephemeral PostgreSQL container, runs all migrations up, verifies tables, then rolls everything down
 
 ## Production Bootstrap
 
