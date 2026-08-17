@@ -44,7 +44,15 @@ func TestGetDraftsForUser_Integration(t *testing.T) {
 	store := NewSQLDraftStore(db)
 	ctx := context.Background()
 
-	drafts, err := store.GetDraftsForUser(ctx, user.UserUuid)
+	drafts, err := store.SearchDrafts(
+		ctx,
+		DraftSearchQuery{
+			UserUuid: user.UserUuid,
+			DraftNameSearch: draft.DisplayName,
+			PageSize: 20,
+			PageNum: 0,
+		},
+	)
 	require.NoError(t, err)
 
 	found := false
@@ -174,9 +182,18 @@ func TestGetDraftsForUser_MultipleDrafts_Integration(t *testing.T) {
 	_, err := store.InvitePlayer(ctx, draftB.Id, owner.UserUuid, invited.UserUuid)
 	require.NoError(t, err)
 
-	drafts, err := store.GetDraftsForUser(ctx, owner.UserUuid)
+
+	drafts, err := store.SearchDrafts(
+		ctx,
+		DraftSearchQuery{
+			UserUuid: owner.UserUuid,
+			PageSize: 20,
+			PageNum: 0,
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, drafts, 2)
+
 
 	draftIds := make(map[int]bool)
 	for _, d := range drafts {
@@ -192,7 +209,14 @@ func TestGetDraftsForUser_MultipleDrafts_Integration(t *testing.T) {
 	assert.True(t, draftIds[draftA.Id])
 	assert.True(t, draftIds[draftB.Id])
 
-	invitedDrafts, err := store.GetDraftsForUser(ctx, invited.UserUuid)
+	invitedDrafts, err := store.SearchDrafts(
+		ctx,
+		DraftSearchQuery{
+			UserUuid: invited.UserUuid,
+			PageSize: 20,
+			PageNum: 0,
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, invitedDrafts, 1)
 	assert.Equal(t, draftB.Id, invitedDrafts[0].Id)
@@ -224,7 +248,15 @@ func TestGetDraftsForUser_PickingStatus_Integration(t *testing.T) {
 	_, err = store.MakePickAvailable(ctx, playerId, now, now.Add(time.Hour))
 	require.NoError(t, err)
 
-	drafts, err := store.GetDraftsForUser(ctx, owner.UserUuid)
+	drafts, err := store.SearchDrafts(
+		ctx,
+		DraftSearchQuery{
+			UserUuid: owner.UserUuid,
+			DraftNameSearch: draft.DisplayName,
+			PageSize: 20,
+			PageNum: 0,
+		},
+	)
 	require.NoError(t, err)
 	require.Len(t, drafts, 1)
 	assert.Equal(t, PICKING, drafts[0].Status)

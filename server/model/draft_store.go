@@ -11,7 +11,7 @@ import (
 
 type DraftStore interface {
 	GetDraft(ctx context.Context, draftId int) (DraftModel, error)
-	GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error)
+	SearchDrafts(ctx context.Context, search DraftSearchQuery) ([]DraftModel, error)
 	GetDraftsByName(ctx context.Context, searchString string) ([]DraftModel, error)
 	CreateDraft(ctx context.Context, draft *DraftModel) (int, error)
 	GetDraftScore(ctx context.Context, draftId int) ([]DraftPlayer, error)

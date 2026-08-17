@@ -359,36 +359,6 @@ func (_m *MockDraftStore) GetDraftsByName(ctx context.Context, searchString stri
 	return r0, r1
 }
 
-// GetDraftsForUser provides a mock function with given fields: ctx, userUuid
-func (_m *MockDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]model.DraftModel, error) {
-	ret := _m.Called(ctx, userUuid)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetDraftsForUser")
-	}
-
-	var r0 []model.DraftModel
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.DraftModel, error)); ok {
-		return rf(ctx, userUuid)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.DraftModel); ok {
-		r0 = rf(ctx, userUuid)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.DraftModel)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, userUuid)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetDraftsInStatus provides a mock function with given fields: ctx, status
 func (_m *MockDraftStore) GetDraftsInStatus(ctx context.Context, status model.DraftState) ([]int, error) {
 	ret := _m.Called(ctx, status)
@@ -867,6 +837,36 @@ func (_m *MockDraftStore) RunInTransaction(ctx context.Context, fn func(database
 	}
 
 	return r0
+}
+
+// SearchDrafts provides a mock function with given fields: ctx, search
+func (_m *MockDraftStore) SearchDrafts(ctx context.Context, search model.DraftSearchQuery) ([]model.DraftModel, error) {
+	ret := _m.Called(ctx, search)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchDrafts")
+	}
+
+	var r0 []model.DraftModel
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.DraftSearchQuery) ([]model.DraftModel, error)); ok {
+		return rf(ctx, search)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, model.DraftSearchQuery) []model.DraftModel); ok {
+		r0 = rf(ctx, search)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.DraftModel)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, model.DraftSearchQuery) error); ok {
+		r1 = rf(ctx, search)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ShouldSkipPick provides a mock function with given fields: ctx, draftPlayerId

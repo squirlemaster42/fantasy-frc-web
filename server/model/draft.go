@@ -33,6 +33,13 @@ const (
 	PicksPerDraft    = DraftPlayerCount * PicksPerPlayer // 64
 )
 
+type DraftSearchQuery struct {
+	UserUuid uuid.UUID
+	DraftNameSearch string
+	PageNum int
+	PageSize int
+}
+
 type DraftModel struct {
 	Id             int
 	DisplayName    string
@@ -171,10 +178,10 @@ func getDraftsByName(ctx context.Context, db database.DBTX, searchString string)
 	return drafts, nil
 }
 
-func getDraftsForUser(ctx context.Context, db database.DBTX, userUuid uuid.UUID) ([]DraftModel, error) {
+func searchDrafts(ctx context.Context, db database.DBTX, search DraftSearchQuery) ([]DraftModel, error) {
 	query := `SELECT DISTINCT
         Drafts.Id,
-        displayName,
+        Drafts.displayName,
         owners.UserUuid As ownerId,
         owners.Username As OwnerUsername,
         COALESCE(Drafts.Status, '0') As Status
@@ -185,17 +192,26 @@ func getDraftsForUser(ctx context.Context, db database.DBTX, userUuid uuid.UUID)
     Left Join Users diUsers On DraftInvites.InvitedUserUuid = diUsers.UserUuid
     Left Join Users owners On Drafts.OwnerUserUuid = owners.UserUuid
 	Left Join Users currUser On currUser.UserUuid = $2
-    Where DraftPlayers.UserUuid = $2
+    Where (DraftPlayers.UserUuid = $2
 		Or DraftInvites.InvitedUserUuid = $2
-		Or currUser.IsAdmin = true
-    Order By Drafts.Id Asc;`
+		Or currUser.IsAdmin = true)`;
+
+	if search.DraftNameSearch != "" {
+		query += " And Drafts.DisplayName Like '%"
+		query += search.DraftNameSearch
+		query += "%' "
+	}
+
+	query += `Order By Drafts.Id Asc
+	Limit $3
+	Offset $4;`
 
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return nil, err
 	}
 	defer database.CloseStatement(ctx, stmt, "GetDraftsForUser")
-	rows, err := stmt.QueryContext(ctx, FILLING, userUuid)
+	rows, err := stmt.QueryContext(ctx, FILLING, search.UserUuid, search.PageSize, search.PageNum * search.PageSize)
 	if err != nil {
 		return nil, err
 	}

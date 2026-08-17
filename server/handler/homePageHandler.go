@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"server/log"
+	"server/model"
 	"server/view"
 
 	"github.com/google/uuid"
@@ -18,7 +19,11 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	}
 
 	log.Debug(c.Request().Context(), "Loading drafts for user", "username", username)
-	drafts, err := h.Stores.DraftStore.GetDraftsForUser(c.Request().Context(), userUuid)
+	drafts, err := h.Stores.DraftStore.SearchDrafts(c.Request().Context(), model.DraftSearchQuery{
+		UserUuid: userUuid,
+		PageSize: 20,
+		PageNum: 0,
+	})
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to load drafts")

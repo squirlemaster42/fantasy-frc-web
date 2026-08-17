@@ -59,8 +59,8 @@ func (s *SQLDraftStore) GetDraftPickRows(ctx context.Context, teamKeys []string)
 	return getDraftPickRows(ctx, s.db, teamKeys)
 }
 
-func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error) {
-	return getDraftsForUser(ctx, s.db, userUuid)
+func (s *SQLDraftStore) SearchDrafts(ctx context.Context, search DraftSearchQuery) ([]DraftModel, error) {
+	return searchDrafts(ctx, s.db, search)
 }
 
 func (s *SQLDraftStore) CreateDraft(ctx context.Context, draft *DraftModel) (int, error) {

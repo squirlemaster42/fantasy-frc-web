@@ -21,7 +21,11 @@ func TestHandleViewHome(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
-		mockDraftStore.On("GetDraftsForUser", c.Request().Context(), userUuid).Return([]model.DraftModel{}, nil)
+		mockDraftStore.On("SearchDrafts", c.Request().Context(), model.DraftSearchQuery{
+			UserUuid: userUuid,
+			PageSize: 20,
+			PageNum: 0,
+		}).Return([]model.DraftModel{}, nil)
 
 		h := &Handler{
 			Stores: StorageGroup{
