@@ -22,14 +22,17 @@ import (
 // ServePickPage renders the draft pick page for the authenticated user.
 func (h *Handler) ServePickPage(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Serving pick page", "ip", c.RealIP())
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, username, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse draft id string", "draftIdString", c.Param("id"), "error", err)
 		return err
 	}
 
-	return h.renderPickPage(c, draftId, userUuid, nil, true)
+	return h.renderPickPage(c, draftId, userUuid, username, nil, true)
 }
 
 // HandlerPickRequest validates that the current player is allowed to make a pick and processes it.
@@ -38,7 +41,10 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	//they are on. We then need to make that pick at the draft that they are on
 	//Get the player, draft id and the pick
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftIdStr := c.Param("id")
 	pick := teamPrefix + c.FormValue("pickInput")
 	log.Debug(c.Request().Context(), "Attempting to pick team", "team", pick)
@@ -81,17 +87,17 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	if pick == teamPrefix || !isCurrentPick {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "isCurrentPick", isCurrentPick, "pick", pick, "userUuid", userUuid)
         pickError = errors.New("you must be the picking player to make a pick")
-        return h.renderPickPage(c, draftId, userUuid, pickError, false)
+        return h.renderPickPage(c, draftId, userUuid, "", pickError, false)
 	}
 	pickError = draft.MakePick(c.Request().Context(), draftActor, pickStruct)
 	if pickError != nil {
 		log.Warn(c.Request().Context(), "Could Not Make Pick", "isCurrentPick", isCurrentPick, "pick", pick, "userUuid", userUuid, "error", pickError)
 	}
 
-	return h.renderPickPage(c, draftId, userUuid, pickError, false)
+	return h.renderPickPage(c, draftId, userUuid, "", pickError, false)
 }
 
-func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, pickError error, includeWrapper bool) error {
+func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, username string, pickError error, includeWrapper bool) error {
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
@@ -127,10 +133,6 @@ func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID
 
 	pickPageIndex := draftView.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
-		username, err := h.getAuthenticatedUsername(c, userUuid)
-		if err != nil {
-			return err
-		}
 		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, types.NewPageData(draftId, draftActor.GetDraftState().DisplayName, isOwner))
 		if err := Render(c, pickPageView); err != nil {
 			log.Error(c.Request().Context(), "Failed to render pick page", "draftId", draftId, "error", err)
@@ -222,7 +224,11 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 		}
 	}()
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
 
 	ticker := time.NewTicker(WsPingInterval())
 	defer func() {
@@ -271,7 +277,10 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 
 // HandleSkipPickToggle toggles whether the current player's pick should be skipped.
 func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftIdStr := c.Param("id")
 	draftId, err := strconv.Atoi(draftIdStr)
 

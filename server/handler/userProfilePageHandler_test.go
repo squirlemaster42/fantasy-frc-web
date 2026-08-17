@@ -39,7 +39,7 @@ func TestHandleViewUserProfile(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleViewUserProfile(c)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
@@ -156,7 +156,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleUpdateUserProfile(c)
-		assert.NoError(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
