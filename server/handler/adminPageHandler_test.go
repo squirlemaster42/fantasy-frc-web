@@ -24,13 +24,13 @@ func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
 	}{
 		{
 			name:           "missing id argument",
-			args:           "-pickId=1 -time=45m",
+			args:           "-time=45m",
 			expectedResult: "Missing required argument: -id=<draftId>",
 			description:    "Should return error when draft ID is missing",
 		},
 		{
 			name:           "missing time argument",
-			args:           "-id=123 -pickId=1",
+			args:           "-id=123",
 			expectedResult: "Missing required argument: -time=<duration>",
 			description:    "Should return error when time duration is missing",
 		},
@@ -42,13 +42,13 @@ func TestModifyPickTimeCommandArgumentParsing(t *testing.T) {
 		},
 		{
 			name:           "invalid draft id",
-			args:           "-id=invalid -pickId=1 -time=45m",
+			args:           "-id=invalid -time=45m",
 			expectedResult: "Draft Id Could Not Be Converted To An Int",
 			description:    "Should return error when draft ID is not an integer",
 		},
 		{
 			name:           "invalid duration format",
-			args:           "-id=123 -pickId=1 -time=invalid",
+			args:           "-id=123 -time=invalid",
 			expectedResult: "Invalid duration format. Use format like: 45m, 1h30m, 2h15m30s",
 			description:    "Should return error for invalid duration format",
 		},

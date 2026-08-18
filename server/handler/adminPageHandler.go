@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -172,41 +171,12 @@ func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 		return "Draft Id Does Not Match A Valid Draft"
 	}
 
-	replyChan := make(chan draft.Result)
-	skipped := false
-	message := draft.Message {
-		Content: draft.SkipCurrentPickMessage {
-			CurrentPickId: draftActor.GetDraftState().CurrentPick.Id,
-		},
-		Reply: replyChan,
-	}
-	err = draftActor.PostMessage(ctx, message)
-	if err != nil {
-		log.Error(ctx, "Failed to post skip message to draft actor", "draftId", draftId, "error", err)
-	} else {
-		select {
-		case result := <- message.Reply:
-			if result.Error != nil {
-				log.Error(ctx, "Skipping current pick in draft failed", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id, "error", result.Error)
-				err = result.Error
-				skipped = false
-			} else {
-				skipped = true
-			}
-		case <- time.After(5 * time.Second):
-			log.Warn(ctx, "Skipping current pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
-			skipped = false
-		}
-	}
-	if err != nil {
-		return "Failed to skip player: " + err.Error()
-	}
-
+	skipped := draft.SkipCurrentPick(ctx, draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
 	if skipped {
 		return "Player was skipped"
-	} else {
-		return "Did not get confirmation of skip. Verify draft state"
 	}
+
+	return "Did not get confirmation of skip. Verify draft state"
 }
 
 type ModifyPickTimeCommand struct{}
@@ -225,16 +195,6 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler t
 		return "Draft Id Could Not Be Converted To An Int"
 	}
 
-	pickIdStr, ok := argMap["pickId"]
-	if !ok {
-		return "Missing required argument: -pickId=<pickid>"
-	}
-
-	pickId, err := strconv.Atoi(pickIdStr)
-	if err != nil {
-		return "Pick Id Could Not Be Converted To An Int"
-	}
-
 	durationStr, ok := argMap["time"]
 	if !ok {
 		return "Missing required argument: -time=<duration>"
@@ -251,30 +211,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler t
 		return "Draft Id Does Not Match A Valid Draft"
 	}
 
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.ModifyExpirationTimeMessage{
-			PickId: pickId,
-			Extension: duration,
-		},
-		Reply: replyChan,
-	}
-	err = draftActor.PostMessage(ctx, message)
-	if err != nil {
-		log.Error(ctx, "Failed to post modify expiration time message", "draftId", draftId, "error", err)
-	} else {
-		select {
-		case result := <- message.Reply:
-			if result.Error != nil {
-				log.Warn(ctx, "Extending pick expiration time failed", "draftId", draftId, "pickId", pickId, "error", result.Error)
-				err = result.Error
-			}
-		case <- time.After(5 * time.Second):
-			log.Warn(ctx, "Extending pick expiration time timed out", "draftId", draftId)
-			err = errors.New("timeout extending pick expiration time")
-		}
-	}
-
+	err = draft.ModifyCurrentPickExpirationTime(ctx, draftActor, duration)
 	if err != nil {
 		log.Warn(ctx, "Update draft pick expiration time failed", "draftId", draftId, "duration", duration, "error", err)
 		return err.Error()
@@ -331,31 +268,10 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 		},
 	}
 
-	replyChan := make(chan draft.Result)
-	message := draft.Message {
-		Content: draft.PickMessage{
-			Pick: pickStruct,
-		},
-		Reply: replyChan,
-	}
-	err = draftActor.PostMessage(ctx, message)
+	err = draft.MakePick(ctx, draftActor, pickStruct)
 	if err != nil {
-		log.Error(ctx, "Failed to post pick message", "draftId", draftId, "error", err)
+		log.Warn(ctx, "Could Not Make Pick", "currentPickId", draftState.CurrentPick.Id, "pick", tbaId, "error", err)
 		return err.Error()
-	}
-	var pickError error
-	select {
-	case result := <- message.Reply:
-		if result.Error != nil {
-			pickError = result.Error
-		}
-	case <- time.After(5 * time.Second):
-		log.Warn(ctx, "making pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
-		return "make pick timed out"
-	}
-	if pickError != nil {
-		log.Warn(ctx, "Could Not Make Pick", "currentPickId", draftState.CurrentPick.Id, "pick", tbaId, "error", pickError)
-		return pickError.Error()
 	}
 
 	return fmt.Sprintf("Successfully picked team %s", teamStr)
