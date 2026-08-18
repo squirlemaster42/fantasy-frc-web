@@ -565,6 +565,67 @@ func (d *DraftActor) validatePickInput(ctx context.Context, msg PickMessage) err
 	return validator.ValidatePick(ctx, msg.Pick)
 }
 
+type pickOutcome struct {
+	previousPlayerId int
+	pickedTeam       string
+	nextPick         model.DraftPlayer
+	complete         bool
+	skipped          bool
+	sendDiscord      bool
+	logMsg           string
+	logPickId        int
+	notifyPick       model.Pick
+}
+
+func (d *DraftActor) prepareDraftAdvance(ctx context.Context) (model.DraftPlayer, bool, error) {
+	complete := len(d.draftState.Picks) == model.PicksPerDraft
+	if complete {
+		return model.DraftPlayer{}, true, nil
+	}
+
+	nextPick, err := model.DetermineNextPick(d.draftState.Players, d.draftState.Picks)
+	if err != nil {
+		log.Error(ctx, "Failed to determine next pick", "draftId", d.draftState.Id, "error", err)
+		return model.DraftPlayer{}, false, err
+	}
+
+	return nextPick, false, nil
+}
+
+func (d *DraftActor) commitDraftAdvance(ctx context.Context, action func(model.DraftStore) error, nextPick model.DraftPlayer, complete bool) error {
+	return d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		store := d.draftStore.WithTx(tx)
+		if err := action(store); err != nil {
+			return err
+		}
+		if complete {
+			return d.executeTransition(ctx, store, model.TEAMS_PLAYING)
+		}
+		_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime))
+		return err
+	})
+}
+
+func (d *DraftActor) publishPickOutcome(ctx context.Context, outcome pickOutcome) error {
+	if err := d.reloadDraftState(ctx); err != nil {
+		log.Error(ctx, "Failed to reload draft state", "draftId", d.draftState.Id, "error", err)
+		return err
+	}
+
+	if outcome.sendDiscord {
+		d.sendPickDiscordNotification(ctx, outcome.previousPlayerId, outcome.pickedTeam, outcome.nextPick, outcome.complete, outcome.skipped)
+	}
+
+	logPickId := outcome.logPickId
+	if logPickId == 0 {
+		logPickId = d.draftState.CurrentPick.Id
+	}
+	log.Info(ctx, outcome.logMsg, "draftId", d.draftState.Id, "pickId", logPickId, "team", outcome.pickedTeam)
+
+	d.notifyPickListeners(ctx, outcome.notifyPick)
+	return nil
+}
+
 func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	if err := d.validatePickInput(ctx, msg); err != nil {
 		return Result{
@@ -576,33 +637,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 	previousPickPlayerId := d.draftState.CurrentPick.Player
 	previouslyPickedTeam := msg.Pick.Pick.String
 
-	pickingComplete := len(d.draftState.Picks) == model.PicksPerDraft
-	expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now(), d.pickConfig.PickTime)
-
-	var nextPickPlayer model.DraftPlayer
-	var nextPickErr error
-	if !pickingComplete {
-		nextPickPlayer, nextPickErr = model.DetermineNextPick(d.draftState.Players, d.draftState.Picks)
-		if nextPickErr != nil {
-			log.Error(ctx, "Failed to determine next pick", "draftId", d.draftState.Id, "error", nextPickErr)
-			return Result{
-				Error: nextPickErr,
-				Value: false,
-			}
-		}
-	}
-
-	err := d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
-		store := d.draftStore.WithTx(tx)
-		if err := store.MakePick(ctx, msg.Pick); err != nil {
-			return err
-		}
-		if pickingComplete {
-			return d.executeTransition(ctx, store, model.TEAMS_PLAYING)
-		}
-		_, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
-		return err
-	})
+	nextPickPlayer, pickingComplete, err := d.prepareDraftAdvance(ctx)
 	if err != nil {
 		return Result{
 			Error: err,
@@ -610,19 +645,33 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 		}
 	}
 
-	if err := d.reloadDraftState(ctx); err != nil {
-		log.Error(ctx, "Failed to reload draft after pick", "draftId", d.draftState.Id, "error", err)
+	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
+		return store.MakePick(ctx, msg.Pick)
+	}, nextPickPlayer, pickingComplete)
+	if err != nil {
 		return Result{
 			Error: err,
 			Value: false,
 		}
 	}
 
-	d.sendPickDiscordNotification(ctx, previousPickPlayerId, previouslyPickedTeam, nextPickPlayer, pickingComplete, false)
-
-	log.Info(ctx, "Pick successful", "draftId", d.draftState.Id, "pickId", msg.Pick.Id, "team", msg.Pick.Pick.String)
-
-	d.notifyPickListeners(ctx, msg.Pick)
+	if err := d.publishPickOutcome(ctx, pickOutcome{
+		previousPlayerId: previousPickPlayerId,
+		pickedTeam:       previouslyPickedTeam,
+		nextPick:         nextPickPlayer,
+		complete:         pickingComplete,
+		skipped:          false,
+		sendDiscord:      true,
+		logMsg:           "Pick successful",
+		logPickId:        msg.Pick.Id,
+		notifyPick:       msg.Pick,
+	}); err != nil {
+		log.Error(ctx, "Failed to publish pick outcome", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
 
 	return Result{
 		Value: true,
@@ -670,60 +719,39 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 	}
 
 	skippedPlayerId := d.draftState.CurrentPick.Player
-	var nextPickPlayer model.DraftPlayer
-	var pickingComplete bool
 
-	if len(d.draftState.Picks) < model.PicksPerDraft {
-		nextPick, err := d.getNextPick(ctx)
-		if err != nil {
-			log.Error(ctx, "Failed to get next pick when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
-			return Result{
-				Error: err,
-			}
+	nextPickPlayer, pickingComplete, err := d.prepareDraftAdvance(ctx)
+	if err != nil {
+		return Result{
+			Error: err,
 		}
-		nextPickPlayer = nextPick
-		err = d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
-			store := d.draftStore.WithTx(tx)
-			if err := store.SkipPick(ctx, d.draftState.CurrentPick.Id); err != nil {
-				return err
-			}
-			_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime))
-			return err
-		})
-		if err != nil {
-			log.Error(ctx, "Failed to skip pick and make next pick available", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
-			return Result{
-				Error: err,
-			}
-		}
-	} else {
-		err := d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
-			store := d.draftStore.WithTx(tx)
-			if err := store.SkipPick(ctx, d.draftState.CurrentPick.Id); err != nil {
-				return err
-			}
-			return d.executeTransition(ctx, store, model.TEAMS_PLAYING)
-		})
-		if err != nil {
-			log.Error(ctx, "Failed to skip current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
-			return Result{
-				Error: err,
-			}
-		}
-		pickingComplete = true
 	}
 
-	if err := d.reloadDraftState(ctx); err != nil {
-		return Result{Error: err}
+	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
+		return store.SkipPick(ctx, d.draftState.CurrentPick.Id)
+	}, nextPickPlayer, pickingComplete)
+	if err != nil {
+		log.Error(ctx, "Failed to skip current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
+		return Result{
+			Error: err,
+		}
 	}
 
-	if !pickingComplete {
-		d.sendPickDiscordNotification(ctx, skippedPlayerId, "", nextPickPlayer, false, true)
+	if err := d.publishPickOutcome(ctx, pickOutcome{
+		previousPlayerId: skippedPlayerId,
+		pickedTeam:       "",
+		nextPick:         nextPickPlayer,
+		complete:         pickingComplete,
+		skipped:          true,
+		sendDiscord:      !pickingComplete,
+		logMsg:           "Pick skipped",
+		notifyPick:       model.Pick{},
+	}); err != nil {
+		log.Error(ctx, "Failed to publish skip outcome", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+		}
 	}
-
-	log.Info(ctx, "Pick skipped", "draftId", d.draftState.Id, "pickId", d.draftState.CurrentPick.Id)
-
-	d.notifyPickListeners(ctx, model.Pick{})
 
 	return Result{Value: true}
 }
@@ -811,10 +839,6 @@ func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
 	}
 
 	return d.draftState.Picks[len(d.draftState.Picks) - 2], nil
-}
-
-func (d *DraftActor) getNextPick(ctx context.Context) (model.DraftPlayer, error) {
-	return model.DetermineNextPick(d.draftState.Players, d.draftState.Picks)
 }
 
 func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraftPlayerId int, previousPickedTeam string, nextPickPlayer model.DraftPlayer, pickingComplete bool, skipped bool) (discord.NextPickDiscordEvent, error) {

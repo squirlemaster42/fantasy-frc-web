@@ -17,6 +17,7 @@ import (
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
+	"server/swagger"
 	"server/tbaHandler"
 	"server/utils"
 
@@ -40,6 +41,34 @@ func (t *testDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (st
 
 func newTestActorMap(t *testing.T, draftStore model.DraftStore, handler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) *DraftActorMap {
 	return NewDraftActorMap(draftStore, handler, discordStore, discordBus, pickNotifier, utils.DefaultPickWindowConfig(), 16)
+}
+
+type testTBAHandler struct {
+	events map[string][]string
+}
+
+func (t *testTBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
+	return t.events[teamId], nil
+}
+
+func (t *testTBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error) {
+	return swagger.Match{}, nil
+}
+
+func (t *testTBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error) {
+	return nil, nil
+}
+
+func (t *testTBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
+	return nil, nil
+}
+
+func (t *testTBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
+	return nil, nil
+}
+
+func (t *testTBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
+	return "", nil
 }
 
 func mockRunInTransaction(mockStore *mocks.MockDraftStore) {
@@ -763,4 +792,112 @@ func TestDraftActor_getPreviousPick_Errors(t *testing.T) {
 	pick, err = actor.getPreviousPick(t.Context())
 	assert.NoError(t, err)
 	assert.Equal(t, 1, pick.Id)
+}
+
+func TestDraftActorMap_MakePick(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	pickId := 42
+	teamId := "frc254"
+
+	players := []model.DraftPlayer{
+		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		{Id: 2, PlayerOrder: sql.NullInt16{Int16: 1, Valid: true}},
+	}
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId, Player: 1},
+		Picks: []model.Pick{
+			{Id: pickId, Player: 1},
+		},
+		Players: players,
+	}, nil).Once()
+	mockStore.On("HasBeenPicked", mock.Anything, draftId, teamId).Return(false, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("MakePick", mock.Anything, mock.Anything).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 2, mock.Anything, mock.Anything).Return(43, nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: 43, Player: 2},
+		Picks: []model.Pick{
+			{Id: pickId, Player: 1, Pick: sql.NullString{Valid: true, String: teamId}},
+			{Id: 43, Player: 2},
+		},
+		Players: players,
+	}, nil).Once()
+
+	handler := &testTBAHandler{
+		events: map[string][]string{
+			teamId: {utils.Events()[0]},
+		},
+	}
+
+	actorMap := newTestActorMap(t, mockStore, handler, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	err = MakePick(t.Context(), draftActor, model.Pick{
+		Id:     pickId,
+		Player: 1,
+		Pick:   sql.NullString{Valid: true, String: teamId},
+	})
+	assert.NoError(t, err)
+	mockStore.AssertExpectations(t)
+}
+
+func TestDraftActorMap_MakePick_FinalPickTransitionsToTeamsPlaying(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	pickId := 64
+	teamId := "frc254"
+
+	picks := make([]model.Pick, model.PicksPerDraft)
+	for i := range picks {
+		picks[i] = model.Pick{Id: i + 1, Player: 1}
+	}
+	picks[model.PicksPerDraft-1] = model.Pick{Id: pickId, Player: 1}
+
+	players := []model.DraftPlayer{
+		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+	}
+
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId, Player: 1},
+		Picks:       picks,
+		Players:     players,
+	}, nil).Once()
+	mockStore.On("HasBeenPicked", mock.Anything, draftId, teamId).Return(false, nil).Once()
+	mockRunInTransaction(mockStore)
+	mockStore.On("MakePick", mock.Anything, mock.Anything).Return(nil).Once()
+	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.TEAMS_PLAYING,
+		CurrentPick: model.Pick{Id: pickId, Player: 1},
+		Picks:       picks,
+		Players:     players,
+	}, nil).Once()
+
+	handler := &testTBAHandler{
+		events: map[string][]string{
+			teamId: {utils.Events()[0]},
+		},
+	}
+
+	actorMap := newTestActorMap(t, mockStore, handler, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	err = MakePick(t.Context(), draftActor, model.Pick{
+		Id:     pickId,
+		Player: 1,
+		Pick:   sql.NullString{Valid: true, String: teamId},
+	})
+	assert.NoError(t, err)
+	mockStore.AssertExpectations(t)
 }
