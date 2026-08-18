@@ -9,15 +9,13 @@ import (
 	draftView "server/view/draft"
 	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
 func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve the create draft page")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.getAuthenticatedUsername(c, userUuid)
+	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
@@ -40,17 +38,15 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	description := c.FormValue("description")
 	interval := c.FormValue("interval")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, username, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
 
 	intInterval, err := strconv.Atoi(interval)
 
 	if err != nil {
 		return c.String(http.StatusBadRequest, fmt.Sprintf("Interval must be a number, was %s", interval))
-	}
-
-	username, err := h.getAuthenticatedUsername(c, userUuid)
-	if err != nil {
-		return err
 	}
 
 	draftModel := model.DraftModel{
