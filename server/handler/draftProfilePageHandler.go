@@ -291,6 +291,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return err
 	}
 
+	if err := h.Services.DraftDaemon.AddDraft(c.Request().Context(), draftId); err != nil {
+		log.Warn(c.Request().Context(), "Failed to add draft to daemon", "draftId", draftId, "error", err)
+	}
+
 	// Cancel the invites for players who have not accepted the draft
 	if err := h.Stores.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", draftId)

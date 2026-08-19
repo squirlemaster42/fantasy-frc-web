@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"server/authentication"
+	"server/background"
 	"server/cache"
 	"server/discord"
 	"server/draft"
@@ -26,6 +27,7 @@ type ServiceGroup struct {
 	AuthService       authentication.AuthService
 	TBAHandler        tbaHandler.TBAInterface
 	DraftActorMap     *draft.DraftActorMap
+	DraftDaemon       *background.DraftDaemon
 	Scorer            *scorer.Scorer
 	AvatarStore       cache.AvatarStoreInterface
 	DiscordWebhookBus discord.DiscordNotifier

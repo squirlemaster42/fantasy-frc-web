@@ -10,7 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
+	"server/background"
 	"server/draft"
 	"server/model"
 	"server/model/mocks"
@@ -272,4 +274,72 @@ func TestHandleUninvitePlayer_ModelDelegation(t *testing.T) {
 			"Pending invites list refreshes after uninvite",
 		)
 	})
+}
+
+func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/1/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetParamNames("id")
+	c.SetParamValues("1")
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	players := make([]model.DraftPlayer, model.DraftPlayerCount)
+	for i := range players {
+		players[i] = model.DraftPlayer{Pending: false}
+	}
+
+	mockDraftStore.
+		On("GetDraft", c.Request().Context(), 1).
+		Return(model.DraftModel{
+			Id:      1,
+			Owner:   model.User{UserUuid: userUuid},
+			Status:  model.FILLING,
+			Players: players,
+		}, nil).Once()
+	mockDraftStore.On("CancelOutstandingInvites", c.Request().Context(), 1).Return(nil).Maybe()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("RandomizePickOrder", c.Request().Context(), 1).Return(nil).Once()
+	mockDraftStore.On("NextPick", c.Request().Context(), 1).Return(model.DraftPlayer{Id: 1}, nil).Once()
+	mockDraftStore.On("MakePickAvailable", c.Request().Context(), 1, mock.Anything, mock.Anything).Return(1, nil).Once()
+	mockDraftStore.On("UpdateDraftStatus", c.Request().Context(), 1, model.PICKING).Return(nil).Once()
+	mockDraftStore.On("GetDraft", c.Request().Context(), 1).Return(model.DraftModel{
+		Id:      1,
+		Owner:   model.User{UserUuid: userUuid},
+		Status:  model.PICKING,
+		Players: players,
+	}, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftDaemon := background.NewDraftDaemon(mockDraftStore, draftActorMap)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+			DraftDaemon:   draftDaemon,
+		},
+	}
+
+	err := h.HandleStartDraft(c)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/u/draft/1/profile", rec.Header().Get("HX-Redirect"))
+
+	err = draftDaemon.AddDraft(c.Request().Context(), 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "already added")
+	mockDraftStore.AssertExpectations(t)
 }

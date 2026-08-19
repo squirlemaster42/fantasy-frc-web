@@ -259,6 +259,7 @@ func main() {
 			AuthService:       authService,
 			TBAHandler:        tbaHandler,
 			DraftActorMap:     draftActorMap,
+			DraftDaemon:       draftDaemon,
 			Scorer:            scorer,
 			AvatarStore:       &avatarStore,
 			DiscordWebhookBus: discordWebhookBus,
