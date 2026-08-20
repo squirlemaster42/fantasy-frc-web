@@ -45,9 +45,13 @@ func newTestActorMap(t *testing.T, draftStore model.DraftStore, handler tbaHandl
 
 type testTBAHandler struct {
 	events map[string][]string
+	err    error
 }
 
 func (t *testTBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
+	if t.err != nil {
+		return nil, t.err
+	}
 	return t.events[teamId], nil
 }
 
