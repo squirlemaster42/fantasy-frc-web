@@ -189,6 +189,7 @@ func registerSystemRoutes(app *echo.Echo, cfg ServerConfig, metricAuth *authenti
 func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.POST("/logout", cfg.Handler.HandleLogoutPost)
 	protected.GET("/home", cfg.Handler.HandleViewHome)
+	protected.GET("/draftList", cfg.Handler.HandleViewDraftList)
 	protected.GET("/createDraft", cfg.Handler.HandleViewCreateDraft)
 	protected.POST("/createDraft", cfg.Handler.HandleCreateDraftPost)
 	protected.GET("/draft/:id/profile", cfg.Handler.HandleViewDraftProfile)
