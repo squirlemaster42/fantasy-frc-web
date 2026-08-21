@@ -6,6 +6,7 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"strconv"
 	"os"
 	"os/signal"
 	"server/assert"
@@ -52,112 +53,49 @@ func main() {
 	if err != nil {
 		log.Info(ctx, "No .env file loaded, using environment variables")
 	}
-	tbaTok := os.Getenv("TBA_TOKEN")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbUsername := os.Getenv("DB_USERNAME")
-	dbIp := os.Getenv("DB_IP")
-	dbName := os.Getenv("DB_NAME")
-	serverPort := os.Getenv("SERVER_PORT")
-	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
-	metricSecret := os.Getenv("METRIC_SECRET")
-	csrfSecret := os.Getenv("CSRF_SECRET")
-	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	redisAddr := os.Getenv("REDIS_ADDR")
-	redisPassword := os.Getenv("REDIS_PASSWORD")
+	tbaTok := requireEnv(ctx, "TBA_TOKEN")
+	dbPassword := requireEnv(ctx, "DB_PASSWORD")
+	dbUsername := requireEnv(ctx, "DB_USERNAME")
+	dbIp := requireEnv(ctx, "DB_IP")
+	dbName := requireEnv(ctx, "DB_NAME")
+	tbaWebhookSecret := requireEnv(ctx, "TBA_WEBHOOK_SECRET")
+	metricSecret := requireEnv(ctx, "METRIC_SECRET")
+	csrfSecret := requireEnv(ctx, "CSRF_SECRET")
 
-	requiredEnv := map[string]string{
-		"TBA_TOKEN":          tbaTok,
-		"DB_PASSWORD":        dbPassword,
-		"DB_USERNAME":        dbUsername,
-		"DB_IP":              dbIp,
-		"DB_NAME":            dbName,
-		"SERVER_PORT":        serverPort,
-		"TBA_WEBHOOK_SECRET": tbaWebhookSecret,
-		"METRIC_SECRET":      metricSecret,
-		"CSRF_SECRET":        csrfSecret,
-	}
-	for key, val := range requiredEnv {
-		if val == "" {
-			log.Fatal(ctx, "missing required environment variable", "key", key)
-		}
-	}
+	allowedOrigin := utils.MustGetEnvString("ALLOWED_ORIGIN", "")
+	redisAddr := utils.MustGetEnvString("REDIS_ADDR", "")
+	redisPassword := utils.MustGetEnvString("REDIS_PASSWORD", "")
+	usernameAllowedSpecialChars := utils.MustGetEnvString("USERNAME_ALLOWED_SPECIAL_CHARS", "_-")
 
-	serverPortNum, err := utils.GetEnvIntStrict("SERVER_PORT", 0)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	serverPortNum := mustGetEnvInt(ctx, "SERVER_PORT", 0)
 	if serverPortNum < 1 || serverPortNum > 65535 {
 		log.Fatal(ctx, "SERVER_PORT must be between 1 and 65535", "value", serverPortNum)
 	}
 
-	minPasswordLength, err := utils.GetEnvIntStrict("MIN_PASSWORD_LENGTH", 12)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	minPasswordLength := mustGetEnvInt(ctx, "MIN_PASSWORD_LENGTH", 12)
+	minUsernameLength := mustGetEnvInt(ctx, "MIN_USERNAME_LENGTH", 3)
+	maxUsernameLength := mustGetEnvInt(ctx, "MAX_USERNAME_LENGTH", 32)
 
-	minUsernameLength, err := utils.GetEnvIntStrict("MIN_USERNAME_LENGTH", 3)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	maxUsernameLength, err := utils.GetEnvIntStrict("MAX_USERNAME_LENGTH", 32)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	usernameAllowedSpecialChars := os.Getenv("USERNAME_ALLOWED_SPECIAL_CHARS")
-	if usernameAllowedSpecialChars == "" {
-		usernameAllowedSpecialChars = "_-"
-	}
-
-	bcryptCost, err := utils.GetEnvIntStrict("BCRYPT_COST", 14)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	bcryptCost := mustGetEnvInt(ctx, "BCRYPT_COST", 14)
 	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {
 		log.Warn(ctx, "BCRYPT_COST out of range, using default", "value", bcryptCost, "default", 14)
 		bcryptCost = 14
 	}
 
-	redisRateLimitDB, err := utils.GetEnvIntStrict("REDIS_RATE_LIMIT_DB", 1)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	redisRateLimitDB := mustGetEnvInt(ctx, "REDIS_RATE_LIMIT_DB", 1)
+	redisAvatarDB := mustGetEnvInt(ctx, "REDIS_AVATAR_DB", 2)
+	postsPerMinute := mustGetEnvInt64(ctx, "RATE_LIMIT_POSTS_PER_MINUTE", 100)
 
-	redisAvatarDB, err := utils.GetEnvIntStrict("REDIS_AVATAR_DB", 2)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	postsPerMinute, err := utils.GetEnvInt64Strict("RATE_LIMIT_POSTS_PER_MINUTE", 100)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	rateLimitEnabled, err := utils.GetEnvBoolStrict("RATE_LIMIT_ENABLED", true)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	secureHttpCookie, err := utils.GetEnvBoolStrict("SECURE_HTTP_COOKIE", true)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
-
-	trustProxy, err := utils.GetEnvBoolStrict("TRUST_PROXY", false)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	rateLimitEnabled := mustGetEnvBool(ctx, "RATE_LIMIT_ENABLED", true)
+	secureHttpCookie := mustGetEnvBool(ctx, "SECURE_HTTP_COOKIE", true)
+	trustProxy := mustGetEnvBool(ctx, "TRUST_PROXY", false)
 	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
 
 	if trustProxy && allowedOrigin == "" {
 		log.Fatal(ctx, "ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
 	}
 
-	draftActorCacheSize, err := utils.GetEnvIntStrict("DRAFT_ACTOR_CACHE_SIZE", 128)
-	if err != nil {
-		log.Fatal(ctx, "invalid environment variable", "error", err)
-	}
+	draftActorCacheSize := mustGetEnvInt(ctx, "DRAFT_ACTOR_CACHE_SIZE", 128)
 	if draftActorCacheSize < 1 {
 		log.Fatal(ctx, "DRAFT_ACTOR_CACHE_SIZE must be at least 1", "value", draftActorCacheSize)
 	}
@@ -289,6 +227,8 @@ func main() {
 	}
 	handler.Config.TbaWebhookSecret = tbaWebhookSecret
 
+	serverPort := strconv.Itoa(serverPortNum)
+
 	app, otelShutdown := CreateServer(ctx, ServerConfig{
 		ServerPort:       serverPort,
 		Handler:          handler,
@@ -339,4 +279,36 @@ func main() {
 	if err := db.Close(); err != nil {
 		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
+}
+
+func requireEnv(ctx context.Context, key string) string {
+	val, err := utils.RequireEnv(key)
+	if err != nil {
+		log.Fatal(ctx, "missing required environment variable", "key", key)
+	}
+	return val
+}
+
+func mustGetEnvInt(ctx context.Context, key string, defaultVal int) int {
+	val, err := utils.GetEnvIntStrict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
+}
+
+func mustGetEnvInt64(ctx context.Context, key string, defaultVal int64) int64 {
+	val, err := utils.GetEnvInt64Strict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
+}
+
+func mustGetEnvBool(ctx context.Context, key string, defaultVal bool) bool {
+	val, err := utils.GetEnvBoolStrict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
 }

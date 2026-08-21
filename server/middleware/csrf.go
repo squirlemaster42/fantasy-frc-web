@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"server/authentication"
@@ -96,4 +98,45 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 			return next(ctx)
 		}
 	}
+}
+
+// GenerateCSRFCookie creates a double-submit CSRF cookie for unauthenticated forms
+// (login/register). It returns the token to embed in the form.
+func GenerateCSRFCookie(c echo.Context) (string, error) {
+	// Check if cookie already exists
+	existing, err := c.Cookie(CsrfCookieName)
+	if err == nil && existing.Value != "" {
+		return existing.Value, nil
+	}
+
+	// Generate new random token
+	b := make([]byte, CsrfTokenLength)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	token := hex.EncodeToString(b)
+
+	cookie := new(http.Cookie)
+	cookie.Name = CsrfCookieName
+	cookie.Value = token
+	cookie.Path = "/"
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Secure = c.Scheme() == "https"
+	cookie.HttpOnly = false
+	c.SetCookie(cookie)
+
+	return token, nil
+}
+
+// ValidateCSRFCookie checks the double-submit CSRF token for unauthenticated forms.
+func ValidateCSRFCookie(c echo.Context) bool {
+	submitted := c.FormValue(CsrfTokenFieldName)
+	if submitted == "" {
+		return false
+	}
+	cookie, err := c.Cookie(CsrfCookieName)
+	if err != nil || cookie.Value == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(submitted), []byte(cookie.Value)) == 1
 }

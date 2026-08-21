@@ -23,6 +23,13 @@ func TestCreateConnectionString(t *testing.T) {
 	assert.Equal(t, "postgresql://user:pass@localhost/mydb?sslmode=disable&timezone=UTC", connStr)
 }
 
+func TestPlaceholders(t *testing.T) {
+	assert.Empty(t, Placeholders(1, 0))
+	assert.Equal(t, []string{"$1"}, Placeholders(1, 1))
+	assert.Equal(t, []string{"$1", "$2", "$3"}, Placeholders(1, 3))
+	assert.Equal(t, []string{"$3", "$4", "$5"}, Placeholders(3, 3))
+}
+
 func TestRegisterDatabaseConnection(t *testing.T) {
 	err := godotenv.Load(filepath.Join("../", ".env"))
 	if err != nil {

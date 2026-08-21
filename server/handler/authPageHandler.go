@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"server/authentication"
 	"server/log"
+	"server/middleware"
 	"server/view/login"
 
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID, sess
 }
 
 func (h *Handler) HandleLoginPost(c echo.Context) error {
-	if !validateCSRFCookie(c) {
+	if !middleware.ValidateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
 		return h.renderLoginWithError(c, "Invalid request. Please try again.")
 	}
@@ -89,7 +90,7 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 }
 
 func (h *Handler) renderRegisterWithError(c echo.Context, message string) error {
-	csrfToken, err := generateCSRFCookie(c)
+	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -99,7 +100,7 @@ func (h *Handler) renderRegisterWithError(c echo.Context, message string) error 
 }
 
 func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
-	csrfToken, err := generateCSRFCookie(c)
+	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -113,7 +114,7 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 }
 
 func (h *Handler) HandlerRegisterPost(c echo.Context) error {
-	if !validateCSRFCookie(c) {
+	if !middleware.ValidateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on register", "ip", c.RealIP())
 		return h.renderRegisterWithError(c, "Invalid request. Please try again.")
 	}
