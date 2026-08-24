@@ -40,7 +40,7 @@ const (
 // AllianceSelectionBaseScores maps alliance rank (1-8) to the base points awarded
 // to each of the alliance's four picks. The final score is multiplied by
 // ScorerAlliancePickMultiplier().
-var AllianceSelectionBaseScores = map[int][]int16{
+var AllianceSelectionBaseScores = map[int][]int{
 	1: {32, 31, 9, 8},
 	2: {30, 29, 10, 7},
 	3: {28, 27, 11, 6},

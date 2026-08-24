@@ -212,8 +212,8 @@ func isDqed(team string, dqedTeams []string) bool {
 	return false
 }
 
-func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int16 {
-	scores := make(map[string]int16)
+func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int {
+	scores := make(map[string]int)
 
 	splitAllianceName := strings.Split(alliance.Name, " ")
 	if len(splitAllianceName) != 2 {
@@ -231,7 +231,7 @@ func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger
 
 	scoreArr := AllianceSelectionBaseScores[allianceNum]
 	for i, team := range alliance.Picks {
-		scores[team] = scoreArr[i] * int16(AlliancePickMultiplier())
+		scores[team] = scoreArr[i] * AlliancePickMultiplier()
 	}
 
 	return scores
