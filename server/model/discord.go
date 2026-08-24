@@ -70,11 +70,13 @@ type DraftPickRow struct {
 }
 
 func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) ([]DraftPickRow, error) {
-	// set up query params
-	placeholders := make([]string, len(teamKeys))
+	// Build positional placeholders ($1, $2, ...) and argument slice.
+	// Only numeric placeholders are concatenated into the query; all user
+	// input values are passed as arguments, so this remains safe from SQL
+	// injection.
+	placeholders := database.Placeholders(1, len(teamKeys))
 	args := make([]interface{}, len(teamKeys))
 	for i, key := range teamKeys {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = key
 	}
 	// query

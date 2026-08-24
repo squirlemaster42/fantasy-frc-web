@@ -54,7 +54,7 @@ func createTeam(ctx context.Context, db database.DBTX, tbaId string, name string
 	return nil
 }
 
-func updateTeamAllianceScore(ctx context.Context, db database.DBTX, tbaId string, allianceScore int16) error {
+func updateTeamAllianceScore(ctx context.Context, db database.DBTX, tbaId string, allianceScore int) error {
 	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {

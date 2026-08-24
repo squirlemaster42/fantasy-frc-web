@@ -129,10 +129,5 @@ func (h *Handler) HandleDeclineInvite(c echo.Context) error {
 		return renderInviteTable(h, c, true, err.Error(), false)
 	}
 
-	invites, err := h.Stores.DraftStore.GetInvites(c.Request().Context(), userUuid)
-	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get invites", "error", err)
-		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
-	}
-	return Render(c, draftView.DraftInviteIndex(invites, false, "", h.csrfToken(c)))
+	return renderInviteTable(h, c, false, "", false)
 }

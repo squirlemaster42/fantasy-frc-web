@@ -156,7 +156,7 @@ func TestGetInvite_ExcludesCanceled(t *testing.T) {
 
 	invite, err := getInvite(context.Background(), db, 42)
 	assert.Error(t, err)
-	assert.Equal(t, sql.ErrNoRows, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Zero(t, invite.Id)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

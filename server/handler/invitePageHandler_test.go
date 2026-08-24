@@ -211,6 +211,7 @@ func TestHandleDeclineInvite_Success(t *testing.T) {
 		Id:     42,
 		Status: model.FILLING,
 	}, nil).Once()
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
@@ -314,6 +315,7 @@ func TestHandleDeclineInvite_RevertsToFilling(t *testing.T) {
 		Id:     42,
 		Status: model.FILLING,
 	}, nil).Once()
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
 	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)

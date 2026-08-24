@@ -61,6 +61,18 @@ func createConnectionString(username string, password string, ip string, dbName 
 	return "postgresql://" + username + ":" + password + "@" + ip + "/" + dbName + "?sslmode=disable&timezone=UTC"
 }
 
+// Placeholders returns a slice of SQL positional placeholders starting at
+// startPos (e.g. startPos=1, count=3 returns ["$1", "$2", "$3"]). The caller
+// is responsible for passing the actual values as query arguments; this
+// function never mixes user input into the returned strings.
+func Placeholders(startPos int, count int) []string {
+	placeholders := make([]string, count)
+	for i := 0; i < count; i++ {
+		placeholders[i] = fmt.Sprintf("$%d", startPos+i)
+	}
+	return placeholders
+}
+
 func sqlState(err error) string {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {

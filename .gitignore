@@ -4,10 +4,9 @@
 .idea/fantasy-frc-web.iml
 /.idea
 server/go.sum
-server/view/*/*.go
-server/view/*/*.txt
 server/view/*.go
 server/view/*.txt
+server/view/*/!*_test.go
 server/assets/css/tailwind.css
 server/server
 deploy/k8s/secret.yaml

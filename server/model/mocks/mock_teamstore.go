@@ -123,7 +123,7 @@ func (_m *MockTeamStore) GetTeam(ctx context.Context, tbaId string) (*model.Team
 }
 
 // UpdateTeamAllianceScore provides a mock function with given fields: ctx, tbaId, allianceScore
-func (_m *MockTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId string, allianceScore int16) error {
+func (_m *MockTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId string, allianceScore int) error {
 	ret := _m.Called(ctx, tbaId, allianceScore)
 
 	if len(ret) == 0 {
@@ -131,7 +131,7 @@ func (_m *MockTeamStore) UpdateTeamAllianceScore(ctx context.Context, tbaId stri
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, int16) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, int) error); ok {
 		r0 = rf(ctx, tbaId, allianceScore)
 	} else {
 		r0 = ret.Error(0)
