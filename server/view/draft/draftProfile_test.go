@@ -79,7 +79,6 @@ func TestDraftProfileIndex(t *testing.T) {
 		DisplayName: "Test Draft",
 		Description: "A test description",
 		Status:      model.FILLING,
-		Interval:    60,
 		Owner:       model.User{UserUuid: ownerUuid, Username: "owneruser"},
 		Players: []model.DraftPlayer{
 			{User: model.User{UserUuid: ownerUuid, Username: "owneruser"}, Pending: false, PlayerOrder: sql.NullInt16{Valid: true, Int16: 1}},
@@ -136,7 +135,6 @@ func TestDraftProfileIndex(t *testing.T) {
 
 	t.Run("settings section", func(t *testing.T) {
 		assert.Contains(t, htmlStr, "Draft Settings")
-		assert.Contains(t, htmlStr, `name="interval"`)
 	})
 
 	t.Run("save button", func(t *testing.T) {
@@ -176,7 +174,6 @@ func TestDraftProfileIndex_NotOwner(t *testing.T) {
 		Id:          42,
 		DisplayName: "Test Draft",
 		Status:      model.FILLING,
-		Interval:    60,
 		Owner:       model.User{UserUuid: ownerUuid, Username: "owneruser"},
 		Players:     []model.DraftPlayer{},
 	}

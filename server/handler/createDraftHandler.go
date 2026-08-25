@@ -7,7 +7,6 @@ import (
 	"server/model"
 	"server/types"
 	draftView "server/view/draft"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -36,17 +35,10 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to create a draft")
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
-	interval := c.FormValue("interval")
 
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
-	}
-
-	intInterval, err := strconv.Atoi(interval)
-
-	if err != nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Interval must be a number, was %s", interval))
 	}
 
 	draftModel := model.DraftModel{
@@ -55,13 +47,12 @@ func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
 		},
 		DisplayName: draftName,
 		Description: description,
-		Interval:    intInterval,
 		Status:      model.FILLING,
 	}
 
 	draftId, err := h.Stores.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to create draft", "interval", intInterval, "error", err)
+		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to create draft")
 	}
 	log.Info(c.Request().Context(), "Draft created", "draftId", draftId, "username", username)

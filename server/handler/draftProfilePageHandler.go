@@ -61,14 +61,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
-	interval := c.FormValue("interval")
 	discordWebhook := c.FormValue("discordWebhook")
-
-	intInterval, err := strconv.Atoi(interval)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse interval", "error", err)
-		return c.String(http.StatusBadRequest, "Invalid interval")
-	}
 
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
@@ -96,7 +89,6 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		},
 		DisplayName:    draftName,
 		Description:    description,
-		Interval:       intInterval,
 		DiscordWebhook: discordWebhook,
 	}
 

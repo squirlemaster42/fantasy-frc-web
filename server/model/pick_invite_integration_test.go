@@ -879,7 +879,6 @@ func TestCreateDraft_RollsBackOnError_Integration(t *testing.T) {
 	draft := &DraftModel{
 		DisplayName: "Rollback Test Draft",
 		Description: "Should rollback",
-		Interval:    3600,
 		Owner:       User{UserUuid: uuid.New(), Username: "nonexistent"},
 		Status:      FILLING,
 	}

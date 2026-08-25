@@ -18,6 +18,7 @@ import (
 )
 
 type DraftState string
+type TimingType string
 
 const (
 	FILLING          DraftState = "Filling"
@@ -25,6 +26,8 @@ const (
 	PICKING          DraftState = "Picking"
 	TEAMS_PLAYING    DraftState = "Teams Playing"
 	COMPLETE         DraftState = "Complete"
+    INCREMENT		 TimingType = "Increment"
+    PER_PICK		 TimingType = "Per Pick"
 )
 
 const (
@@ -41,17 +44,19 @@ type DraftSearchQuery struct {
 }
 
 type DraftModel struct {
-	Id             int
-	DisplayName    string
-	Description    string
-	Interval       int //Number of seconds to pick
-	DiscordWebhook string
-	Owner          User
-	Status         DraftState
-	Players        []DraftPlayer
-	NextPick       DraftPlayer
-	CurrentPick    Pick
-	Picks          []Pick
+	Id                int
+	DisplayName       string
+	Description       string
+	DiscordWebhook    string
+	Owner             User
+	Status            DraftState
+	Players           []DraftPlayer
+	NextPick          DraftPlayer
+	CurrentPick       Pick
+	Picks             []Pick
+	TimingType 	      TimingType
+	IncrementTimeSec  int16
+	PerPickExpTimeSec int16
 }
 
 func (d *DraftModel) String() string {
@@ -64,18 +69,19 @@ func (d *DraftModel) String() string {
 		stringBuilder.WriteString(" \n}")
 	}
 
-	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Interval: %d\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n}",
-		d.Id, d.DisplayName, d.Description, d.Interval, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String())
+	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n TimingType %s\n IncrementTimeSec %d\n PerPickExpTimeSec %d\n}",
+		d.Id, d.DisplayName, d.Description, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String(), d.TimingType, d.IncrementTimeSec, d.PerPickExpTimeSec)
 }
 
 type DraftPlayer struct {
-	Id          int
-	User        User
-	PlayerOrder sql.NullInt16
-	Pending     bool
-	Score       int
-	Picks       []Pick
-	InviteId    int
+	Id          		 int
+	User        		 User
+	PlayerOrder 		 sql.NullInt16
+	Pending     		 bool
+	Score       		 int
+	Picks       		 []Pick
+	InviteId    		 int
+	RemainingPickTimeSec int
 }
 
 func (d *DraftPlayer) String() string {
@@ -94,8 +100,8 @@ func (d *DraftPlayer) String() string {
 	} else {
 		playerOrderStr = "NULL"
 	}
-	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n Picks: %s\n}",
-		d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending, stringBuilder.String())
+	return fmt.Sprintf("DraftPlayer: {\nId: %d\n User: %s\n PlayerOrder: %s\n Pending: %t\n Picks: %s\n RemainingPickTimeSec %d\n}",
+		d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending, stringBuilder.String(), d.RemainingPickTimeSec)
 }
 
 type Pick struct {
@@ -487,8 +493,7 @@ func queryDraftRow(ctx context.Context, db database.DBTX, draftId int) (DraftMod
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
         OwnerUserUuid,
-		COALESCE(DiscordWebhook, ''),
-        COALESCE(EXTRACT(EPOCH FROM Interval)::int, 0) As Interval
+		COALESCE(DiscordWebhook, '')
     From Drafts Where Id = $1;`
 
 	stmt, err := database.Prepare(ctx, db, query)
@@ -507,7 +512,6 @@ func queryDraftRow(ctx context.Context, db database.DBTX, draftId int) (DraftMod
 		&draftModel.Status,
 		&ownerId,
 		&draftModel.DiscordWebhook,
-		&draftModel.Interval,
 	)
 	log.Debug(ctx, "model.GetDraft: query completed", "draftId", draftId)
 	if err != nil {
@@ -663,14 +667,14 @@ func getDraft(ctx context.Context, db database.DBTX, draftId int) (DraftModel, e
 
 func updateDraft(ctx context.Context, db database.DBTX, draft *DraftModel) error {
 	log.Debug(ctx, "model.UpdateDraft: starting", "draftId", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, Interval = make_interval(secs => $3), DiscordWebhook = $4 Where Id = $5;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3 Where Id = $4;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare update draft statement: %w", err)
 	}
 	defer database.CloseStatement(ctx, stmt, "UpdateDraft")
 	log.Debug(ctx, "model.UpdateDraft: executing query", "draftId", draft.Id)
-	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.Interval, draft.DiscordWebhook, draft.Id)
+	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.Id)
 	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
 	if err != nil {
 		return fmt.Errorf("failed to update draft: %w", err)

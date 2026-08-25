@@ -75,7 +75,6 @@ func TestUpdateDraft_Integration(t *testing.T) {
 
 	draft.DisplayName = "Updated Name " + randomString(8)
 	draft.Description = "Updated description"
-	draft.Interval = 7200
 
 	err := store.UpdateDraft(ctx, &draft)
 	require.NoError(t, err)
@@ -84,7 +83,6 @@ func TestUpdateDraft_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, draft.DisplayName, loaded.DisplayName)
 	assert.Equal(t, draft.Description, loaded.Description)
-	assert.Equal(t, draft.Interval, loaded.Interval)
 }
 
 func TestUpdateDraftStatus_Integration(t *testing.T) {

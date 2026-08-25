@@ -87,7 +87,6 @@ func createTestDraft(t *testing.T, db *sql.DB, owner User) DraftModel {
 	draft := &DraftModel{
 		DisplayName: "Test Draft " + randomString(8),
 		Description: "Integration test draft",
-		Interval:    3600,
 		Owner:       owner,
 		Status:      FILLING,
 	}

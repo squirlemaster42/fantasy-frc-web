@@ -795,7 +795,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	draftModel := d.draftState
 	draftModel.DisplayName = msg.Name
 	draftModel.Description = msg.Description
-	draftModel.Interval = msg.Interval
 	draftModel.DiscordWebhook = msg.DiscordWebhook
 
 	err := d.draftStore.UpdateDraft(ctx, &draftModel)
@@ -810,7 +809,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.mu.Lock()
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
-	d.draftState.Interval = msg.Interval
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
 	d.mu.Unlock()
 

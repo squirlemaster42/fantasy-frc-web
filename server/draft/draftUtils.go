@@ -124,7 +124,6 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 		Content: UpdateDraftProfileMessage{
 			Name:           draftModel.DisplayName,
 			Description:    draftModel.Description,
-			Interval:       draftModel.Interval,
 			DiscordWebhook: draftModel.DiscordWebhook,
 		},
 		Reply: replyChan,

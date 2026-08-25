@@ -126,7 +126,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-base-content/80 mb-2">Time Between Picks (seconds)</label>
-                            <input
+                            <!--<input
                                 disabled?={!isOwner}
                                 name="interval"
                                 value={fmt.Sprintf("%d", draft.Interval)}
@@ -136,7 +136,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                                 step="30"
                                 class="w-full h-2 bg-base-300 rounded-lg appearance-none cursor-pointer"
                             />
-                            <div class="text-xs text-base-content/70 mt-1">{ fmt.Sprintf("%d seconds", draft.Interval) }</div>
+                            <div class="text-xs text-base-content/70 mt-1">{ fmt.Sprintf("%d seconds", draft.Interval) }</div>-->
                         </div>
                         if isOwner && draft.Id != 0 && draft.Id != -1 {
                             <div>
