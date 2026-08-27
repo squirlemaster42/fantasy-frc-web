@@ -2,7 +2,7 @@
 
 Generated from a comprehensive codebase analysis of the current `main` branch. Items are organized by priority and include current file paths/line numbers.
 
-Last updated: 2026-08-10
+Last updated: 2026-08-27
 
 ## 🚨 Critical — fix first
 
@@ -40,7 +40,7 @@ Last updated: 2026-08-10
 |---|------|-------|-------|----------------|
 | 17 | `server/draft/draftActorMap.go` | 12 | `// TODO should we LRU this?` Actor cache is unbounded. | **Fixed** — replaced `sync.Map` with a custom stdlib LRU cache; size configurable via `DRAFT_ACTOR_CACHE_SIZE` (default 128); evicted actors are shut down asynchronously. |
 | 18 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` — drafts started at runtime were not added to the pick daemon, so expired picks were not auto-skipped. | **Fixed** — wired `DraftDaemon` into `handler.ServiceGroup`; both the UI `HandleStartDraft` and the admin `StartDraftCommand` now add the draft to the daemon after transitioning to `PICKING`. |
-| 19 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` — pick windows are global. | Make pick windows configurable per draft. |
+| 19 | `server/utils/utils.go` | 109 | `// todo we should make it so this in configurable per draft` — pick windows are global. | ~~Make pick windows configurable per draft.~~ **Declined** — global pick windows are acceptable for the foreseeable future. |
 | 20 | `server/model/draft.go` ~1135 / `server/draft/draftActor.go` ~920 | — | Next-pick snake-draft algorithm exists in two places (`nextPick` vs `getNextPick`). | **Fixed** — the snake-draft algorithm is already shared via `model.DetermineNextPick`. |
 | 21 | `server/handler/adminPageHandler.go` | 154–206, 282–358 | `SkipPickCommand` and `AdminPickCommand` reimplement actor send/receive logic instead of reusing helpers. | **Fixed** — `SkipPickCommand`, `AdminPickCommand`, and `ModifyPickTimeCommand` now route through `draft.SkipCurrentPick`, `draft.MakePick`, and `draft.ModifyCurrentPickExpirationTime`. |
 | 22 | `server/draft/draftActor.go` | 555–603, 637–693 | `handlePick` and `handleSkipCurrentPick` are 60+ lines and mix validation, DB, state, and notifications. | **Fixed** — extracted `prepareDraftAdvance`, `commitDraftAdvance`, and `publishPickOutcome`; both handlers now delegate to these helpers. |
@@ -49,7 +49,7 @@ Last updated: 2026-08-10
 | 25 | `server/model/draft.go` | 1576 | `CanStartDraft` requires exactly `8` players as a magic number. | ~~`const DraftPlayerCount = 8`~~ **Fixed** — added `DraftPlayerCount`, `PicksPerPlayer`, and `PicksPerDraft` constants; replaced all backend and template magic numbers. |
 | 26 | `server/model/draft.go` / `server/draft/draftActor.go` | 649, 864 | Draft completion uses `len(picks) < 64` magic number. | ~~`const PicksPerDraft = 64`~~ **Fixed** — `PicksPerDraft = DraftPlayerCount * PicksPerPlayer` and used in `handlePick`, `handleSkipCurrentPick`, and tests. |
 | 27 | `server/tbaHandler/tbaHandler.go` / `server/utils/utils.go` | 200, 264 | Year `2026` is hardcoded in one endpoint; year `2024` is hardcoded in `MakeMatchKeysYearRequest`; `Events()` also hardcodes 2026 event keys. | **Fixed** — added `utils.TbaSeasonYear` and `utils.TbaHistoricMatchYear` constants and replaced all hardcoded years. |
-| 28 | `server/handler/draftPickPageHandler.go` | 149–269 | WebSocket upgrader, ping/pong, watcher registration, and HTML rendering are all in one handler. | Extract a dedicated WebSocket/notifier service. |
+| 28 | `server/handler/draftPickPageHandler.go` | 149–269 | WebSocket upgrader, ping/pong, watcher registration, and HTML rendering are all in one handler. | ~~Extract a dedicated WebSocket/notifier service.~~ **Declined** — current co-location is acceptable. |
 | 29 | `server/model/match.go` | 22 | `Match.String()` uses a value receiver; all other `String()` methods use pointer receivers. | **Fixed** — `Match.String()` already uses a pointer receiver. |
 | 30 | `server/model/*.go` | Many | Function parameter named `database` while the import alias is `db`; error strings mix lowercase, Title Case, and sentence case. | **Fixed** — all model parameters/fields renamed to `db`, imports standardized to unaliased `server/database`, and the one Title Case error (`RunInTransaction...`) was lowercased. |
 | 31 | `server/main.go` | 55–117 | Required env vars are not validated early; malformed bool parsing silently defaults. | **Fixed** — added `utils.RequireEnv` and strict parsing helpers; `main.go` now validates all required vars, enforces `SERVER_PORT` range, and fails fast on malformed bool/int values. |
@@ -72,7 +72,7 @@ Last updated: 2026-08-10
 | 41 | `server/handler/draftPickPageHandler.go` | 207, 227, 241/259 | WebSocket read deadline (120s), ping ticker (30s), and write deadlines (10s) are hardcoded. | **Fixed** — configurable via `WS_READ_TIMEOUT`, `WS_PING_INTERVAL`, and `WS_WRITE_TIMEOUT`; defaults and constants in `handler/defaults.go`. |
 | 42 | `server/draft/draftActor.go` | 110, 250, 267 | Inbox buffer (100) and message/reply timeouts (5s) are repeated throughout the actor. | **Fixed** — configurable via `DRAFT_ACTOR_INBOX_BUFFER` and `DRAFT_ACTOR_REQUEST_TIMEOUT`; defaults and constants in `draft/defaults.go`. |
 | 43 | `server/draft/pickValidator.go` | 44–61 | O(n×m) event-validity loop (lists are tiny). | **Fixed** — `PickValidator` now builds a set of valid events once and checks membership in O(1). Added unit tests for all validation paths. |
-| 44 | `server/picking/pickNotifier.go` | 16 | `PickEvent.Err` field is never consumed. | Remove it or wire it into error UI. |
+| 44 | `server/picking/pickNotifier.go` | 16 | `PickEvent.Err` field is never consumed. | ~~Remove it or wire it into error UI.~~ **Fixed** — removed the unused `Err` and `Success` fields from `PickEvent`; updated the one construction site in `draft/draftActor.go` and verified tests. |
 | 45 | `server/main.go` | 79–117 | Repeated env-var parsing blocks (copy of pattern in `metrics/db.go`). | **Fixed** — replaced the `requiredEnv` map with `utils.RequireEnv`, added `mustGetEnv*` helpers in `main.go`, and used `utils.MustGetEnvString` for optional strings. |
 | 46 | `server/model/discord.go` | 81–97 | `getDraftPickRows` builds an `IN (...)` query with `fmt.Sprintf`/`strings.Join`. Safe today because of `$N` placeholders, but raw SQL construction in model code. | **Fixed** — added `database.Placeholders` helper and used it in `getDraftPickRows`; documented the placeholder-safety invariant. |
 | 47 | `server/handler/utils.go` | 37–76 | `generateCSRFCookie` and `validateCSRFCookie` live in `handler` but are conceptually CSRF middleware. | **Fixed** — moved the helpers to `server/middleware` as exported `GenerateCSRFCookie` / `ValidateCSRFCookie` and updated `authPageHandler.go` to use them. |

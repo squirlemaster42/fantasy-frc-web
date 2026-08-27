@@ -12,8 +12,6 @@ import (
 )
 
 type PickEvent struct {
-	Success bool
-	Err     error
 	Pick    model.Pick
 	DraftId int
 }

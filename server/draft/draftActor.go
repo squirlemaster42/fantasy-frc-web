@@ -915,7 +915,6 @@ func (d *DraftActor) reloadDraftState(ctx context.Context) error {
 func (d *DraftActor) notifyPickListeners(ctx context.Context, pick model.Pick) {
 	go d.notifyListeners(ctx, picking.PickEvent{
 		Pick:    pick,
-		Success: true,
 		DraftId: d.draftState.Id,
 	})
 }
