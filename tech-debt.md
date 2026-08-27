@@ -78,7 +78,7 @@ Last updated: 2026-08-27
 | 47 | `server/handler/utils.go` | 37–76 | `generateCSRFCookie` and `validateCSRFCookie` live in `handler` but are conceptually CSRF middleware. | **Fixed** — moved the helpers to `server/middleware` as exported `GenerateCSRFCookie` / `ValidateCSRFCookie` and updated `authPageHandler.go` to use them. |
 | 48 | `server/handler/invitePageHandler.go` | 133 | `HandleDeclineInvite` ends with a direct `Render` instead of the shared `renderInviteTable` helper. | **Fixed** — `HandleDeclineInvite` now uses `renderInviteTable`; updated tests to mock the helper’s dependencies. |
 | 49 | `server/model/draft.go` | Multiple | Some functions return wrapped errors, others return generic `errors.New` or raw errors. | **Fixed** — standardized all error returns to be lowercase, no trailing period, and wrap underlying errors with `%w`; updated the one affected unit test to use `assert.ErrorIs`. |
-| 50 | `server/draftAgent/fantasyCaller.go` | 177–227 | `parseCurrentDraftPicks` and HTML-traversal helpers are brittle and long. | Add tests or use the JSON API instead of scraping HTML. |
+| 50 | `server/draftAgent/fantasyCaller.go` | 177–227 | `parseCurrentDraftPicks` and HTML-traversal helpers are brittle and long. | ~~Add tests or use the JSON API instead of scraping HTML.~~ **Declined** — current implementation is acceptable. |
 
 ---
 
@@ -86,15 +86,15 @@ Last updated: 2026-08-27
 
 | # | File | Line | TODO |
 |---|------|------|------|
-| 55 | `server/draft/draftActor.go` | 82 | `// TODO Does tba handler need to be a pointer?` |
-| 56 | `server/draft/draftActor.go` | 902 | `// TODO: Add store method for transferring ownership when available` |
+| 55 | `server/draft/draftActor.go` | 82 | `// TODO Does tba handler need to be a pointer?` | ~~Evaluate pointer vs value.~~ **Fixed** — `TBAInterface` is an interface, so storing it by value is idiomatic; the TODO has been removed. |
+| 56 | `server/draft/draftActor.go` | 902 | `// TODO: Add store method for transferring ownership when available` | ~~Add store method for transferring ownership.~~ **Declined** — not needed for current functionality; the TODO has been removed. |
 | 57 | `server/handler/draftPickPageHandler.go` | 62 | `// TODO we could move this to the actor so we dont have to call the db` |
 | 58 | `server/handler/draftProfilePageHandler.go` | 35 | `// TODO I think this should go through the draft manager` |
-| 59 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` |
+| 59 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` — drafts started at runtime are now added to the pick daemon. | ~~Start draft watch dog.~~ **Fixed** — `adminPageHandler.go` now calls `draftDaemon.AddDraft` after transitioning to `PICKING`; the TODO comment has been removed. |
 | 60 | `server/handler/authPageHandler.go` | 16 | `// We can probably do this in the middleware` (unresolved design question) |
 | 61 | `server/model/user.go` | 178–179 | `// Should we move more logic here? No...` (design uncertainty) |
-| 62 | `server/model/user.go` | 326–329 | `//If the count is greater than one there is a problem...Do we want to invalidate the session` |
-| 63 | `draftTester/main.go` | 188 | `// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them` |
+| 62 | `server/model/user.go` | 247 | `//If the count is greater than one there is a problem...Do we want to invalidate the session` — duplicate sessions are now detected and deleted. | ~~Decide whether to invalidate the session on duplicate count.~~ **Fixed** — `validateSessionToken` logs the duplicate, deletes all matching sessions, and returns `false`; the TODO has been removed. |
+| 63 | `draftTester/main.go` | 188 | `// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them` — `getRandomTeamId` already selects from the `validPicks` list. | ~~Make valid-team list and coin-flip pick decision.~~ **Fixed** — behavior already matches the TODO intent; removed the stale TODO comment. |
 
 ---
 
