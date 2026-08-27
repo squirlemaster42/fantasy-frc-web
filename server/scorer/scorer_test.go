@@ -165,6 +165,178 @@ func TestScorer_RunScorer_WaitReturnsAfterCancel(t *testing.T) {
     }
 }
 
+func newSyntheticMatch(
+	t *testing.T,
+	key, compLevel string,
+	setNumber, matchNumber int32,
+	winningAlliance, eventKey string,
+	postResultTime int64,
+	redTeams, blueTeams []string,
+	redDq, redSurrogate, blueDq, blueSurrogate []string,
+	scoreBreakdown *swagger.OneOfMatchScoreBreakdown,
+) swagger.Match {
+	t.Helper()
+	return swagger.Match{
+		Key:             key,
+		CompLevel:       compLevel,
+		SetNumber:       setNumber,
+		MatchNumber:     matchNumber,
+		WinningAlliance: winningAlliance,
+		EventKey:        eventKey,
+		PostResultTime:  postResultTime,
+		Alliances: &swagger.MatchSimpleAlliances{
+			Red: &swagger.MatchAlliance{
+				Score:             0,
+				TeamKeys:          redTeams,
+				SurrogateTeamKeys: redSurrogate,
+				DqTeamKeys:        redDq,
+			},
+			Blue: &swagger.MatchAlliance{
+				Score:             0,
+				TeamKeys:          blueTeams,
+				SurrogateTeamKeys: blueSurrogate,
+				DqTeamKeys:        blueDq,
+			},
+		},
+		ScoreBreakdown: scoreBreakdown,
+	}
+}
+
+func newSyntheticScoreBreakdown(red, blue *swagger.MatchScoreBreakdown2026Alliance) *swagger.OneOfMatchScoreBreakdown {
+	return &swagger.OneOfMatchScoreBreakdown{
+		MatchScoreBreakdown2026: swagger.MatchScoreBreakdown2026{
+			Red:  red,
+			Blue: blue,
+		},
+	}
+}
+
+func TestScoreMatchSynthetic(t *testing.T) {
+	scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil)
+	ctx := t.Context()
+
+	t.Run("unplayed match rescore false returns not scored", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_qm1", "qm", 1, 1, "red", "2026arc", 0,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, shouldUpdate := scorer.scoreMatch(ctx, match, false)
+		assert.False(t, scored.Played)
+		assert.False(t, shouldUpdate)
+		assert.Equal(t, 0, scored.RedScore)
+		assert.Equal(t, 0, scored.BlueScore)
+	})
+
+	t.Run("unplayed match rescore true scores anyway", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_qm2", "qm", 1, 2, "blue", "2026arc", 0,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, shouldUpdate := scorer.scoreMatch(ctx, match, true)
+		assert.False(t, scored.Played)
+		assert.True(t, shouldUpdate)
+		assert.Equal(t, 0, scored.RedScore)
+		assert.Equal(t, QualWinPoints(), scored.BlueScore)
+	})
+
+	t.Run("qual red wins", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_qm3", "qm", 1, 3, "red", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, shouldUpdate := scorer.scoreMatch(ctx, match, false)
+		assert.True(t, scored.Played)
+		assert.True(t, shouldUpdate)
+		assert.Equal(t, QualWinPoints(), scored.RedScore)
+		assert.Equal(t, 0, scored.BlueScore)
+	})
+
+	t.Run("qual blue wins", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_qm4", "qm", 1, 4, "blue", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		assert.Equal(t, 0, scored.RedScore)
+		assert.Equal(t, QualWinPoints(), scored.BlueScore)
+	})
+
+	t.Run("qual bonuses for red and blue", func(t *testing.T) {
+		breakdown := newSyntheticScoreBreakdown(
+			&swagger.MatchScoreBreakdown2026Alliance{
+				EnergizedAchieved:    true,
+				SuperchargedAchieved: true,
+				TraversalAchieved:    true,
+			},
+			&swagger.MatchScoreBreakdown2026Alliance{
+				EnergizedAchieved: true,
+			},
+		)
+		match := newSyntheticMatch(t, "2026arc_qm5", "qm", 1, 5, "red", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, breakdown)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		expectedRed := QualWinPoints() + EnergizedBonusPoints() + SuperchargedBonusPoints() + TraversalBonusPoints()
+		expectedBlue := EnergizedBonusPoints()
+		assert.Equal(t, expectedRed, scored.RedScore)
+		assert.Equal(t, expectedBlue, scored.BlueScore)
+	})
+
+	t.Run("playoff finals red wins", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_f1m1", "f", 1, 1, "red", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		assert.Equal(t, PlayoffFinalsPoints(), scored.RedScore)
+		assert.Equal(t, 0, scored.BlueScore)
+	})
+
+	t.Run("playoff semifinals upper bracket blue wins", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_sf1m1", "sf", 1, 1, "blue", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		assert.Equal(t, 0, scored.RedScore)
+		assert.Equal(t, PlayoffUpperBracketPoints(), scored.BlueScore)
+	})
+
+	t.Run("playoff semifinals lower bracket red wins", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_sf5m1", "sf", 5, 1, "red", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		assert.Equal(t, PlayoffLowerBracketPoints(), scored.RedScore)
+		assert.Equal(t, 0, scored.BlueScore)
+	})
+
+	t.Run("einstein upper bracket red wins multiplied", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026cmptx_sf1m1", "sf", 1, 1, "red", "2026cmptx", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			nil, nil, nil, nil, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		expected := PlayoffUpperBracketPoints() * EinsteinMultiplier()
+		assert.Equal(t, expected, scored.RedScore)
+		assert.Equal(t, 0, scored.BlueScore)
+	})
+
+	t.Run("dq and surrogate teams included in dqed teams", func(t *testing.T) {
+		match := newSyntheticMatch(t, "2026arc_qm6", "qm", 1, 6, "red", "2026arc", 1,
+			[]string{"frc1", "frc2", "frc3"}, []string{"frc4", "frc5", "frc6"},
+			[]string{"frc2"}, []string{"frc3"},
+			[]string{"frc5"}, []string{"frc6"}, nil)
+		scored, _ := scorer.scoreMatch(ctx, match, false)
+		assert.ElementsMatch(t, []string{"frc2", "frc3", "frc5", "frc6"}, scored.DqedTeams)
+	})
+
+	t.Run("alliance selection score maps picks to base score times multiplier", func(t *testing.T) {
+		alliance := swagger.EliminationAlliance{
+			Name:  "Alliance 1",
+			Picks: []string{"frc254", "frc1678", "frc118", "frc2056"},
+		}
+		scores := scorer.GetAllianceSelectionScore(ctx, alliance)
+		assert.Equal(t, 32*AlliancePickMultiplier(), scores["frc254"])
+		assert.Equal(t, 31*AlliancePickMultiplier(), scores["frc1678"])
+		assert.Equal(t, 9*AlliancePickMultiplier(), scores["frc118"])
+		assert.Equal(t, 8*AlliancePickMultiplier(), scores["frc2056"])
+	})
+}
+
 func TestGetAllianceSelectionScores (t *testing.T) {
     tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
     alliances, _ := tbaHandler.MakeEliminationAllianceRequest(t.Context(), "2025mawor")

@@ -88,11 +88,11 @@ Last updated: 2026-08-27
 |---|------|------|------|
 | 55 | `server/draft/draftActor.go` | 82 | `// TODO Does tba handler need to be a pointer?` | ~~Evaluate pointer vs value.~~ **Fixed** — `TBAInterface` is an interface, so storing it by value is idiomatic; the TODO has been removed. |
 | 56 | `server/draft/draftActor.go` | 902 | `// TODO: Add store method for transferring ownership when available` | ~~Add store method for transferring ownership.~~ **Declined** — not needed for current functionality; the TODO has been removed. |
-| 57 | `server/handler/draftPickPageHandler.go` | 62 | `// TODO we could move this to the actor so we dont have to call the db` |
-| 58 | `server/handler/draftProfilePageHandler.go` | 35 | `// TODO I think this should go through the draft manager` |
+| 57 | `server/handler/draftPickPageHandler.go` | 62 | `// TODO we could move this to the actor so we dont have to call the db` | ~~Move DB call into the actor.~~ **Fixed** — the handler now uses `DraftActorMap.GetActor` and the actor for all draft state/pick operations; the TODO has been removed. |
+| 58 | `server/handler/draftProfilePageHandler.go` | 35 | `// TODO I think this should go through the draft manager` | ~~Route through the draft manager.~~ **Fixed** — the handler now uses `DraftActorMap.GetActor` and `draft.GetDraft`; the TODO has been removed. |
 | 59 | `server/handler/adminPageHandler.go` | 134 | `// TODO Need to start draft watch dog` — drafts started at runtime are now added to the pick daemon. | ~~Start draft watch dog.~~ **Fixed** — `adminPageHandler.go` now calls `draftDaemon.AddDraft` after transitioning to `PICKING`; the TODO comment has been removed. |
-| 60 | `server/handler/authPageHandler.go` | 16 | `// We can probably do this in the middleware` (unresolved design question) |
-| 61 | `server/model/user.go` | 178–179 | `// Should we move more logic here? No...` (design uncertainty) |
+| 60 | `server/handler/authPageHandler.go` | 16 | `// We can probably do this in the middleware` — `HandleViewLogin` simply renders the login page; this is handler work, not middleware work. | ~~Move to middleware.~~ **Fixed** — removed the stale TODO comment. |
+| 61 | `server/model/user.go` | 130 | `// Should we move more logic here? No...` — design decision is recorded; password validation intentionally happens before `updatePassword` so callers can return user-facing errors. | ~~Decide whether to move more logic into `updatePassword`.~~ **Fixed** — reworded the comment into a plain design note. |
 | 62 | `server/model/user.go` | 247 | `//If the count is greater than one there is a problem...Do we want to invalidate the session` — duplicate sessions are now detected and deleted. | ~~Decide whether to invalidate the session on duplicate count.~~ **Fixed** — `validateSessionToken` logs the duplicate, deletes all matching sessions, and returns `false`; the TODO has been removed. |
 | 63 | `draftTester/main.go` | 188 | `// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them` — `getRandomTeamId` already selects from the `validPicks` list. | ~~Make valid-team list and coin-flip pick decision.~~ **Fixed** — behavior already matches the TODO intent; removed the stale TODO comment. |
 
@@ -100,14 +100,14 @@ Last updated: 2026-08-27
 
 ## 🧪 Test gaps
 
-- `server/background/draftDaemon.go` — a two-tick test would catch the deadlock.
-- `server/utils/utils.go` — `GetPickExpirationTime` boundary tests (window start/end, weekends, DST).
-- `server/model/draft.go` — `DetermineNextPick` snake-draft wrap-around and edge cases.
-- `server/tbaHandler/tbaHandler.go` — cache hit, 304, 404, 5xx, retry, and network-error paths.
-- `server/handler/draftPickPageHandler.go` — WebSocket watcher registration, ping/pong, disconnect.
-- `server/handler/adminPageHandler.go` — admin commands with mock stores.
-- `server/scorer/scorer.go` — unit tests with synthetic `swagger.Match` data.
-- `server/cache/avatarStore.go` — Redis-down fallback path.
+- ~~`server/background/draftDaemon.go` — a two-tick test would catch the deadlock.~~ **Fixed** — `TestDraftDaemon_Run_DoesNotDeadlockOnSecondTick` already covers this.
+- ~~`server/utils/utils.go` — `GetPickExpirationTime` boundary tests (window start/end, weekends, DST).~~ **Fixed** — added `TestFindNextExpirationTime_Boundaries`.
+- ~~`server/model/draft.go` — `DetermineNextPick` snake-draft wrap-around and edge cases.~~ **Fixed** — added `TestDetermineNextPick` with 11 subtests.
+- ~~`server/tbaHandler/tbaHandler.go` — cache hit, 304, 404, 5xx, retry, and network-error paths.~~ **Fixed** — added `TestMakeRequest_*` cache and HTTP error-path tests.
+- ~~`server/handler/draftPickPageHandler.go` — WebSocket watcher registration, ping/pong, disconnect.~~ **Fixed** — added `TestPickNotifier_*` covering invalid draft, draft not found, registration/unregistration, and notification delivery.
+- ~~`server/handler/adminPageHandler.go` — admin commands with mock stores.~~ **Fixed** — added mock-store tests for `SkipPickCommand`, `ModifyPickTimeCommand`, `AdminPickCommand`, `RenameDraftCommand`, `UndoPickCommand`, and `PopulateTeamsCommand`.
+- ~~`server/scorer/scorer.go` — unit tests with synthetic `swagger.Match` data.~~ **Fixed** — added `TestScoreMatchSynthetic` with 11 subtests.
+- ~~`server/cache/avatarStore.go` — Redis-down fallback path.~~ **Fixed** — added Redis error fallback, SET-failure, and Redis+TBA-down tests.
 
 ---
 

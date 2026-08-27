@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,7 +23,20 @@ func TestLoadPickWindowConfigFromFile_Defaults(t *testing.T) {
 	cfg, err := LoadPickWindowConfigFromFile(path)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1*time.Hour, cfg.PickTime)
+	// Read the raw config so the test stays valid when pick_time changes.
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	var rawCfg struct {
+		PickTime string                `json:"pick_time"`
+		Windows  map[string]TimeRange  `json:"windows"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &rawCfg))
+
+	expectedPickTime, err := time.ParseDuration(rawCfg.PickTime)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedPickTime, cfg.PickTime)
 	assert.Equal(t, TimeRange{StartHour: 8, EndHour: 22}, cfg.Windows[time.Sunday])
 	assert.Equal(t, TimeRange{StartHour: 17, EndHour: 22}, cfg.Windows[time.Monday])
 }

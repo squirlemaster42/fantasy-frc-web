@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -133,3 +134,163 @@ func TestGetDraftScore_ZeroDraftId_ReturnsError(t *testing.T) {
 	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestDetermineNextPick(t *testing.T) {
+	makePlayer := func(id int, order int, userUuid uuid.UUID) DraftPlayer {
+		return DraftPlayer{
+			Id: id,
+			User: User{
+				UserUuid: userUuid,
+			},
+			PlayerOrder: sql.NullInt16{Int16: int16(order), Valid: true},
+		}
+	}
+
+	makePick := func(playerId int) Pick {
+		return Pick{Player: playerId}
+	}
+
+	uuidA := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	uuidB := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	uuidC := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	uuidD := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+
+	t.Run("empty players returns error", func(t *testing.T) {
+		_, err := DetermineNextPick([]DraftPlayer{}, []Pick{})
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "no players in draft")
+	})
+
+	t.Run("unset player order returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			{
+				Id:          1,
+				User:        User{UserUuid: uuidA},
+				PlayerOrder: sql.NullInt16{Valid: false},
+			},
+		}
+		_, err := DetermineNextPick(players, []Pick{})
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "player order not set")
+	})
+
+	t.Run("first pick returns player order zero", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+		}
+		next, err := DetermineNextPick(players, []Pick{})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 1, next.Id)
+	})
+
+	t.Run("second pick returns player order one", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+		}
+		picks := []Pick{makePick(1)}
+		next, err := DetermineNextPick(players, picks)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 2, next.Id)
+	})
+
+	t.Run("snake forward with four players", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2)}
+		next, err := DetermineNextPick(players, picks)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 3, next.Id)
+	})
+
+	t.Run("snake wrap at end of round", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4)}
+		next, err := DetermineNextPick(players, picks)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 4, next.Id)
+	})
+
+	t.Run("snake reverse after end of round", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4), makePick(4)}
+		next, err := DetermineNextPick(players, picks)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 3, next.Id)
+	})
+
+	t.Run("full round completed resets direction to zero", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{
+			makePick(1), makePick(2), makePick(3), makePick(4),
+			makePick(4), makePick(3), makePick(2), makePick(1),
+		}
+		next, err := DetermineNextPick(players, picks)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 1, next.Id)
+	})
+
+	t.Run("last pick player not found returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+		}
+		picks := []Pick{makePick(1), makePick(99)}
+		_, err := DetermineNextPick(players, picks)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "player 99 not found")
+	})
+
+	t.Run("second to last pick player not found returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+		}
+		picks := []Pick{makePick(99), makePick(1)}
+		_, err := DetermineNextPick(players, picks)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "player 99 not found")
+	})
+
+	t.Run("next index out of bounds returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(4)}
+		_, err := DetermineNextPick(players, picks)
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, "next pick is out of bounds")
+	})
+}
+

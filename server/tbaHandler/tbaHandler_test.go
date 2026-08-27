@@ -1,6 +1,8 @@
 package tbaHandler
 
 import (
+	"database/sql"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
@@ -173,4 +176,180 @@ func TestEliminationAllianceRequestRetryExhausted(t *testing.T) {
 
 	// Exponential backoff: 1s + 2s + 4s + 8s + 16s = 31s minimum
 	assert.True(t, elapsed >= 31*time.Second, "Expected at least 31s of backoff delay")
+}
+
+type mockTransport struct {
+	responses []mockResponse
+	index     int
+}
+
+type mockResponse struct {
+	statusCode int
+	body       string
+	etag       string
+	err        error
+}
+
+func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.index >= len(m.responses) {
+		return nil, errors.New("no more mocked responses")
+	}
+	r := m.responses[m.index]
+	m.index++
+	if r.err != nil {
+		return nil, r.err
+	}
+	headers := make(http.Header)
+	if r.etag != "" {
+		headers.Set("Etag", r.etag)
+	}
+	return &http.Response{
+		StatusCode: r.statusCode,
+		Body:       io.NopCloser(strings.NewReader(r.body)),
+		Header:     headers,
+		Request:    req,
+	}, nil
+}
+
+func TestMakeRequest_CacheMiss200(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	body := `[{"key":"value"}]`
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+	mock.ExpectPrepare(`Insert Into TbaCache \(url, etag, responseBody\) Values \(\$1, \$2, \$3\) On Conflict \(url\) Do Update Set etag = excluded\.etag, responseBody = excluded\.responseBody;`).
+		ExpectExec().WithArgs(url, etag, []byte(body)).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusOK, body: body, etag: etag}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(body), resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_CacheHitNotModified(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	cachedBody := []byte(`[{"cached":true}]`)
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnRows(sqlmock.NewRows([]string{"etag", "responseBody"}).AddRow(etag, cachedBody))
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusNotModified, body: ""}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.NoError(t, err)
+	assert.Equal(t, cachedBody, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_404ReturnsNil(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusNotFound, body: "not found"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.NoError(t, err)
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_500ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusInternalServerError, body: "server error"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "server error")
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_429ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusTooManyRequests, body: "rate limited"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "rate limit")
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_NetworkError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{err: errors.New("connection refused")}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "connection refused")
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_UnexpectedStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusBadRequest, body: "bad request"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected status")
+	assert.Nil(t, resp)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }

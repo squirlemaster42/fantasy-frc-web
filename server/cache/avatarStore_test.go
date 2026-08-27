@@ -2,12 +2,15 @@ package cache
 
 import (
 	"context"
+	"encoding/base64"
+	"errors"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 
+	"server/swagger"
 	"server/tbaHandler"
 )
 
@@ -102,6 +105,130 @@ func TestAvatarStore_GetAvatar_NoRedis(t *testing.T) {
 
 	// Without Redis, the store falls back to the TBA handler, which will fail
 	// because there is no real TBA API available in this test.
+	result, err := store.GetAvatar(context.Background(), 254)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// mockTBAHandler is a test double that returns a configurable base64 avatar
+// or error from MakeTeamAvatarRequest.
+type mockTBAHandler struct {
+	avatar string
+	err    error
+}
+
+func (m *mockTBAHandler) MakeEventListReq(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (m *mockTBAHandler) MakeMatchReq(context.Context, string) (swagger.Match, error) {
+	return swagger.Match{}, nil
+}
+
+func (m *mockTBAHandler) MakeEventMatchKeysRequest(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (m *mockTBAHandler) MakeTeamsAtEventRequest(context.Context, string) ([]swagger.Team, error) {
+	return nil, nil
+}
+
+func (m *mockTBAHandler) MakeEliminationAllianceRequest(context.Context, string) ([]swagger.EliminationAlliance, error) {
+	return nil, nil
+}
+
+func (m *mockTBAHandler) MakeTeamAvatarRequest(context.Context, string) (string, error) {
+	return m.avatar, m.err
+}
+
+func TestAvatarStore_GetAvatar_RedisErrorFallsBackToTBA(t *testing.T) {
+	s := miniredis.RunT(t)
+
+	expectedAvatar := []byte("avatar")
+	mock := &mockTBAHandler{
+		avatar: base64.StdEncoding.EncodeToString(expectedAvatar),
+	}
+	store, err := NewAvatarStore(context.Background(), mock, s.Addr(), "", 0)
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	// Force Redis connection errors after the store has been initialized.
+	s.Close()
+
+	result, err := store.GetAvatar(context.Background(), 254)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedAvatar, result)
+}
+
+// setFailureHook injects a failure for Redis SET commands while leaving GET
+// behavior untouched, allowing us to exercise the cache-miss/store-failure path.
+type setFailureHook struct{}
+
+func (h *setFailureHook) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+
+func (h *setFailureHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		err := next(ctx, cmd)
+		if cmd.Name() == "set" {
+			cmd.SetErr(errors.New("redis set failed"))
+		}
+		return err
+	}
+}
+
+func (h *setFailureHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		err := next(ctx, cmds)
+		for _, cmd := range cmds {
+			if cmd.Name() == "set" {
+				cmd.SetErr(errors.New("redis set failed"))
+			}
+		}
+		return err
+	}
+}
+
+func TestAvatarStore_GetAvatar_CacheMissSetFailureReturnsAvatar(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	expectedAvatar := []byte("avatar")
+	mock := &mockTBAHandler{
+		avatar: base64.StdEncoding.EncodeToString(expectedAvatar),
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     s.Addr(),
+		Protocol: redisProtocolVersion,
+	})
+	rdb.AddHook(&setFailureHook{})
+	defer func() { _ = rdb.Close() }()
+
+	store := AvatarStore{
+		client:     rdb,
+		tbaHandler: mock,
+	}
+
+	result, err := store.GetAvatar(context.Background(), 254)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedAvatar, result)
+}
+
+func TestAvatarStore_GetAvatar_RedisDownAndTbaDown(t *testing.T) {
+	s := miniredis.RunT(t)
+
+	mock := &mockTBAHandler{
+		err: errors.New("tba unavailable"),
+	}
+	store, err := NewAvatarStore(context.Background(), mock, s.Addr(), "", 0)
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	// Force Redis connection errors after the store has been initialized.
+	s.Close()
+
 	result, err := store.GetAvatar(context.Background(), 254)
 	assert.Error(t, err)
 	assert.Nil(t, result)

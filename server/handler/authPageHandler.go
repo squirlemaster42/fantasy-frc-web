@@ -12,7 +12,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// We can probably do this in the middleware
 func (h *Handler) HandleViewLogin(c echo.Context) error {
 	return h.renderLoginWithError(c, "")
 }

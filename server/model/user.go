@@ -126,9 +126,9 @@ func getPasswordHashByUsername(ctx context.Context, db *sql.DB, username string)
 	return passwordHash, nil
 }
 
-// The old password logic should happen before this
-// Should we move more logic here? No, we want to be able to
-// send back error messages which we should need to check the database for
+// updatePassword writes the new password hash to the database.
+// Password validation and old-password checking are intentionally done
+// before calling this function so callers can return user-facing errors.
 func updatePassword(ctx context.Context, db *sql.DB, username string, passwordHash string) error {
 	query := `Update Users Set password = $1 Where username = $2;`
 	stmt, err := database.Prepare(ctx, db, query)
