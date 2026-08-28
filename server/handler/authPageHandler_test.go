@@ -242,6 +242,10 @@ func TestHandleViewLogin(t *testing.T) {
 	err := h.HandleViewLogin(c)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+	assert.Contains(t, body, "<!doctype html>")
+	assert.Contains(t, body, `/css/styles.css`)
+	assert.Contains(t, body, "Sign In")
 }
 
 func TestHandleViewRegister(t *testing.T) {
@@ -252,4 +256,8 @@ func TestHandleViewRegister(t *testing.T) {
 	err := h.HandleViewRegister(c)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+	assert.Contains(t, body, "<!doctype html>")
+	assert.Contains(t, body, `/css/styles.css`)
+	assert.Contains(t, body, "Create Account")
 }

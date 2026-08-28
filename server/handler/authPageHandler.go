@@ -13,7 +13,14 @@ import (
 )
 
 func (h *Handler) HandleViewLogin(c echo.Context) error {
-	return h.renderLoginWithError(c, "")
+	csrfToken, err := middleware.GenerateCSRFCookie(c)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
+	loginIndex := login.LoginIndex(false, "", h.Config.MinPasswordLength, csrfToken)
+	loginPage := login.Login("Sign In", false, loginIndex)
+	return Render(c, loginPage)
 }
 
 func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
@@ -109,7 +116,14 @@ func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
 }
 
 func (h *Handler) HandleViewRegister(c echo.Context) error {
-	return h.renderRegisterWithError(c, "")
+	csrfToken, err := middleware.GenerateCSRFCookie(c)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
+		return c.String(http.StatusInternalServerError, "An error occurred")
+	}
+	registerIndex := login.RegisterIndex(false, "", h.Config.MinPasswordLength, csrfToken)
+	registerPage := login.Register("Create Account", false, registerIndex)
+	return Render(c, registerPage)
 }
 
 func (h *Handler) HandlerRegisterPost(c echo.Context) error {
