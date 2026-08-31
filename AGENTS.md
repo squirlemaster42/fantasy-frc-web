@@ -42,7 +42,7 @@ go vet ./...
 # Run golangci-lint
 go tool golangci-lint run ./...
 
-For formatting, follow the format of the rest of the code, do not use Go's built in formatter.
+For formatting, follow the format of the rest of the code, do not use Go's built in formatter
 ```
 
 ### Dependencies
