@@ -1,6 +1,6 @@
 # Fantasy FRC Deployment
 
-This directory previously contained Ansible playbooks and bash-based migration scripts. Deprecated.
+This directory previously contained Ansible playbooks and bash-based migration scripts. Deprecated. Anasible now used to deploy to K8s cluster.
 
 ## Current State
 
