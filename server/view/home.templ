@@ -1,11 +1,14 @@
 package view
 
 import (
-    "server/model"
-    "server/view/partials"
     "fmt"
+    "net/url"
+
 	"github.com/google/uuid"
-	"server/types"
+
+    "server/model"
+    "server/types"
+    "server/view/partials"
 )
 
 templ HomeIndex (drafts []model.DraftModel, userUuid uuid.UUID) {
@@ -23,31 +26,68 @@ templ HomeIndex (drafts []model.DraftModel, userUuid uuid.UUID) {
                 </a>
             </div>
         } else {
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
-                <div class="card bg-gradient-to-br from-base-200 to-base-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl border-2 border-dashed border-base-300 hover:border-primary flex flex-col cursor-pointer group">
-                    <div class="card-body p-8 text-base-content text-center flex-1 flex flex-col justify-center items-center">
-                        <a class="mb-6" href="/u/createDraft">
-                            <div class="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/80 group-hover:scale-110 transition-all duration-300 shadow-lg">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-10 text-primary-content">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                            </div>
-                            <h2 class="text-xl font-bold text-primary leading-tight mb-2">Create New Draft</h2>
-                            <p class="text-base-content/70 text-sm">Start a new fantasy draft</p>
-                        </a>
-                    </div>
-                </div>
-                @DraftList(drafts, userUuid, 0)
+            <div class="mb-6">
+                <input
+                    class="max-w-md w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    type="search"
+                    name="search"
+                    autocomplete="off"
+                    placeholder="Search drafts..."
+                    hx-get="/u/draftList"
+                    hx-trigger="input changed delay:500ms, keyup[key=='Enter']"
+                    hx-target="#draft-list"
+                    hx-swap="innerHTML"
+                />
+            </div>
+            <div id="draft-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
+                @DraftSearchResults(drafts, userUuid, 0, "")
             </div>
         }
     </section>
 }
 
-templ DraftList(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int) {
+templ CreateNewDraftCard() {
+    <div class="card bg-gradient-to-br from-base-200 to-base-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl border-2 border-dashed border-base-300 hover:border-primary flex flex-col cursor-pointer group">
+        <div class="card-body p-8 text-base-content text-center flex-1 flex flex-col justify-center items-center">
+            <a class="mb-6" href="/u/createDraft">
+                <div class="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/80 group-hover:scale-110 transition-all duration-300 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-10 text-primary-content">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-primary leading-tight mb-2">Create New Draft</h2>
+                <p class="text-base-content/70 text-sm">Start a new fantasy draft</p>
+            </a>
+        </div>
+    </div>
+}
+
+templ DraftSearchResults(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {
+    if len(drafts) == 0 && searchTerm != "" {
+        <div class="col-span-full">
+            @partials.EmptyState("No Drafts Found", fmt.Sprintf("No drafts match \"%s\". Try a different search term or create a new draft.", searchTerm)) {
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            }
+            <div class="max-w-xs mx-auto">
+                <a href="/u/createDraft" class="btn btn-primary px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm">
+                    Create New Draft
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+    } else {
+        @CreateNewDraftCard()
+        @DraftList(drafts, userUuid, pageNumber, searchTerm)
+    }
+}
+
+templ DraftList(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {
     for i, draft := range drafts {
         if i == len(drafts) - 1 {
             <div
-                hx-get={fmt.Sprintf("/u/draftList?page=%d", pageNumber + 1)}
+                hx-get={fmt.Sprintf("/u/draftList?page=%d&search=%s", pageNumber + 1, url.QueryEscape(searchTerm))}
                 hx-trigger="intersect once"
                 hx-swap="afterend"
             >

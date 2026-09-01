@@ -154,8 +154,9 @@ func TestPickNotifier_InvalidDraftId(t *testing.T) {
 	server := startWebsocketServer(t, h, "abc", userUuid)
 
 	conn := dialWebsocket(t, server)
-	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	_, _, err := conn.ReadMessage()
+	err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	assert.NoError(t, err)
+	_, _, err = conn.ReadMessage()
 	assert.Error(t, err)
 }
 
@@ -169,8 +170,9 @@ func TestPickNotifier_DraftNotFound(t *testing.T) {
 	server := startWebsocketServer(t, h, "999", userUuid)
 
 	conn := dialWebsocket(t, server)
-	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	_, _, err := conn.ReadMessage()
+	err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	assert.NoError(t, err)
+	_, _, err = conn.ReadMessage()
 	assert.Error(t, err)
 }
 
@@ -222,7 +224,8 @@ func TestPickNotifier_ReceivesNotification(t *testing.T) {
 	pickNotifier.NotifyWatchers(t.Context(), 1)
 
 	// Wait for the server to render and send the update
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	err := conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	assert.NoError(t, err)
 	_, message, err := conn.ReadMessage()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, message)

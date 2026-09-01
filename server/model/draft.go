@@ -200,28 +200,22 @@ func searchDrafts(ctx context.Context, db database.DBTX, search DraftSearchQuery
 	Left Join Users currUser On currUser.UserUuid = $2
     Where (DraftPlayers.UserUuid = $2
 		Or DraftInvites.InvitedUserUuid = $2
-		Or currUser.IsAdmin = true)`;
-
-	if search.DraftNameSearch != "" {
-		query += " And Drafts.DisplayName Like '%"
-		query += search.DraftNameSearch
-		query += "%' "
-	}
-
-	query += `Order By Drafts.Id Asc
-	Limit $3
-	Offset $4;`
+		Or currUser.IsAdmin = true)
+		And Drafts.DisplayName ILIKE CONCAT('%', CAST($3 As VARCHAR), '%')
+	Order By Drafts.Id Asc
+	Limit $4
+	Offset $5;`
 
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search drafts: %w", err)
 	}
-	defer database.CloseStatement(ctx, stmt, "GetDraftsForUser")
-	rows, err := stmt.QueryContext(ctx, FILLING, search.UserUuid, search.PageSize, search.PageNum * search.PageSize)
+	defer database.CloseStatement(ctx, stmt, "SearchDrafts")
+	rows, err := stmt.QueryContext(ctx, FILLING, search.UserUuid, search.DraftNameSearch, search.PageSize, search.PageNum*search.PageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search drafts: %w", err)
 	}
-	defer database.CloseRows(ctx, rows, "GetDraftsForUser")
+	defer database.CloseRows(ctx, rows, "SearchDrafts")
 
 	var drafts []DraftModel
 	draftIndexById := make(map[int]int)
