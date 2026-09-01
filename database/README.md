@@ -30,7 +30,7 @@ cd database
 make create name=add_user_preferences
 ```
 
-This creates a new `.sql` file in `migrations/` with `-- +goose Up` and `-- +goose Down` stubs.
+This creates a new `.sql` file in `migrations/` with `-- +goose Up` and `-- +goose Down` stubs
 
 ### Environment Variables
 
