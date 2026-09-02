@@ -72,7 +72,7 @@ func HomeIndex(drafts []model.DraftModel, userUuid uuid.UUID) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"mb-6\"><input class=\"max-w-md w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent\" type=\"search\" name=\"search\" autocomplete=\"off\" placeholder=\"Search drafts...\" hx-get=\"/u/draftList\" hx-trigger=\"input changed delay:500ms, keyup[key=='Enter']\" hx-target=\"#draft-list\" hx-swap=\"innerHTML\"></div><div id=\"draft-list\" class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"mb-8 w-full flex justify-center\"><input class=\"w-full max-w-xl bg-base-200/50 border border-base-300 rounded-xl px-5 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm transition-all duration-200 hover:bg-base-200\" type=\"search\" name=\"search\" autocomplete=\"off\" placeholder=\"Search drafts...\" hx-get=\"/u/draftList\" hx-trigger=\"input changed delay:500ms, keyup[key=='Enter']\" hx-target=\"#draft-list\" hx-swap=\"innerHTML\"></div><div id=\"draft-list\" class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -144,7 +144,7 @@ func DraftSearchResults(drafts []model.DraftModel, userUuid uuid.UUID, pageNumbe
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(drafts) == 0 && searchTerm != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"col-span-full\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"col-span-full flex flex-col items-center justify-center min-h-[50vh]\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -170,7 +170,7 @@ func DraftSearchResults(drafts []model.DraftModel, userUuid uuid.UUID, pageNumbe
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"max-w-xs mx-auto\"><a href=\"/u/createDraft\" class=\"btn btn-primary px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm\">Create New Draft <svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-4\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"></path></svg></a></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"max-w-xs w-full mx-auto\"><a href=\"/u/createDraft\" class=\"btn btn-primary px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm\">Create New Draft <svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-4\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"></path></svg></a></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

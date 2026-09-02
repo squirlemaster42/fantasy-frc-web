@@ -129,7 +129,7 @@ func TestHomeIndex_WithDrafts(t *testing.T) {
 	t.Run("search input present", func(t *testing.T) {
 		searchInput := findElementByAttr(doc, "input", "type", "search")
 		require.NotNil(t, searchInput)
-		assert.Contains(t, getAttr(searchInput, "class"), "bg-base-300")
+		assert.Contains(t, getAttr(searchInput, "class"), "bg-base-200/50")
 		assert.Equal(t, "/u/draftList", getAttr(searchInput, "hx-get"))
 		assert.Equal(t, "#draft-list", getAttr(searchInput, "hx-target"))
 		assert.Equal(t, "innerHTML", getAttr(searchInput, "hx-swap"))
