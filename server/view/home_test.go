@@ -132,7 +132,7 @@ func TestHomeIndex_WithDrafts(t *testing.T) {
 		assert.Contains(t, getAttr(searchInput, "class"), "bg-base-200/50")
 		assert.Equal(t, "/u/draftList", getAttr(searchInput, "hx-get"))
 		assert.Equal(t, "#draft-list", getAttr(searchInput, "hx-target"))
-		assert.Equal(t, "innerHTML", getAttr(searchInput, "hx-swap"))
+		assert.Equal(t, "outerHTML", getAttr(searchInput, "hx-swap"))
 	})
 
 	t.Run("draft list container present", func(t *testing.T) {
@@ -155,18 +155,20 @@ func TestHomeIndex_WithDrafts(t *testing.T) {
 	})
 }
 
-func TestDraftSearchResults_EmptySearchMessage(t *testing.T) {
-	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+func TestDraftSearchNoResults(t *testing.T) {
 	searchTerm := "nonexistent"
 
 	var buf strings.Builder
-	err := DraftSearchResults([]model.DraftModel{}, userUuid, 0, searchTerm).Render(context.Background(), &buf)
+	err := DraftSearchNoResults(searchTerm).Render(context.Background(), &buf)
 	require.NoError(t, err)
 
 	htmlStr := buf.String()
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	require.NoError(t, err)
 
+	draftList := findElementByAttr(doc, "div", "id", "draft-list")
+	require.NotNil(t, draftList)
+	assert.Contains(t, getAttr(draftList, "class"), "flex")
 	assert.Contains(t, htmlStr, "No Drafts Found")
 	assert.Contains(t, htmlStr, searchTerm)
 	assert.NotContains(t, htmlStr, "Create New Draft</h2>")
@@ -183,7 +185,7 @@ func TestDraftList_DoesNotShowEmptySearchMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlStr := buf.String()
-	assert.NotContains(t, htmlStr, "No drafts found matching")
+	assert.NotContains(t, htmlStr, "No Drafts Found")
 }
 
 func TestHome_PageWrapper(t *testing.T) {

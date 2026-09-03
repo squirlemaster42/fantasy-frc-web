@@ -36,12 +36,10 @@ templ HomeIndex (drafts []model.DraftModel, userUuid uuid.UUID) {
                     hx-get="/u/draftList"
                     hx-trigger="input changed delay:500ms, keyup[key=='Enter']"
                     hx-target="#draft-list"
-                    hx-swap="innerHTML"
+                    hx-swap="outerHTML"
                 />
             </div>
-            <div id="draft-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
-                @DraftSearchResults(drafts, userUuid, 0, "")
-            </div>
+            @DraftListContainer(drafts, userUuid, 0, "")
         }
     </section>
 }
@@ -62,25 +60,27 @@ templ CreateNewDraftCard() {
     </div>
 }
 
-templ DraftSearchResults(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {
-    if len(drafts) == 0 && searchTerm != "" {
-        <div class="col-span-full flex flex-col items-center justify-center min-h-[50vh]">
-            @partials.EmptyState("No Drafts Found", fmt.Sprintf("No drafts match \"%s\". Try a different search term or create a new draft.", searchTerm)) {
-                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            }
-            <div class="max-w-xs w-full mx-auto">
-                <a href="/u/createDraft" class="btn btn-primary px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm">
-                    Create New Draft
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                </a>
-            </div>
-        </div>
-    } else {
+templ DraftListContainer(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {
+    <div id="draft-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto w-full pr-4 scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
         @CreateNewDraftCard()
         @DraftList(drafts, userUuid, pageNumber, searchTerm)
-    }
+    </div>
+}
+
+templ DraftSearchNoResults(searchTerm string) {
+    <div id="draft-list" class="flex flex-col items-center justify-center min-h-[60vh] w-full p-6">
+        @partials.EmptyState("No Drafts Found", fmt.Sprintf("No drafts match \"%s\". Try a different search term or create a new draft.", searchTerm)) {
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        }
+        <div class="max-w-xs w-full mx-auto mt-4">
+            <a href="/u/createDraft" class="btn btn-primary px-6 py-3 rounded-2xl transition-all duration-300 hover:scale-105 hover:shadow-lg w-full flex items-center justify-center gap-2 text-sm">
+                Create New Draft
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+            </a>
+        </div>
+    </div>
 }
 
 templ DraftList(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {

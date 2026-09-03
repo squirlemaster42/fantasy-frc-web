@@ -73,7 +73,11 @@ func (h *Handler) HandleViewDraftList(c echo.Context) error {
 
 	var draftList templ.Component
 	if page == 0 {
-		draftList = view.DraftSearchResults(drafts, userUuid, 0, search)
+		if len(drafts) == 0 && search != "" {
+			draftList = view.DraftSearchNoResults(search)
+		} else {
+			draftList = view.DraftListContainer(drafts, userUuid, 0, search)
+		}
 	} else {
 		draftList = view.DraftList(drafts, userUuid, page, search)
 	}
