@@ -121,7 +121,8 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 	draftId := 1
 	pickId := 42
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id: draftId,
+		Id:          draftId,
+		Status:      model.PICKING,
 		CurrentPick: model.Pick{Id: pickId},
 		Players: []model.DraftPlayer{
 			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
@@ -131,7 +132,8 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Once()
 	mockStore.On("MakePickAvailable", mock.Anything, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id: draftId,
+		Id:          draftId,
+		Status:      model.PICKING,
 		CurrentPick: model.Pick{Id: pickId},
 		Players: []model.DraftPlayer{
 			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
@@ -190,6 +192,49 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
 	assert.True(t, skipped)
 
+	mockStore.AssertExpectations(t)
+}
+
+func TestDraftActorMap_SkipCurrentPick_DoesNotSkipPastEndOfDraft(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	pickId := model.PicksPerDraft
+
+	picks := make([]model.Pick, model.PicksPerDraft)
+	for i := range picks {
+		picks[i] = model.Pick{Id: i + 1}
+	}
+
+	// Draft has already completed and transitioned to TEAMS_PLAYING.
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.TEAMS_PLAYING,
+		CurrentPick: model.Pick{Id: pickId},
+		Picks:       picks,
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
+	}, nil).Once()
+
+	mockStore.On("WithTx", mock.Anything).Return(mockStore).Maybe()
+
+	// Allow the calls so the test does not panic if the bug is present, but
+	// assert below that neither is actually invoked once the draft has ended.
+	mockStore.On("RunInTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(database.DBTX) error)
+		_ = fn(nil)
+	}).Return(errors.New("transaction rolled back")).Maybe()
+	mockStore.On("SkipPick", mock.Anything, pickId).Return(nil).Maybe()
+
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	skipped := SkipCurrentPick(t.Context(), draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
+	assert.False(t, skipped)
+
+	mockStore.AssertNotCalled(t, "RunInTransaction", mock.Anything, mock.Anything)
+	mockStore.AssertNotCalled(t, "SkipPick", mock.Anything, pickId)
 	mockStore.AssertExpectations(t)
 }
 

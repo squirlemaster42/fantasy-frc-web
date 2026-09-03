@@ -627,6 +627,14 @@ func (d *DraftActor) publishPickOutcome(ctx context.Context, outcome pickOutcome
 }
 
 func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "Pick attempt rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+			Value: false,
+		}
+	}
+
 	if err := d.validatePickInput(ctx, msg); err != nil {
 		return Result{
 			Error: err,
@@ -711,6 +719,13 @@ func (d *DraftActor) handleShutdown(ctx context.Context, msg ShutdownMessage) Re
 }
 
 func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentPickMessage) Result {
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "Skip request rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+		}
+	}
+
 	if msg.CurrentPickId != d.draftState.CurrentPick.Id {
 		log.Warn(ctx, "Stale skip request rejected", "Message PickId", msg.CurrentPickId, "Current PickId", d.draftState.CurrentPick.Id)
 		return Result{
