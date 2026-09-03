@@ -37,7 +37,9 @@ func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
 		})
 	}
 
-	leaderboardIndex := leaderboard.LeaderboardIndex(leaderboardPage)
+	avatarColors := collectLeaderboardAvatarColors(c.Request().Context(), h.Services.AvatarStore, leaderboardPage.Entries)
+
+	leaderboardIndex := leaderboard.LeaderboardIndex(leaderboardPage, avatarColors)
 	leaderboardView := leaderboard.Leaderboard("Leaderboard", true, username, leaderboardIndex, types.NewPageData(0, "", false))
 	if err := Render(c, leaderboardView); err != nil {
 		log.Error(c.Request().Context(), "Failed to render leaderboard page", "error", err)

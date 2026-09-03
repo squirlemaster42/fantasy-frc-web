@@ -56,7 +56,9 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 		})
 	}
 
-	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status)
+	avatarColors := collectDraftAvatarColors(c.Request().Context(), h.Services.AvatarStore, userDraftScore)
+
+	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status, avatarColors)
 	draftView := draft.DraftScore("Draft Scores", true, username, draftIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
 	if err := Render(c, draftView); err != nil {
 		log.Error(c.Request().Context(), "Failed to render draft score page", "draftId", draftId, "error", err)
@@ -104,7 +106,9 @@ func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
-	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
+	avatarColor := avatarColorForTeam(c.Request().Context(), h.Services.AvatarStore, teamNumber)
+
+	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches, avatarColor)
 	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
 	if err := Render(c, draftTeamScore); err != nil {
 		log.Error(c.Request().Context(), "Failed to render draft team score page", "draftId", draftId, "teamNumber", teamNumber, "error", err)

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
 	"net/http"
+	"server/cache"
 	"server/log"
 	"server/view/team"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -41,10 +44,23 @@ func (h *Handler) HandleGetTeamScore(c echo.Context) error {
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
-	teamView := team.TeamScoreReport(teamNumber, scores, qualificationMatches)
+	avatarColor := avatarColorForTeam(c.Request().Context(), h.Services.AvatarStore, teamNumber)
+
+	teamView := team.TeamScoreReport(teamNumber, scores, qualificationMatches, avatarColor)
 	if err := Render(c, teamView); err != nil {
 		log.Error(c.Request().Context(), "Failed to render team score report", "teamNumber", teamNumber, "error", err)
 		return err
 	}
 	return nil
+}
+
+func avatarColorForTeam(ctx context.Context, store cache.AvatarStoreInterface, teamNumber string) string {
+	if store == nil {
+		return cache.DefaultAvatarColor
+	}
+	teamNum, err := strconv.Atoi(teamNumber)
+	if err != nil {
+		return cache.DefaultAvatarColor
+	}
+	return store.GetAvatarColor(ctx, teamNum)
 }

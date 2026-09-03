@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"server/cache"
 	"server/model"
 	"server/model/mocks"
 )
@@ -33,6 +34,9 @@ func TestHandleDraftScore(t *testing.T) {
 			Stores: StorageGroup{
 				DraftStore: mockDraftStore,
 				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
 			},
 		}
 
@@ -67,6 +71,9 @@ func TestHandleDraftTeamScore(t *testing.T) {
 				DraftStore: mockDraftStore,
 				UserStore:  mockUserStore,
 				TeamStore:  mockTeamStore,
+			},
+			Services: ServiceGroup{
+				AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
 			},
 		}
 

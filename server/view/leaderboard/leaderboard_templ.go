@@ -17,33 +17,7 @@ import (
 	"strings"
 )
 
-func getTeamColorClass(teamNumber string) string {
-	colors := []string{
-		"bg-slate-500",
-		"bg-slate-600",
-		"bg-zinc-500",
-		"bg-stone-500",
-		"bg-sky-600",
-		"bg-blue-600",
-		"bg-indigo-500",
-		"bg-violet-500",
-		"bg-teal-600",
-		"bg-emerald-600",
-		"bg-amber-700",
-		"bg-rose-500",
-	}
-
-	hash := 0
-	for _, char := range teamNumber {
-		hash = (hash*31 + int(char)) % len(colors)
-	}
-	if hash < 0 {
-		hash = -hash
-	}
-	return colors[hash%len(colors)]
-}
-
-func LeaderboardIndex(leaderboardPage model.LeaderboardPage) templ.Component {
+func LeaderboardIndex(leaderboardPage model.LeaderboardPage, avatarColors map[string]string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -69,7 +43,7 @@ func LeaderboardIndex(leaderboardPage model.LeaderboardPage) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for index, entry := range leaderboardPage.Entries {
-			templ_7745c5c3_Err = LeaderboardEntryReport(entry, (leaderboardPage.CurrentPage-1)*leaderboardPage.PerPage+index+1, entry.DraftId).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = LeaderboardEntryReport(entry, (leaderboardPage.CurrentPage-1)*leaderboardPage.PerPage+index+1, entry.DraftId, avatarColors).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -137,7 +111,7 @@ func Leaderboard(page string, fromProtected bool, username string, cmp templ.Com
 	})
 }
 
-func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int) templ.Component {
+func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int, avatarColors map[string]string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -215,7 +189,7 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", rank))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 85, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 59, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -229,7 +203,7 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(entry.User.Username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 89, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 63, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -242,7 +216,7 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 		var templ_7745c5c3_Var9 templ.SafeURL
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/draftScore", entry.DraftId)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 93, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 67, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -255,7 +229,7 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(entry.DraftName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 95, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 69, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -268,7 +242,7 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", entry.Score))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 101, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 75, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -286,106 +260,96 @@ func LeaderboardEntryReport(entry model.LeaderboardEntry, rank int, draftId int)
 			for _, pick := range entry.Picks {
 				if pick.Pick.Valid {
 					teamNum := strings.TrimLeft(pick.Pick.String, "frc")
-					colorClass := getTeamColorClass(teamNum)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"flex items-center gap-2 bg-base-300/50 rounded-lg p-2 border border-base-300/50\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"flex items-center gap-2 bg-base-300/50 rounded-lg p-2 border border-base-300/50\"><div class=\"w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0 overflow-hidden\" style=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var12 = []any{"w-4 h-4 sm:w-5 sm:h-5 rounded flex-shrink-0 overflow-hidden " + colorClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
+					var templ_7745c5c3_Var12 string
+					templ_7745c5c3_Var12, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("background-color: %s", avatarColors[teamNum]))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 87, Col: 147}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"><img src=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var13 string
-					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var12).String())
+					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/u/team/%s/avatar", teamNum))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 1, Col: 0}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 89, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\"><img src=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" alt=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var14 string
-					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/u/team/%s/avatar", teamNum))
+					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Team %s avatar", teamNum))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 116, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 90, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" alt=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" class=\"w-full h-full object-cover\" loading=\"lazy\"></div><a href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var15 string
-					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("Team %s avatar", teamNum))
+					var templ_7745c5c3_Var15 templ.SafeURL
+					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(fmt.Sprintf("/u/draft/%d/team/%s", draftId, teamNum))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 117, Col: 54}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 96, Col: 68}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"w-full h-full object-cover\" loading=\"lazy\"></div><a href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" class=\"text-base sm:text-lg font-semibold text-primary flex-shrink-0 hover:text-primary/80 hover:underline transition-colors underline underline-offset-2 decoration-primary/50 hover:decoration-primary/80\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var16 templ.SafeURL
-					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(fmt.Sprintf("/u/draft/%d/team/%s", draftId, teamNum))
+					var templ_7745c5c3_Var16 string
+					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(teamNum)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 123, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 98, Col: 18}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" class=\"text-base sm:text-lg font-semibold text-primary flex-shrink-0 hover:text-primary/80 hover:underline transition-colors underline underline-offset-2 decoration-primary/50 hover:decoration-primary/80\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</a><div class=\"text-sm sm:text-base font-medium text-base-content ml-auto\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var17 string
-					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(teamNum)
+					templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", pick.Score))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 125, Col: 18}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 99, Col: 111}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</a><div class=\"text-sm sm:text-base font-medium text-base-content ml-auto\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var18 string
-					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", pick.Score))
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/leaderboard/leaderboard.templ`, Line: 126, Col: 111}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

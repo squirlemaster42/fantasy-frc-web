@@ -4,20 +4,7 @@ module.exports = {
     "./view/**/*.templ",
     "./view/*.templ"
   ],
-  safelist: [
-    'bg-slate-500',
-    'bg-slate-600',
-    'bg-zinc-500',
-    'bg-stone-500',
-    'bg-sky-600',
-    'bg-blue-600',
-    'bg-indigo-500',
-    'bg-violet-500',
-    'bg-teal-600',
-    'bg-emerald-600',
-    'bg-amber-700',
-    'bg-rose-500',
-  ],
+  safelist: [],
   theme: {
     extend: {
       fontFamily: {

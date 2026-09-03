@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"server/cache"
 	"server/model"
 	"server/model/mocks"
 )
@@ -41,6 +42,9 @@ func TestHandleGetTeamScore(t *testing.T) {
 	h := &Handler{
 		Stores: StorageGroup{
 			TeamStore: mockTeamStore,
+		},
+		Services: ServiceGroup{
+			AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
 		},
 	}
 

@@ -1,9 +1,13 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -232,4 +236,99 @@ func TestAvatarStore_GetAvatar_RedisDownAndTbaDown(t *testing.T) {
 	result, err := store.GetAvatar(context.Background(), 254)
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func createTestAvatar(t *testing.T, c color.Color) []byte {
+	t.Helper()
+
+	img := image.NewRGBA(image.Rect(0, 0, 10, 10))
+	for y := 0; y < 10; y++ {
+		for x := 0; x < 10; x++ {
+			img.Set(x, y, c)
+		}
+	}
+
+	var buf bytes.Buffer
+	err := png.Encode(&buf, img)
+	assert.NoError(t, err)
+	return buf.Bytes()
+}
+
+func TestExtractAvatarColor(t *testing.T) {
+	redAvatar := createTestAvatar(t, color.NRGBA{R: 255, G: 0, B: 0, A: 255})
+
+	colorStr, err := extractAvatarColor(redAvatar)
+	assert.NoError(t, err)
+	assert.NotEqual(t, DefaultAvatarColor, colorStr)
+	assert.Contains(t, colorStr, "#")
+}
+
+func TestExtractAvatarColor_NoUsablePixels(t *testing.T) {
+	transparentAvatar := createTestAvatar(t, color.NRGBA{R: 255, G: 0, B: 0, A: 0})
+
+	colorStr, err := extractAvatarColor(transparentAvatar)
+	assert.Error(t, err)
+	assert.Equal(t, "", colorStr)
+}
+
+func TestAvatarStore_GetAvatarColor_NoRedis(t *testing.T) {
+	tbaHandler := tbaHandler.NewHandler("", nil)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, "localhost:1", "", 0)
+	assert.NoError(t, err)
+
+	color := store.GetAvatarColor(context.Background(), 254)
+	assert.Equal(t, DefaultAvatarColor, color)
+}
+
+func TestAvatarStore_GetAvatarColor_CacheHit(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	tbaHandler := tbaHandler.NewHandler("", nil)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	err = s.Set("avatar:color:254", "#abcdef")
+	assert.NoError(t, err)
+
+	color := store.GetAvatarColor(context.Background(), 254)
+	assert.Equal(t, "#abcdef", color)
+}
+
+func TestAvatarStore_GetAvatarColor_AvatarCacheMiss(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	tbaHandler := tbaHandler.NewHandler("", nil)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	// No avatar cached, so the color should fall back to the default without
+	// hitting TBA.
+	color := store.GetAvatarColor(context.Background(), 254)
+	assert.Equal(t, DefaultAvatarColor, color)
+}
+
+func TestAvatarStore_GetAvatarColor_AvatarCacheHit(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	avatar := createTestAvatar(t, color.NRGBA{R: 0, G: 128, B: 255, A: 255})
+	tbaHandler := tbaHandler.NewHandler("", nil)
+	store, err := NewAvatarStore(context.Background(), tbaHandler, s.Addr(), "", 0)
+	assert.NoError(t, err)
+	defer func() { _ = store.Close() }()
+
+	err = s.Set("254", string(avatar))
+	assert.NoError(t, err)
+
+	color := store.GetAvatarColor(context.Background(), 254)
+	assert.NotEqual(t, DefaultAvatarColor, color)
+	assert.Contains(t, color, "#")
+
+	cached, err := s.Get("avatar:color:254")
+	assert.NoError(t, err)
+	assert.Equal(t, color, cached)
 }

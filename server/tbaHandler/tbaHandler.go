@@ -352,6 +352,10 @@ func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (
 	if err != nil {
 		return "", err
 	}
+	if len(jsonData) == 0 {
+		return "", errors.New("no avatar found for team")
+	}
+
 	var media []swagger.TeamMedia
 	err = json.Unmarshal(jsonData, &media)
 	if err != nil {

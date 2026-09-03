@@ -89,12 +89,12 @@ templ TeamPick(page string, fromProtected bool, username string, cmp templ.Compo
     }
 }
 
-templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMatches []model.MatchTeamScore) {
+templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMatches []model.MatchTeamScore, avatarColor string) {
     <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300 hover:shadow-xl transition-all duration-300">
         <div class="card-body p-6">
             <!-- Team Header -->
             <div class="flex items-center gap-3 mb-4">
-                <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center overflow-hidden">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden" style={fmt.Sprintf("background-color: %s", avatarColor)}>
                     <img
                         src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
                         alt={fmt.Sprintf("Team %s avatar", teamNumber)}
@@ -216,7 +216,7 @@ templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMat
                             <div class="text-sm font-medium text-base-content/60 uppercase tracking-wide">Total Score</div>
                             <div class="text-3xl font-bold text-base-content">{fmt.Sprintf("%d", scores["Total Score"])}</div>
                         </div>
-                        <div class="w-12 h-12 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center overflow-hidden">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden" style={fmt.Sprintf("background-color: %s", avatarColor)}>
                             <img
                                 src={fmt.Sprintf("/u/team/%s/avatar", teamNumber)}
                                 alt={fmt.Sprintf("Team %s avatar", teamNumber)}
