@@ -359,6 +359,36 @@ func (_m *MockDraftStore) GetDraftsByName(ctx context.Context, searchString stri
 	return r0, r1
 }
 
+// GetDraftsForUser provides a mock function with given fields: ctx, userUuid
+func (_m *MockDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]model.DraftModel, error) {
+	ret := _m.Called(ctx, userUuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDraftsForUser")
+	}
+
+	var r0 []model.DraftModel
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.DraftModel, error)); ok {
+		return rf(ctx, userUuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.DraftModel); ok {
+		r0 = rf(ctx, userUuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.DraftModel)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDraftsInStatus provides a mock function with given fields: ctx, status
 func (_m *MockDraftStore) GetDraftsInStatus(ctx context.Context, status model.DraftState) ([]int, error) {
 	ret := _m.Called(ctx, status)
@@ -612,6 +642,36 @@ func (_m *MockDraftStore) GetPreviousPick(ctx context.Context, draftId int, curr
 
 	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
 		r1 = rf(ctx, draftId, currentPickId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetUserDraftNotificationPreferences provides a mock function with given fields: ctx, userUuid
+func (_m *MockDraftStore) GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]model.DraftNotificationPreference, error) {
+	ret := _m.Called(ctx, userUuid)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserDraftNotificationPreferences")
+	}
+
+	var r0 map[int]model.DraftNotificationPreference
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) (map[int]model.DraftNotificationPreference, error)); ok {
+		return rf(ctx, userUuid)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) map[int]model.DraftNotificationPreference); ok {
+		r0 = rf(ctx, userUuid)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[int]model.DraftNotificationPreference)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, userUuid)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -998,6 +1058,24 @@ func (_m *MockDraftStore) UpdatePickExpirationTime(ctx context.Context, pickId i
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, int, time.Time) error); ok {
 		r0 = rf(ctx, pickId, expirationTime)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateUserDraftNotificationPreference provides a mock function with given fields: ctx, userUuid, draftId, upcomingMatch, pickTurn
+func (_m *MockDraftStore) UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error {
+	ret := _m.Called(ctx, userUuid, draftId, upcomingMatch, pickTurn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateUserDraftNotificationPreference")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, bool, bool) error); ok {
+		r0 = rf(ctx, userUuid, draftId, upcomingMatch, pickTurn)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -180,11 +180,15 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 				}
 			}
 
-			// Username by default but use discord id if found
-			discordId := discord.Identifier(row.Username, row.DiscordId)
+		if !row.WantsUpcomingMatch {
+			continue
+		}
 
-			// add user with that pick to that draft
-			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
+		// Username by default but use discord id if found
+		discordId := discord.Identifier(row.Username, row.DiscordId)
+
+		// add user with that pick to that draft
+		draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
 		}
 	}
 

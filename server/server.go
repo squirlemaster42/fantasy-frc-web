@@ -218,6 +218,8 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.GET("/team/:id/avatar", cfg.Handler.GetTeamAvatar)
 	protected.GET("/userProfile", cfg.Handler.HandleViewUserProfile)
 	protected.POST("/userProfile", cfg.Handler.HandleUpdateUserProfile)
+	protected.POST("/userProfile/password", cfg.Handler.HandleUpdateUserPassword)
+	protected.POST("/userProfile/notifications", cfg.Handler.HandleUpdateUserNotificationPreferences)
 }
 
 func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {

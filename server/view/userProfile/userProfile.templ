@@ -1,177 +1,354 @@
 package userprofile
 
-import "fmt"
-import "server/view"
-import "server/view/partials"
-import "server/types"
+import (
+	"fmt"
+	"server/model"
+	"server/types"
+	"server/view"
+	"server/view/partials"
+)
 
-templ UserProfileIndex(username string, discordId string, errorMessage string, successMessage string, csrfToken string, minPasswordLength int) {
-    <div class="bg-base-100 flex items-center justify-center p-4 min-h-screen">
-        <div class="max-w-md w-full" id="profile-box">
-            <!-- Profile Card -->
-            <div class="card bg-base-200 shadow-2xl rounded-2xl border border-base-300">
-                <div class="card-body p-8">
-                    <!-- Header -->
-                    <div class="text-center mb-8">
-                        <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-primary-content">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                            </svg>
-                        </div>
-                        <h1 class="text-2xl font-bold text-base-content mb-2">User Profile</h1>
-                        <p class="text-base-content/70 text-sm">Manage your account settings</p>
-                    </div>
+type ProfileData struct {
+	Username                string
+	DiscordId               string
+	Drafts                  []model.DraftModel
+	Preferences             map[int]model.DraftNotificationPreference
+	MinPasswordLength       int
+	CsrfToken               string
+	AccountMessage          string
+	AccountMessageType      string
+	PasswordMessage         string
+	PasswordMessageType     string
+	NotificationMessage     string
+	NotificationMessageType string
+}
 
-                    <!-- Error Message -->
-                    if errorMessage != "" {
-                        @partials.AlertBanner(errorMessage, "error")
-                    }
+templ UserProfileIndex(data ProfileData) {
+	<div class="bg-base-100 min-h-screen p-4 md:p-8">
+		<div class="max-w-4xl mx-auto space-y-6" id="profile-box">
+			<!-- Header -->
+			<div class="text-center mb-8">
+				<div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-primary-content">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+					</svg>
+				</div>
+				<h1 class="text-2xl md:text-3xl font-bold text-base-content mb-2">User Profile</h1>
+				<p class="text-base-content/70 text-sm">Manage your account and notification settings</p>
+			</div>
 
-                    <!-- Success Message -->
-                    if successMessage != "" {
-                        @partials.AlertBanner(successMessage, "success")
-                    }
+			@AccountCard(data)
+			@NotificationsCard(data)
+			@PasswordCard(data)
+		</div>
+	</div>
+}
 
-                    <!-- Profile Form -->
-                    <form
-                        hx-swap="outerHTML transition:true"
-                        hx-post="/u/userProfile"
-                        hx-target="#profile-box"
-                        action=""
-                        method="post"
-                        class="space-y-6"
-                    >
-                        @partials.CSRFInput(csrfToken)
+templ AccountCard(data ProfileData) {
+	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="account-card">
+		<div class="card-body p-6 md:p-8">
+			<div class="flex items-center gap-3 mb-6">
+				<div class="p-2 bg-primary/20 rounded-lg">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-primary">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+					</svg>
+				</div>
+				<div>
+					<h2 class="text-xl font-bold text-base-content">Discord Account</h2>
+					<p class="text-sm text-base-content/70">Enter your Discord User ID to enable mentions</p>
+				</div>
+			</div>
 
-                        <!-- Username Field (Read-only) -->
-                        <div>
-                            <label class="block text-sm font-medium text-base-content/80 mb-2">Username</label>
-                            <div class="relative">
-                                <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 cursor-not-allowed opacity-75"
-                                    type="text"
-                                    value={ username }
-                                    disabled
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+			if data.AccountMessage != "" {
+				@partials.AlertBanner(data.AccountMessage, data.AccountMessageType)
+			}
 
-                        <!-- Discord ID Field -->
-                        <div>
-                            <label class="block text-sm font-medium text-base-content/80 mb-2">Discord User ID</label>
-                            <div class="relative">
-                                <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    type="text"
-                                    name="discordId"
-                                    placeholder="Enter your Discord User ID"
-                                    value={ discordId }
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+			<form
+				hx-swap="outerHTML transition:true"
+				hx-post="/u/userProfile"
+				hx-target="#account-card"
+				action=""
+				method="post"
+				class="space-y-4"
+			>
+				@partials.CSRFInput(data.CsrfToken)
 
-                        <!-- Divider -->
-                        <div class="border-t border-base-300 pt-6">
-                            <h3 class="text-sm font-medium text-base-content/80 mb-4">Change Password</h3>
-                        </div>
+				<div>
+					<label class="block text-sm font-medium text-base-content/80 mb-2">Discord User ID</label>
+					<div class="relative">
+						<input
+							class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							type="text"
+							name="discordId"
+							placeholder="Enter your Discord User ID"
+							value={ data.DiscordId }
+						/>
+						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+							</svg>
+						</div>
+					</div>
+					<p class="text-xs text-base-content/60 mt-2">
+						You can find your Discord User ID in Discord settings under "Advanced" → "Developer Mode".
+					</p>
+				</div>
 
-                        <!-- Current Password Field -->
-                        <div>
-                            <label class="block text-sm font-medium text-base-content/80 mb-2">Current Password</label>
-                            <div class="relative">
-                                <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    type="password"
-                                    name="currentPassword"
-                                    placeholder="Enter current password"
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+				<div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
+					<button
+						type="submit"
+						hx-disabled-elt="this"
+						class="w-full md:w-auto btn btn-primary font-semibold py-3 px-6 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+					>
+						<span x-show="!loading" class="flex items-center justify-center gap-2">
+							Save Discord ID
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+							</svg>
+						</span>
+						<span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+							<svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Saving...
+						</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
 
-                        <!-- New Password Field -->
-                        <div>
-                            <label class="block text-sm font-medium text-base-content/80 mb-2">New Password</label>
-                            <div class="relative">
-                                <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    type="password"
-                                    name="newPassword"
-                                    placeholder="Enter new password"
-                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+templ NotificationsCard(data ProfileData) {
+	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="notifications-card">
+		<div class="card-body p-6 md:p-8">
+			<div class="flex items-center gap-3 mb-6">
+				<div class="p-2 bg-info/20 rounded-lg">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-info">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+					</svg>
+				</div>
+				<div>
+					<h2 class="text-xl font-bold text-base-content">Draft Notifications</h2>
+					<p class="text-sm text-base-content/70">Choose which drafts can notify you on Discord</p>
+				</div>
+			</div>
 
-                        <!-- Confirm New Password Field -->
-                        <div>
-                            <label class="block text-sm font-medium text-base-content/80 mb-2">Confirm New Password</label>
-                            <div class="relative">
-                                <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                                    type="password"
-                                    name="confirmNewPassword"
-                                    placeholder="Confirm new password"
-                                    minlength={ fmt.Sprintf("%d", minPasswordLength) }
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
+			if data.NotificationMessage != "" {
+				@partials.AlertBanner(data.NotificationMessage, data.NotificationMessageType)
+			}
 
-                        <!-- Submit Button -->
-                        <div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
-                            <button
-                                type="submit"
-                                hx-disabled-elt="this"
-                                class="w-full btn btn-primary font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
-                            >
-                                <span x-show="!loading" class="flex items-center justify-center gap-2">
-                                    Save Changes
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                    </svg>
-                                </span>
-                                <span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
-                                    <svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Saving...
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+			if data.DiscordId == "" {
+				<div class="bg-info/10 border border-info/30 rounded-lg p-4 flex items-start gap-3">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-info flex-shrink-0 mt-0.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-8.25-3.75a.75.75 0 01.75.75v3a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-3a.75.75 0 01.75-.75h1.5z" />
+					</svg>
+					<p class="text-sm text-info">Set your Discord User ID above to actually receive notifications. You can still save preferences now.</p>
+				</div>
+			}
+
+			<form
+				hx-swap="outerHTML transition:true"
+				hx-post="/u/userProfile/notifications"
+				hx-target="#notifications-card"
+				action=""
+				method="post"
+				class="space-y-4"
+			>
+				@partials.CSRFInput(data.CsrfToken)
+
+				if len(data.Drafts) == 0 {
+					<div class="text-center py-8 bg-base-300/50 rounded-xl border border-base-300">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mx-auto mb-3 text-base-content/40">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+						</svg>
+						<p class="text-base-content/70 font-medium">You haven't joined any drafts yet.</p>
+						<p class="text-sm text-base-content/50 mt-1">Join a draft to enable Discord notifications for it.</p>
+					</div>
+				} else {
+					<div class="space-y-3">
+						for _, draft := range data.Drafts {
+							@draftNotificationRow(draft, data.Preferences[draft.Id])
+						}
+					</div>
+
+					<div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
+						<button
+							type="submit"
+							hx-disabled-elt="this"
+							class="w-full md:w-auto btn btn-primary font-semibold py-3 px-6 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+						>
+							<span x-show="!loading" class="flex items-center justify-center gap-2">
+								Save Notification Preferences
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+									<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+								</svg>
+							</span>
+							<span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+								<svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Saving...
+							</span>
+						</button>
+					</div>
+				}
+			</form>
+		</div>
+	</div>
+}
+
+templ draftNotificationRow(draft model.DraftModel, pref model.DraftNotificationPreference) {
+	<div class="bg-base-300/50 rounded-xl border border-base-300 p-4">
+		<div class="flex flex-col lg:grid lg:grid-cols-12 gap-4 items-start lg:items-center">
+			<div class="lg:col-span-5">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-lg bg-base-300 flex items-center justify-center flex-shrink-0">
+						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/70">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3v.75a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-.75a3 3 0 0 1 3-3m9 0V6a3 3 0 0 0-3-3h-9a3 3 0 0 0-3 3v12.75a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3" />
+						</svg>
+					</div>
+					<div>
+						<h3 class="font-semibold text-base-content">{ draft.DisplayName }</h3>
+						<div class="badge badge-ghost bg-base-300 text-base-content/80 rounded-full text-xs px-2 py-0.5 font-medium mt-1">
+							{ string(draft.Status) }
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="lg:col-span-7 w-full">
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<label class="flex items-center gap-3 p-3 rounded-lg bg-base-300 border border-base-300 cursor-pointer hover:border-primary/50 transition-colors has-[:focus]:ring-2 has-[:focus]:ring-primary">
+						<input
+							type="checkbox"
+							name={ fmt.Sprintf("draft_%d_upcomingMatch", draft.Id) }
+							checked?={ pref.UpcomingMatch }
+							class="w-5 h-5 text-primary bg-base-100 border-base-content/30 rounded focus:ring-primary focus:ring-2"
+						/>
+						<div class="flex flex-col">
+							<span class="text-sm font-medium text-base-content">Upcoming matches</span>
+							<span class="text-xs text-base-content/60">Notify when teams I drafted are about to compete</span>
+						</div>
+					</label>
+
+					<label class="flex items-center gap-3 p-3 rounded-lg bg-base-300 border border-base-300 cursor-pointer hover:border-primary/50 transition-colors has-[:focus]:ring-2 has-[:focus]:ring-primary">
+						<input
+							type="checkbox"
+							name={ fmt.Sprintf("draft_%d_pickTurn", draft.Id) }
+							checked?={ pref.PickTurn }
+							class="w-5 h-5 text-primary bg-base-100 border-base-content/30 rounded focus:ring-primary focus:ring-2"
+						/>
+						<div class="flex flex-col">
+							<span class="text-sm font-medium text-base-content">My pick turn</span>
+							<span class="text-xs text-base-content/60">Notify when it becomes my turn to pick</span>
+						</div>
+					</label>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ PasswordCard(data ProfileData) {
+	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="password-card">
+		<div class="card-body p-6 md:p-8">
+			<div class="flex items-center gap-3 mb-6">
+				<div class="p-2 bg-success/20 rounded-lg">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-success">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+					</svg>
+				</div>
+				<div>
+					<h2 class="text-xl font-bold text-base-content">Change Password</h2>
+					<p class="text-sm text-base-content/70">Update your account password</p>
+				</div>
+			</div>
+
+			if data.PasswordMessage != "" {
+				@partials.AlertBanner(data.PasswordMessage, data.PasswordMessageType)
+			}
+
+			<form
+				hx-swap="outerHTML transition:true"
+				hx-post="/u/userProfile/password"
+				hx-target="#password-card"
+				action=""
+				method="post"
+				class="space-y-4"
+			>
+				@partials.CSRFInput(data.CsrfToken)
+
+				<div>
+					<label class="block text-sm font-medium text-base-content/80 mb-2">Current Password</label>
+					<div class="relative">
+						<input
+							class="w-full bg-base-300 border border-base-300 rounded-lg pl-10 pr-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							type="password"
+							name="currentPassword"
+							placeholder="Enter current password"
+						/>
+						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-base-content/60">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+							</svg>
+						</div>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label class="block text-sm font-medium text-base-content/80 mb-2">New Password</label>
+						<input
+							class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							type="password"
+							name="newPassword"
+							placeholder="Enter new password"
+							minlength={ fmt.Sprintf("%d", data.MinPasswordLength) }
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-base-content/80 mb-2">Confirm New Password</label>
+						<input
+							class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							type="password"
+							name="confirmNewPassword"
+							placeholder="Confirm new password"
+							minlength={ fmt.Sprintf("%d", data.MinPasswordLength) }
+						/>
+					</div>
+				</div>
+
+				<div x-data="{ loading: false }" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @htmx:response-error="loading = false">
+					<button
+						type="submit"
+						hx-disabled-elt="this"
+						class="w-full md:w-auto btn btn-success font-semibold py-3 px-6 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
+					>
+						<span x-show="!loading" class="flex items-center justify-center gap-2">
+							Update Password
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+								<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+							</svg>
+						</span>
+						<span x-show="loading" x-cloak class="flex items-center justify-center gap-2">
+							<svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+							Updating...
+						</span>
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
 }
 
 templ UserProfile(page string, fromProtected bool, username string, cmp templ.Component) {
-    @view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
-        @cmp
-    }
+	@view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
+		@cmp
+	}
 }

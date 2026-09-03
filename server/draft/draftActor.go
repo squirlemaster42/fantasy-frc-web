@@ -864,11 +864,6 @@ func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraf
 		return discord.NextPickDiscordEvent{}, err
 	}
 
-	currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, previousDraftPlayerId)
-	if err != nil {
-		return discord.NextPickDiscordEvent{}, err
-	}
-
 	currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, previousDraftPlayerId)
 	if err != nil {
 		return discord.NextPickDiscordEvent{}, err
@@ -877,14 +872,14 @@ func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraf
 	event := discord.NextPickDiscordEvent{
 		PreviousPickedTeam:    previousPickedTeam,
 		PreviousPickName:      currPickUser.Username,
-		PreviousPickDiscordId: currPickDiscordId,
+		PreviousPickDiscordId: sql.NullString{},
 		Webhook:               draftWebhook,
 		DraftComplete:         pickingComplete,
 		Skipped:               skipped,
 	}
 
 	if !pickingComplete {
-		nextPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
+		nextPickDiscordId, err := d.discordStore.GetPlayerPickNotificationId(ctx, nextPickPlayer.Id)
 		if err != nil {
 			return discord.NextPickDiscordEvent{}, err
 		}

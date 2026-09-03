@@ -8,4 +8,5 @@ import (
 type DiscordStore interface {
 	GetPlayerDiscordId(ctx context.Context, draftPlayerId int) (sql.NullString, error)
 	GetDraftWebhook(ctx context.Context, draftId int) (string, error)
+	GetPlayerPickNotificationId(ctx context.Context, draftPlayerId int) (sql.NullString, error)
 }

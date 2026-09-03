@@ -27,8 +27,9 @@ import (
 )
 
 type testDiscordStore struct {
-	playerDiscordIds map[int]sql.NullString
-	webhooks         map[int]string
+	playerDiscordIds       map[int]sql.NullString
+	playerPickNotification map[int]sql.NullString
+	webhooks               map[int]string
 }
 
 func (t *testDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId int) (sql.NullString, error) {
@@ -37,6 +38,13 @@ func (t *testDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId
 
 func (t *testDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (string, error) {
 	return t.webhooks[draftId], nil
+}
+
+func (t *testDiscordStore) GetPlayerPickNotificationId(ctx context.Context, draftPlayerId int) (sql.NullString, error) {
+	if t.playerPickNotification != nil {
+		return t.playerPickNotification[draftPlayerId], nil
+	}
+	return t.playerDiscordIds[draftPlayerId], nil
 }
 
 func newTestActorMap(t *testing.T, draftStore model.DraftStore, handler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) *DraftActorMap {
@@ -347,9 +355,9 @@ func TestDraftActorMap_SkipCurrentPick_SendsDiscordNotification(t *testing.T) {
 	select {
 	case webhook := <-received:
 		assert.Equal(t, "Pick Notifier", webhook.Username)
-		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.NotContains(t, webhook.Content, "<@12345678901234567>")
 		assert.Contains(t, webhook.Content, "<@98765432109876543>")
-		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "Charlie, your pick was skipped")
 		assert.Contains(t, webhook.Content, "it is now your pick")
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected discord webhook to be received")

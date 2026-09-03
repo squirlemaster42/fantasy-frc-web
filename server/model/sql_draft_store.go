@@ -207,3 +207,15 @@ func (s *SQLDraftStore) GetOverallLeaderboard(ctx context.Context, page int, per
 func (s *SQLDraftStore) TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error {
 	return transferOwnership(ctx, s.db, draftId, newOwnerUuid)
 }
+
+func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error) {
+	return getDraftsForUser(ctx, s.db, userUuid)
+}
+
+func (s *SQLDraftStore) GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]DraftNotificationPreference, error) {
+	return getUserDraftNotificationPreferences(ctx, s.db, userUuid)
+}
+
+func (s *SQLDraftStore) UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error {
+	return updateUserDraftNotificationPreference(ctx, s.db, userUuid, draftId, upcomingMatch, pickTurn)
+}
