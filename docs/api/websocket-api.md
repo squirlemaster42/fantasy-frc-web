@@ -22,16 +22,18 @@ WebSocket connections inherit authentication from the HTTP session that establis
 sequenceDiagram
     participant C as Client
     participant S as Server
-    participant DM as Draft Manager
-    
+    participant DA as Draft Actor
+
     C->>S: HTTP Upgrade Request (with session cookie)
-    S->>DM: Register Pick Listener
-    DM-->>C: Connection Established
-    
-    Note over C,DM: Real-time communication
-    
-    Note over DM: Pick Event Occurs
-    DM->>C: Push HTML Fragment Update
+    S->>DA: Register Pick Listener
+    DA-->>C: Connection Established
+
+    Note over C,DA: Real-time communication
+
+    Note over DA: Pick Event Occurs
+    DA->>S: Signal Watcher
+    S->>S: Re-render Picks
+    S->>C: Push HTML Fragment Update
 ```
 
 ## 🎯 Use Cases
@@ -86,16 +88,15 @@ The client does not need to send messages. The connection is primarily server-pu
 
 ### Pick Event Structure
 
-Events are triggered by the pick manager when picks are made:
+The server does not send JSON pick events. Instead, the pick notifier sends an untyped signal on each watcher's channel:
 
 ```go
-type PickEvent struct {
-    Success bool        // Whether the pick was successful
-    Err     error       // Error if pick failed
-    Pick    model.Pick  // The pick that was made
-    DraftId int         // ID of the draft
+type Watcher struct {
+    NotifierQueue chan bool
 }
 ```
+
+When the handler receives a signal on `NotifierQueue`, it re-queries the draft actor and pushes a freshly rendered HTML fragment to the client.
 
 ### Event Triggers
 
@@ -138,9 +139,7 @@ When a client disconnects:
 
 ## 📊 Metrics
 
-The system tracks active WebSocket listeners via Prometheus metrics:
-
-- `websocket_listeners_active`: Gauge of current active WebSocket connections
+The system tracks active WebSocket listeners via Prometheus metrics (see `server/metrics` for the exact metric names).
 
 ## ⚠️ Limitations
 

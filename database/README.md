@@ -15,7 +15,13 @@ database/
 ├── Makefile                          # Migration commands
 ├── migrations/
 │   ├── 00001_baseline.sql            # Combined current schema
-│   └── 00002_add_discord_fields.sql  # Discord integration fields
+│   ├── 00002_add_discord_fields.sql  # Discord integration fields
+│   ├── 00003_premove_pick_list.sql   # Premove pick-list support
+│   ├── 00004_timezone_timestamptz.sql # TIMESTAMPTZ conversion
+│   ├── 00005_draftinvite_status.sql  # Invite status enum
+│   ├── 00006_draft_invite_player_constraints.sql # Unique constraints
+│   ├── 00007_add_pick_timing.sql     # Pick timing columns
+│   └── 00008_add_user_draft_notification_preferences.sql # Notification preferences
 ├── archive/                          # Original SQL scripts (reference only)
 ├── test-migrations.sh                # Local Docker-based test
 └── Dockerfile                        # Standalone migration image
@@ -92,7 +98,7 @@ INSERT INTO goose_db_version (version_id, is_applied, tstamp)
 VALUES (1, true, now());
 ```
 
-After this, `goose up` will only apply migration `00002` and any future migrations.
+After this, `goose up` will apply migrations `00002` through `00008` and any future migrations.
 
 ## K8s Deployment
 
@@ -106,7 +112,7 @@ Run as a K8s Job:
 
 ```bash
 kubectl apply -f infra/k8s/database/migrate-job.yaml
-kubectl wait --for=condition=complete job/db-migrate
+kubectl wait --for=condition=complete job/fantasy-frc-migrate -n fantasy-frc
 ```
 
 ## Notes

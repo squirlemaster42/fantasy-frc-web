@@ -6,10 +6,16 @@ Complete documentation of Fantasy FRC database structure, migrations, and manage
 
 ### [🗄️ Database Schema](./schema.md)
 Complete database structure documentation:
-- 11 core tables with detailed column descriptions
+- Core tables with detailed column descriptions
 - Entity relationships and foreign key constraints
 - Schema evolution and migration history
 - Security considerations and performance optimizations
+
+### [📝 Database Migrations](./migrations.md)
+Goose migration workflow:
+- Migration file history
+- Local up/down/test commands
+- Creating new migrations
 
 ### [📊 Schema Visual Guide](./schema-visual.md)
 Visual representations of database structure:
@@ -45,7 +51,7 @@ Visual representations of database structure:
 - [Architecture Overview](../architecture/system-overview.md) - System design
 - [Web Endpoints](../api/web-endpoints.md) - HTTP endpoints and forms
 - [WebSocket API](../api/websocket-api.md) - Real-time notifications
-- [Deployment](../../deploy/README.md) - Database setup
+- [Database README](../../database/README.md) - Goose workflow and K8s deployment notes
 
 ## 🛠️ Database Operations
 
@@ -69,6 +75,6 @@ Visual representations of database structure:
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Database documentation focuses on data structure, relationships, and management procedures that ensure reliable and performant data storage.*

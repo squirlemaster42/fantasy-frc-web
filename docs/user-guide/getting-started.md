@@ -27,7 +27,7 @@ Just like in traditional fantasy sports, you become a "team owner" (or alliance 
 ### 2. Participate in the Live Draft
 - **Snake draft order**: Pick order reverses each round (1→8→8→1...)
 - **8 teams per player**: You'll draft 8 FRC teams total
-- **Time limits**: Each pick has a time limit to keep drafts moving
+- **Time limits**: Each pick has a time limit (default 1 hour, configurable by the league operator) to keep drafts moving
 - **Real-time updates**: Watch other players' picks as they happen
 
 ### 3. Follow Championship Events
@@ -55,14 +55,13 @@ Just like in traditional fantasy sports, you become a "team owner" (or alliance 
 3. Click "Accept" to join the draft
 
 **Option B: Create Your Own Draft**
-1. Click "Create Draft" 
+1. Click "Create Draft"
 2. Fill in draft details:
    - **Draft Name**: Something fun for your league
    - **Description**: League rules or theme
-   - **Pick Interval**: Time limit per pick (usually 60-120 seconds)
-   - **Start/End Time**: When the draft window opens/closes
 3. Click "Create Draft"
 4. Invite other players using the search function
+5. Once 8 players have accepted, click "Start Draft" to begin picking immediately
 
 ### Step 3: Prepare for Draft Day
 - **Research teams**: Look up recent team performance data
@@ -136,4 +135,4 @@ Currently, teams are locked after the draft. The challenge is in your initial dr
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*

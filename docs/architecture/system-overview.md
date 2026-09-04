@@ -17,20 +17,20 @@ graph TB
     end
     
     subgraph "Business Logic Layer"
-        F[Draft Manager]
-        G[Pick Manager]
+        F[Draft Actor Map]
+        G[Pick Notifier]
         H[Scorer]
         I[TBA Handler]
     end
-    
+
     subgraph "Data Layer"
         J[PostgreSQL Database]
-        K[Redis Cache (Optional)]
+        K[Redis Cache]
     end
-    
+
     subgraph "External Services"
         L[The Blue Alliance API]
-        M[Email Service]
+        M[Discord Webhooks]
     end
     
     A --> C
@@ -69,7 +69,7 @@ graph TB
 ### Scoring System
 - **Background Service**: Continuous match result processing
 - **Algorithm**: Complex scoring based on match types and alliance selection
-- **Real-time**: Live score updates and rankings
+- **Updates**: Scores updated from TBA webhooks and the scoring runner; clients refresh to see standings
 
 ## 🔄 Data Flow Overview
 
@@ -77,7 +77,7 @@ graph TB
 sequenceDiagram
     participant C as Client
     participant W as Web Server
-    participant D as Draft Manager
+    participant D as Draft Actor Map
     participant S as Scorer
     participant DB as Database
     participant TBA as TBA API
@@ -93,7 +93,6 @@ sequenceDiagram
     
     TBA->>S: Match Results
     S->>DB: Update Scores
-    S->>C: Live Score Updates
 ```
 
 ## 🎯 Design Principles
@@ -110,13 +109,13 @@ sequenceDiagram
 |-----------|------------|---------|
 | Web Framework | Echo v4 | HTTP server and routing |
 | Database | PostgreSQL | Primary data storage |
-| Caching | Redis | Optional avatar caching |
+| Caching | Redis | Avatar caching and rate limiting |
 | Frontend | Templ + HTMX | Server-rendered UI |
-| Real-time | WebSocket | Live updates |
+| Real-time | WebSocket | Live draft pick updates |
 | External API | The Blue Alliance | FRC data source |
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *TODO: Add detailed component descriptions, deployment diagrams, and scaling considerations*

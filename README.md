@@ -14,7 +14,8 @@ the entire drafting and scoring process for Fantasy FRC.
 - [Configuration](#configuration)
 - [Testing](#testing)
 - [Building and Running](#building-and-running)
-- [Contributing](#contributing)
+- [Deployment](#deployment)
+- [Optional Dependencies](#optional-dependencies)
 - [License](#license)
 
 ## Installation
@@ -23,36 +24,41 @@ the entire drafting and scoring process for Fantasy FRC.
 
 - [Go](https://go.dev/doc/install) 1.26+
 - [Templ](https://templ.guide/quick-start/installation/)
-- [PostgreSQL](https://www.postgresql.org/download/)
+- [PostgreSQL](https://www.postgresql.org/download/) 16+
+- [Redis](https://redis.io/download) 7+ (required for avatars and rate limiting)
 - [Make](https://www.gnu.org/software/make/)
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.26+. Current testing against Go 1.26.2.
+Fantasy FRC is built using Go 1.26+. The server module declares `go 1.26.5`.
 
 ### Install Templ
 
 A guide to install Templ can be found [here](https://templ.guide/quick-start/installation/).
-Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/cmd/templ`
+Make sure you install the Templ Go Tool with `go get -tool github.com/a-h/templ/cmd/templ`.
 
 ### Install PostgreSQL and Set Up Database
 
-1. Install PostgreSQL
+1. Install PostgreSQL 16+.
 2. Create a new database:
    ```sql
    CREATE DATABASE fantasy_frc;
    ```
-3. Connect to the database and run the setup script:
+3. Install the [goose](https://github.com/pressly/goose) migration CLI:
    ```bash
-   psql -d fantasy_frc -f database/fantasyFrcDb.sql
+   go install github.com/pressly/goose/v3/cmd/goose@latest
    ```
-4. Run any additional migration scripts as needed. They can be found in the database directory.
+4. Run migrations from the `database/` directory:
+   ```bash
+   cd database
+   make up
+   ```
 
-**Note**: Database versioning will be done in future release
+The `database/` directory contains all goose migrations. See [database/README.md](database/README.md) for details.
 
 ## Configuration
 
-Create a `.env` file in the `server/` directory with the following variables:
+Create a `.env` file in the `server/` directory with at least the required variables:
 
 ```env
 DB_PASSWORD=your_db_password
@@ -63,16 +69,20 @@ SERVER_PORT=8080
 TBA_TOKEN=your_tba_token
 TBA_WEBHOOK_SECRET=your_webhook_secret
 METRIC_SECRET=your_metric_secret
-SECURE_HTTP_COOKIE=false
+CSRF_SECRET=your_csrf_secret
 ```
 
-- `DB_*`: Database connection details
-- `SERVER_PORT`: Port for the web server (default: 3000)
-- `TBA_WEBHOOK_SECRET`: Secret for validating TBA webhook requests
-- `METRIC_SECRET`: Secret for metrics endpoint authentication (required)
-- `SECURE_HTTP_COOKIE`: Set to `false` for development, `true` for production (default: `true`)
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint (optional)
-- `OTEL_RESOURCE_ATTRIBUTES`: OpenTelemetry resource attributes (optional)
+- `DB_*`: Database connection details.
+- `SERVER_PORT`: Port for the web server (required, no default).
+- `TBA_TOKEN`: API token for The Blue Alliance.
+- `TBA_WEBHOOK_SECRET`: Secret for validating TBA webhook HMAC signatures.
+- `METRIC_SECRET`: Bearer token required to access `/metrics`.
+- `CSRF_SECRET`: Secret used to sign CSRF tokens (required).
+- `SECURE_HTTP_COOKIE`: Set to `false` for local development, `true` for production (default: `true`).
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OpenTelemetry collector endpoint (optional).
+- `OTEL_RESOURCE_ATTRIBUTES`: OpenTelemetry resource attributes (optional).
+
+Many additional optional tuning variables are documented in [AGENTS.md](AGENTS.md#environment-variables).
 
 ## Testing
 
@@ -93,13 +103,16 @@ go test ./handler -run TestHandleViewDraftProfile -v
 
 ## Building and Running
 
-Fantasy FRC uses `make` (run from the `server/` directory) for running the app. The Makefile includes options to disable certain features during testing or prepopulate teams:
+Fantasy FRC uses `make` (run from the `server/` directory) for running the app. The binary supports a few command-line flags:
 
-- `skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development
+- `-skipScoring=true`: Disables match and team scoring to avoid most TBA API calls during development.
+- `-v`: Enables verbose (debug) logging.
+- `-log-format=text`: Emits logs in text instead of JSON.
 
 ### Build and Run
 
 Running for development with verbose logging and live UI updates:
+
 ```bash
 # Navigate to server directory
 cd server
@@ -108,13 +121,22 @@ cd server
 make run-verbose
 ```
 
+`make run-verbose` starts the [templ proxy](https://templ.guide/commands-and-tools/proxy/) on `http://127.0.0.1:7331` for hot-reloaded UI updates. The raw Go app also runs on the `SERVER_PORT` you configured.
+
 Other useful commands:
+
 ```bash
 # Build CSS only
+make build-css
+
+# Watch CSS for changes
 make watch-css
 
 # Generate templ files
 make generate
+
+# Run linters
+make lint
 
 # Production build
 make build
@@ -126,7 +148,7 @@ For deployment to a Kubernetes cluster, see [infra/ansible/README.md](infra/ansi
 
 ## Optional Dependencies
 
-- **Redis**: Used for caching team avatars
+- **Redis**: Used for caching team avatars and distributed HTTP rate limiting. The server fails fast on startup if Redis is unreachable, so it is effectively required.
 
 ## License
 

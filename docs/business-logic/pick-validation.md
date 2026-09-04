@@ -58,13 +58,13 @@ Team frc254 has already been selected in this draft
 **Rule**: Only the current player whose turn it is can make a pick.
 
 **Validation Process**:
-- Verify user's UUID matches current picker's UUID
-- Check draft state is `PICKING`
-- Validate player order matches expected sequence
+- The handler checks `draftState.NextPick.User.UserUuid == userUuid`
+- The draft must be in `PICKING` state
+- Note: this check lives in the HTTP handler, not in `pickValidator`
 
 **Error Handling**:
 ```
-It is not your turn to pick. Please wait for your assigned pick time.
+you must be the picking player to make a pick
 ```
 
 ### 5. Time Validity Validation
@@ -147,13 +147,12 @@ System automatically skips expired picks:
 **Trigger**:
 - `CurrentTime > ExpirationTime`
 - Pick is in `Available` state
-- Business hours window is closed
 
 **Process**:
 1. System detects expired pick
 2. Sets `Skipped = true`
 3. Advances to next player
-4. Calculates next `AvailableTime` based on business hours
+4. Calculates next `AvailableTime` and `ExpirationTime` based on business hours
 
 **Example**:
 ```
@@ -167,17 +166,16 @@ New AvailableTime: Tomorrow 17:00
 ### Team Number Format
 
 **Accepted Formats**:
-- Plain number: `254`
-- FRC prefix: `frc254`
+- Plain number: `254` (the handler prepends `frc`)
 
 **Validation**:
-- Must be valid integer (1-9999)
-- Maximum 4 digits
 - Cannot be empty
+- The handler prepends `frc` and validates the pick through the draft actor
+- No independent range or digit validation is performed
 
 **Error Handling**:
 ```
-Invalid team number: "abc" is not a valid team number
+no team entered
 ```
 
 ### Special Characters
@@ -196,21 +194,19 @@ Invalid team number: "abc" is not a valid team number
 
 ```mermaid
 flowchart TD
-    A[Pick Submitted] --> B{Valid Team Format?}
+    A[Pick Submitted] --> B{Non-empty Input?}
     B -->|No| C[Return Error]
-    B -->|Yes| D{Team Exists in TBA?}
+    B -->|Yes| D{Team in Configured Events?}
     D -->|No| C
-    D -->|Yes| E{Team in Configured Events?}
-    E -->|No| C
-    E -->|Yes| F{Team Already Picked?}
-    F -->|Yes| C
-    F -->|No| G{Correct Player?}
-    G -->|No| C
-    G -->|Yes| H{Valid Time?}
-    H -->|No| I[Auto-skip]
-    H -->|Yes| J{Draft in PICKING?}
-    J -->|No| C
-    J -->|Yes| K[Accept Pick]
+    D -->|Yes| E{Team Already Picked?}
+    E -->|Yes| C
+    E -->|No| F{Correct Player?}
+    F -->|No| C
+    F -->|Yes| G{Valid Time?}
+    G -->|No| H[Auto-skip]
+    G -->|Yes| I{Draft in PICKING?}
+    I -->|No| C
+    I -->|Yes| J[Accept Pick]
 ```
 
 ## Error Response Format
@@ -316,34 +312,30 @@ func TestDuplicatePickValidation(t *testing.T) {
 
 ### Force Pick
 
-Admins can manually assign a pick:
+Draft owners (and global admins via `adminpick`) can force a pick:
 
 **Command**:
 ```
-skippick -id <draftId> -team <teamNumber> -player <playerId>
+adminpick -id <draftId> -team <teamNumber>
 ```
 
-**Validation Override**:
-- Bypass team eligibility checks
-- Force selection even outside business hours
-- Override duplicate pick prevention
+This picks the specified team on behalf of the current picker.
 
-### Manual State Correction
+### Skip Pick
 
-Admins can fix invalid states:
+Draft owners (and global admins via `skippick`) can force-skip the current pick:
 
 **Command**:
 ```
-correctstate -id <draftId> -state <stateName>
+skippick -id <draftId>
 ```
 
 **Use Cases**:
-- Recover from daemon crashes
 - Reset stuck picks
-- Emergency draft completion
+- Emergency draft management
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Pick validation ensures fair and consistent draft operations across all Fantasy FRC leagues.*

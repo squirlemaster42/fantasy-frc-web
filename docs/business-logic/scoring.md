@@ -23,8 +23,8 @@ Points earned in qualification matches.
 - **Loss/Tie**: 0 points
 
 **Current Season Game Bonuses** (per match):
-- Bonuses vary by year's game rules (e.g., Auto, Barge, Coral for the current season)
-- Typically +1 point per bonus objective achieved
+- Bonuses vary by year's game rules.
+- Configurable bonus point constants: `SCORER_ENERGIZED_BONUS_POINTS` (default 1), `SCORER_SUPERCHARGED_BONUS_POINTS` (default 1), `SCORER_TRAVERSAL_BONUS_POINTS` (default 2).
 
 **Example:**
 ```mermaid
@@ -57,22 +57,26 @@ Points earned in elimination matches (Quarterfinals, Semifinals, Finals).
 ### 3. Alliance Score (`Alliance Score`)
 Points based on alliance selection position at championship events.
 
-**Alliance Selection Scoring Table:**
+**Alliance Selection Base Scores:**
+
+The code stores base scores per alliance rank. The final score is the base score multiplied by `SCORER_ALLIANCE_PICK_MULTIPLIER` (default 2).
+
 | Alliance | Captain | 1st Pick | 2nd Pick | 3rd Pick |
-|----------|---------|-----------|-----------|-----------|
-| 1st | 64 | 62 | 18 | 16 |
-| 2nd | 60 | 58 | 20 | 14 |
-| 3rd | 56 | 54 | 22 | 12 |
-| 4th | 52 | 50 | 24 | 10 |
-| 5th | 48 | 46 | 26 | 8 |
-| 6th | 44 | 42 | 28 | 6 |
-| 7th | 40 | 38 | 30 | 4 |
-| 8th | 36 | 34 | 32 | 2 |
+|----------|---------|----------|----------|----------|
+| 1st | 32 | 31 | 9 | 8 |
+| 2nd | 30 | 29 | 10 | 7 |
+| 3rd | 28 | 27 | 11 | 6 |
+| 4th | 26 | 25 | 12 | 5 |
+| 5th | 24 | 23 | 13 | 4 |
+| 6th | 22 | 21 | 14 | 3 |
+| 7th | 20 | 19 | 15 | 2 |
+| 8th | 18 | 17 | 16 | 1 |
 
 **Important Notes:**
-- Scores are **doubled** from the table values (table shows base values)
-- Only applies to championship events (not Einstein)
-- Determined by actual alliance selection at events
+- Final scores are base scores × `SCORER_ALLIANCE_PICK_MULTIPLIER` (default 2).
+- For example, the 1st alliance captain receives 32 × 2 = 64 points.
+- Only applies to championship events (not Einstein).
+- Determined by actual alliance selection at events.
 
 ### 4. Einstein Score (`Einstein Score`)
 Special scoring for Einstein Championship matches.
@@ -85,12 +89,12 @@ Special scoring for Einstein Championship matches.
 ## 🔢 Score Calculation Examples
 
 ### Example 1: Qualification Match
-Team wins qualification match with Auto and Coral bonuses:
+Team wins qualification match with two +1 bonuses:
 
 ```
 Base Points: 3 (win)
-Auto Bonus: +1
-Coral Bonus: +1
+Bonus 1: +1
+Bonus 2: +1
 Total: 5 points
 ```
 
@@ -116,9 +120,9 @@ Total: 18 points
 Team selected as 2nd pick by 3rd alliance:
 
 ```
-Base Score: 54 (from table)
+Base Score: 27 (from table)
 Multiplier: x2
-Total: 108 points
+Total: 54 points
 ```
 
 ## 📈 Score Processing Flow
@@ -227,8 +231,9 @@ GROUP BY DisplayName
 ### Background Processing
 - **Continuous scoring runner** processes match queue
 - **Webhook integration** for real-time updates
-- **Periodic rescoring** every 6 hours for accuracy
 - **Match queue** prioritizes by competition level
+
+> **Note:** Periodic full rescoring every 6 hours is planned but not currently implemented. Scores are updated when TBA webhooks arrive or when the scoring runner processes queued matches.
 
 ### Error Handling
 - **Missing match data**: Graceful retry with TBA API
@@ -254,18 +259,12 @@ GROUP BY DisplayName
 
 ## 📱 Real-Time Updates
 
-### WebSocket Events
-- `SCORE_UPDATED`: Individual team score changes
-- `RANKINGS_UPDATED`: Draft ranking recalculations
-- `MATCH_COMPLETED`: New match results processed
+### Real-Time Updates
 
-### Score Update Triggers
-- TBA webhook receives new match results
-- Periodic scoring runner processes queue
-- Manual rescore initiated by administrators
+Score changes are not pushed over WebSocket. Clients refresh draft score pages to see updated standings. Draft pick updates use the WebSocket pick notifier; see [WebSocket API](../api/websocket-api.md).
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *TODO: Add historical scoring examples, edge case handling details, and performance optimization notes*

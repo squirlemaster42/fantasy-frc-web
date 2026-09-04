@@ -6,8 +6,14 @@ This file contains build/lint/test commands and code style guidelines for agenti
 
 ### Building and Running
 ```bash
-# Build and run the application
-make
+# Build the application
+make build
+
+# Run the application (after building)
+./server
+
+# Run the development server with hot reload
+make run-verbose
 ```
 
 ### Testing
@@ -88,9 +94,9 @@ See `database/README.md` for full details
 
 ### General Conventions
 
-- **Go Version**: Go 1.26.2 with toolchain go1.26.2
-- **Logging**: Use custom logging with context
-- **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the enture project with the appropriate log level.
+- **Go Version**: Go 1.26+ (the server module declares `go 1.26.5`)
+- **Logging**: Use the custom `server/log` package for structured logging with context
+- **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the entire project with the appropriate log level.
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
 
 ### Import Organization
@@ -122,7 +128,7 @@ import (
 
 - Provide context when creating assertions: `assert := assert.CreateAssertWithContext("Function Name")`
 - Add context to assertions: `assert.AddContext("User ID", userId)`
-- Use `slog` for non-critical errors and informational logging
+- Use the `server/log` package (which wraps `slog`) for non-critical errors and informational logging
 - Return errors from functions when appropriate, especially for model operations
 
 #### Custom `assert` Package
@@ -136,7 +142,7 @@ Because the application runs in Kubernetes, a momentary container crash is accep
 Guidelines:
 
 - Use the custom `assert` package only for conditions that should theoretically never happen.
-- **Never use `assert.Fatal` in authentication hot paths or user-facing handlers** — always return errors gracefully for invalid user input.
+- **Never use `RunAssert`, `NoError`, `AssertCF`, or `NoErrorCF` in authentication hot paths or user-facing handlers** — always return errors gracefully for invalid user input.
 - For database operations, `database.Prepare` already classifies errors and only crashes on schema/syntax/statement SQLSTATE classes (`42xxx`, `22xxx`, `26xxx`). Transient failures are returned as errors.
 - If an `assert` call can be triggered by user action, bad input, or recoverable data state, convert it to a returned error instead.
 
@@ -155,9 +161,6 @@ type DraftModel struct {
     Id          int           // PascalCase field names
     DisplayName string        // Use descriptive names
     Description string        // Include comments for complex fields
-    Interval    int          // Number of seconds to pick
-    StartTime   time.Time
-    EndTime     time.Time
     Owner       User
     Status      DraftState
     Players     []DraftPlayer

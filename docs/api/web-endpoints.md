@@ -6,7 +6,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 
 ### Key Architectural Patterns
 - **Server-Side Rendering**: HTML templates rendered on the server using Templ
-- **Form-Based Interaction**: POST requests handle form submissions with redirects
+- **Form-Based Interaction**: POST requests handle form submissions with redirects or HTML fragments
 - **Session Authentication**: Cookie-based session management
 - **Real-Time Updates**: WebSocket connections for live draft updates
 - **HTMX Integration**: Enhanced user experience with partial page updates
@@ -16,22 +16,22 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 ### Session Token Lifecycle
 
 #### Token Creation
-- **Generation**: 128-bit random tokens using `crypto/rand`
-- **Encoding**: Base32 encoding for URL-safe representation
+- **Generation**: Random bytes using `crypto/rand`, encoded with Base32
 - **Storage**: SHA-256 hash stored in database (never plain tokens)
-- **Duration**: 10-day expiration with automatic extension on access. Old tokens invalidated on new login.
+- **Duration**: Configurable via `SESSION_EXPIRATION_DAYS` (default 10 days)
+- **Invalidation**: Old sessions invalidated on new login
 
 #### Authentication Flow
 1. **Login**: User submits credentials → bcrypt verification → session token created → cookie set
 2. **Request**: Cookie extracted → token validated against database → user UUID retrieved
-3. **Expiration**: Background cleanup removes sessions expired > 2 hours
+3. **Expiration**: Background cleanup removes sessions expired more than `SESSION_CLEANUP_LEEWAY_HOURS` before their expiration
 4. **Logout**: Session removed from database → cookie cleared on client
 
 #### Cookie Management
 - **Name**: `sessionToken`
 - **Security**: HttpOnly flag (prevents JavaScript access)
-- **Environment**: Secure flag disabled in development, enabled in production
-- **Extension**: Valid sessions automatically extend expiration by 10 days
+- **Secure flag**: Controlled by `SECURE_HTTP_COOKIE` env var (default `true`)
+- **Extension**: Valid sessions automatically extend expiration on each request
 
 #### Authorization Middleware
 - **`Authenticate`**: Validates session token for protected routes (`/u/*`)
@@ -49,13 +49,14 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 
 #### POST `/login`
 - **Purpose**: Handles user authentication
-- **Form Data**: 
+- **Form Data**:
   - `username`: Existing username
   - `password`: User password
 - **Validation Rules**:
   - Username must exist in database
   - Password must match bcrypt hash
-- **Response**: 
+- **Middleware**: Gzip, optional per-IP login rate limiting
+- **Response**:
   - Success: HX-Redirect to `/u/home`
   - Failure: Error page with invalid credentials message
 - **Error Handling**: Red alert box displaying "Invalid username or password"
@@ -69,15 +70,16 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Form Data**:
   - `username`: Desired username
   - `password`: User password
-  - `confirmPassword`: Password confirmation
 - **Validation Rules**:
-  - Username must be unique (checked via `model.UsernameTaken()`)
-  - Passwords must match
-  - Password hashed with bcrypt (cost factor 14)
-- **Response**: 
+  - Username must be unique (checked via `AuthService.Register`)
+  - Password length must be at least `MIN_PASSWORD_LENGTH`
+  - Username length between `MIN_USERNAME_LENGTH` and `MAX_USERNAME_LENGTH`
+  - Password hashed with bcrypt (cost factor from `BCRYPT_COST`, default 14)
+- **Middleware**: Gzip, optional per-IP register rate limiting
+- **Response**:
   - Success: Redirect to `/u/home`
   - Failure: Error page with specific validation messages
-- **Error Handling**: Displays username taken or password mismatch errors
+- **Error Handling**: Displays username taken or password validation errors
 
 #### POST `/logout`
 - **Purpose**: Ends user session
@@ -96,7 +98,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 
 #### POST `/tbaWebhook`
 - **Purpose**: Receives webhook events from The Blue Alliance (TBA)
-- **Authentication**: HMAC validation using `TbaWekhookSecret`
+- **Authentication**: HMAC validation using `TBA_WEBHOOK_SECRET`
 - **Expected Data**: JSON webhook payload
 - **Supported Events**:
   - `upcoming_match`, `match_score`, `match_video`
@@ -106,7 +108,9 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Response**: Empty response (processing happens asynchronously)
 - **Security**: Validates HMAC signature before processing
 
-## Protected Endpoints (/u/* - Authentication Required)
+## Protected Endpoints (/u/* - Authentication + CSRF Required)
+
+All routes under `/u/*` require a valid session token and a valid CSRF token for state-changing requests.
 
 ### User Dashboard
 
@@ -115,25 +119,27 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Response**: HTML template displaying user's drafts
 - **Data Display**: All drafts associated with authenticated user
 
+#### GET `/u/draftList`
+- **Purpose**: Paginated, searchable list of drafts
+- **Response**: HTML fragment of draft list entries
+
+#### GET `/u/leaderboard`
+- **Purpose**: Overall cross-draft leaderboard
+- **Response**: HTML template with global rankings
+
 ### Draft Management
 
 #### GET `/u/createDraft`
 - **Purpose**: Serves draft creation form
 - **Response**: HTML template (Create Draft view)
-- **Features**: Form for new draft configuration
 
 #### POST `/u/createDraft`
 - **Purpose**: Creates new fantasy draft
 - **Form Data**:
   - `draftName`: Draft display name
   - `description`: Draft description
-  - `interval`: Pick time limit in seconds
-  - `startTime`: Draft start time (`YYYY-MM-DDTHH:MM:SS` format)
-  - `endTime`: Draft end time (`YYYY-MM-DDTHH:MM:SS` format)
 - **Validation Rules**:
   - Draft name required
-  - Time parsing with HTML datetime-local format (`2006-01-02T15:04:05`)
-  - Interval must convert to valid integer
 - **Response**: HX-Redirect to `/u/draft/{id}/profile`
 - **Error Handling**: Displays form validation errors with preserved input
 
@@ -141,41 +147,38 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Purpose**: Serves draft profile page
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: HTML template (Draft Profile view)
-- **Access Control**: 
+- **Access Control**:
   - Draft owner can edit settings
   - Other users can view only
 - **Display**: Draft details, players, current settings, scoring
 
 #### POST `/u/draft/:id/updateDraft`
-- **Purpose**: Updates draft configuration
+- **Purpose**: Updates draft profile fields
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Form Data**:
   - `draftName`: Draft display name
   - `description`: Draft description
-  - `interval`: Pick time limit in seconds
-  - `startTime`: Draft start time (`YYYY-MM-DDTHH:MM:SS` format)
-  - `endTime`: Draft end time (`YYYY-MM-DDTHH:MM:SS` format)
   - `discordWebhook`: Optional Discord webhook URL for draft notifications
 - **Validation Rules**:
-  - Same as creation + ownership verification
-  - Time parsing with HTML datetime-local format (`2006-01-02T15:04:05`)
+  - Draft owner only
 - **Access Control**: Draft owner only
 - **Response**: HX-Redirect to `/u/draft/{id}/profile`
-- **Security**: Silent failure if user is not draft owner
+- **Security**: Returns HTTP 403 if user is not draft owner
 
 #### POST `/u/draft/:id/startDraft`
 - **Purpose**: Initiates draft start process
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: Updated start button or error message
 - **Validation**:
-  - Draft must be in FILLING state
+  - Draft must be in `FILLING` state
   - User must be draft owner
   - Draft must have exactly 8 accepted players
 - **Actions**:
   - Cancels all outstanding pending invitations
   - Randomizes player pick order
-  - Transitions draft to WAITING_TO_START
-- **State Transition**: FILLING → WAITING_TO_START
+  - Transitions draft directly to `PICKING`
+  - Creates the first `Picks` row and adds the draft to the draft daemon
+- **State Transition**: `FILLING` → `PICKING`
 
 ### Player Management
 
@@ -196,10 +199,20 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Validation Rules**:
   - User must exist
   - User cannot already be in draft
-  - Draft must be in FILLING state
+  - Draft must be in `FILLING` state
 - **Access Control**: Draft owner only
 - **Response**: Updated player list HTML
 - **Error Handling**: Displays appropriate error messages
+
+#### POST `/u/draft/:id/uninvitePlayer`
+- **Purpose**: Cancels a pending draft invitation
+- **URL Parameters**: `id` - Draft ID (integer)
+- **Form Data**:
+  - `inviteId`: ID of invitation to cancel
+- **Validation Rules**:
+  - Draft must be in `FILLING` state
+  - User must be draft owner
+- **Response**: Updated player list HTML
 
 #### GET `/u/viewInvites`
 - **Purpose**: Shows user's pending draft invitations
@@ -216,6 +229,15 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
   - Draft must not be full
 - **Response**: Updated invites page
 - **Error Handling**: Shows invitation acceptance failures
+
+#### POST `/u/declineInvite`
+- **Purpose**: Declines a draft invitation
+- **Form Data**:
+  - `inviteId`: ID of invitation to decline
+- **Validation Rules**:
+  - Invitation must exist
+  - User must be the intended recipient
+- **Response**: Updated invites page
 
 ### Live Drafting Interface
 
@@ -236,23 +258,21 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Form Data**:
   - `pickInput`: Team number (without "frc" prefix)
 - **Validation Rules**:
-  - Draft must be in PICKING state
+  - Draft must be in `PICKING` state
   - User must be current picker
   - Team must be available (not already drafted)
-  - Team format validation
+  - Team must participate in a configured championship event
 - **Response**: Updated pick page with success/error
 - **Security**: Only current player can submit picks
 - **Error Handling**: Detailed validation error messages
 
 #### POST `/u/draft/:id/skipPickToggle`
-- **Purpose**: Toggles auto-skip functionality for current pick
+- **Purpose**: Toggles auto-skip functionality for the current player
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Form Data**: Contains "skipping" to enable skip
 - **Validation Rules**:
-  - Draft must be in PICKING state
-  - User must be current picker
-- **Response**: Success/failure status
-- **Purpose**: Allows players to automatically skip their turn
+  - User must be a player in the draft
+- **Response**: Empty success response
 
 ### Scoring & Analytics
 
@@ -277,6 +297,46 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Response**: HTML template (Draft Score view)
 - **Display**: Scoring rankings, points breakdown, match results
 
+#### GET `/u/draft/:id/team/:teamNumber`
+- **Purpose**: View detailed information about a specific team within a draft context
+- **URL Parameters**:
+  - `id` - Draft ID (integer)
+  - `teamNumber` - FRC team number
+- **Response**: HTML template with team details and statistics
+
+### Team Routes
+
+#### GET `/u/team/:id/avatar`
+- **Purpose**: Serves team avatar image
+- **URL Parameters**: `id` - FRC team number
+- **Response**: Image data (cached from The Blue Alliance API)
+- **Caching**: Avatars cached in Redis for `AVATAR_CACHE_TTL` (default 4 weeks)
+
+### User Profile Routes
+
+#### GET `/u/userProfile`
+- **Purpose**: Serves user profile page
+- **Response**: HTML template with current user information, Discord ID, and notification preferences
+
+#### POST `/u/userProfile`
+- **Purpose**: Updates user profile settings
+- **Form Data**:
+  - `discordId`: Discord snowflake ID (optional)
+- **Response**: Updated profile card HTML
+
+#### POST `/u/userProfile/password`
+- **Purpose**: Changes the user's password
+- **Form Data**:
+  - `currentPassword`: Current password
+  - `newPassword`: New password
+  - `confirmNewPassword`: New password confirmation
+- **Response**: Updated password card HTML
+
+#### POST `/u/userProfile/notifications`
+- **Purpose**: Updates per-draft Discord notification preferences
+- **Form Data**: Checkboxes named `draft_<id>_upcomingMatch` and `draft_<id>_pickTurn` for each draft
+- **Response**: Updated notifications card HTML
+
 ## Admin Endpoints (/u/admin/* - Authentication + Admin Required)
 
 ### Administrative Console
@@ -284,7 +344,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 #### GET `/u/admin/console`
 - **Purpose**: Serves administrative interface
 - **Response**: HTML template (Admin Console view)
-- **Access Control**: Admin users only
+- **Access Control**: Admin users only (`Users.isAdmin`)
 - **Features**: System management tools and command interface
 
 #### POST `/u/admin/processCommand`
@@ -297,7 +357,7 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
   - `listdraft -s <search>` - List drafts with optional search filter
   - `startdraft -id <draftId>` - Force start a specific draft
   - `skippick -id <draftId>` - Force skip current pick in draft
-  - `viewWebhookKey -id <draftId>` - View Discord webhook key for a draft
+  - `viewWebhookKey` - View TBA webhook verification key (no arguments)
   - `modifypicktime -id <draftId> -time <duration>` - Modify remaining time for current pick
   - `adminpick -id <draftId> -team <teamNumber>` - Force a team pick as admin
   - `renamedraft -id <draftId> -name <newName>` - Rename a draft
@@ -309,65 +369,51 @@ The Fantasy FRC Web application is a **traditional web application** that uses *
 - **Response**: Command output and results
 - **Security**: All admin actions logged with user context
 
-### Draft Admin Routes (/u/draft/:id/admin/* - Authentication + Admin Required)
+### Draft Owner Routes (/u/draft/:id/admin/* - Authentication + Draft Owner Required)
 
-These routes provide administrative controls for individual drafts
+These routes provide administrative controls for individual drafts. They are **not** restricted to global admins; the handler verifies that the authenticated user is the draft owner.
 
 #### GET `/u/draft/:id/admin`
 - **Purpose**: Serves draft admin interface
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: HTML template with draft administration tools
-- **Access Control**: Admin users only
+- **Access Control**: Draft owner only
 
 #### POST `/u/draft/:id/admin/skipPick`
 - **Purpose**: Force skip the current pick in a draft
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: Updated draft pick page
-- **Access Control**: Admin users only
+- **Access Control**: Draft owner only
 
 #### POST `/u/draft/:id/admin/extendTime`
 - **Purpose**: Extend the remaining time for the current pick
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: Updated timer display
-- **Access Control**: Admin users only
+- **Access Control**: Draft owner only
 
 #### POST `/u/draft/:id/admin/makePick`
 - **Purpose**: Force a team pick on behalf of the current player
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Form Data**: Team selection
 - **Response**: Updated draft pick page
-- **Access Control**: Admin users only
+- **Access Control**: Draft owner only
 
 #### POST `/u/draft/:id/admin/undoPick`
 - **Purpose**: Undo the most recent pick in a draft
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Response**: Updated draft pick page
-- **Access Control**: Admin users only
+- **Access Control**: Draft owner only
 
-### Team Routes
+## System Endpoints
 
-#### GET `/u/draft/:id/team/:teamNumber`
-- **Purpose**: View detailed information about a specific team within a draft context
-- **URL Parameters**:
-  - `id` - Draft ID (integer)
-  - `teamNumber` - FRC team number
-- **Response**: HTML template with team details and statistics
+#### GET `/metrics`
+- **Purpose**: Prometheus metrics endpoint
+- **Authentication**: Bearer token matching `METRIC_SECRET`
+- **Response**: Prometheus exposition format
 
-#### GET `/u/team/:id/avatar`
-- **Purpose**: Serves team avatar image
-- **URL Parameters**: `id` - FRC team number
-- **Response**: Image data (cached from The Blue Alliance API)
-- **Caching**: Avatars cached in Redis (if available) for 4 weeks
-
-### User Profile Routes
-
-#### GET `/u/userProfile`
-- **Purpose**: Serves user profile page
-- **Response**: HTML template with current user information
-
-#### POST `/u/userProfile`
-- **Purpose**: Updates user profile settings
-- **Response**: Updated profile page or redirect
+#### GET `/healthz`
+- **Purpose**: Simple health check
+- **Response**: `ok`
 
 ## WebSocket Endpoints
 
@@ -377,12 +423,11 @@ These routes provide administrative controls for individual drafts
 - **Purpose**: Real-time draft updates during live picking
 - **URL Parameters**: `id` - Draft ID (integer)
 - **Authentication**: Requires valid session token
-- **Protocol**: Custom message format for UI updates
+- **Protocol**: Server-push HTML fragments for HTMX integration
 - **Events**:
   - New picks made
-  - Draft state changes
-  - Timer updates
-  - Player status changes
+  - Picks skipped
+  - Draft state changes during picking
 - **Message Format**: HTML fragments for HTMX integration
 - **Connection Management**: Automatic cleanup on disconnect
 
@@ -411,6 +456,7 @@ The application includes security tests that validate rejection of:
 #### Error Codes
 - **400 Bad Request**: Invalid parameters (malformed draft IDs, invalid input)
 - **401 Unauthorized**: Invalid authentication or insufficient permissions
+- **403 Forbidden**: Authenticated user lacks permission for the resource
 - **500 Internal Server Error**: Database errors or unexpected server failures
 
 ### Error Display Patterns
@@ -427,7 +473,7 @@ The application includes security tests that validate rejection of:
 
 #### Validation Error Messages
 - **Login**: "Invalid username or password"
-- **Registration**: "Username is already taken" or "Passwords do not match"
+- **Registration**: "Username is already taken" or password validation errors
 - **Draft Operations**: Context-specific messages for validation failures
 - **Authorization**: Silent failures with redirects (security measure)
 
@@ -448,25 +494,25 @@ assert.AddContext("Key", value)
 ## Security Considerations
 
 ### Current Security Measures
-- **Password Security**: bcrypt with high cost factor (14)
+- **Password Security**: bcrypt with configurable cost factor (default 14)
 - **Session Security**: HttpOnly cookies, token hashing, automatic cleanup
+- **CSRF Protection**: CSRF tokens required on all `/u/*` POST requests
+- **Rate Limiting**: Redis-backed per-IP limits for POST, login, and register requests
 - **Database Security**: Prepared statements, connection pooling
 - **Input Validation**: Server-side validation, XSS prevention
 - **Access Control**: Role-based middleware, resource ownership verification
 
 ### Security Enhancement Opportunities
-- **CSRF Protection**: Currently not implemented (recommended for state-changing operations)
-- **Rate Limiting**: Not currently implemented (recommended for authentication endpoints)
 - **Content Security Policy**: Additional hardening against XSS attacks
 
 ### Session Security Implementation
 - **Token Storage**: SHA-256 hash stored, never plain tokens
-- **Cookie Configuration**: HttpOnly, Secure in production
-- **Automatic Cleanup**: Expired sessions removed every 2 hours
+- **Cookie Configuration**: HttpOnly, Secure controlled by `SECURE_HTTP_COOKIE`
+- **Automatic Cleanup**: Expired sessions removed by background cleanup service
 - **IP Logging**: All authentication attempts logged with source IP
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *This documentation covers HTTP endpoints in the Fantasy FRC Web application. For WebSocket API details, see [WebSocket API](./websocket-api.md).*

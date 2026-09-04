@@ -14,13 +14,13 @@ graph LR
     end
     
     subgraph "Background Services"
-        F[Draft Daemon] --> G[Draft Manager]
+        F[Draft Daemon] --> G[Draft Actor Map]
         H[Scorer] --> I[TBA Handler]
         J[Cleanup Service] --> K[Database]
     end
-    
+
     subgraph "Real-time Updates"
-        L[WebSocket] --> M[Pick Manager]
+        L[WebSocket] --> M[Pick Notifier]
         M --> N[Client Notifications]
     end
 ```
@@ -33,9 +33,9 @@ graph LR
 - **Authentication**: Session-based middleware
 
 ### WebSocket
-- **Purpose**: Real-time draft updates
-- **Events**: Pick notifications, score updates, draft state changes
-- **Protocol**: Custom message format
+- **Purpose**: Real-time draft pick updates
+- **Events**: Pick made, pick skipped, draft state changes during picking
+- **Protocol**: Server-push HTML fragments
 
 ### Database Connections
 - **Primary**: PostgreSQL connection pool
@@ -47,20 +47,20 @@ graph LR
 ```mermaid
 graph TD
     A[Web Server] --> B[Authentication Service]
-    A --> C[Draft Manager]
+    A --> C[Draft Actor Map]
     A --> D[Scorer]
     A --> E[TBA Handler]
-    
+
     B --> F[Database]
     C --> F
-    C --> G[WebSocket Hub]
+    C --> G[Pick Notifier]
     D --> F
     D --> H[Redis Cache]
     E --> F
     E --> I[TBA API]
-    
+
     J[Draft Daemon] --> C
-    K[Background Scorer] --> D
+    K[Scoring Runner] --> D
     L[Cleanup Service] --> F
 ```
 
@@ -69,17 +69,17 @@ graph TD
 ### Draft Creation Flow
 1. Client sends draft creation request
 2. Authentication validates user session
-3. Draft Manager validates draft parameters
+3. Handler validates draft parameters
 4. Database saves draft configuration
 
 ### Pick Processing Flow
 1. Client submits team pick
-2. Pick Manager validates selection
+2. Draft actor validates selection
 3. Database records pick with timestamp
-4. WebSocket broadcasts pick to all players
+4. Pick notifier signals WebSocket handlers to push updated HTML to all watchers
 
 ### Score Update Flow
-1. TBA Handler receives match results
+1. TBA Handler receives match results via webhook
 2. Scorer processes match data
 3. Database updates team and player scores
 
@@ -118,6 +118,6 @@ sequenceDiagram
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *TODO: Add detailed interaction diagrams, error handling flows, and performance metrics*

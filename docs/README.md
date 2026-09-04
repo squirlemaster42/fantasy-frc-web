@@ -18,6 +18,7 @@ Welcome to the documentation for the Fantasy FRC web application
 
 ### [🗄️ Database](./database/)
 - [Schema](./database/schema.md) - Database structure and relationships
+- [Migrations](./database/migrations.md) - Goose migration workflow
 - [Schema Visual Guide](./database/schema-visual.md) - Visual database diagrams
 
 ### [🚀 Environment Setup](./development/setup.md)
@@ -52,17 +53,16 @@ Welcome to the documentation for the Fantasy FRC web application
 
 ```mermaid
 graph TD
-    A[Web Client] --> B[Load Balancer]
-    B --> C[Echo Web Server]
-    C --> D[Authentication]
-    C --> E[Draft Manager]
-    C --> F[Scorer]
-    C --> G[TBA Handler]
-    D --> H[PostgreSQL Database]
+    A[Web Client] --> B[Echo Web Server]
+    B --> C[Authentication]
+    B --> D[Draft Actor Map]
+    B --> E[Scorer]
+    B --> F[TBA Handler]
+    C --> G[PostgreSQL Database]
+    D --> G
+    E --> G
+    F --> H[The Blue Alliance API]
     E --> H
-    F --> H
-    G --> I[The Blue Alliance API]
-    F --> I
 ```
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*

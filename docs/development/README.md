@@ -9,8 +9,6 @@ Complete development environment setup:
 - Prerequisites and tool installation
 - Database setup and migrations
 - Environment configuration
-- Docker development environment
-- IDE configuration and debugging
 
 ## 🎯 Development Workflow
 
@@ -37,8 +35,8 @@ Complete development environment setup:
 ## 🔧 Development Tools
 
 ### Required Software
-- **Go 1.26.2**: Main programming language
-- **PostgreSQL 12+**: Database server
+- **Go 1.26+**: Main programming language (server module declares `go 1.26.5`)
+- **PostgreSQL 16+**: Database server
 - **Templ**: Template engine for HTML
 - **Git**: Version control system
 - **Docker**: Containerization (optional)
@@ -94,7 +92,7 @@ cd server
 make mocks
 ```
 
-This reads `server/.mockery.yaml` and runs mockery for all configured interfaces, writing output to `model/mocks/`.
+This reads `server/.mockery.yaml` and runs mockery for all configured interfaces, writing output to `model/mocks/` and `authentication/mocks/`.
 
 ### Writing a Handler Test: Step-by-Step
 
@@ -255,6 +253,8 @@ cd server
 make run-verbose
 ```
 
+The templ proxy serves hot-reloaded pages on `http://localhost:7331`. The Go app also runs on the configured `SERVER_PORT`.
+
 ### Testing Build
 ```bash
 # Navigate to server directory
@@ -310,7 +310,7 @@ make build-linux
 2. **Install Dependencies**: `cd server && go mod download`
 3. **Setup Database**: Follow database setup instructions in [Setup Guide](./setup.md)
 4. **Configure Environment**: `cp server/.env.example server/.env` and edit with your values
-5. **Run Application**: `cd server && make run-verbose` and visit http://localhost:3000
+5. **Run Application**: `cd server && make run-verbose` and visit http://localhost:7331 for the templ proxy (hot reload), or http://localhost:<SERVER_PORT> for the raw Go app
 6. **Run Tests**: `cd server && go test ./...` to verify setup
 
 ## 🤝 Contribution Types
@@ -345,6 +345,6 @@ make build-linux
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Development documentation focuses on enabling efficient, high-quality contribution to the Fantasy FRC project.*

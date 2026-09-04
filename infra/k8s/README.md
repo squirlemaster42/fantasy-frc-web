@@ -223,7 +223,7 @@ kubectl wait --for=condition=complete job/fantasy-frc-migrate -n fantasy-frc
 bash infra/k8s/fantasy-frc/install-fantasy-frc.sh
 ```
 
-> Note: The containerd import scripts are node-specific helper scripts. They are not committed to git. See the `k8sSetup/fantasy-frc/` directory on the original server for examples, or create your own using `ctr -n k8s.io image import`.
+> Note: The containerd import scripts are node-specific helper scripts. They are not committed to git. Create your own using `ctr -n k8s.io image import` or the Ansible playbooks in `infra/ansible/`.
 
 ### 7. Access the applications
 

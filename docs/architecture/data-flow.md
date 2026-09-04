@@ -20,7 +20,7 @@ graph TD
     
     subgraph "Processing Layer"
         G[Scorer]
-        H[Draft Manager]
+        H[Draft Actor Map]
         I[Authentication]
     end
     
@@ -54,7 +54,7 @@ graph TD
 ### FRC Competition Data
 - **Source**: The Blue Alliance API
 - **Types**: Teams, matches, events, rankings
-- **Frequency**: Real-time webhook + periodic polling
+- **Frequency**: Real-time webhook + scoring runner queue processing
 - **Format**: JSON API responses
 
 ### User-Generated Data
@@ -75,17 +75,16 @@ graph TD
 ```mermaid
 stateDiagram-v2
     [*] --> Filling
-    Filling --> Waiting_To_Start: Players ready
-    Waiting_To_Start --> Picking: Scheduled time
+    Filling --> Picking: Owner starts draft
     Picking --> Teams_Playing: All picks made
-    Teams_Playing --> Complete: Event finished
-    
+    Teams_Playing --> Complete: (defined but not triggered)
+
     note right of Filling
         Data: Draft config
         Source: Draft creation
         Storage: Drafts table
     end note
-    
+
     note right of Picking
         Data: Team selections
         Source: User picks
@@ -119,18 +118,18 @@ graph LR
 ### Real-time Notification Flow
 ```mermaid
 sequenceDiagram
-    participant S as Scorer
-    participant W as WebSocket Hub
+    participant D as Draft Actor
+    participant W as WebSocket Handler
     participant C1 as Client 1
     participant C2 as Client 2
     participant C3 as Client 3
-    
-    S->>W: Score Update Event
-    W->>C1: Push Update
-    W->>C2: Push Update
-    W->>C3: Push Update
-    
-    Note over C1,C3: Only clients in relevant draft
+
+    D->>W: Pick Event Signal
+    W->>C1: Push HTML Fragment
+    W->>C2: Push HTML Fragment
+    W->>C3: Push HTML Fragment
+
+    Note over C1,C3: Only clients watching the draft
 ```
 
 ## 🗄️ Data Storage Patterns
@@ -181,6 +180,6 @@ erDiagram
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *TODO: Add detailed data transformation examples, performance benchmarks, and security audit procedures*
