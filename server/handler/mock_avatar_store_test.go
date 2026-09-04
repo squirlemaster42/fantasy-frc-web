@@ -7,12 +7,13 @@ import (
 )
 
 type mockAvatarStore struct {
-	color string
-	err   error
+	avatar []byte
+	color  string
+	err    error
 }
 
 func (m *mockAvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error) {
-	return nil, m.err
+	return m.avatar, m.err
 }
 
 func (m *mockAvatarStore) GetAvatarColor(ctx context.Context, teamNum int) string {
