@@ -33,6 +33,40 @@ func getPlayerDiscordId(ctx context.Context, db database.DBTX, draftPlayerId int
 	return discordId, nil
 }
 
+// getPlayerPickNotificationId returns the player's Discord ID only if they have opted
+// into pick-turn notifications for the draft; otherwise it returns an invalid NullString.
+func getPlayerPickNotificationId(ctx context.Context, db database.DBTX, draftPlayerId int) (sql.NullString, error) {
+	query := `
+		Select
+			u.DiscordId,
+			COALESCE(p.PickTurn, false) As PickTurn
+		From DraftPlayers dp
+		Inner Join Users u On u.UserUUID = dp.UserUUID
+		Left Join UserDraftNotificationPreferences p
+			On p.UserUuid = u.UserUuid And p.DraftId = dp.DraftId
+		Where dp.Id = $1
+	`
+
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return sql.NullString{}, err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetPlayerPickNotificationId")
+
+	var discordId sql.NullString
+	var wantsPickTurn bool
+	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId, &wantsPickTurn)
+	if err != nil {
+		return sql.NullString{}, err
+	}
+
+	if !wantsPickTurn {
+		return sql.NullString{}, nil
+	}
+
+	return discordId, nil
+}
+
 func getDraftWebhook(ctx context.Context, db database.DBTX, draftId int) (string, error) {
 	query := `
 		Select
@@ -61,12 +95,13 @@ func getDraftWebhook(ctx context.Context, db database.DBTX, draftId int) (string
 }
 
 type DraftPickRow struct {
-	DraftId   int
-	DraftName string
-	Username  string
-	Pick      string
-	DiscordId sql.NullString
-	Webhook   sql.NullString
+	DraftId            int
+	DraftName          string
+	Username           string
+	Pick               string
+	DiscordId          sql.NullString
+	Webhook            sql.NullString
+	WantsUpcomingMatch bool
 }
 
 func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) ([]DraftPickRow, error) {
@@ -87,12 +122,15 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
             d.displayname,
             u.username,
             u.discordid,
-            p.pick
+            p.pick,
+            COALESCE(prefs.UpcomingMatch, false) AS wants_upcoming_match
         FROM
             Drafts d
         JOIN DraftPlayers dp ON d.id = dp.draftid
         JOIN Users u ON dp.useruuid = u.useruuid
         JOIN Picks p ON dp.id = p.player
+        LEFT JOIN UserDraftNotificationPreferences prefs
+            ON prefs.UserUuid = u.UserUuid AND prefs.DraftId = d.id
         WHERE
             p.pick IN (%s)
             AND d.discordwebhook IS NOT NULL;
@@ -116,7 +154,7 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
 
 	for rows.Next() {
 		var r DraftPickRow
-		err = rows.Scan(&r.DraftId, &r.Webhook, &r.DraftName, &r.Username, &r.DiscordId, &r.Pick)
+		err = rows.Scan(&r.DraftId, &r.Webhook, &r.DraftName, &r.Username, &r.DiscordId, &r.Pick, &r.WantsUpcomingMatch)
 		if err != nil {
 			log.Error(ctx, "GetDraftPickRows: Failed to scan draft pick row", "error", err)
 		} else {

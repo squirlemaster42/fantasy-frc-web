@@ -50,6 +50,10 @@ type DraftStore interface {
 	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
 	TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error
 
+	GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error)
+	GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]DraftNotificationPreference, error)
+	UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error
+
 	RunInTransaction(ctx context.Context, fn func(db database.DBTX) error) error
 	WithTx(tx database.DBTX) DraftStore
 }
