@@ -19,6 +19,8 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 
 ## 📅 Before the Draft
 
+You can either join your friends in an existing draft or create a new draft and invite others.
+
 ### 1. Join a Draft
 **Accepting an Invitation:**
 1. Log in to your account
