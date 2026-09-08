@@ -223,11 +223,11 @@ func TestStartDraftButton(t *testing.T) {
 
 func TestStartDraftButton_WithError(t *testing.T) {
 	var buf strings.Builder
-	err := StartDraftButton("/u/draft/42/startDraft", "Must have 8 players", true, "csrf").Render(context.Background(), &buf)
+	err := StartDraftButton("/u/draft/42/startDraft", "Must have between 2 and 16 players", true, "csrf").Render(context.Background(), &buf)
 	require.NoError(t, err)
 
 	htmlStr := buf.String()
-	assert.Contains(t, htmlStr, "Must have 8 players")
+	assert.Contains(t, htmlStr, "Must have between 2 and 16 players")
 	assert.Contains(t, htmlStr, "Start Draft")
 }
 

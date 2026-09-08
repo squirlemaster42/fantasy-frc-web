@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -526,9 +527,7 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 			Id: 5,
 			Players: []model.DraftPlayer{
 				{Pending: false},
-				{Pending: false},
 				{Pending: true},
-				{Pending: false},
 			},
 		}, nil)
 		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
@@ -536,7 +535,7 @@ func TestStartDraftCommand_ValidationPaths(t *testing.T) {
 		cmd := &StartDraftCommand{}
 		result := cmd.ProcessCommand(ctx, &tbaHandler.TBAHandler{}, mockDraftStore, nil, nil, draftActorMap, nil, "-id=5")
 
-		assert.Equal(t, "Not Enough Players Have Accepted The Draft", result)
+		assert.Equal(t, fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers), result)
 	})
 }
 
@@ -545,7 +544,7 @@ func TestStartDraftCommand_StartsAndWatchesDraft(t *testing.T) {
 	mockDraftStore := mocks.NewMockDraftStore(t)
 	draftId := 1
 
-	players := make([]model.DraftPlayer, model.DraftPlayerCount)
+	players := make([]model.DraftPlayer, 8)
 	for i := range players {
 		players[i] = model.DraftPlayer{Pending: false}
 	}

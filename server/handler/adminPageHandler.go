@@ -115,16 +115,8 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 	}
 	draftState := draftActor.GetDraftState()
 
-	//Check that eight players have accepted the draft
-	numAccepted := 0
-	for _, player := range draftState.Players {
-		if !player.Pending {
-			numAccepted++
-		}
-	}
-
 	if !model.CanStartDraft(draftState) {
-		return "Not Enough Players Have Accepted The Draft"
+		return fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers)
 	}
 
 	if err := draftStore.CancelOutstandingInvites(ctx, draftId); err != nil {

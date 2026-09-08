@@ -293,7 +293,7 @@ func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
 
 	mockDraftStore := mocks.NewMockDraftStore(t)
 
-	players := make([]model.DraftPlayer, model.DraftPlayerCount)
+	players := make([]model.DraftPlayer, 8)
 	for i := range players {
 		players[i] = model.DraftPlayer{Pending: false}
 	}

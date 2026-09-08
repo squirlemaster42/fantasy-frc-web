@@ -768,12 +768,13 @@ func TestRunInTransaction_FinalPick_Integration(t *testing.T) {
 	playerId, err := store.GetDraftPlayerId(ctx, draft.Id, users[0].UserUuid)
 	require.NoError(t, err)
 
-	// Create PicksPerDraft pick rows directly, marking all but the last as already made
+	// Create all pick rows directly, marking all but the last as already made
+	totalPicks := PicksPerDraft(1)
 	availablePickId := 0
-	for i := 0; i < PicksPerDraft; i++ {
+	for i := 0; i < totalPicks; i++ {
 		pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
 		require.NoError(t, err)
-		if i < 63 {
+		if i < totalPicks-1 {
 			team := fmt.Sprintf("frc%02d", i)
 			_, err = db.ExecContext(ctx, "INSERT INTO Teams (tbaId, name, allianceScore) VALUES ($1, $2, $3) ON CONFLICT (tbaId) DO NOTHING", team, "Test Team", 0)
 			require.NoError(t, err)
@@ -916,7 +917,7 @@ func TestAcceptInvite_RollsBackOnError_Integration(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if numPlayers >= DraftPlayerCount {
+		if numPlayers >= MaxDraftPlayers {
 			return errors.New("too many players")
 		}
 		draftId, _, err := storeTx.AcceptInvite(ctx, inviteId)

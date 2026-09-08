@@ -31,10 +31,16 @@ const (
 )
 
 const (
-	DraftPlayerCount = 8
-	PicksPerPlayer   = 8
-	PicksPerDraft    = DraftPlayerCount * PicksPerPlayer // 64
+	MinDraftPlayers = 2
+	MaxDraftPlayers = 16
+	PicksPerPlayer  = 8
 )
+
+// PicksPerDraft returns the total number of picks in a draft given the number of
+// accepted players. Each player still receives PicksPerPlayer picks.
+func PicksPerDraft(acceptedPlayerCount int) int {
+	return acceptedPlayerCount * PicksPerPlayer
+}
 
 type DraftSearchQuery struct {
 	UserUuid uuid.UUID
@@ -1111,7 +1117,16 @@ func nextPick(ctx context.Context, db database.DBTX, draftId int) (DraftPlayer, 
 		return DraftPlayer{}, fmt.Errorf("failed to next pick: %w", err)
 	}
 
-	return DetermineNextPick(draft.Players, picks)
+	// Pending players should not exist once the draft is picking, but filter them
+	// out defensively so they cannot throw off the snake-order index math.
+	acceptedPlayers := make([]DraftPlayer, 0, len(draft.Players))
+	for _, player := range draft.Players {
+		if !player.Pending {
+			acceptedPlayers = append(acceptedPlayers, player)
+		}
+	}
+
+	return DetermineNextPick(acceptedPlayers, picks)
 }
 
 func getNumPlayersInInvitedDraft(ctx context.Context, db database.DBTX, inviteId int) (int, error) {
@@ -1706,12 +1721,12 @@ func transferOwnership(ctx context.Context, db database.DBTX, draftId int, newOw
 }
 
 func CanStartDraft(draftModel DraftModel) bool {
-	// Check that eight players have accepted the draft
+	// Check that the draft has an allowed number of accepted players.
 	numAccepted := 0
 	for _, p := range draftModel.Players {
 		if !p.Pending {
 			numAccepted++
 		}
 	}
-	return numAccepted == DraftPlayerCount
+	return numAccepted >= MinDraftPlayers && numAccepted <= MaxDraftPlayers
 }

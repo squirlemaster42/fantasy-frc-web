@@ -117,7 +117,7 @@ templ DraftPick (page string, fromProtected bool, username string, cmp templ.Com
 }
 
 templ RenderPicks(draft model.DraftModel, isCurrentPick bool) {
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4" id="pickTable" hx-swap="outerHTML">
+	<div class={"grid gap-4 " + PickGridClass(draft.Players)} id="pickTable" hx-swap="outerHTML">
         for _, player := range draft.Players {
 
             {{

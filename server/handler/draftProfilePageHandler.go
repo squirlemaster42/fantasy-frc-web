@@ -222,7 +222,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	return nil
 }
 
-// HandleStartDraft transitions the draft from FILLING to WAITING_TO_START after validating 8 players.
+// HandleStartDraft transitions the draft from FILLING to PICKING after validating the player count.
 func (h *Handler) HandleStartDraft(c echo.Context) error {
 	draftIdStr := c.Param("id")
 	log.Debug(c.Request().Context(), "Got a request to start a draft", "draftId", draftIdStr)
@@ -264,7 +264,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		c.Response().Status = http.StatusBadRequest
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
-			"Draft must have exactly 8 accepted players to start",
+			fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers),
 			true,
 			h.csrfToken(c),
 		)

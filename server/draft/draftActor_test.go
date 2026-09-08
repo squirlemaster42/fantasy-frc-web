@@ -158,19 +158,22 @@ func TestDraftActorMap_SkipCurrentPick(t *testing.T) {
 	mockStore.AssertExpectations(t)
 }
 
-func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
+func TestDraftActorMap_SkipCurrentPick_AtFinalPickDoesNotCreateNextPick(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
 	pickId := 42
+	playerCount := 8
+	totalPicks := model.PicksPerDraft(playerCount)
 
-	// Build PicksPerDraft picks so the draft is at the final pick
-	picks := make([]model.Pick, model.PicksPerDraft)
+	// Build all picks so the draft is at the final pick
+	picks := make([]model.Pick, totalPicks)
 	for i := range picks {
 		picks[i] = model.Pick{Id: i + 1}
 	}
 
-	players := []model.DraftPlayer{
-		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+	players := make([]model.DraftPlayer, playerCount)
+	for i := range players {
+		players[i] = model.DraftPlayer{Id: i + 1, PlayerOrder: sql.NullInt16{Int16: int16(i), Valid: true}}
 	}
 
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
@@ -206,11 +209,18 @@ func TestDraftActorMap_SkipCurrentPick_At64DoesNotCreate65th(t *testing.T) {
 func TestDraftActorMap_SkipCurrentPick_DoesNotSkipPastEndOfDraft(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
-	pickId := model.PicksPerDraft
+	playerCount := 8
+	totalPicks := model.PicksPerDraft(playerCount)
+	pickId := totalPicks
 
-	picks := make([]model.Pick, model.PicksPerDraft)
+	picks := make([]model.Pick, totalPicks)
 	for i := range picks {
 		picks[i] = model.Pick{Id: i + 1}
+	}
+
+	players := make([]model.DraftPlayer, playerCount)
+	for i := range players {
+		players[i] = model.DraftPlayer{Id: i + 1, PlayerOrder: sql.NullInt16{Int16: int16(i), Valid: true}}
 	}
 
 	// Draft has already completed and transitioned to TEAMS_PLAYING.
@@ -219,9 +229,7 @@ func TestDraftActorMap_SkipCurrentPick_DoesNotSkipPastEndOfDraft(t *testing.T) {
 		Status:      model.TEAMS_PLAYING,
 		CurrentPick: model.Pick{Id: pickId},
 		Picks:       picks,
-		Players: []model.DraftPlayer{
-			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
-		},
+		Players:     players,
 	}, nil).Once()
 
 	mockStore.On("WithTx", mock.Anything).Return(mockStore).Maybe()
@@ -908,17 +916,20 @@ func TestDraftActorMap_MakePick(t *testing.T) {
 func TestDraftActorMap_MakePick_FinalPickTransitionsToTeamsPlaying(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
-	pickId := 64
+	playerCount := 8
+	totalPicks := model.PicksPerDraft(playerCount)
+	pickId := totalPicks
 	teamId := "frc254"
 
-	picks := make([]model.Pick, model.PicksPerDraft)
+	picks := make([]model.Pick, totalPicks)
 	for i := range picks {
 		picks[i] = model.Pick{Id: i + 1, Player: 1}
 	}
-	picks[model.PicksPerDraft-1] = model.Pick{Id: pickId, Player: 1}
+	picks[totalPicks-1] = model.Pick{Id: pickId, Player: 1}
 
-	players := []model.DraftPlayer{
-		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+	players := make([]model.DraftPlayer, playerCount)
+	for i := range players {
+		players[i] = model.DraftPlayer{Id: i + 1, PlayerOrder: sql.NullInt16{Int16: int16(i), Valid: true}}
 	}
 
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{

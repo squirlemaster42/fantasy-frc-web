@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -291,6 +292,80 @@ func TestDetermineNextPick(t *testing.T) {
 		_, err := DetermineNextPick(players, picks)
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, "next pick is out of bounds")
+	})
+}
+
+func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
+	makePlayer := func(id int, order int) DraftPlayer {
+		return DraftPlayer{
+			Id: id,
+			User: User{
+				UserUuid: uuid.New(),
+			},
+			PlayerOrder: sql.NullInt16{Int16: int16(order), Valid: true},
+		}
+	}
+
+	expectedOrder := func(playerCount, pickIndex int) int {
+		round := pickIndex / playerCount
+		pos := pickIndex % playerCount
+		if round%2 == 0 {
+			return pos
+		}
+		return playerCount - 1 - pos
+	}
+
+	testCases := []int{2, 3, 5, 8, 12, 16}
+
+	for _, playerCount := range testCases {
+		t.Run(fmt.Sprintf("%d players full draft", playerCount), func(t *testing.T) {
+			players := make([]DraftPlayer, playerCount)
+			for i := 0; i < playerCount; i++ {
+				players[i] = makePlayer(i+1, i)
+			}
+
+			totalPicks := PicksPerDraft(playerCount)
+			picks := make([]Pick, 0, totalPicks)
+
+			for pickIndex := 0; pickIndex < totalPicks; pickIndex++ {
+				next, err := DetermineNextPick(players, picks)
+				assert.NoError(t, err, "pick %d", pickIndex)
+				assert.Equal(t, expectedOrder(playerCount, pickIndex), int(next.PlayerOrder.Int16), "pick %d", pickIndex)
+
+				// Record the pick using the player's Id so the next iteration can continue.
+				picks = append(picks, Pick{Player: next.Id})
+			}
+		})
+	}
+}
+
+func TestCanStartDraft_PlayerCountRange(t *testing.T) {
+	makeDraft := func(acceptedCount int) DraftModel {
+		players := make([]DraftPlayer, acceptedCount)
+		for i := 0; i < acceptedCount; i++ {
+			players[i] = DraftPlayer{Pending: false}
+		}
+		return DraftModel{Players: players}
+	}
+
+	t.Run("below minimum cannot start", func(t *testing.T) {
+		assert.False(t, CanStartDraft(makeDraft(1)))
+	})
+
+	t.Run("at minimum can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(MinDraftPlayers)))
+	})
+
+	t.Run("at old default can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(8)))
+	})
+
+	t.Run("at maximum can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(MaxDraftPlayers)))
+	})
+
+	t.Run("above maximum cannot start", func(t *testing.T) {
+		assert.False(t, CanStartDraft(makeDraft(17)))
 	})
 }
 

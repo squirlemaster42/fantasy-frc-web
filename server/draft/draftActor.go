@@ -333,7 +333,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		if err != nil {
 			return err
 		}
-		if numPlayers >= model.DraftPlayerCount {
+		if numPlayers >= model.MaxDraftPlayers {
 			return ErrTooManyPlayers
 		}
 
@@ -345,7 +345,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 			return err
 		}
 
-		if numPlayers >= model.DraftPlayerCount-1 {
+		if numPlayers >= model.MaxDraftPlayers-1 {
 			return store.CancelOutstandingInvites(ctx, d.draftState.Id)
 		}
 		return nil
@@ -410,7 +410,7 @@ func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteM
 		}
 	}
 
-	if acceptedPlayers < model.DraftPlayerCount && d.draftState.Status == model.WAITING_TO_START {
+	if acceptedPlayers < model.MinDraftPlayers && d.draftState.Status == model.WAITING_TO_START {
 		err = d.draftStore.UpdateDraftStatus(ctx, d.draftState.Id, model.FILLING)
 		if err != nil {
 			log.Error(ctx, "Failed to revert draft status to filling after decline", "error", err, "draftId", d.draftState.Id)
@@ -578,12 +578,19 @@ type pickOutcome struct {
 }
 
 func (d *DraftActor) prepareDraftAdvance(ctx context.Context) (model.DraftPlayer, bool, error) {
-	complete := len(d.draftState.Picks) == model.PicksPerDraft
+	acceptedPlayers := make([]model.DraftPlayer, 0, len(d.draftState.Players))
+	for _, player := range d.draftState.Players {
+		if !player.Pending {
+			acceptedPlayers = append(acceptedPlayers, player)
+		}
+	}
+
+	complete := len(d.draftState.Picks) == model.PicksPerDraft(len(acceptedPlayers))
 	if complete {
 		return model.DraftPlayer{}, true, nil
 	}
 
-	nextPick, err := model.DetermineNextPick(d.draftState.Players, d.draftState.Picks)
+	nextPick, err := model.DetermineNextPick(acceptedPlayers, d.draftState.Picks)
 	if err != nil {
 		log.Error(ctx, "Failed to determine next pick", "draftId", d.draftState.Id, "error", err)
 		return model.DraftPlayer{}, false, err
