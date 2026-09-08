@@ -1,6 +1,6 @@
 # Database Schema
 
-Complete documentation of Fantasy FRC database structure, relationships, and evolution.
+Complete documentation of Fantasy FRC database structure, relationships, and evolution
 
 ## 🗄️ Overview
 
