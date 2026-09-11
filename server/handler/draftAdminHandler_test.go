@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	"server/model"
@@ -17,8 +17,7 @@ import (
 func TestHandleDraftAdminGet(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -44,8 +43,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 
 	t.Run("invalid draft id", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -67,8 +65,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 
 	t.Run("draft not found redirects home", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -92,8 +89,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 
 	t.Run("non-owner forbidden", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
@@ -127,8 +123,7 @@ func TestHandleAdminEndDraft(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -154,8 +149,7 @@ func TestHandleAdminEndDraft(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -183,8 +177,7 @@ func TestHandleAdminEndDraft(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
@@ -218,8 +211,7 @@ func TestHandleAdminSkipPick(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -245,8 +237,7 @@ func TestHandleAdminSkipPick(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)

@@ -16,11 +16,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // ServePickPage renders the draft pick page for the authenticated user.
-func (h *Handler) ServePickPage(c echo.Context) error {
+func (h *Handler) ServePickPage(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Serving pick page", "ip", c.RealIP())
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
@@ -36,7 +36,7 @@ func (h *Handler) ServePickPage(c echo.Context) error {
 }
 
 // HandlerPickRequest validates that the current player is allowed to make a pick and processes it.
-func (h *Handler) HandlerPickRequest(c echo.Context) error {
+func (h *Handler) HandlerPickRequest(c *echo.Context) error {
 	//We need to validate that the curent player is allowed to make a pick for the draft
 	//they are on. We then need to make that pick at the draft that they are on
 	//Get the player, draft id and the pick
@@ -97,7 +97,7 @@ func (h *Handler) HandlerPickRequest(c echo.Context) error {
 	return h.renderPickPage(c, draftId, userUuid, "", pickError, false)
 }
 
-func (h *Handler) renderPickPage(c echo.Context, draftId int, userUuid uuid.UUID, username string, pickError error, includeWrapper bool) error {
+func (h *Handler) renderPickPage(c *echo.Context, draftId int, userUuid uuid.UUID, username string, pickError error, includeWrapper bool) error {
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
@@ -171,7 +171,7 @@ func (h *Handler) newUpgrader() *websocket.Upgrader {
 }
 
 // PickNotifier upgrades the HTTP connection to a WebSocket and streams live pick updates.
-func (h *Handler) PickNotifier(c echo.Context) error {
+func (h *Handler) PickNotifier(c *echo.Context) error {
 	ctx := c.Request().Context()
 
 	upgrader := h.newUpgrader()
@@ -276,7 +276,7 @@ func (h *Handler) PickNotifier(c echo.Context) error {
 }
 
 // HandleSkipPickToggle toggles whether the current player's pick should be skipped.
-func (h *Handler) HandleSkipPickToggle(c echo.Context) error {
+func (h *Handler) HandleSkipPickToggle(c *echo.Context) error {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err

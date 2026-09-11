@@ -5,14 +5,14 @@ import (
 	"strconv"
 
 	"github.com/a-h/templ"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"server/log"
 	"server/model"
 	"server/view"
 )
 
-func (h *Handler) HandleViewHome(c echo.Context) error {
+func (h *Handler) HandleViewHome(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func (h *Handler) HandleViewHome(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleViewDraftList(c echo.Context) error {
+func (h *Handler) HandleViewDraftList(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"server/background"
 	"server/draft"
@@ -367,7 +367,7 @@ var commands = map[string]Command{
 
 // ---------------- Handler Funcs --------------------------
 
-func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
+func (h *Handler) HandleAdminConsoleGet(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to render admin console")
 
 	_, username, err := h.requireUser(c)
@@ -384,7 +384,7 @@ func (h *Handler) HandleAdminConsoleGet(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleRunCommand(c echo.Context) error {
+func (h *Handler) HandleRunCommand(c *echo.Context) error {
 	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err

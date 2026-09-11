@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -45,7 +45,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		e.HTTPErrorHandler(echo.NewHTTPError(http.StatusNotFound), c)
+		e.HTTPErrorHandler(c, echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound)))
 
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 		body := rec.Body.String()
@@ -63,7 +63,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		e.HTTPErrorHandler(echo.NewHTTPError(http.StatusForbidden, "nope"), c)
+		e.HTTPErrorHandler(c, echo.NewHTTPError(http.StatusForbidden, "nope"))
 
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 		body := rec.Body.String()
@@ -80,7 +80,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		e.HTTPErrorHandler(errors.New("database exploded"), c)
+		e.HTTPErrorHandler(c, errors.New("database exploded"))
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		body := rec.Body.String()
@@ -97,7 +97,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		e.HTTPErrorHandler(echo.NewHTTPError(http.StatusTeapot, "i'm a teapot"), c)
+		e.HTTPErrorHandler(c, echo.NewHTTPError(http.StatusTeapot, "i'm a teapot"))
 
 		assert.Equal(t, http.StatusTeapot, rec.Code)
 		body := rec.Body.String()
@@ -122,7 +122,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		c := e.NewContext(req, rec)
 		c.Set(string(authentication.UserUuidKey), userUuid)
 
-		e.HTTPErrorHandler(echo.NewHTTPError(http.StatusNotFound), c)
+		e.HTTPErrorHandler(c, echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound)))
 
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 		body := rec.Body.String()
@@ -141,7 +141,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		c.Response().WriteHeader(http.StatusOK)
 		c.Response().Write([]byte("already written")) //nolint:errcheck
 
-		e.HTTPErrorHandler(echo.NewHTTPError(http.StatusInternalServerError), c)
+		e.HTTPErrorHandler(c, echo.NewHTTPError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)))
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "already written")
@@ -235,7 +235,7 @@ func TestCacheControlMiddleware(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := cacheControlMiddleware(func(c echo.Context) error {
+	handler := cacheControlMiddleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

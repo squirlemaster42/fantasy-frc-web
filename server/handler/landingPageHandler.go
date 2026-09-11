@@ -7,10 +7,10 @@ import (
 	"server/view"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool) {
+func (h *Handler) getAuthenticatedUser(c *echo.Context) (uuid.UUID, string, bool) {
 	userTok, err := c.Cookie(authentication.SessionCookieName)
 	if err != nil {
 		return uuid.UUID{}, "", false
@@ -31,7 +31,7 @@ func (h *Handler) getAuthenticatedUser(c echo.Context) (uuid.UUID, string, bool)
 	return userUuid, username, true
 }
 
-func (h *Handler) HandleViewLanding(c echo.Context) error {
+func (h *Handler) HandleViewLanding(c *echo.Context) error {
 	_, username, fromProtected := h.getAuthenticatedUser(c)
 	landing := view.Landing(fromProtected, username)
 	err := Render(c, landing)

@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +16,7 @@ func TestSecurityHeaders(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := SecurityHeaders(false)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -37,7 +37,7 @@ func TestSecurityHeaders_Secure(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := SecurityHeaders(true)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -53,7 +53,7 @@ func TestSecurityHeaders_PresentWhenHandlerErrors(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := SecurityHeaders(false)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "boom")
 	})
 

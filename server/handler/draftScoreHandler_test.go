@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	"server/cache"
@@ -15,8 +16,7 @@ import (
 func TestHandleDraftScore(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/draftScore", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -49,8 +49,10 @@ func TestHandleDraftScore(t *testing.T) {
 func TestHandleDraftTeamScore(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/team/254", "", "test-session")
-		c.SetParamNames("id", "teamNumber")
-		c.SetParamValues("42", "254")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "42"},
+			{Name: "teamNumber", Value: "254"},
+		})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)

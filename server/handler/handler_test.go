@@ -8,14 +8,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	modelmocks "server/model/mocks"
 )
 
-func setupTestContext(t *testing.T, method string, target string, body string, cookieValue string) (*echo.Echo, echo.Context, *httptest.ResponseRecorder) {
+func setupTestContext(t *testing.T, method string, target string, body string, cookieValue string) (*echo.Echo, *echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	var req *http.Request
 	if body != "" {
@@ -33,10 +33,9 @@ func setupTestContext(t *testing.T, method string, target string, body string, c
 }
 
 // invokeErrorHandler runs the Echo error handler for an error. This helper
-// exists because the handler signature changes in Echo v5 and every call site
-// will need to be updated together.
-func invokeErrorHandler(e *echo.Echo, err error, c echo.Context) {
-	e.HTTPErrorHandler(err, c)
+// centralizes the Echo v5 signature swap so call sites stay stable.
+func invokeErrorHandler(e *echo.Echo, err error, c *echo.Context) {
+	e.HTTPErrorHandler(c, err)
 }
 
 func TestRequireUserUuid_MissingUuidRedirects(t *testing.T) {

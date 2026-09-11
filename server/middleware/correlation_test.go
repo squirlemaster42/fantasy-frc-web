@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	"server/log"
@@ -19,7 +19,7 @@ func TestCorrelationID_UsesExistingHeader(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := CorrelationID()
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -36,7 +36,7 @@ func TestCorrelationID_GeneratesNewIdWhenMissing(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := CorrelationID()
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

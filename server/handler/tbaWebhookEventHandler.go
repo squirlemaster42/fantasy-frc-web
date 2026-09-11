@@ -16,7 +16,7 @@ import (
 	"server/utils"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type TbaWebsocketEvent struct {
@@ -35,9 +35,9 @@ func validMAC(message []byte, messageMAC string, key []byte) bool {
 	return hmac.Equal(messageMACBytes, expectedMAC)
 }
 
-func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
+func (h *Handler) ConsumeTbaWebhook(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Received webhook message")
-	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, TbaWebhookMaxBodyBytes())
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, TbaWebhookMaxBodyBytes())
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		var maxBytesErr *http.MaxBytesError

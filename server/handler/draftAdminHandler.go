@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func renderAdminMessage(c echo.Context, message string, success bool) error {
+func renderAdminMessage(c *echo.Context, message string, success bool) error {
 	if err := Render(c, draftView.AdminMessage(message, success)); err != nil {
 		log.Error(c.Request().Context(), "Failed to render admin message", "error", err)
 		return err
@@ -24,7 +24,7 @@ func renderAdminMessage(c echo.Context, message string, success bool) error {
 }
 
 // HandleDraftAdminGet renders the draft admin page for the draft owner.
-func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
+func (h *Handler) HandleDraftAdminGet(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve draft admin page")
 
 	userUuid, username, err := h.requireUser(c)
@@ -61,7 +61,7 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 }
 
 // HandleAdminEndDraft ends the draft by skipping all remaining picks (owner only).
-func (h *Handler) HandleAdminEndDraft(c echo.Context) error {
+func (h *Handler) HandleAdminEndDraft(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to end draft")
 
 	userUuid, err := h.requireUserUuid(c)
@@ -108,7 +108,7 @@ func (h *Handler) HandleAdminEndDraft(c echo.Context) error {
 }
 
 // HandleAdminSkipPick skips the current pick in the draft (owner only).
-func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
+func (h *Handler) HandleAdminSkipPick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to skip pick")
 
 	userUuid, err := h.requireUserUuid(c)
@@ -149,7 +149,7 @@ func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 }
 
 // HandleAdminExtendTime extends the expiration time for the current pick.
-func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
+func (h *Handler) HandleAdminExtendTime(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to extend pick time")
 
 	userUuid, err := h.requireUserUuid(c)
@@ -210,7 +210,7 @@ func (h *Handler) HandleAdminExtendTime(c echo.Context) error {
 }
 
 // HandleAdminMakePick allows the draft owner to make a pick on behalf of the current player.
-func (h *Handler) HandleAdminMakePick(c echo.Context) error {
+func (h *Handler) HandleAdminMakePick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to make admin pick")
 
 	userUuid, err := h.requireUserUuid(c)
@@ -275,7 +275,7 @@ func (h *Handler) HandleAdminMakePick(c echo.Context) error {
 }
 
 // HandleAdminUndoPick undoes the last pick made in the draft.
-func (h *Handler) HandleAdminUndoPick(c echo.Context) error {
+func (h *Handler) HandleAdminUndoPick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to undo pick")
 
 	userUuid, err := h.requireUserUuid(c)

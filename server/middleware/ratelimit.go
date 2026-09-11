@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -66,7 +66,7 @@ func (r *RateLimiter) RateLimitRegister() echo.MiddlewareFunc {
 func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc {
 	window := rateLimitGeneralWindow
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			// Skip safe methods (page loads, WebSocket upgrades)
 			method := c.Request().Method
 			if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
@@ -104,7 +104,7 @@ func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc
 
 func (r *RateLimiter) rateLimitMiddleware(prefix string, limit int64, window time.Duration) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			ip := c.RealIP()
 			key := fmt.Sprintf("%s:%s", prefix, ip)
 			allowed, _, err := r.checkLimit(c.Request().Context(), key, limit, window)

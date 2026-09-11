@@ -5,18 +5,18 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"server/draft"
 	"server/log"
 	draftView "server/view/draft"
 )
 
-func (h *Handler) HandleViewInvites(c echo.Context) error {
+func (h *Handler) HandleViewInvites(c *echo.Context) error {
 	return renderInviteTable(h, c, false, "", true)
 }
 
-func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
+func renderInviteTable(h *Handler, c *echo.Context, hasError bool, errorMessage string, includeWrapper bool) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func renderInviteTable(h *Handler, c echo.Context, hasError bool, errorMessage s
 	return nil
 }
 
-func (h *Handler) HandleAcceptInvite(c echo.Context) error {
+func (h *Handler) HandleAcceptInvite(c *echo.Context) error {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func (h *Handler) HandleAcceptInvite(c echo.Context) error {
 	return renderInviteTable(h, c, false, "", false)
 }
 
-func (h *Handler) HandleDeclineInvite(c echo.Context) error {
+func (h *Handler) HandleDeclineInvite(c *echo.Context) error {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err

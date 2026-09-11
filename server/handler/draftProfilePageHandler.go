@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // HandleViewDraftProfile renders the draft profile page for the given draft ID.
-func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
+func (h *Handler) HandleViewDraftProfile(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
 	userUuid, username, err := h.requireUser(c)
@@ -51,7 +51,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 }
 
 // HandleUpdateDraftProfile updates the draft profile fields (name, description, interval, times, webhook).
-func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
+func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to update a draft")
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -111,7 +111,7 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 }
 
 // SearchPlayers searches for users to invite to a draft and returns the results as HTML.
-func (h *Handler) SearchPlayers(c echo.Context) error {
+func (h *Handler) SearchPlayers(c *echo.Context) error {
 	currentUrl := c.Request().Header.Get(htmxCurrentUrlHeader)
 	if currentUrl == "" {
 		log.Warn(c.Request().Context(), "Missing Hx-Current-Url header")
@@ -153,7 +153,7 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 }
 
 // InviteDraftPlayer invites a user to join the draft.
-func (h *Handler) InviteDraftPlayer(c echo.Context) error {
+func (h *Handler) InviteDraftPlayer(c *echo.Context) error {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err
@@ -224,7 +224,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 }
 
 // HandleStartDraft transitions the draft from FILLING to PICKING after validating the player count.
-func (h *Handler) HandleStartDraft(c echo.Context) error {
+func (h *Handler) HandleStartDraft(c *echo.Context) error {
 	draftIdStr := c.Param("id")
 	log.Debug(c.Request().Context(), "Got a request to start a draft", "draftId", draftIdStr)
 	requestingUser, err := h.requireUserUuid(c)
@@ -234,7 +234,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not parse draftId", "draftIdString", draftIdStr, "error", err)
-		c.Response().Status = http.StatusBadRequest
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			"Draft Id is not a number",
@@ -247,7 +247,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Could not load draft", "draftId", draftId, "error", err)
-		c.Response().Status = http.StatusBadRequest
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false, h.csrfToken(c))
 		return Render(c, page)
 	}
@@ -255,14 +255,14 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	if draftModel.Owner.UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "draftId", draftId, "userUuid", requestingUser)
-		c.Response().Status = http.StatusUnauthorized
+		setResponseStatus(c, http.StatusUnauthorized)
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false, h.csrfToken(c))
 		return Render(c, page)
 	}
 
 	if !model.CanStartDraft(draftModel) {
 		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId)
-		c.Response().Status = http.StatusBadRequest
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers),
@@ -299,7 +299,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 }
 
 // HandleUninvitePlayer removes a pending invite from the draft.
-func (h *Handler) HandleUninvitePlayer(c echo.Context) error {
+func (h *Handler) HandleUninvitePlayer(c *echo.Context) error {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err

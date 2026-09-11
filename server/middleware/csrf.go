@@ -11,7 +11,7 @@ import (
 	"server/authentication"
 	"server/log"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type csrfContextKey string
@@ -44,7 +44,7 @@ func (c *CSRFMiddleware) GenerateToken(sessionToken string) string {
 // and stores the expected token in the Echo context for handlers to use.
 func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(ctx echo.Context) error {
+		return func(ctx *echo.Context) error {
 			method := ctx.Request().Method
 			path := ctx.Request().URL.Path
 
@@ -102,7 +102,7 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 
 // GenerateCSRFCookie creates a double-submit CSRF cookie for unauthenticated forms
 // (login/register). It returns the token to embed in the form.
-func GenerateCSRFCookie(c echo.Context) (string, error) {
+func GenerateCSRFCookie(c *echo.Context) (string, error) {
 	// Check if cookie already exists
 	existing, err := c.Cookie(CsrfCookieName)
 	if err == nil && existing.Value != "" {
@@ -129,7 +129,7 @@ func GenerateCSRFCookie(c echo.Context) (string, error) {
 }
 
 // ValidateCSRFCookie checks the double-submit CSRF token for unauthenticated forms.
-func ValidateCSRFCookie(c echo.Context) bool {
+func ValidateCSRFCookie(c *echo.Context) bool {
 	submitted := c.FormValue(CsrfTokenFieldName)
 	if submitted == "" {
 		return false

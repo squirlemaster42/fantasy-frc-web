@@ -244,8 +244,13 @@ func main() {
 		AllowedOrigin:    allowedOrigin,
 	})
 
+	httpServer := &http.Server{
+		Addr:    ":" + serverPort,
+		Handler: app,
+	}
+
 	go func() {
-		err := app.Start(":" + serverPort)
+		err := httpServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			assert.NoError(ctx, err, "Failed to start server")
 		}
@@ -266,7 +271,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), ServerShutdownTimeout())
 	defer shutdownCancel()
 
-	if err := app.Shutdown(shutdownCtx); err != nil {
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Warn(ctx, "Failed to shutdown server gracefully", "error", err)
 	}
 	if err := otelShutdown(shutdownCtx); err != nil {

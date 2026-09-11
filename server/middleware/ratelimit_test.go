@@ -8,7 +8,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,7 +49,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -63,7 +63,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -88,7 +88,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -102,7 +102,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -125,7 +125,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -148,7 +148,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -171,7 +171,7 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -184,7 +184,7 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 
-	handler = middleware(func(c echo.Context) error {
+	handler = middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -210,7 +210,7 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -224,7 +224,7 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	c = e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
 
-	handler = middleware(func(c echo.Context) error {
+	handler = middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -251,7 +251,7 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 		c := e.NewContext(req, rec)
 		c.Set("userUuid", userUuid)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -277,7 +277,7 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

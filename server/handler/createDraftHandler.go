@@ -8,10 +8,10 @@ import (
 	"server/types"
 	draftView "server/view/draft"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
+func (h *Handler) HandleViewCreateDraft(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to serve the create draft page")
 
 	_, username, err := h.requireUser(c)
@@ -31,7 +31,7 @@ func (h *Handler) HandleViewCreateDraft(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleCreateDraftPost(c echo.Context) error {
+func (h *Handler) HandleCreateDraftPost(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to create a draft")
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")

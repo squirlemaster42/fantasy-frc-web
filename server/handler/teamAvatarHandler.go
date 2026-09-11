@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) GetTeamAvatar(c echo.Context) error {
+func (h *Handler) GetTeamAvatar(c *echo.Context) error {
 	teamNum, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "id must be a valid team number")

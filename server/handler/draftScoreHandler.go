@@ -13,10 +13,10 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleDraftScore(c echo.Context) error {
+func (h *Handler) HandleDraftScore(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (h *Handler) HandleDraftScore(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleDraftTeamScore(c echo.Context) error {
+func (h *Handler) HandleDraftTeamScore(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err

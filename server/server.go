@@ -17,11 +17,10 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	echomiddleware "github.com/labstack/echo/v4/middleware"
+	echootel "github.com/labstack/echo-opentelemetry"
+	"github.com/labstack/echo/v5"
+	echomiddleware "github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	//nolint:staticcheck // The recommended replacement (github.com/labstack/echo-opentelemetry) tracks Echo v5; this project is on Echo v4.
-	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 type ServerConfig struct {
@@ -51,8 +50,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		log.Info(ctx, "IP extractor configured for direct access (no proxy)")
 	}
 
-	// Custom HTTP error handler: renders templ error pages for 404/403/500
-	app.HTTPErrorHandler = newHTTPErrorHandler(cfg)
+	// Custom HTTP error handler: renders templ error pages for 404/403/500.
+	// Wrap it with metrics so failing handlers are recorded with their final status.
+	app.HTTPErrorHandler = metrics.WrapHTTPErrorHandler(newHTTPErrorHandler(cfg))
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer(otelServiceName)
@@ -84,7 +84,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	//app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
-	app.Use(otelecho.Middleware(otelServiceName))
+	app.Use(echootel.NewMiddleware(otelServiceName))
 	app.Use(metrics.MetricsMiddleware())
 	app.Use(middleware.SecurityHeaders(cfg.Handler.Config.SecureHttpCookie))
 
@@ -131,7 +131,7 @@ func registerPublicRoutes(app *echo.Echo, cfg ServerConfig, auth *authentication
 
 func registerSystemRoutes(app *echo.Echo, cfg ServerConfig, metricAuth *authentication.MetricAuth) {
 	app.GET("/metrics", echo.WrapHandler(promhttp.Handler()), metricAuth.MetricsAuthMiddleware())
-	app.GET("/healthz", func(c echo.Context) error {
+	app.GET("/healthz", func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 }
@@ -182,14 +182,16 @@ func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
 // templ error pages for 4xx/5xx responses while preserving auth context for the
 // navbar and footer.
 func newHTTPErrorHandler(cfg ServerConfig) echo.HTTPErrorHandler {
-	return func(err error, c echo.Context) {
-		if c.Response().Committed {
+	return func(c *echo.Context, err error) {
+		if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil && resp.Committed {
 			return
 		}
 
 		code := http.StatusInternalServerError
 		if he, ok := err.(*echo.HTTPError); ok {
 			code = he.Code
+		} else if statusCode := echo.StatusCode(err); statusCode != 0 {
+			code = statusCode
 		}
 
 		// Log appropriately based on severity
@@ -237,13 +239,13 @@ func newHTTPErrorHandler(cfg ServerConfig) echo.HTTPErrorHandler {
 }
 
 func registerCatchAll(app *echo.Echo) {
-	app.Any("/*", func(c echo.Context) error {
-		return echo.NewHTTPError(http.StatusNotFound)
+	app.Any("/*", func(c *echo.Context) error {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	})
 }
 
 func cacheControlMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		c.Response().Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", StaticAssetMaxAgeSeconds()))
 		return next(c)
 	}

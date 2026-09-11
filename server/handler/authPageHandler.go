@@ -9,10 +9,10 @@ import (
 	"server/view/login"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleViewLogin(c echo.Context) error {
+func (h *Handler) HandleViewLogin(c *echo.Context) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
@@ -23,7 +23,7 @@ func (h *Handler) HandleViewLogin(c echo.Context) error {
 	return Render(c, loginPage)
 }
 
-func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
+func (h *Handler) setSessionCookie(c *echo.Context, sessionToken string) {
 	cookie := new(http.Cookie)
 	cookie.Name = authentication.SessionCookieName
 	cookie.Value = sessionToken
@@ -34,13 +34,13 @@ func (h *Handler) setSessionCookie(c echo.Context, sessionToken string) {
 	c.SetCookie(cookie)
 }
 
-func (h *Handler) setSessionAndRedirect(c echo.Context, userUuid uuid.UUID, sessionToken string) error {
+func (h *Handler) setSessionAndRedirect(c *echo.Context, userUuid uuid.UUID, sessionToken string) error {
 	h.setSessionCookie(c, sessionToken)
 	c.Response().Header().Set("HX-Redirect", "/u/home")
 	return nil
 }
 
-func (h *Handler) HandleLoginPost(c echo.Context) error {
+func (h *Handler) HandleLoginPost(c *echo.Context) error {
 	if !middleware.ValidateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on login", "ip", c.RealIP())
 		return h.renderLoginWithError(c, "Invalid request. Please try again.")
@@ -70,7 +70,7 @@ func (h *Handler) HandleLoginPost(c echo.Context) error {
 	return h.setSessionAndRedirect(c, userUuid, sessionToken)
 }
 
-func (h *Handler) HandleLogoutPost(c echo.Context) error {
+func (h *Handler) HandleLogoutPost(c *echo.Context) error {
 	var userUuidStr string
 	if userUuid, ok := c.Get("userUuid").(uuid.UUID); ok {
 		userUuidStr = userUuid.String()
@@ -95,7 +95,7 @@ func (h *Handler) HandleLogoutPost(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) renderRegisterWithError(c echo.Context, message string) error {
+func (h *Handler) renderRegisterWithError(c *echo.Context, message string) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
@@ -105,7 +105,7 @@ func (h *Handler) renderRegisterWithError(c echo.Context, message string) error 
 	return Render(c, register)
 }
 
-func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
+func (h *Handler) renderLoginWithError(c *echo.Context, message string) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
@@ -115,7 +115,7 @@ func (h *Handler) renderLoginWithError(c echo.Context, message string) error {
 	return Render(c, loginPage)
 }
 
-func (h *Handler) HandleViewRegister(c echo.Context) error {
+func (h *Handler) HandleViewRegister(c *echo.Context) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
@@ -126,7 +126,7 @@ func (h *Handler) HandleViewRegister(c echo.Context) error {
 	return Render(c, registerPage)
 }
 
-func (h *Handler) HandlerRegisterPost(c echo.Context) error {
+func (h *Handler) HandlerRegisterPost(c *echo.Context) error {
 	if !middleware.ValidateCSRFCookie(c) {
 		log.Warn(c.Request().Context(), "CSRF validation failed on register", "ip", c.RealIP())
 		return h.renderRegisterWithError(c, "Invalid request. Please try again.")

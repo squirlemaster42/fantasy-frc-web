@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +38,7 @@ func TestCSRF_SkipsLoginAndRegister(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -58,7 +58,7 @@ func TestCSRF_SetsTokenCookieForSafeMethods(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -90,7 +90,7 @@ func TestCSRF_SafeMethodsSkipValidation(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
@@ -109,7 +109,7 @@ func TestCSRF_RejectsMissingSessionToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -129,7 +129,7 @@ func TestCSRF_RejectsInvalidTokenFromForm(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -152,7 +152,7 @@ func TestCSRF_AcceptsValidTokenFromForm(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -175,7 +175,7 @@ func TestCSRF_AcceptsValidTokenFromHeader(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -197,7 +197,7 @@ func TestCSRF_StoresExpectedTokenInContext(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	var contextToken string
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		contextToken = c.Get(string(CsrfTokenKey)).(string)
 		return c.String(http.StatusOK, "ok")
 	})

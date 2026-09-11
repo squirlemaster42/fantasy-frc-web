@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -30,8 +30,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			"test-session",
 		)
 
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -78,8 +77,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			"test-session",
 		)
 
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -114,8 +112,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			"test-session",
 		)
 
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -286,8 +283,7 @@ func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
 		"test-session",
 	)
 
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	c.Set("userUuid", userUuid)
@@ -354,8 +350,7 @@ func TestHandleStartDraft_InvalidDraftId(t *testing.T) {
 		"test-session",
 	)
 
-	c.SetParamNames("id")
-	c.SetParamValues("abc")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	c.Set("userUuid", userUuid)
@@ -378,8 +373,7 @@ func TestHandleStartDraft_DraftLoadError(t *testing.T) {
 		"test-session",
 	)
 
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	c.Set("userUuid", userUuid)
@@ -416,8 +410,7 @@ func TestHandleStartDraft_NonOwner(t *testing.T) {
 		"test-session",
 	)
 
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
@@ -463,8 +456,7 @@ func TestHandleStartDraft_NotStartable(t *testing.T) {
 		"test-session",
 	)
 
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
 
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	c.Set("userUuid", userUuid)

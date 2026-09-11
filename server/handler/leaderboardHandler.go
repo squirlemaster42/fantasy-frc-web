@@ -9,10 +9,10 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleOverallLeaderboard(c echo.Context) error {
+func (h *Handler) HandleOverallLeaderboard(c *echo.Context) error {
 	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err

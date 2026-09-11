@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -24,8 +24,7 @@ import (
 func TestServePickPage(t *testing.T) {
 	t.Run("invalid draft id", func(t *testing.T) {
 		_, c, _ := setupTestContext(t, http.MethodGet, "/u/draft/abc/pick", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -55,8 +54,7 @@ func TestHandleSkipPickToggle(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -85,8 +83,7 @@ func TestHandleSkipPickToggle(t *testing.T) {
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -126,8 +123,7 @@ func startWebsocketServer(t *testing.T, h *Handler, draftId string, userUuid uui
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		e := echo.New()
 		c := e.NewContext(r, w)
-		c.SetParamNames("id")
-		c.SetParamValues(draftId)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: draftId}})
 		c.Set("userUuid", userUuid)
 		_ = h.PickNotifier(c)
 	}))

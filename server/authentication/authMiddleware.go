@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type contextKey string
@@ -31,7 +31,7 @@ func NewAuth(authService AuthService, userStore model.UserStore) *Authenticator 
 }
 
 func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		//Grab the cookie from the session
 		userTok, err := c.Cookie(SessionCookieName)
 		if err != nil {
@@ -59,7 +59,7 @@ func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func (a *Authenticator) RedirectIfAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		userTok, err := c.Cookie(SessionCookieName)
 		if err != nil {
 			return next(c)
@@ -79,7 +79,7 @@ func (a *Authenticator) RedirectIfAuthenticated(next echo.HandlerFunc) echo.Hand
 }
 
 func (a *Authenticator) CheckAdmin(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
+	return func(c *echo.Context) error {
 		userUuidVal := c.Get(string(UserUuidKey))
 		if userUuidVal == nil {
 			log.Warn(c.Request().Context(), "Could not get user uuid from context trying to reach admin page", "ip", c.RealIP(), "path", c.Request().URL.Path)
@@ -124,7 +124,7 @@ func NewMetricAuth(secret string) *MetricAuth {
 
 func (m *MetricAuth) MetricsAuthMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			auth := c.Request().Header.Get("Authorization")
 
 			if auth == "" {

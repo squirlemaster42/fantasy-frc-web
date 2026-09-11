@@ -14,10 +14,10 @@ import (
 	"server/view/userProfile"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleViewUserProfile(c echo.Context) error {
+func (h *Handler) HandleViewUserProfile(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (h *Handler) HandleViewUserProfile(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
+func (h *Handler) HandleUpdateUserProfile(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (h *Handler) HandleUpdateUserProfile(c echo.Context) error {
 	return h.renderAccountCard(c, ctx, username, discordId, drafts, preferences, "Discord ID updated successfully", "success")
 }
 
-func (h *Handler) HandleUpdateUserPassword(c echo.Context) error {
+func (h *Handler) HandleUpdateUserPassword(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (h *Handler) HandleUpdateUserPassword(c echo.Context) error {
 	return renderPasswordCard("Password updated successfully", "success")
 }
 
-func (h *Handler) HandleUpdateUserNotificationPreferences(c echo.Context) error {
+func (h *Handler) HandleUpdateUserNotificationPreferences(c *echo.Context) error {
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -208,7 +208,7 @@ func (h *Handler) loadUserNotificationSettings(ctx context.Context, userUuid uui
 	return drafts, preferences, nil
 }
 
-func (h *Handler) renderAccountCard(c echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
+func (h *Handler) renderAccountCard(c *echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
 	card := userprofile.AccountCard(
 		userprofile.ProfileData{
 			Username:           username,
@@ -228,7 +228,7 @@ func (h *Handler) renderAccountCard(c echo.Context, ctx context.Context, usernam
 	return nil
 }
 
-func (h *Handler) renderPasswordCard(c echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
+func (h *Handler) renderPasswordCard(c *echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
 	card := userprofile.PasswordCard(
 		userprofile.ProfileData{
 			Username:           username,
@@ -248,7 +248,7 @@ func (h *Handler) renderPasswordCard(c echo.Context, ctx context.Context, userna
 	return nil
 }
 
-func (h *Handler) renderNotificationsCard(c echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
+func (h *Handler) renderNotificationsCard(c *echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
 	card := userprofile.NotificationsCard(
 		userprofile.ProfileData{
 			Username:                username,

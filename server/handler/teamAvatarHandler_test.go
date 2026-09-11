@@ -5,15 +5,14 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTeamAvatar(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/team/254/avatar", "", "")
-		c.SetParamNames("id")
-		c.SetParamValues("254")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "254"}})
 
 		avatarBytes := []byte("fake-png-bytes")
 		mockStore := &mockAvatarStore{avatar: avatarBytes}
@@ -34,8 +33,7 @@ func TestGetTeamAvatar(t *testing.T) {
 
 	t.Run("invalid team number", func(t *testing.T) {
 		e, c, rec := setupTestContext(t, http.MethodGet, "/u/team/abc/avatar", "", "")
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		h := &Handler{
 			Services: ServiceGroup{
@@ -52,8 +50,7 @@ func TestGetTeamAvatar(t *testing.T) {
 
 	t.Run("avatar store error", func(t *testing.T) {
 		e, c, rec := setupTestContext(t, http.MethodGet, "/u/team/254/avatar", "", "")
-		c.SetParamNames("id")
-		c.SetParamValues("254")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "254"}})
 
 		mockStore := &mockAvatarStore{err: errors.New("redis unavailable")}
 

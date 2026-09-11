@@ -14,7 +14,7 @@ import (
 	"server/tbaHandler"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type StorageGroup struct {
@@ -50,7 +50,7 @@ type Handler struct {
 	Config   ConfigGroup
 }
 
-func (h *Handler) csrfToken(c echo.Context) string {
+func (h *Handler) csrfToken(c *echo.Context) string {
 	tok, _ := c.Get("csrfToken").(string)
 	return tok
 }
@@ -60,7 +60,7 @@ func (h *Handler) csrfToken(c echo.Context) string {
 // handler skips rendering because the response is already committed.
 var errLoginRequired = errors.New("login required")
 
-func (h *Handler) getAuthenticatedUsername(c echo.Context, userUuid uuid.UUID) (string, error) {
+func (h *Handler) getAuthenticatedUsername(c *echo.Context, userUuid uuid.UUID) (string, error) {
 	username, err := h.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get username", "error", err)
@@ -72,7 +72,7 @@ func (h *Handler) getAuthenticatedUsername(c echo.Context, userUuid uuid.UUID) (
 // requireUserUuid returns the authenticated user's UUID from the Echo context.
 // If the UUID is missing or has the wrong type, it writes a redirect to /login
 // and returns errLoginRequired.
-func (h *Handler) requireUserUuid(c echo.Context) (uuid.UUID, error) {
+func (h *Handler) requireUserUuid(c *echo.Context) (uuid.UUID, error) {
 	userUuidVal := c.Get("userUuid")
 	if userUuidVal == nil {
 		log.Warn(c.Request().Context(), "Missing user uuid in context", "ip", c.RealIP(), "path", c.Request().URL.Path)
@@ -91,7 +91,7 @@ func (h *Handler) requireUserUuid(c echo.Context) (uuid.UUID, error) {
 // requireUser returns the authenticated user's UUID and username.
 // If the UUID is missing or has the wrong type, it redirects to /login.
 // If the username lookup fails, it returns an internal server error.
-func (h *Handler) requireUser(c echo.Context) (uuid.UUID, string, error) {
+func (h *Handler) requireUser(c *echo.Context) (uuid.UUID, string, error) {
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return uuid.UUID{}, "", err

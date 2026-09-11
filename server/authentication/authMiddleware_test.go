@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	authmocks "server/authentication/mocks"
@@ -34,7 +34,7 @@ func TestAuthenticate_NoSessionCookie(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := auth.Authenticate(func(c echo.Context) error {
+	handler := auth.Authenticate(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -57,7 +57,7 @@ func TestAuthenticate_InvalidSession(t *testing.T) {
 
 	mockAuthService.On("ValidateSession", c.Request().Context(), "invalid-token").Return(uuid.UUID{}, ErrInvalidCredentials)
 
-	handler := auth.Authenticate(func(c echo.Context) error {
+	handler := auth.Authenticate(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -84,7 +84,7 @@ func TestAuthenticate_ValidSession(t *testing.T) {
 	mockAuthService.On("ValidateSession", c.Request().Context(), "valid-token").Return(userUuid, nil)
 
 	var contextUuid uuid.UUID
-	handler := auth.Authenticate(func(c echo.Context) error {
+	handler := auth.Authenticate(func(c *echo.Context) error {
 		contextUuid = c.Get(string(UserUuidKey)).(uuid.UUID)
 		return c.String(http.StatusOK, "ok")
 	})
@@ -109,7 +109,7 @@ func TestAuthenticate_ValidateSessionError(t *testing.T) {
 
 	mockAuthService.On("ValidateSession", c.Request().Context(), "token").Return(uuid.UUID{}, errors.New("db error"))
 
-	handler := auth.Authenticate(func(c echo.Context) error {
+	handler := auth.Authenticate(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -130,7 +130,7 @@ func TestCheckAdmin_NoUserUuid(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := auth.CheckAdmin(func(c echo.Context) error {
+	handler := auth.CheckAdmin(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -156,7 +156,7 @@ func TestCheckAdmin_UserIsAdmin(t *testing.T) {
 	mockUserStore.On("UserIsAdmin", c.Request().Context(), userUuid).Return(true, nil)
 
 	var isAdmin bool
-	handler := auth.CheckAdmin(func(c echo.Context) error {
+	handler := auth.CheckAdmin(func(c *echo.Context) error {
 		isAdmin = c.Get(string(IsAdminKey)).(bool)
 		return c.String(http.StatusOK, "ok")
 	})
@@ -183,7 +183,7 @@ func TestCheckAdmin_UserIsNotAdmin(t *testing.T) {
 
 	mockUserStore.On("UserIsAdmin", c.Request().Context(), userUuid).Return(false, nil)
 
-	handler := auth.CheckAdmin(func(c echo.Context) error {
+	handler := auth.CheckAdmin(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -209,7 +209,7 @@ func TestCheckAdmin_UserIsAdminError(t *testing.T) {
 
 	mockUserStore.On("UserIsAdmin", c.Request().Context(), userUuid).Return(false, errors.New("db error"))
 
-	handler := auth.CheckAdmin(func(c echo.Context) error {
+	handler := auth.CheckAdmin(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -230,7 +230,7 @@ func TestRedirectIfAuthenticated_NoSessionCookie(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+	handler := auth.RedirectIfAuthenticated(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -252,7 +252,7 @@ func TestRedirectIfAuthenticated_InvalidSession(t *testing.T) {
 
 	mockAuthService.On("ValidateSession", c.Request().Context(), "invalid-token").Return(uuid.UUID{}, ErrInvalidCredentials)
 
-	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+	handler := auth.RedirectIfAuthenticated(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -277,7 +277,7 @@ func TestRedirectIfAuthenticated_ValidSession(t *testing.T) {
 
 	mockAuthService.On("ValidateSession", c.Request().Context(), "valid-token").Return(userUuid, nil)
 
-	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+	handler := auth.RedirectIfAuthenticated(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -301,7 +301,7 @@ func TestRedirectIfAuthenticated_ValidateSessionError(t *testing.T) {
 
 	mockAuthService.On("ValidateSession", c.Request().Context(), "token").Return(uuid.UUID{}, errors.New("db error"))
 
-	handler := auth.RedirectIfAuthenticated(func(c echo.Context) error {
+	handler := auth.RedirectIfAuthenticated(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -326,7 +326,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MissingHeader(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -345,7 +345,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MalformedHeader(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -364,7 +364,7 @@ func TestMetricAuth_MetricsAuthMiddleware_InvalidToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -383,7 +383,7 @@ func TestMetricAuth_MetricsAuthMiddleware_ValidToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

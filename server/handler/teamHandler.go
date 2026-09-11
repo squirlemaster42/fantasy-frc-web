@@ -8,10 +8,10 @@ import (
 	"server/view/team"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleTeamScore(c echo.Context) error {
+func (h *Handler) HandleTeamScore(c *echo.Context) error {
 	_, username, err := h.requireUser(c)
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (h *Handler) HandleTeamScore(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleGetTeamScore(c echo.Context) error {
+func (h *Handler) HandleGetTeamScore(c *echo.Context) error {
 	teamNumber := c.FormValue("teamNumber")
 	log.Debug(c.Request().Context(), "Getting score for team", "teamNumber", teamNumber)
 
