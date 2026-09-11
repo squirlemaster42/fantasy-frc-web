@@ -52,58 +52,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	}
 
 	// Custom HTTP error handler: renders templ error pages for 404/403/500
-	app.HTTPErrorHandler = func(err error, c echo.Context) {
-		if c.Response().Committed {
-			return
-		}
-
-		code := http.StatusInternalServerError
-		if he, ok := err.(*echo.HTTPError); ok {
-			code = he.Code
-		}
-
-		// Log appropriately based on severity
-		switch {
-		case code >= 500:
-			log.Error(c.Request().Context(), "HTTP error", "code", code, "error", err)
-		case code >= 400:
-			log.Warn(c.Request().Context(), "HTTP error", "code", code, "error", err)
-		}
-
-		// Determine auth context for consistent navbar/footer rendering
-		fromProtected := false
-		username := ""
-        pageData := types.NewPageData(0, "", false)
-		if userUuidVal := c.Get(string(authentication.UserUuidKey)); userUuidVal != nil {
-			if userUuid, ok := userUuidVal.(uuid.UUID); ok {
-				fromProtected = true
-				name, err := cfg.Handler.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
-				if err == nil {
-					username = name
-				}
-			}
-		}
-
-		// Select appropriate error page template
-		var page templ.Component
-		switch code {
-		case http.StatusNotFound:
-			page = errorpage.NotFound404("Page Not Found", fromProtected, username, pageData)
-		case http.StatusForbidden:
-			page = errorpage.Forbidden403("Access Denied", fromProtected, username, pageData)
-		case http.StatusInternalServerError:
-			page = errorpage.ServerError500("Server Error", fromProtected, username, pageData)
-		default:
-			// For other status codes, fall back to a generic error page
-			page = errorpage.ServerError500("Error", fromProtected, username, pageData)
-		}
-
-		// Render the templ component; if rendering itself fails, fall back to plain text
-		if renderErr := handler.RenderError(c, code, page); renderErr != nil {
-			log.Error(c.Request().Context(), "Failed to render error page", "error", renderErr)
-			_ = c.String(code, http.StatusText(code))
-		}
-	}
+	app.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
 	// Initialize OpenTelemetry
 	shutdown := otel.InitTracer(otelServiceName)
@@ -227,6 +176,64 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
 	admin.POST("/processCommand", cfg.Handler.HandleRunCommand)
+}
+
+// newHTTPErrorHandler returns the custom Echo HTTP error handler that renders
+// templ error pages for 4xx/5xx responses while preserving auth context for the
+// navbar and footer.
+func newHTTPErrorHandler(cfg ServerConfig) echo.HTTPErrorHandler {
+	return func(err error, c echo.Context) {
+		if c.Response().Committed {
+			return
+		}
+
+		code := http.StatusInternalServerError
+		if he, ok := err.(*echo.HTTPError); ok {
+			code = he.Code
+		}
+
+		// Log appropriately based on severity
+		switch {
+		case code >= 500:
+			log.Error(c.Request().Context(), "HTTP error", "code", code, "error", err)
+		case code >= 400:
+			log.Warn(c.Request().Context(), "HTTP error", "code", code, "error", err)
+		}
+
+		// Determine auth context for consistent navbar/footer rendering
+		fromProtected := false
+		username := ""
+		pageData := types.NewPageData(0, "", false)
+		if userUuidVal := c.Get(string(authentication.UserUuidKey)); userUuidVal != nil {
+			if userUuid, ok := userUuidVal.(uuid.UUID); ok {
+				fromProtected = true
+				name, err := cfg.Handler.Stores.UserStore.GetUsername(c.Request().Context(), userUuid)
+				if err == nil {
+					username = name
+				}
+			}
+		}
+
+		// Select appropriate error page template
+		var page templ.Component
+		switch code {
+		case http.StatusNotFound:
+			page = errorpage.NotFound404("Page Not Found", fromProtected, username, pageData)
+		case http.StatusForbidden:
+			page = errorpage.Forbidden403("Access Denied", fromProtected, username, pageData)
+		case http.StatusInternalServerError:
+			page = errorpage.ServerError500("Server Error", fromProtected, username, pageData)
+		default:
+			// For other status codes, fall back to a generic error page
+			page = errorpage.ServerError500("Error", fromProtected, username, pageData)
+		}
+
+		// Render the templ component; if rendering itself fails, fall back to plain text
+		if renderErr := handler.RenderError(c, code, page); renderErr != nil {
+			log.Error(c.Request().Context(), "Failed to render error page", "error", renderErr)
+			_ = c.String(code, http.StatusText(code))
+		}
+	}
 }
 
 func registerCatchAll(app *echo.Echo) {

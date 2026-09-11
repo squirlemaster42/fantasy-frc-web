@@ -45,7 +45,7 @@ func TestGetTeamAvatar(t *testing.T) {
 
 		err := h.GetTeamAvatar(c)
 		if assert.Error(t, err) {
-			e.HTTPErrorHandler(err, c)
+			invokeErrorHandler(e, err, c)
 		}
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
@@ -65,7 +65,7 @@ func TestGetTeamAvatar(t *testing.T) {
 
 		err := h.GetTeamAvatar(c)
 		if assert.Error(t, err) {
-			e.HTTPErrorHandler(err, c)
+			invokeErrorHandler(e, err, c)
 		}
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})

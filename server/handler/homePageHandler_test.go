@@ -168,7 +168,7 @@ func TestHandleViewDraftList(t *testing.T) {
 
 		err := h.HandleViewDraftList(c)
 		if assert.Error(t, err) {
-			e.HTTPErrorHandler(err, c)
+			invokeErrorHandler(e, err, c)
 		}
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
