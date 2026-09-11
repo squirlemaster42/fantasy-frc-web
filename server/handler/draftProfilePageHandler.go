@@ -21,6 +21,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 
 	userUuid, username, err := h.requireUser(c)
 	if err != nil {
+		log.Warn(c.Request().Context(), "Did not have required player", "Error", err)
 		return err
 	}
 

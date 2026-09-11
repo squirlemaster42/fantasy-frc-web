@@ -84,18 +84,16 @@ templ DraftSearchNoResults(searchTerm string) {
 }
 
 templ DraftList(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, searchTerm string) {
-    for i, draft := range drafts {
-        if i == len(drafts) - 1 {
-            <div
-                hx-get={fmt.Sprintf("/u/draftList?page=%d&search=%s", pageNumber + 1, url.QueryEscape(searchTerm))}
-                hx-trigger="intersect once"
-                hx-swap="afterend"
-            >
-                @DraftCard(draft, userUuid)
-            </div>
-        } else {
-            @DraftCard(draft, userUuid)
-        }
+    for _, draft := range drafts {
+        @DraftCard(draft, userUuid)
+    }
+    if len(drafts) > 0 {
+        <div
+            class="col-span-full h-4"
+            hx-get={fmt.Sprintf("/u/draftList?page=%d&search=%s", pageNumber + 1, url.QueryEscape(searchTerm))}
+            hx-trigger="intersect once"
+            hx-swap="outerHTML"
+        ></div>
     }
 }
 

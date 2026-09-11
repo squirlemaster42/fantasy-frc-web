@@ -20,6 +20,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	//nolint:staticcheck // The recommended replacement (github.com/labstack/echo-opentelemetry) tracks Echo v5; this project is on Echo v4.
 	otelecho "go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 

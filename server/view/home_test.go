@@ -188,6 +188,54 @@ func TestDraftList_DoesNotShowEmptySearchMessage(t *testing.T) {
 	assert.NotContains(t, htmlStr, "No Drafts Found")
 }
 
+func TestDraftList_InfiniteScrollSentinelIsSeparate(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	drafts := []model.DraftModel{
+		{
+			Id:          1,
+			DisplayName: "First Draft",
+			Status:      model.FILLING,
+			Owner:       model.User{UserUuid: userUuid, Username: "owner"},
+		},
+		{
+			Id:          2,
+			DisplayName: "Last Draft",
+			Status:      model.FILLING,
+			Owner:       model.User{UserUuid: userUuid, Username: "owner"},
+		},
+	}
+
+	var buf strings.Builder
+	err := DraftList(drafts, userUuid, 0, "").Render(context.Background(), &buf)
+	require.NoError(t, err)
+
+	htmlStr := buf.String()
+	doc, err := html.Parse(strings.NewReader(htmlStr))
+	require.NoError(t, err)
+
+	t.Run("no afterend swap on wrapper", func(t *testing.T) {
+		assert.NotContains(t, htmlStr, `hx-swap="afterend"`)
+	})
+
+	t.Run("separate outerHTML sentinel exists", func(t *testing.T) {
+		sentinel := findElementByAttr(doc, "div", "class", "col-span-full h-4")
+		require.NotNil(t, sentinel)
+		assert.Contains(t, getAttr(sentinel, "hx-get"), "/u/draftList?page=1")
+		assert.Equal(t, "outerHTML", getAttr(sentinel, "hx-swap"))
+		assert.Equal(t, "intersect once", getAttr(sentinel, "hx-trigger"))
+	})
+
+	t.Run("last draft card is not inside sentinel", func(t *testing.T) {
+		sentinel := findElementByAttr(doc, "div", "class", "col-span-full h-4")
+		require.NotNil(t, sentinel)
+		lastOpenLink := findElementByAttr(doc, "a", "href", "/u/draft/2/profile")
+		require.NotNil(t, lastOpenLink)
+		for n := lastOpenLink.Parent; n != nil; n = n.Parent {
+			assert.NotEqual(t, sentinel, n, "last draft card link should not be inside the infinite-scroll sentinel")
+		}
+	})
+}
+
 func TestHome_PageWrapper(t *testing.T) {
 	var buf strings.Builder
 	err := Home("Home", true, "testuser", HomeIndex([]model.DraftModel{}, uuid.New())).Render(context.Background(), &buf)
