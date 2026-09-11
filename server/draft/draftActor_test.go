@@ -91,6 +91,14 @@ func mockRunInTransaction(mockStore *mocks.MockDraftStore) {
 	}).Return(nil).Once()
 }
 
+func mockRunInTransactionTimes(mockStore *mocks.MockDraftStore, times int) {
+	mockStore.On("WithTx", mock.Anything).Return(mockStore).Maybe()
+	mockStore.On("RunInTransaction", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		fn := args.Get(1).(func(database.DBTX) error)
+		_ = fn(nil)
+	}).Return(nil).Times(times)
+}
+
 func TestDraftActorMap_GetActor_CachesActor(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
@@ -251,6 +259,91 @@ func TestDraftActorMap_SkipCurrentPick_DoesNotSkipPastEndOfDraft(t *testing.T) {
 
 	mockStore.AssertNotCalled(t, "RunInTransaction", mock.Anything, mock.Anything)
 	mockStore.AssertNotCalled(t, "SkipPick", mock.Anything, pickId)
+	mockStore.AssertExpectations(t)
+}
+
+func TestDraftActorMap_EndDraft(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+
+	// Two accepted players; 14 of 16 pick rows exist, leaving 3 remaining picks.
+	players := []model.DraftPlayer{
+		{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		{Id: 2, PlayerOrder: sql.NullInt16{Int16: 1, Valid: true}},
+	}
+
+	// Snake pattern: 1 p1, 2 p2, 3 p2, 4 p1, ...
+	initialPicks := make([]model.Pick, 14)
+	for i := range initialPicks {
+		switch (i + 1) % 4 {
+		case 1, 0:
+			initialPicks[i] = model.Pick{Id: i + 1, Player: 1}
+		case 2, 3:
+			initialPicks[i] = model.Pick{Id: i + 1, Player: 2}
+		}
+	}
+
+	afterSkip14Picks := append(initialPicks, model.Pick{Id: 15, Player: 2})
+	afterSkip15Picks := append(afterSkip14Picks, model.Pick{Id: 16, Player: 1})
+
+	// Initial state: pick 14 is current.
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: 14, Player: 2},
+		Picks:       initialPicks,
+		Players:     players,
+	}, nil).Once()
+
+	// Three skips remaining, each in its own transaction.
+	mockRunInTransactionTimes(mockStore, 3)
+
+	// Skip pick 14 -> create pick 15 for player 2.
+	mockStore.On("SkipPick", mock.Anything, 14).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 2, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+	// Reload after skipping pick 14: pick 15 is current.
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: 15, Player: 2},
+		Picks:       afterSkip14Picks,
+		Players:     players,
+	}, nil).Once()
+
+	// Skip pick 15 -> create pick 16 for player 1.
+	mockStore.On("SkipPick", mock.Anything, 15).Return(nil).Once()
+	mockStore.On("MakePickAvailable", mock.Anything, 1, mock.Anything, mock.Anything).Return(0, nil).Once()
+
+	// Reload after skipping pick 15: pick 16 is current.
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: 16, Player: 1},
+		Picks:       afterSkip15Picks,
+		Players:     players,
+	}, nil).Once()
+
+	// Skip pick 16 -> draft is complete.
+	mockStore.On("SkipPick", mock.Anything, 16).Return(nil).Once()
+	mockStore.On("UpdateDraftStatus", mock.Anything, draftId, model.TEAMS_PLAYING).Return(nil).Once()
+
+	// Reload after the final skip (used by publishPickOutcome).
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.TEAMS_PLAYING,
+		CurrentPick: model.Pick{Id: 16, Player: 1},
+		Picks:       afterSkip15Picks,
+		Players:     players,
+	}, nil).Once()
+
+	actorMap := newTestActorMap(t, mockStore, nil, nil, nil, nil)
+	draftActor, err := actorMap.GetActor(t.Context(), draftId)
+	assert.NoError(t, err)
+
+	ended := EndDraft(t.Context(), draftActor, draftId)
+	assert.True(t, ended)
+	assert.Equal(t, model.TEAMS_PLAYING, draftActor.GetDraftState().Status)
 	mockStore.AssertExpectations(t)
 }
 

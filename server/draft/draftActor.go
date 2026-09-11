@@ -35,6 +35,8 @@ type SkipCurrentPickMessage struct {
 	CurrentPickId int
 }
 
+type EndDraftMessage struct{}
+
 type UndoLastPickMessage struct {
 	CurrentPickId int
 }
@@ -275,6 +277,8 @@ func (d *DraftActor) handleMessage(message Message) Result {
 		return d.handleShutdown(message.context, msg)
 	case SkipCurrentPickMessage:
 		return d.handleSkipCurrentPick(message.context, msg)
+	case EndDraftMessage:
+		return d.handleEndDraft(message.context, msg)
 	case UndoLastPickMessage:
 		return d.handleUndoLastPick(message.context, msg)
 	case UpdateDraftProfileMessage:
@@ -775,6 +779,30 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 		}
 	}
 
+	return Result{Value: true}
+}
+
+func (d *DraftActor) handleEndDraft(ctx context.Context, msg EndDraftMessage) Result {
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "End draft request rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+		}
+	}
+
+	for d.draftState.Status == model.PICKING {
+		result := d.handleSkipCurrentPick(ctx, SkipCurrentPickMessage{CurrentPickId: d.draftState.CurrentPick.Id})
+		if result.Error != nil {
+			log.Error(ctx, "Failed to skip pick while ending draft", "draftId", d.draftState.Id, "error", result.Error)
+			return result
+		}
+		if !result.Value.(bool) {
+			log.Warn(ctx, "Skip returned false while ending draft", "draftId", d.draftState.Id)
+			return Result{Error: errors.New("failed to skip pick while ending draft")}
+		}
+	}
+
+	log.Info(ctx, "Draft ended", "draftId", d.draftState.Id)
 	return Result{Value: true}
 }
 

@@ -60,6 +60,53 @@ func (h *Handler) HandleDraftAdminGet(c echo.Context) error {
 	return nil
 }
 
+// HandleAdminEndDraft ends the draft by skipping all remaining picks (owner only).
+func (h *Handler) HandleAdminEndDraft(c echo.Context) error {
+	log.Debug(c.Request().Context(), "Got request to end draft")
+
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
+		return renderAdminMessage(c, "Invalid draft ID", false)
+	}
+
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Draft not found for end draft", "userUuid", userUuid, "draftId", draftId, "error", err)
+		return renderAdminMessage(c, "Draft not found", false)
+	}
+
+	if draftModel.Owner.UserUuid != userUuid {
+		log.Warn(c.Request().Context(), "Non-owner attempted to end draft", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
+		return renderAdminMessage(c, "Permission denied", false)
+	}
+
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
+		return renderAdminMessage(c, "Draft not found", false)
+	}
+
+	ended := draft.EndDraft(c.Request().Context(), draftActor, draftId)
+	if !ended {
+		log.Warn(c.Request().Context(), "Failed to end draft", "draftId", draftId)
+		return renderAdminMessage(c, "Failed to end draft", false)
+	}
+
+	if h.Services.DraftDaemon != nil {
+		if err := h.Services.DraftDaemon.RemoveDraft(c.Request().Context(), draftId); err != nil {
+			log.Warn(c.Request().Context(), "Failed to remove draft from daemon", "draftId", draftId, "error", err)
+		}
+	}
+
+	return renderAdminMessage(c, "Draft ended and remaining picks skipped", true)
+}
+
 // HandleAdminSkipPick skips the current pick in the draft (owner only).
 func (h *Handler) HandleAdminSkipPick(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to skip pick")

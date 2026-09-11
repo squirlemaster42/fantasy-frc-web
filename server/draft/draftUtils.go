@@ -45,6 +45,34 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 	return skipped
 }
 
+func EndDraft(ctx context.Context, draftActor *DraftActor, draftId int) bool {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: EndDraftMessage{},
+		Reply:   replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post end draft message to draft actor", "draftId", draftId, "error", err)
+		return false
+	}
+	select {
+	case result := <-message.Reply:
+		if result.Error != nil || !result.Value.(bool) {
+			if result.Error != nil {
+				log.Error(ctx, "Ending draft failed", "draftId", draftId, "error", result.Error)
+			} else {
+				log.Warn(ctx, "Ending draft returned false", "draftId", draftId)
+			}
+			return false
+		}
+		return true
+	case <-time.After(DraftActorRequestTimeout()):
+		log.Warn(ctx, "Ending draft timed out", "draftId", draftId)
+		return false
+	}
+}
+
 func ModifyCurrentPickExpirationTime(ctx context.Context, draftActor *DraftActor, extension time.Duration) error {
 	replyChan := make(chan Result)
 	message := Message{

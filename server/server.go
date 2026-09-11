@@ -205,6 +205,7 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.GET("/draft/:id/draftScore", cfg.Handler.HandleDraftScore)
 	protected.GET("/draft/:id/team/:teamNumber", cfg.Handler.HandleDraftTeamScore)
 	protected.GET("/draft/:id/admin", cfg.Handler.HandleDraftAdminGet)
+	protected.POST("/draft/:id/admin/endDraft", cfg.Handler.HandleAdminEndDraft)
 	protected.POST("/draft/:id/admin/skipPick", cfg.Handler.HandleAdminSkipPick)
 	protected.POST("/draft/:id/admin/extendTime", cfg.Handler.HandleAdminExtendTime)
 	protected.POST("/draft/:id/admin/makePick", cfg.Handler.HandleAdminMakePick)
