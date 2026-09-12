@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-The Fantasy FRC Web application is a **traditional web application** that uses **HTML templates with form submissions**, not a REST API. The application serves HTML pages and processes form data using standard HTTP patterns.
+The Fantasy FRC Web application is a **traditional web application** that uses **HTML templates with form submissions**. The application serves HTML pages and processes form data using standard HTTP patterns.
 
 ### Key Architectural Patterns
 - **Server-Side Rendering**: HTML templates rendered on the server using Templ
