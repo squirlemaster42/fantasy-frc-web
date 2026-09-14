@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
+	"uuid"
 
 	"server/database"
-
-	"uuid"
 )
 
 type SQLDraftStore struct {
@@ -30,13 +30,16 @@ func (s *SQLDraftStore) RunInTransaction(ctx context.Context, fn func(db databas
 	}
 	tx, err := sqlDB.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	if err := fn(tx); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
 
 func (s *SQLDraftStore) WithTx(tx database.DBTX) DraftStore {

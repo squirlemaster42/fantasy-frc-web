@@ -19,9 +19,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getDB(t *testing.T) *sql.DB {
+	t.Helper()
 	err := godotenv.Load(filepath.Join("../", ".env"))
 	if err != nil {
 		t.Skipf("Skipping test: failed to load .env file %v", err)
@@ -57,20 +59,20 @@ func TestDBStatsCollector(t *testing.T) {
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
 
 	_, err := db.ExecContext(context.Background(), "SELECT 1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	handler.ServeHTTP(rec, req)
 
 	output := rec.Body.String()
 
-	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
+	assert.Contains(t, output, "go_sql_in_use_connections",
 		"go_sql_in_use_connections metric should be present")
-	assert.True(t, strings.Contains(output, "go_sql_idle_connections"),
+	assert.Contains(t, output, "go_sql_idle_connections",
 		"go_sql_idle_connections metric should be present")
-	assert.True(t, strings.Contains(output, "go_sql_max_open_connections"),
+	assert.Contains(t, output, "go_sql_max_open_connections",
 		"go_sql_max_open_connections metric should be present")
 
 	t.Log("DBStatsCollector metrics are being collected correctly")
@@ -85,18 +87,18 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 
 	for range 3 {
 		_, err := db.ExecContext(context.Background(), "SELECT 1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	handler.ServeHTTP(rec, req)
 
 	output := rec.Body.String()
 	fmt.Printf("Metrics output sample:\n%s\n", strings.Split(output, "\n")[0:10])
 
-	assert.True(t, strings.Contains(output, "go_sql_in_use_connections"),
+	assert.Contains(t, output, "go_sql_in_use_connections",
 		"DB connection metrics should be trackable")
 }
 
@@ -105,14 +107,14 @@ func TestOTelDBStatsMetrics(t *testing.T) {
 	defer func() { _ = db.Close() }()
 
 	reg, err := otelsql.RegisterDBStatsMetrics(db)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() {
-		assert.NoError(t, reg.Unregister())
+		require.NoError(t, reg.Unregister())
 	}()
 
 	// Trigger some DB activity so stats are non-trivial
 	_, err = db.ExecContext(context.Background(), "SELECT 1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Log("OTel DB stats metrics registered successfully")
 }
@@ -147,15 +149,15 @@ func TestRecordAuthenticatedRequest(t *testing.T) {
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	handler.ServeHTTP(rec, req)
 
 	output := rec.Body.String()
-	assert.True(t, strings.Contains(output, "authenticated_requests_total"),
+	assert.Contains(t, output, "authenticated_requests_total",
 		"authenticated_requests_total metric should be present")
-	assert.True(t, strings.Contains(output, `method="GET"`),
+	assert.Contains(t, output, `method="GET"`,
 		"GET method label should be present")
-	assert.True(t, strings.Contains(output, `route="/u/home"`),
+	assert.Contains(t, output, `route="/u/home"`,
 		"/u/home route label should be present")
 }
 
@@ -169,12 +171,12 @@ func TestWebSocketListenerGauge(t *testing.T) {
 
 	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	handler.ServeHTTP(rec, req)
 
 	output := rec.Body.String()
-	assert.True(t, strings.Contains(output, "websocket_listeners_active"),
+	assert.Contains(t, output, "websocket_listeners_active",
 		"websocket_listeners_active metric should be present")
-	assert.True(t, strings.Contains(output, " 1"),
+	assert.Contains(t, output, " 1",
 		"gauge value should be 1 after 2 increments and 1 decrement")
 }

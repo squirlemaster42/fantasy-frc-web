@@ -47,8 +47,8 @@ func usernameTaken(ctx context.Context, db *sql.DB, username string) (bool, erro
 	var count int
 	err = stmt.QueryRowContext(ctx, username).Scan(&count)
 	if err != nil {
-		return false, err
-	}
+		return false, fmt.Errorf("failed to scan usernameTaken row: %w", err)
+}
 	return count > 0, nil
 }
 
@@ -121,8 +121,8 @@ func getPasswordHashByUsername(ctx context.Context, db *sql.DB, username string)
 	var passwordHash string
 	err = stmt.QueryRowContext(ctx, username).Scan(&passwordHash)
 	if err != nil {
-		return "", err
-	}
+		return "", fmt.Errorf("failed to scan getPasswordHashByUsername row: %w", err)
+}
 	return passwordHash, nil
 }
 
@@ -211,7 +211,7 @@ func userIsAdmin(ctx context.Context, db *sql.DB, userUuid uuid.UUID) (bool, err
 }
 
 func updateSessionExpiration(ctx context.Context, db *sql.DB, userUuid uuid.UUID, sessionToken string) error {
-	//We want to make sure we only update the session token that the user logged in with
+	// We want to make sure we only update the session token that the user logged in with
 	query := `Update UserSessions Set expirationTime = now()::timestamptz + make_interval(days => $3) Where userUuid = $1 And sessionToken = $2;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
@@ -229,7 +229,7 @@ func updateSessionExpiration(ctx context.Context, db *sql.DB, userUuid uuid.UUID
 
 // Check if the session token is in the database and that it is not expired
 func validateSessionToken(ctx context.Context, db *sql.DB, sessionToken string) (bool, error) {
-	//I think <= is fine, it probably doesn't matter though
+	// I think <= is fine, it probably doesn't matter though
 	query := `Select Count(*) From UserSessions Where sessionToken = $1 and now()::timestamptz <= expirationTime;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
@@ -324,7 +324,7 @@ func searchUsers(ctx context.Context, db *sql.DB, searchString string, draftId i
 		userRows, err = stmt.QueryContext(ctx, draftId)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query searchUsers: %w", err)
 	}
 	defer database.CloseRows(ctx, userRows, "SearchUsers")
 
@@ -337,8 +337,8 @@ func searchUsers(ctx context.Context, db *sql.DB, searchString string, draftId i
 		err = userRows.Scan(&userUuid, &username)
 
 		if err != nil {
-			return nil, err
-		}
+			return nil, fmt.Errorf("failed to scan searchUsers rows: %w", err)
+	}
 
 		user := User{
 			UserUuid: userUuid,
@@ -346,6 +346,10 @@ func searchUsers(ctx context.Context, db *sql.DB, searchString string, draftId i
 		}
 
 		users = append(users, user)
+	}
+
+	if err := userRows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate searchUsers rows: %w", err)
 	}
 
 	return users, nil

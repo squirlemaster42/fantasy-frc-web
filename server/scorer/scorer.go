@@ -61,7 +61,11 @@ func (s *Scorer) scoreMatch(ctx context.Context, match swagger.Match, rescore bo
 	}
 	scoredMatch.RedAlliance = match.Alliances.Red.TeamKeys
 	scoredMatch.BlueAlliance = match.Alliances.Blue.TeamKeys
-	scoredMatch.DqedTeams = append(match.Alliances.Red.DqTeamKeys, match.Alliances.Red.SurrogateTeamKeys...)
+	scoredMatch.DqedTeams = make([]string, 0,
+		len(match.Alliances.Red.DqTeamKeys)+len(match.Alliances.Red.SurrogateTeamKeys)+
+			len(match.Alliances.Blue.DqTeamKeys)+len(match.Alliances.Blue.SurrogateTeamKeys))
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Red.DqTeamKeys...)
+	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Red.SurrogateTeamKeys...)
 	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.DqTeamKeys...)
 	scoredMatch.DqedTeams = append(scoredMatch.DqedTeams, match.Alliances.Blue.SurrogateTeamKeys...)
 
@@ -234,14 +238,14 @@ func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger
 }
 
 func (s *Scorer) RunScorer(ctx context.Context) <-chan struct{} {
-	//This function will run on its own routine
-	//We will first update our list of teams with all of the teams at all of the events in getChampEvents
-	//We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
-	//We then score each match that this team has played and has not already been scored
-	//We choose the matches to score from the picks table
-	//Periodically we will want to rescore everything to ensure that we account for replays
-	//We will will have this process run every five minutes and we will rescore all matches every 6 hours
-	//In this iteration we also update the valid teams
+	// This function will run on its own routine
+	// We will first update our list of teams with all of the teams at all of the events in getChampEvents
+	// We do not need to account for Einstein since all of the teams on Einstein will have been in a previous champ event
+	// We then score each match that this team has played and has not already been scored
+	// We choose the matches to score from the picks table
+	// Periodically we will want to rescore everything to ensure that we account for replays
+	// We will will have this process run every five minutes and we will rescore all matches every 6 hours
+	// In this iteration we also update the valid teams
 
 	done := make(chan struct{})
 	go func() {
@@ -292,7 +296,7 @@ func (s *Scorer) scoringRunner(ctx context.Context) {
 		}
 	}
 
-	//Update alliance selection scores
+	// Update alliance selection scores
 	for _, event := range utils.Events() {
 		if event == utils.Einstein() {
 			continue

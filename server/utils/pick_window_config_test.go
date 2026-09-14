@@ -24,7 +24,7 @@ func TestLoadPickWindowConfigFromFile_Defaults(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read the raw config so the test stays valid when pick_time changes.
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) //nolint:gosec // test reads back its own temp file
 	require.NoError(t, err)
 
 	var rawCfg struct {
@@ -56,7 +56,7 @@ func TestLoadPickWindowConfigFromFile_CustomValues(t *testing.T) {
 			"Saturday":  {"start_hour": 9, "end_hour": 21}
 		}
 	}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 
 	cfg, err := LoadPickWindowConfigFromFile(path)
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestLoadPickWindowConfigFromEnv_UsesEnvPath(t *testing.T) {
 			"Saturday":  {"start_hour": 10, "end_hour": 20}
 		}
 	}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 	t.Setenv("PICK_WINDOWS_CONFIG_FILE", path)
 
 	cfg, err := LoadPickWindowConfigFromEnv()
@@ -107,10 +107,10 @@ func TestLoadPickWindowConfigFromFile_InvalidPickTime(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "pick-windows.json")
 	content := `{"pick_time": "not-a-duration", "windows": {}}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 
 	_, err := LoadPickWindowConfigFromFile(path)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLoadPickWindowConfigFromFile_InvalidWeekday(t *testing.T) {
@@ -122,10 +122,10 @@ func TestLoadPickWindowConfigFromFile_InvalidWeekday(t *testing.T) {
 			"Someday": {"start_hour": 8, "end_hour": 22}
 		}
 	}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 
 	_, err := LoadPickWindowConfigFromFile(path)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLoadPickWindowConfigFromFile_InvalidHourRange(t *testing.T) {
@@ -137,10 +137,10 @@ func TestLoadPickWindowConfigFromFile_InvalidHourRange(t *testing.T) {
 			"Sunday": {"start_hour": 22, "end_hour": 8}
 		}
 	}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 
 	_, err := LoadPickWindowConfigFromFile(path)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLoadPickWindowConfigFromFile_MissingWeekday(t *testing.T) {
@@ -152,10 +152,10 @@ func TestLoadPickWindowConfigFromFile_MissingWeekday(t *testing.T) {
 			"Sunday": {"start_hour": 8, "end_hour": 22}
 		}
 	}`
-	require.NoError(t, os.WriteFile(path, []byte(content), 0644))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
 
 	_, err := LoadPickWindowConfigFromFile(path)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestPickWindowConfig_GetPickExpirationTime(t *testing.T) {

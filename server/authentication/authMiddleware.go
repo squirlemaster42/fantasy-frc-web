@@ -32,7 +32,7 @@ func NewAuth(authService AuthService, userStore model.UserStore) *Authenticator 
 
 func (a *Authenticator) Authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		//Grab the cookie from the session
+		// Grab the cookie from the session
 		userTok, err := c.Cookie(SessionCookieName)
 		if err != nil {
 			log.Debug(c.Request().Context(), "No session token for protected route", "ip", c.RealIP(), "path", c.Request().URL.Path, "method", c.Request().Method)

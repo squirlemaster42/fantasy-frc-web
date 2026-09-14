@@ -3,8 +3,17 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"uuid"
+
+	"github.com/a-h/templ"
+	echootel "github.com/labstack/echo-opentelemetry"
+	"github.com/labstack/echo/v5"
+	echomiddleware "github.com/labstack/echo/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -14,13 +23,6 @@ import (
 	"server/otel"
 	"server/types"
 	"server/view/errorpage"
-
-	"github.com/a-h/templ"
-	"uuid"
-	echootel "github.com/labstack/echo-opentelemetry"
-	"github.com/labstack/echo/v5"
-	echomiddleware "github.com/labstack/echo/v5/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type ServerConfig struct {
@@ -82,7 +84,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		cacheControlMiddleware,
 	)
 
-	//app.Use(echomiddleware.Recover())
+	// app.Use(echomiddleware.Recover())
 	app.Use(middleware.CorrelationID())
 	app.Use(echootel.NewMiddleware(otelServiceName))
 	app.Use(metrics.MetricsMiddleware())
@@ -102,7 +104,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 		registerPostMiddleware = append(registerPostMiddleware, rateLimiter.RateLimitRegister())
 	}
 
-	//Setup Routes
+	// Setup Routes
 	registerPublicRoutes(app, cfg, auth, loginPostMiddleware, registerPostMiddleware)
 
 	metricAuth := authentication.NewMetricAuth(cfg.MetricSecret)
@@ -188,7 +190,8 @@ func newHTTPErrorHandler(cfg ServerConfig) echo.HTTPErrorHandler {
 		}
 
 		code := http.StatusInternalServerError
-		if he, ok := err.(*echo.HTTPError); ok {
+		var he *echo.HTTPError
+		if errors.As(err, &he) {
 			code = he.Code
 		} else if statusCode := echo.StatusCode(err); statusCode != 0 {
 			code = statusCode

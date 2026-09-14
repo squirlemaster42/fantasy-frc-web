@@ -7,6 +7,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model/mocks"
 )
@@ -22,7 +23,7 @@ func TestRequireUser_Success(t *testing.T) {
 	h := &Handler{Stores: StorageGroup{UserStore: mockUserStore}}
 
 	returnedUuid, username, err := h.requireUser(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userUuid, returnedUuid)
 	assert.Equal(t, "testuser", username)
 }
@@ -33,7 +34,7 @@ func TestRequireUser_MissingContextRedirectsToLogin(t *testing.T) {
 	h := &Handler{}
 
 	_, _, err := h.requireUser(c)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }
@@ -45,7 +46,7 @@ func TestRequireUser_WrongTypeRedirectsToLogin(t *testing.T) {
 	h := &Handler{}
 
 	_, _, err := h.requireUser(c)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }
@@ -61,7 +62,7 @@ func TestRequireUser_GetUsernameError(t *testing.T) {
 	h := &Handler{Stores: StorageGroup{UserStore: mockUserStore}}
 
 	_, _, err := h.requireUser(c)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestRequireUserUuid_Success(t *testing.T) {
@@ -72,7 +73,7 @@ func TestRequireUserUuid_Success(t *testing.T) {
 	h := &Handler{}
 
 	returnedUuid, err := h.requireUserUuid(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userUuid, returnedUuid)
 }
 
@@ -82,7 +83,7 @@ func TestRequireUserUuid_MissingContextRedirectsToLogin(t *testing.T) {
 	h := &Handler{}
 
 	_, err := h.requireUserUuid(c)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }

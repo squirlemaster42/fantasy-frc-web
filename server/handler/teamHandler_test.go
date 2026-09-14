@@ -6,6 +6,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/cache"
 	"server/model"
@@ -27,7 +28,7 @@ func TestHandleTeamScore(t *testing.T) {
 	}
 
 	err := h.HandleTeamScore(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -49,6 +50,6 @@ func TestHandleGetTeamScore(t *testing.T) {
 	}
 
 	err := h.HandleGetTeamScore(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }

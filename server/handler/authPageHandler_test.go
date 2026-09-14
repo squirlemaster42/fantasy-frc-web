@@ -7,6 +7,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/authentication"
 	authmocks "server/authentication/mocks"
@@ -15,7 +16,7 @@ import (
 func TestHandleLoginPost(t *testing.T) {
 	t.Run("valid login", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		mockAuthService := authmocks.NewMockAuthService(t)
@@ -32,7 +33,7 @@ func TestHandleLoginPost(t *testing.T) {
 		}
 
 		err := h.HandleLoginPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "/u/home", rec.Header().Get("HX-Redirect"))
 
 		cookies := rec.Result().Cookies()
@@ -49,7 +50,7 @@ func TestHandleLoginPost(t *testing.T) {
 
 	t.Run("invalid credentials", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=wrong&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Login", c.Request().Context(), "testuser", "wrong").Return(uuid.UUID{}, "", authentication.ErrInvalidCredentials)
@@ -64,14 +65,14 @@ func TestHandleLoginPost(t *testing.T) {
 		}
 
 		err := h.HandleLoginPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "invalid username or password")
 	})
 
 	t.Run("database error validating login", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/login", "username=testuser&password=secret&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Login", c.Request().Context(), "testuser", "secret").Return(uuid.UUID{}, "", errors.New("connection refused"))
@@ -86,7 +87,7 @@ func TestHandleLoginPost(t *testing.T) {
 		}
 
 		err := h.HandleLoginPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Failed to validate login")
 	})
@@ -106,7 +107,7 @@ func TestHandleLogoutPost(t *testing.T) {
 		}
 
 		err := h.HandleLogoutPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "/login", rec.Header().Get("HX-Redirect"))
 
 		cookies := rec.Result().Cookies()
@@ -125,7 +126,7 @@ func TestHandleLogoutPost(t *testing.T) {
 func TestHandlerRegisterPost(t *testing.T) {
 	t.Run("valid registration", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		mockAuthService := authmocks.NewMockAuthService(t)
@@ -142,7 +143,7 @@ func TestHandlerRegisterPost(t *testing.T) {
 		}
 
 		err := h.HandlerRegisterPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "/u/home", rec.Header().Get("HX-Redirect"))
 
 		cookies := rec.Result().Cookies()
@@ -159,7 +160,7 @@ func TestHandlerRegisterPost(t *testing.T) {
 
 	t.Run("username taken", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=existing&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Register", c.Request().Context(), "existing", "Secret123").Return(uuid.UUID{}, "", authentication.ErrUsernameTaken)
@@ -171,14 +172,14 @@ func TestHandlerRegisterPost(t *testing.T) {
 		}
 
 		err := h.HandlerRegisterPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Username Taken")
 	})
 
 	t.Run("passwords do not match", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Other456&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Register", c.Request().Context(), "newuser", "Secret123").Return(uuid.UUID{}, "", &authentication.ValidationError{Message: "Passwords Do Not Match"})
@@ -190,14 +191,14 @@ func TestHandlerRegisterPost(t *testing.T) {
 		}
 
 		err := h.HandlerRegisterPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Passwords Do Not Match")
 	})
 
 	t.Run("database error checking username", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=newuser&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Register", c.Request().Context(), "newuser", "Secret123").Return(uuid.UUID{}, "", errors.New("connection refused"))
@@ -209,14 +210,14 @@ func TestHandlerRegisterPost(t *testing.T) {
 		}
 
 		err := h.HandlerRegisterPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Failed to create account")
 	})
 
 	t.Run("invalid username", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodPost, "/register", "username=bad%20user&password=Secret123&confirmPassword=Secret123&csrf_token=test-csrf", "")
-		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"})
+		c.Request().AddCookie(&http.Cookie{Name: "csrf_cookie", Value: "test-csrf"}) //nolint:gosec // test cookie
 
 		mockAuthService := authmocks.NewMockAuthService(t)
 		mockAuthService.On("Register", c.Request().Context(), "bad user", "Secret123").Return(uuid.UUID{}, "", &authentication.ValidationError{Message: "Username cannot contain spaces"})
@@ -228,7 +229,7 @@ func TestHandlerRegisterPost(t *testing.T) {
 		}
 
 		err := h.HandlerRegisterPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Username cannot contain spaces")
 	})
@@ -240,7 +241,7 @@ func TestHandleViewLogin(t *testing.T) {
 	h := &Handler{}
 
 	err := h.HandleViewLogin(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
 	assert.Contains(t, body, "<!doctype html>")
@@ -254,7 +255,7 @@ func TestHandleViewRegister(t *testing.T) {
 	h := &Handler{}
 
 	err := h.HandleViewRegister(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	body := rec.Body.String()
 	assert.Contains(t, body, "<!doctype html>")

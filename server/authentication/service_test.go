@@ -16,6 +16,7 @@ import (
 )
 
 func newTestAuthService(t *testing.T) (*authService, *mocks.MockUserStore, PasswordHasher) {
+	t.Helper()
 	hasher, err := NewBcryptPasswordHasher(bcrypt.MinCost)
 	require.NoError(t, err)
 
@@ -58,7 +59,7 @@ func TestAuthService_Login_InvalidCredentials(t *testing.T) {
 	userStore.On("GetPasswordHashByUsername", ctx, "testuser").Return(passwordHash, nil)
 
 	_, _, err = service.Login(ctx, "testuser", "wrongpassword")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
 func TestAuthService_Login_UnknownUsername(t *testing.T) {
@@ -68,7 +69,7 @@ func TestAuthService_Login_UnknownUsername(t *testing.T) {
 	userStore.On("GetPasswordHashByUsername", ctx, "unknown").Return("", sql.ErrNoRows)
 
 	_, _, err := service.Login(ctx, "unknown", "anypassword")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
 func TestAuthService_Register_Success(t *testing.T) {
@@ -94,7 +95,7 @@ func TestAuthService_Register_UsernameTaken(t *testing.T) {
 	userStore.On("UsernameTaken", ctx, "existing").Return(true, nil)
 
 	_, _, err := service.Register(ctx, "existing", "Secret123!")
-	assert.ErrorIs(t, err, ErrUsernameTaken)
+	require.ErrorIs(t, err, ErrUsernameTaken)
 }
 
 func TestAuthService_Register_InvalidUsername(t *testing.T) {
@@ -121,7 +122,7 @@ func TestAuthService_Logout(t *testing.T) {
 
 	userStore.On("UnRegisterSession", ctx, "session-token").Return(nil)
 
-	assert.NoError(t, service.Logout(ctx, "session-token"))
+	require.NoError(t, service.Logout(ctx, "session-token"))
 }
 
 func TestAuthService_ChangePassword_Success(t *testing.T) {
@@ -136,7 +137,7 @@ func TestAuthService_ChangePassword_Success(t *testing.T) {
 	userStore.On("UpdatePassword", ctx, "testuser", mock.AnythingOfType("string")).Return(nil)
 	userStore.On("InvalidateAllUserSessionsExcept", ctx, userUuid, "").Return(nil)
 
-	assert.NoError(t, service.ChangePassword(ctx, userUuid, "testuser", "OldPass123!", "NewPass456!"))
+	require.NoError(t, service.ChangePassword(ctx, userUuid, "testuser", "OldPass123!", "NewPass456!"))
 }
 
 func TestAuthService_ChangePassword_InvalidCurrentPassword(t *testing.T) {
@@ -149,7 +150,7 @@ func TestAuthService_ChangePassword_InvalidCurrentPassword(t *testing.T) {
 	userStore.On("GetPasswordHashByUsername", ctx, "testuser").Return(passwordHash, nil)
 
 	err = service.ChangePassword(ctx, uuid.UUID{}, "testuser", "wrong", "NewPass456!")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
 func TestAuthService_ChangePassword_WeakNewPassword(t *testing.T) {
@@ -182,7 +183,7 @@ func TestAuthService_ValidateSession_Invalid(t *testing.T) {
 	userStore.On("ValidateSessionToken", ctx, "invalid-token").Return(false, nil)
 
 	_, err := service.ValidateSession(ctx, "invalid-token")
-	assert.ErrorIs(t, err, ErrInvalidCredentials)
+	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
 func TestAuthService_InvalidateOtherSessions(t *testing.T) {
@@ -192,7 +193,7 @@ func TestAuthService_InvalidateOtherSessions(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	userStore.On("InvalidateAllUserSessionsExcept", ctx, userUuid, "keep-token").Return(nil)
 
-	assert.NoError(t, service.InvalidateOtherSessions(ctx, userUuid, "keep-token"))
+	require.NoError(t, service.InvalidateOtherSessions(ctx, userUuid, "keep-token"))
 }
 
 func TestValidationError(t *testing.T) {

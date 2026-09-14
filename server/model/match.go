@@ -34,8 +34,8 @@ func addMatch(ctx context.Context, db *sql.DB, tbaId string) error {
 	_, err = stmt.ExecContext(ctx, tbaId, false, 0, 0)
 	if err != nil {
 		log.Error(ctx, "Failed to add match", "matchTbaId", tbaId, "error", err)
-		return err
-	}
+		return fmt.Errorf("failed to execute addMatch: %w", err)
+}
 	return nil
 }
 
@@ -49,8 +49,8 @@ func updateScore(ctx context.Context, db *sql.DB, tbaId string, redScore int, bl
 	_, err = stmt.ExecContext(ctx, true, redScore, blueScore, tbaId)
 	if err != nil {
 		log.Error(ctx, "Failed to update score", "matchTbaId", tbaId, "redScore", redScore, "blueScore", blueScore, "error", err)
-		return err
-	}
+		return fmt.Errorf("failed to execute updateScore: %w", err)
+}
 	return nil
 }
 
@@ -66,7 +66,7 @@ func getMatch(ctx context.Context, db *sql.DB, tbaId string) (*Match, error) {
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&match.TbaId, &match.Played, &match.RedScore, &match.BlueScore)
 	if err != nil {
 		log.Error(ctx, "Failed to get match", "matchTbaId", tbaId, "error", err)
-		return nil, err
-	}
+		return nil, fmt.Errorf("failed to scan getMatch row: %w", err)
+}
 	return &match, nil
 }

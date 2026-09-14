@@ -105,4 +105,8 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		dbQueryCalls.WithLabelValues(queryID).Set(float64(calls))
 		dbQueryRows.WithLabelValues(queryID).Set(float64(rowsCount))
 	}
+
+	if err := rows.Err(); err != nil {
+		log.Error(ctx, "Failed to iterate pg_stat_statements rows", "error", err)
+	}
 }

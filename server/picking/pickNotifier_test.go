@@ -7,6 +7,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model"
 )
@@ -65,7 +66,7 @@ func TestPickNotifier_ReceivePickEvent(t *testing.T) {
 
 	err := pn.ReceivePickEvent(context.Background(), PickEvent{DraftId: 1, Pick: model.Pick{Id: 42}})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	select {
 	case notified := <-watcher.NotifierQueue:
 		assert.True(t, notified)
@@ -79,7 +80,7 @@ func TestPickNotifier_ReceivePickEvent_NoWatchers(t *testing.T) {
 
 	err := pn.ReceivePickEvent(context.Background(), PickEvent{DraftId: 1, Pick: model.Pick{Id: 42}})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestPickNotifier_ReceivePickEvent_SlowWatcherTimeout(t *testing.T) {
@@ -88,20 +89,20 @@ func TestPickNotifier_ReceivePickEvent_SlowWatcherTimeout(t *testing.T) {
 	watcher := pn.RegisterWatcher(1)
 
 	// Fill the channel so the notification blocks
-	for i := 0; i < cap(watcher.NotifierQueue); i++ {
+	for range cap(watcher.NotifierQueue) {
 		watcher.NotifierQueue <- true
 	}
 
 	done := make(chan struct{})
+	var sendErr error
 	go func() {
 		defer close(done)
-		err := pn.ReceivePickEvent(context.Background(), PickEvent{DraftId: 1, Pick: model.Pick{Id: 42}})
-		assert.NoError(t, err)
+		sendErr = pn.ReceivePickEvent(context.Background(), PickEvent{DraftId: 1, Pick: model.Pick{Id: 42}})
 	}()
 
 	select {
 	case <-done:
-		// Expected: the slow watcher times out and the function returns
+		require.NoError(t, sendErr)
 	case <-time.After(10 * time.Second):
 		t.Fatal("expected ReceivePickEvent to return after watcher timeout")
 	}

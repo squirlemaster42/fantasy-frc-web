@@ -68,7 +68,7 @@ func (h *Handler) HandleAcceptInvite(c *echo.Context) error {
 		return renderInviteTable(h, c, true, "An error occurred. Please try again.", false)
 	}
 
-	//Make sure that other players cannot accept someones draft
+	// Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != userUuid {
 		log.Warn(c.Request().Context(), "User attempted to accept invite for another player", "invitedUserUuid", invite.InvitedUserUuid, "userUuid", userUuid)
 		return renderInviteTable(h, c, true, "You are not allowed to accept drafts for other players.", false)

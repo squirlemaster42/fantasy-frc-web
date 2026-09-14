@@ -85,8 +85,8 @@ func TestGetInvite_NotFound_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := store.GetInvite(ctx, -1)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, sql.ErrNoRows)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func TestMakePickAvailableAndGetCurrentPick_Integration(t *testing.T) {
@@ -239,7 +239,7 @@ func TestDeletePick_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = store.GetCurrentPick(ctx, draft.Id)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestResetPick_Integration(t *testing.T) {
@@ -478,7 +478,7 @@ func TestGetDraftPlayerId_NotFound_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := store.GetDraftPlayerId(ctx, draft.Id, uuid.New())
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGetOverallLeaderboard_Integration(t *testing.T) {
@@ -587,7 +587,7 @@ func TestGetOverallLeaderboard_Pagination_Integration(t *testing.T) {
 	assert.Equal(t, 2, page1.PerPage)
 	expectedPages := (expectedTotal + 1) / 2
 	assert.Equal(t, expectedPages, page1.TotalPages)
-	assert.Equal(t, min(2, expectedTotal), len(page1.Entries))
+	assert.Len(t, page1.Entries, min(2, expectedTotal))
 
 	// Last page should have the remainder
 	lastPage, err := store.GetOverallLeaderboard(ctx, expectedPages, 2)
@@ -859,7 +859,7 @@ func TestRunInTransaction_RollsBackOnError_Integration(t *testing.T) {
 		_, err := storeTx.MakePickAvailable(ctx, -1, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
 		return err
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify the pick was NOT recorded because the transaction rolled back
 	loadedDraft, err := store.GetDraft(ctx, draft.Id)
@@ -885,7 +885,7 @@ func TestCreateDraft_RollsBackOnError_Integration(t *testing.T) {
 	}
 
 	_, err := store.CreateDraft(ctx, draft)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify no draft row was left behind.
 	var count int
@@ -927,7 +927,7 @@ func TestAcceptInvite_RollsBackOnError_Integration(t *testing.T) {
 		// Force a foreign-key violation so the transaction rolls back.
 		return storeTx.AddPlayerToDraft(ctx, draftId, uuid.New())
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify the invite is still pending after rollback.
 	var status string

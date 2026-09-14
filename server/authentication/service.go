@@ -233,7 +233,7 @@ func (s *authService) validateCredentials(ctx context.Context, username, passwor
 	}
 
 	if err := s.passwordHasher.Compare(password, passwordHash); err != nil {
-		return false, nil
+		return false, nil //nolint:nilerr // wrong password is reported as false, not an error
 	}
 	return true, nil
 }

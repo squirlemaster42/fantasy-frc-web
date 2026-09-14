@@ -46,8 +46,8 @@ func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, w
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		log.Error(ctx, "Rate limiter Redis error", "error", err)
-		return true, 0, err
-	}
+		return true, 0, fmt.Errorf("failed to execute rate limit pipeline: %w", err)
+}
 	count := incr.Val()
 	if count > limit {
 		return false, count, nil

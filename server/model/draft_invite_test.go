@@ -8,11 +8,12 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCancelInvite_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
@@ -21,13 +22,13 @@ func TestCancelInvite_Success(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = cancelInvite(context.Background(), db, 42)
-	assert.NoError(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`Update DraftInvites Set Status = 'canceled' Where Id = \$1;`).
@@ -36,13 +37,13 @@ func TestCancelInvite_ReturnsErrorOnFailure(t *testing.T) {
 		WillReturnError(sql.ErrConnDone)
 
 	err = cancelInvite(context.Background(), db, 99)
-	assert.Error(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestUninvitePlayer_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
@@ -58,13 +59,13 @@ func TestUninvitePlayer_Success(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
 	err = uninvitePlayer(context.Background(), db, 1, ownerUuid, 10)
-	assert.NoError(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestUninvitePlayer_NotOwner(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
@@ -76,14 +77,14 @@ func TestUninvitePlayer_NotOwner(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"OwnerUserUuid"}).AddRow(ownerUuid.String()))
 
 	err = uninvitePlayer(context.Background(), db, 1, requesterUuid, 10)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not the owner")
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
@@ -99,14 +100,14 @@ func TestUninvitePlayer_InviteNotFound(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
 	err = uninvitePlayer(context.Background(), db, 1, ownerUuid, 99)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetOutstandingInvitesForDraft(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "InvitedUserUuid"}).
@@ -119,16 +120,16 @@ func TestGetOutstandingInvitesForDraft(t *testing.T) {
 		WillReturnRows(rows)
 
 	invites, err := getOutstandingInvitesForDraft(context.Background(), db, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, invites, 2)
 	assert.Equal(t, "player1", invites[0].InvitedPlayerName)
 	assert.Equal(t, "player2", invites[1].InvitedPlayerName)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "InvitedUserUuid"})
@@ -139,14 +140,14 @@ func TestGetOutstandingInvitesForDraft_ReturnsEmpty(t *testing.T) {
 		WillReturnRows(rows)
 
 	invites, err := getOutstandingInvitesForDraft(context.Background(), db, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, invites)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetInvite_ExcludesCanceled(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	mock.ExpectPrepare(`SELECT(.+)From DraftInvites di(.+)Where di.Id = \$1(.+)And di.Status != 'canceled';`).
@@ -155,15 +156,15 @@ func TestGetInvite_ExcludesCanceled(t *testing.T) {
 		WillReturnError(sql.ErrNoRows)
 
 	invite, err := getInvite(context.Background(), db, 42)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, sql.ErrNoRows)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Zero(t, invite.Id)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetInvites_ExcludesCanceled(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	rows := sqlmock.NewRows([]string{"Id", "username", "DisplayName"}).
@@ -175,8 +176,8 @@ func TestGetInvites_ExcludesCanceled(t *testing.T) {
 		WillReturnRows(rows)
 
 	invites, err := getInvites(context.Background(), db, uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, invites, 1)
 	assert.Equal(t, "inviter", invites[0].InvitingPlayerName)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.NoError(t, mock.ExpectationsWereMet())
 }

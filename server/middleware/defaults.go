@@ -30,7 +30,7 @@ const (
 	// CSRF cookie/form/header names for double-submit cookie pattern.
 	CsrfCookieName      = "csrf_cookie"
 	CsrfTokenFieldName  = "csrf_token"
-	CsrfTokenHeaderName = "X-CSRF-Token"
+	CsrfTokenHeaderName = "X-CSRF-Token" //nolint:gosec // HTTP header name, not a credential
 	CsrfTokenLength     = 32
 )
 

@@ -61,6 +61,7 @@ func TestRegisterDatabaseConnection(t *testing.T) {
 	// Execute a query to generate spans
 	rows, err := db.QueryContext(ctx, "SELECT 1")
 	require.NoError(t, err)
+	require.NoError(t, rows.Err())
 	require.NoError(t, rows.Close())
 
 	// Force flush before checking spans
@@ -95,7 +96,7 @@ func TestRegisterDatabaseConnection(t *testing.T) {
 func TestRegisterDatabaseConnectionInvalidCredentials(t *testing.T) {
 	ctx := context.Background()
 	db, err := RegisterDatabaseConnection(ctx, "invalid", "invalid", "127.0.0.1", "invalid")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, db)
 	assert.Contains(t, err.Error(), "failed to ping database")
 }
@@ -123,9 +124,9 @@ func TestIsProgrammingError(t *testing.T) {
 func TestPrepare_ReturnsTransientError(t *testing.T) {
 	transientErr := errors.New("transient failure")
 	stmt, err := Prepare(context.Background(), &failingDBTX{err: transientErr}, "SELECT 1")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, stmt)
-	assert.ErrorIs(t, err, transientErr)
+	require.ErrorIs(t, err, transientErr)
 }
 
 func TestPrepare_ReturnsContextError(t *testing.T) {
@@ -133,6 +134,6 @@ func TestPrepare_ReturnsContextError(t *testing.T) {
 	cancel()
 
 	stmt, err := Prepare(ctx, &failingDBTX{err: context.Canceled}, "SELECT 1")
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 	assert.Nil(t, stmt)
 }

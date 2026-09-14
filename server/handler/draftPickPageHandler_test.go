@@ -12,6 +12,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/draft"
@@ -41,15 +42,15 @@ func TestServePickPage(t *testing.T) {
 		}
 
 		err := h.ServePickPage(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
 func TestHandleSkipPickToggle(t *testing.T) {
 	t.Run("success - mark skipping", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/skipPickToggle", strings.NewReader("skipping=true"))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/skipPickToggle", strings.NewReader("skipping=true"))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -72,13 +73,13 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		}
 
 		err := h.HandleSkipPickToggle(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid draft id", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/abc/skipPickToggle", strings.NewReader("skipping=true"))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/abc/skipPickToggle", strings.NewReader("skipping=true"))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -98,7 +99,7 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		}
 
 		err := h.HandleSkipPickToggle(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -138,7 +139,8 @@ func dialWebsocket(t *testing.T, server *httptest.Server) *websocket.Conn {
 	u.Scheme = "ws"
 
 	conn, resp, err := websocket.DefaultDialer.Dial(u.String(), nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 	t.Cleanup(func() { _ = conn.Close() })
 	return conn
@@ -151,9 +153,9 @@ func TestPickNotifier_InvalidDraftId(t *testing.T) {
 
 	conn := dialWebsocket(t, server)
 	err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = conn.ReadMessage()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestPickNotifier_DraftNotFound(t *testing.T) {
@@ -167,9 +169,9 @@ func TestPickNotifier_DraftNotFound(t *testing.T) {
 
 	conn := dialWebsocket(t, server)
 	err := conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, _, err = conn.ReadMessage()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestPickNotifier_RegistersAndUnregistersWatcher(t *testing.T) {
@@ -221,8 +223,8 @@ func TestPickNotifier_ReceivesNotification(t *testing.T) {
 
 	// Wait for the server to render and send the update
 	err := conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, message, err := conn.ReadMessage()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, message)
 }

@@ -54,7 +54,10 @@ func (h *bcryptPasswordHasher) Hash(password string) (string, error) {
 }
 
 func (h *bcryptPasswordHasher) Compare(password, hash string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		return fmt.Errorf("failed to compare password hash: %w", err)
+	}
+	return nil
 }
 
 func (h *bcryptPasswordHasher) DummyHash() []byte {

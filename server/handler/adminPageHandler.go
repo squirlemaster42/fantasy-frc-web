@@ -76,7 +76,7 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tb
 type ListDraftsCommand struct{}
 
 func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
-	//Parse command inputs
+	// Parse command inputs
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
 
@@ -392,7 +392,7 @@ func (h *Handler) HandleRunCommand(c *echo.Context) error {
 
 	commandString := c.FormValue("command")
 	cmd, args, _ := strings.Cut(commandString, " ")
-	//This is to handle the case where we have no params
+	// This is to handle the case where we have no params
 	log.Info(c.Request().Context(), "Running command", "command", cmd, "args", args)
 
 	if len(cmd) < 1 {

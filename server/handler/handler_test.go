@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -10,22 +11,24 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	modelmocks "server/model/mocks"
 )
 
 func setupTestContext(t *testing.T, method string, target string, body string, cookieValue string) (*echo.Echo, *echo.Context, *httptest.ResponseRecorder) {
+	t.Helper()
 	e := echo.New()
 	var req *http.Request
 	if body != "" {
-		req = httptest.NewRequest(method, target, strings.NewReader(body))
+		req = httptest.NewRequestWithContext(context.Background(), method, target, strings.NewReader(body))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
 	} else {
-		req = httptest.NewRequest(method, target, nil)
+		req = httptest.NewRequestWithContext(context.Background(), method, target, nil)
 	}
 	if cookieValue != "" {
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: cookieValue})
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: cookieValue}) //nolint:gosec // test cookie
 	}
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -44,7 +47,7 @@ func TestRequireUserUuid_MissingUuidRedirects(t *testing.T) {
 	h := &Handler{}
 	_, err := h.requireUserUuid(c)
 
-	assert.ErrorIs(t, err, errLoginRequired)
+	require.ErrorIs(t, err, errLoginRequired)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }
@@ -56,7 +59,7 @@ func TestRequireUserUuid_WrongTypeRedirects(t *testing.T) {
 	h := &Handler{}
 	_, err := h.requireUserUuid(c)
 
-	assert.ErrorIs(t, err, errLoginRequired)
+	require.ErrorIs(t, err, errLoginRequired)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }
@@ -69,7 +72,7 @@ func TestRequireUserUuid_ValidUuid(t *testing.T) {
 	h := &Handler{}
 	got, err := h.requireUserUuid(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userUuid, got)
 }
 
@@ -88,14 +91,14 @@ func TestGetAuthenticatedUsername_StoreErrorReturns500(t *testing.T) {
 
 	_, err := h.getAuthenticatedUsername(c, userUuid)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	invokeErrorHandler(echo.New(), err, c)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
 func TestInvokeErrorHandler_Helper(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 

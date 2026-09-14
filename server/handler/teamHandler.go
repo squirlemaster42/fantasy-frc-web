@@ -30,7 +30,7 @@ func (h *Handler) HandleGetTeamScore(c *echo.Context) error {
 	teamNumber := c.FormValue("teamNumber")
 	log.Debug(c.Request().Context(), "Getting score for team", "teamNumber", teamNumber)
 
-	//Get team score
+	// Get team score
 	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get team score", "teamNumber", teamNumber, "error", err)

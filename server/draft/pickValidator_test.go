@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model"
 	"server/model/mocks"
@@ -17,13 +18,13 @@ func TestPickValidator_ValidatePick_NoTeam(t *testing.T) {
 	err := validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: false, String: ""},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "no team entered", err.Error())
 
 	err = validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: true, String: ""},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "no team entered", err.Error())
 }
 
@@ -37,7 +38,7 @@ func TestPickValidator_ValidatePick_AlreadyPicked(t *testing.T) {
 	err := validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: true, String: "frc254"},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "team already picked", err.Error())
 	mockStore.AssertExpectations(t)
 }
@@ -55,7 +56,7 @@ func TestPickValidator_ValidatePick_TBAError(t *testing.T) {
 	err := validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: true, String: "frc254"},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "tba unavailable", err.Error())
 	mockStore.AssertExpectations(t)
 }
@@ -74,7 +75,7 @@ func TestPickValidator_ValidatePick_TeamNotAtEvent(t *testing.T) {
 	err := validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: true, String: "frc254"},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "team not at event", err.Error())
 	mockStore.AssertExpectations(t)
 }
@@ -93,6 +94,6 @@ func TestPickValidator_ValidatePick_ValidEvent(t *testing.T) {
 	err := validator.ValidatePick(t.Context(), model.Pick{
 		Pick: sql.NullString{Valid: true, String: "frc254"},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mockStore.AssertExpectations(t)
 }

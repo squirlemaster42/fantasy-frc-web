@@ -9,6 +9,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/assets"
@@ -20,7 +21,7 @@ import (
 func setupTestServerConfig(t *testing.T) ServerConfig {
 	t.Helper()
 
-	return ServerConfig{
+	return ServerConfig{ //nolint:gosec // test-only configuration values
 		ServerPort:       "8080",
 		Handler:          handler.Handler{},
 		MetricSecret:     "test-metric-secret",
@@ -41,7 +42,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/missing", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/missing", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -59,7 +60,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/secret", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/secret", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -76,7 +77,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/boom", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/boom", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -93,7 +94,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/teapot", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/teapot", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -117,7 +118,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/missing", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/missing", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set(string(authentication.UserUuidKey), userUuid)
@@ -135,7 +136,7 @@ func TestNewHTTPErrorHandler(t *testing.T) {
 		e := echo.New()
 		e.HTTPErrorHandler = newHTTPErrorHandler(cfg)
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Response().WriteHeader(http.StatusOK)
@@ -156,7 +157,7 @@ func TestRegisterSystemRoutes(t *testing.T) {
 	registerSystemRoutes(e, cfg, metricAuth)
 
 	t.Run("healthz returns ok", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -166,7 +167,7 @@ func TestRegisterSystemRoutes(t *testing.T) {
 	})
 
 	t.Run("metrics requires bearer token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -175,7 +176,7 @@ func TestRegisterSystemRoutes(t *testing.T) {
 	})
 
 	t.Run("metrics accepts valid bearer token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 		req.Header.Set("Authorization", "Bearer "+cfg.MetricSecret)
 		rec := httptest.NewRecorder()
 
@@ -193,7 +194,7 @@ func TestRegisterCatchAll(t *testing.T) {
 
 	registerCatchAll(e)
 
-	req := httptest.NewRequest(http.MethodGet, "/anything", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/anything", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -210,7 +211,7 @@ func TestStaticAssetRoutes(t *testing.T) {
 	e.Add(http.MethodGet, "/js/*", echo.StaticDirectoryHandler(assets.JS(), false), cacheControlMiddleware)
 
 	t.Run("css file has cache control", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/css/styles.css", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/css/styles.css", nil)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -220,7 +221,7 @@ func TestStaticAssetRoutes(t *testing.T) {
 	})
 
 	t.Run("missing static asset returns 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/css/does-not-exist.css", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/css/does-not-exist.css", nil)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -231,7 +232,7 @@ func TestStaticAssetRoutes(t *testing.T) {
 
 func TestCacheControlMiddleware(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/css/styles.css", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/css/styles.css", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -240,6 +241,6 @@ func TestCacheControlMiddleware(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, rec.Header().Get("Cache-Control"), "public, max-age=")
 }

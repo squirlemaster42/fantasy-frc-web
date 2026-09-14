@@ -94,7 +94,7 @@ See `database/README.md` for full details
 
 ### General Conventions
 
-- **Go Version**: Go 1.26+ (the server module declares `go 1.26.5`)
+- **Go Version**: Go 1.27+ (the server module declares `go 1.27.0`)
 - **Logging**: Use the custom `server/log` package for structured logging with context
 - **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the entire project with the appropriate log level.
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions
@@ -328,6 +328,7 @@ The server fails fast on startup if a required variable is missing or if an opti
 - `TBA_WEBHOOK_SECRET_FILE` (string, default `./webhookSecret.txt`): Path to the TBA webhook verification file.
 - `STATIC_ASSET_MAX_AGE_SECONDS` (int, default `2592000`): `Cache-Control` max-age for static assets.
 - `SERVER_SHUTDOWN_TIMEOUT` (duration, default `10s`): Graceful shutdown timeout.
+- `SERVER_READ_HEADER_TIMEOUT` (duration, default `60s`): HTTP server read header timeout (Slowloris mitigation).
 - `METRICS_ACTIVE_USER_TICK_INTERVAL` (duration, default `10s`): How often active-user gauges are updated.
 - `METRICS_QUERY_ID_MAX_LENGTH` (int, default `100`): Maximum length of a query ID metric label before truncation.
 - `DB_QUERY_THRESHOLD_MS` (int, default `50`): Minimum mean query time (ms) for a statement to appear in metrics.

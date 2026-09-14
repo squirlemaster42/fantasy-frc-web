@@ -36,10 +36,10 @@ func ParseArgString(argStr string) (map[string]string, error) {
 
 	curChar := 0
 	for curChar < len(argStr) {
-		//Find the command
+		// Find the command
 		if argStr[curChar] == '-' && len(argStr) > curChar+1 {
-			//We need to go from the next char to right before the =
-			//and make that the command name
+			// We need to go from the next char to right before the =
+			// and make that the command name
 			var argName strings.Builder
 			curChar++
 			for len(argStr) > curChar && argStr[curChar] != '=' {
@@ -48,14 +48,14 @@ func ParseArgString(argStr string) (map[string]string, error) {
 			}
 
 			if len(argStr) <= curChar || argStr[curChar] != '=' {
-				//There is no value for this flag so we just signify its present by putting the key in the map
+				// There is no value for this flag so we just signify its present by putting the key in the map
 				argMap[argName.String()] = ""
 				continue
 			}
 
-			//We need to get the arg value
-			//The arg val can either just exist of can be have double quotes
-			//We dont need to worry about having nested quotes
+			// We need to get the arg value
+			// The arg val can either just exist of can be have double quotes
+			// We dont need to worry about having nested quotes
 			curChar++
 
 			if len(argStr) <= curChar {

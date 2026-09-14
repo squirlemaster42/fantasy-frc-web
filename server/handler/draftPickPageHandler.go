@@ -29,17 +29,17 @@ func (h *Handler) ServePickPage(c *echo.Context) error {
 	draftId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse draft id string", "draftIdString", c.Param("id"), "error", err)
-		return err
-	}
+		return fmt.Errorf("failed to parse ServePickPage: %w", err)
+}
 
 	return h.renderPickPage(c, draftId, userUuid, username, nil, true)
 }
 
 // HandlerPickRequest validates that the current player is allowed to make a pick and processes it.
 func (h *Handler) HandlerPickRequest(c *echo.Context) error {
-	//We need to validate that the curent player is allowed to make a pick for the draft
-	//they are on. We then need to make that pick at the draft that they are on
-	//Get the player, draft id and the pick
+	// We need to validate that the current player is allowed to make a pick for the draft
+	// they are on. We then need to make that pick at the draft that they are on
+	// Get the player, draft id and the pick
 
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
@@ -51,8 +51,8 @@ func (h *Handler) HandlerPickRequest(c *echo.Context) error {
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", draftIdStr, "error", err)
-		return err
-	}
+		return fmt.Errorf("failed to parse HandlerPickRequest: %w", err)
+}
 	log.Debug(c.Request().Context(), "Got request for player to make pick in draft", "userUuid", userUuid, "pick", pick, "draftId", draftId)
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
@@ -250,8 +250,8 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 			}
 			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(WsWriteTimeout())); err != nil {
 				log.Error(ctx, "Failed to write ping message", "draftId", draftId, "error", err)
-				return err
-			}
+				return fmt.Errorf("failed to write websocket control message: %w", err)
+		}
 		case <-watcher.NotifierQueue:
 			log.Debug(ctx, "Received pick event notification, re-rendering picks", "draftId", draftId)
 			draftModel := draft.GetDraft(draftActor)
@@ -269,8 +269,8 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "draftId", draftId, "error", err)
-				return err
-			}
+				return fmt.Errorf("failed to write websocket message: %w", err)
+		}
 		}
 	}
 }
@@ -286,8 +286,8 @@ func (h *Handler) HandleSkipPickToggle(c *echo.Context) error {
 
 	if err != nil {
 		log.Warn(c.Request().Context(), "Failed to parse draft id string", "draftIdString", draftIdStr, "error", err)
-		return err
-	}
+		return fmt.Errorf("failed to parse HandleSkipPickToggle: %w", err)
+}
 
 	draftPlayerId, err := h.Stores.DraftStore.GetDraftPlayerId(c.Request().Context(), draftId, userUuid)
 	if err != nil {

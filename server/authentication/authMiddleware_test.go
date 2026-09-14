@@ -9,6 +9,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	authmocks "server/authentication/mocks"
 	"server/model/mocks"
@@ -30,7 +31,7 @@ func TestAuthenticate_NoSessionCookie(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -39,7 +40,7 @@ func TestAuthenticate_NoSessionCookie(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 }
@@ -50,8 +51,8 @@ func TestAuthenticate_InvalidSession(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/home", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -62,7 +63,7 @@ func TestAuthenticate_InvalidSession(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 	mockAuthService.AssertExpectations(t)
@@ -76,8 +77,8 @@ func TestAuthenticate_ValidSession(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/home", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -90,7 +91,7 @@ func TestAuthenticate_ValidSession(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, userUuid, contextUuid)
 	mockAuthService.AssertExpectations(t)
@@ -102,8 +103,8 @@ func TestAuthenticate_ValidateSessionError(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/home", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/home", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -114,7 +115,7 @@ func TestAuthenticate_ValidateSessionError(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/login", rec.Header().Get("Location"))
 	mockAuthService.AssertExpectations(t)
@@ -126,7 +127,7 @@ func TestCheckAdmin_NoUserUuid(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/admin/console", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/admin/console", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -135,7 +136,7 @@ func TestCheckAdmin_NoUserUuid(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 }
@@ -148,7 +149,7 @@ func TestCheckAdmin_UserIsAdmin(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/admin/console", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/admin/console", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set(string(UserUuidKey), userUuid)
@@ -162,7 +163,7 @@ func TestCheckAdmin_UserIsAdmin(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.True(t, isAdmin)
 	mockUserStore.AssertExpectations(t)
@@ -176,7 +177,7 @@ func TestCheckAdmin_UserIsNotAdmin(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/admin/console", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/admin/console", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set(string(UserUuidKey), userUuid)
@@ -188,7 +189,7 @@ func TestCheckAdmin_UserIsNotAdmin(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	mockUserStore.AssertExpectations(t)
@@ -202,7 +203,7 @@ func TestCheckAdmin_UserIsAdminError(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/u/admin/console", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/u/admin/console", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set(string(UserUuidKey), userUuid)
@@ -214,7 +215,7 @@ func TestCheckAdmin_UserIsAdminError(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	mockUserStore.AssertExpectations(t)
@@ -226,7 +227,7 @@ func TestRedirectIfAuthenticated_NoSessionCookie(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -235,7 +236,7 @@ func TestRedirectIfAuthenticated_NoSessionCookie(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -245,8 +246,8 @@ func TestRedirectIfAuthenticated_InvalidSession(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "invalid-token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -257,7 +258,7 @@ func TestRedirectIfAuthenticated_InvalidSession(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	mockAuthService.AssertExpectations(t)
 }
@@ -270,8 +271,8 @@ func TestRedirectIfAuthenticated_ValidSession(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "valid-token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -282,7 +283,7 @@ func TestRedirectIfAuthenticated_ValidSession(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusSeeOther, rec.Code)
 	assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	mockAuthService.AssertExpectations(t)
@@ -294,8 +295,8 @@ func TestRedirectIfAuthenticated_ValidateSessionError(t *testing.T) {
 	auth := NewAuth(mockAuthService, mockUserStore)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "token"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -306,7 +307,7 @@ func TestRedirectIfAuthenticated_ValidateSessionError(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	mockAuthService.AssertExpectations(t)
 }
@@ -322,7 +323,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MissingHeader(t *testing.T) {
 	middleware := metricAuth.MetricsAuthMiddleware()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -331,7 +332,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MissingHeader(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 }
 
@@ -340,7 +341,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MalformedHeader(t *testing.T) {
 	middleware := metricAuth.MetricsAuthMiddleware()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Basic secret")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -350,7 +351,7 @@ func TestMetricAuth_MetricsAuthMiddleware_MalformedHeader(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
@@ -359,7 +360,7 @@ func TestMetricAuth_MetricsAuthMiddleware_InvalidToken(t *testing.T) {
 	middleware := metricAuth.MetricsAuthMiddleware()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Bearer wrong")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -369,7 +370,7 @@ func TestMetricAuth_MetricsAuthMiddleware_InvalidToken(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
@@ -378,7 +379,7 @@ func TestMetricAuth_MetricsAuthMiddleware_ValidToken(t *testing.T) {
 	middleware := metricAuth.MetricsAuthMiddleware()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Bearer secret")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -388,6 +389,6 @@ func TestMetricAuth_MetricsAuthMiddleware_ValidToken(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }

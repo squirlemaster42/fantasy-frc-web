@@ -47,6 +47,6 @@ func (q *MatchQueue) PopMatch(ctx context.Context) (swagger.Match, error) {
 	case match := <-q.popCh:
 		return match, nil
 	case <-ctx.Done():
-		return swagger.Match{}, ctx.Err()
+		return swagger.Match{}, ctx.Err() //nolint:wrapcheck // context cancellation error is returned as-is
 	}
 }

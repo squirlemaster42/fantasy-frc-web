@@ -6,6 +6,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/model"
@@ -36,7 +37,7 @@ func TestHandleViewHome(t *testing.T) {
 		}
 
 		err := h.HandleViewHome(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -63,7 +64,7 @@ func TestHandleViewHome(t *testing.T) {
 		}
 
 		err := h.HandleViewHome(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
@@ -92,7 +93,7 @@ func TestHandleViewDraftList(t *testing.T) {
 		}
 
 		err := h.HandleViewDraftList(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -119,7 +120,7 @@ func TestHandleViewDraftList(t *testing.T) {
 		}
 
 		err := h.HandleViewDraftList(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -146,7 +147,7 @@ func TestHandleViewDraftList(t *testing.T) {
 		}
 
 		err := h.HandleViewDraftList(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -167,9 +168,8 @@ func TestHandleViewDraftList(t *testing.T) {
 		}
 
 		err := h.HandleViewDraftList(c)
-		if assert.Error(t, err) {
-			invokeErrorHandler(e, err, c)
-		}
+		require.Error(t, err)
+		invokeErrorHandler(e, err, c)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }
@@ -192,7 +192,7 @@ func TestHandleViewCreateDraft(t *testing.T) {
 		}
 
 		err := h.HandleViewCreateDraft(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
@@ -216,7 +216,7 @@ func TestHandleCreateDraftPost(t *testing.T) {
 		}
 
 		err := h.HandleCreateDraftPost(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "/u/draft/42/profile", rec.Header().Get("HX-Redirect"))
 	})
 }

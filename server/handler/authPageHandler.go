@@ -24,7 +24,7 @@ func (h *Handler) HandleViewLogin(c *echo.Context) error {
 }
 
 func (h *Handler) setSessionCookie(c *echo.Context, sessionToken string) {
-	cookie := new(http.Cookie)
+	cookie := new(http.Cookie) //nolint:gosec // Secure flag is configurable via SECURE_HTTP_COOKIE for local development
 	cookie.Name = authentication.SessionCookieName
 	cookie.Value = sessionToken
 	cookie.HttpOnly = true
@@ -82,7 +82,7 @@ func (h *Handler) HandleLogoutPost(c *echo.Context) error {
 			log.Warn(c.Request().Context(), "Failed to logout session", "error", logoutErr)
 		}
 	}
-	cookie := new(http.Cookie)
+	cookie := new(http.Cookie) //nolint:gosec // Secure flag is configurable via SECURE_HTTP_COOKIE for local development
 	cookie.Name = authentication.SessionCookieName
 	cookie.Value = ""
 	cookie.HttpOnly = true

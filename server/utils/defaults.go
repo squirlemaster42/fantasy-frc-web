@@ -11,8 +11,8 @@ const (
 
 	defaultTimezone = "America/New_York"
 
-	tbaWebhookSecretFileEnvKey = "TBA_WEBHOOK_SECRET_FILE"
-	defaultTbaWebhookSecretFile = "./webhookSecret.txt"
+	tbaWebhookSecretFileEnvKey = "TBA_WEBHOOK_SECRET_FILE" //nolint:gosec // environment variable key name, not a credential
+	defaultTbaWebhookSecretFile = "./webhookSecret.txt" //nolint:gosec // default file path, not a credential
 
 	// Sentinel values for URL helpers.
 	CreateDraftId = -1

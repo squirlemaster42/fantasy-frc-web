@@ -23,7 +23,7 @@ func TestMetricsMiddleware_RecordsSuccessfulRequest(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/test", "200", "2"))
@@ -32,7 +32,7 @@ func TestMetricsMiddleware_RecordsSuccessfulRequest(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/test", "200", "2"))
-	assert.Equal(t, before+1, after)
+	assert.InDelta(t, before+1, after, 0.0)
 }
 
 func TestMetricsMiddleware_RecordsErrorStatus(t *testing.T) {
@@ -41,7 +41,7 @@ func TestMetricsMiddleware_RecordsErrorStatus(t *testing.T) {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/bad", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/bad", nil)
 	rec := httptest.NewRecorder()
 
 	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/bad", "400", "4"))
@@ -50,7 +50,7 @@ func TestMetricsMiddleware_RecordsErrorStatus(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/bad", "400", "4"))
-	assert.Equal(t, before+1, after)
+	assert.InDelta(t, before+1, after, 0.0)
 }
 
 func TestMetricsMiddleware_RecordsExplicitlySetStatus(t *testing.T) {
@@ -62,7 +62,7 @@ func TestMetricsMiddleware_RecordsExplicitlySetStatus(t *testing.T) {
 		return echo.NewHTTPError(http.StatusBadRequest, "bad request")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/bad", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/bad", nil)
 	rec := httptest.NewRecorder()
 
 	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/bad", "400", "4"))
@@ -71,7 +71,7 @@ func TestMetricsMiddleware_RecordsExplicitlySetStatus(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/bad", "400", "4"))
-	assert.Equal(t, before+1, after)
+	assert.InDelta(t, before+1, after, 0.0)
 }
 
 func TestMetricsMiddleware_RecordsUnknownRouteAs404(t *testing.T) {
@@ -80,7 +80,7 @@ func TestMetricsMiddleware_RecordsUnknownRouteAs404(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/unknown", nil)
 	rec := httptest.NewRecorder()
 
 	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, unknownRouteLabel, "404", "4"))
@@ -89,7 +89,7 @@ func TestMetricsMiddleware_RecordsUnknownRouteAs404(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, unknownRouteLabel, "404", "4"))
-	assert.Equal(t, before+1, after)
+	assert.InDelta(t, before+1, after, 0.0)
 }
 
 func TestMetricsMiddleware_DurationObserved(t *testing.T) {
@@ -98,7 +98,7 @@ func TestMetricsMiddleware_DurationObserved(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -113,7 +113,7 @@ func TestWrapHTTPErrorHandler_DoesNotDoubleRecord(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/ok", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/ok", nil)
 	rec := httptest.NewRecorder()
 
 	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/ok", "200", "2"))
@@ -121,5 +121,5 @@ func TestWrapHTTPErrorHandler_DoesNotDoubleRecord(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/ok", "200", "2"))
-	assert.Equal(t, before+1, after)
+	assert.InDelta(t, before+1, after, 0.0)
 }

@@ -71,7 +71,7 @@ func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string
 	var body []byte
 	err = stmt.QueryRowContext(ctx, url).Scan(&etag, &body)
 
-	return body, etag, err
+	return body, etag, fmt.Errorf("failed to scan checkCache row: %w", err)
 }
 
 func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {
@@ -102,7 +102,7 @@ func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, bod
 func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint string) ([]byte, error) {
 	log.Debug(ctx, "Making TBA request", "url", url, "endpoint", endpoint)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct tba request: %w", err)
 	}

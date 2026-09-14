@@ -9,6 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"uuid"
 )
 
@@ -106,7 +107,7 @@ func TestDraftInvite_InvitedPlayerNameField(t *testing.T) {
 
 func TestMakePick_IdMismatch_ReturnsError(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	pick := Pick{
@@ -122,28 +123,28 @@ func TestMakePick_IdMismatch_ReturnsError(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"Id"}).AddRow(99))
 
 	err = makePick(context.Background(), db, pick)
-	assert.Error(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestGetDraftScore_ZeroDraftId_ReturnsError(t *testing.T) {
 	db, mock, err := sqlmock.New()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	_, err = getDraftScore(context.Background(), db, 0)
-	assert.Error(t, err)
-	assert.NoError(t, mock.ExpectationsWereMet())
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestDetermineNextPick(t *testing.T) {
-	makePlayer := func(id int, order int, userUuid uuid.UUID) DraftPlayer {
+	makePlayer := func(id int, order int16, userUuid uuid.UUID) DraftPlayer {
 		return DraftPlayer{
 			Id: id,
 			User: User{
 				UserUuid: userUuid,
 			},
-			PlayerOrder: sql.NullInt16{Int16: int16(order), Valid: true},
+			PlayerOrder: sql.NullInt16{Int16: order, Valid: true},
 		}
 	}
 
@@ -158,8 +159,8 @@ func TestDetermineNextPick(t *testing.T) {
 
 	t.Run("empty players returns error", func(t *testing.T) {
 		_, err := DetermineNextPick([]DraftPlayer{}, []Pick{})
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "no players in draft")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "no players in draft")
 	})
 
 	t.Run("unset player order returns error", func(t *testing.T) {
@@ -171,8 +172,8 @@ func TestDetermineNextPick(t *testing.T) {
 			},
 		}
 		_, err := DetermineNextPick(players, []Pick{})
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "player order not set")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player order not set")
 	})
 
 	t.Run("first pick returns player order zero", func(t *testing.T) {
@@ -182,7 +183,7 @@ func TestDetermineNextPick(t *testing.T) {
 			makePlayer(3, 2, uuidC),
 		}
 		next, err := DetermineNextPick(players, []Pick{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 1, next.Id)
 	})
@@ -195,7 +196,7 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1)}
 		next, err := DetermineNextPick(players, picks)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 1, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 2, next.Id)
 	})
@@ -209,7 +210,7 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1), makePick(2)}
 		next, err := DetermineNextPick(players, picks)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 3, next.Id)
 	})
@@ -223,7 +224,7 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4)}
 		next, err := DetermineNextPick(players, picks)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 3, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 4, next.Id)
 	})
@@ -237,7 +238,7 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4), makePick(4)}
 		next, err := DetermineNextPick(players, picks)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 3, next.Id)
 	})
@@ -254,7 +255,7 @@ func TestDetermineNextPick(t *testing.T) {
 			makePick(4), makePick(3), makePick(2), makePick(1),
 		}
 		next, err := DetermineNextPick(players, picks)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
 		assert.Equal(t, 1, next.Id)
 	})
@@ -266,8 +267,8 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1), makePick(99)}
 		_, err := DetermineNextPick(players, picks)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "player 99 not found")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player 99 not found")
 	})
 
 	t.Run("second to last pick player not found returns error", func(t *testing.T) {
@@ -277,8 +278,8 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(99), makePick(1)}
 		_, err := DetermineNextPick(players, picks)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "player 99 not found")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player 99 not found")
 	})
 
 	t.Run("next index out of bounds returns error", func(t *testing.T) {
@@ -290,19 +291,19 @@ func TestDetermineNextPick(t *testing.T) {
 		}
 		picks := []Pick{makePick(1), makePick(4)}
 		_, err := DetermineNextPick(players, picks)
-		assert.Error(t, err)
-		assert.ErrorContains(t, err, "next pick is out of bounds")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "next pick is out of bounds")
 	})
 }
 
 func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
-	makePlayer := func(id int, order int) DraftPlayer {
+	makePlayer := func(id int, order int16) DraftPlayer {
 		return DraftPlayer{
 			Id: id,
 			User: User{
 				UserUuid: uuid.New(),
 			},
-			PlayerOrder: sql.NullInt16{Int16: int16(order), Valid: true},
+			PlayerOrder: sql.NullInt16{Int16: order, Valid: true},
 		}
 	}
 
@@ -321,7 +322,7 @@ func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
 		t.Run(fmt.Sprintf("%d players full draft", playerCount), func(t *testing.T) {
 			players := make([]DraftPlayer, playerCount)
 			for i := range playerCount {
-				players[i] = makePlayer(i+1, i)
+				players[i] = makePlayer(i+1, int16(i))
 			}
 
 			totalPicks := PicksPerDraft(playerCount)
@@ -329,7 +330,7 @@ func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
 
 			for pickIndex := range totalPicks {
 				next, err := DetermineNextPick(players, picks)
-				assert.NoError(t, err, "pick %d", pickIndex)
+				require.NoError(t, err, "pick %d", pickIndex)
 				assert.Equal(t, expectedOrder(playerCount, pickIndex), int(next.PlayerOrder.Int16), "pick %d", pickIndex)
 
 				// Record the pick using the player's Id so the next iteration can continue.

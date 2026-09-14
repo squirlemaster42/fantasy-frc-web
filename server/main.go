@@ -32,7 +32,6 @@ import (
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	assert := assert.CreateAssertWithContext("Main")
 
@@ -146,7 +145,7 @@ func main() {
 	}
 
 	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig, draftActorCacheSize)
-	//Start the draft daemon and add all running drafts to it
+	// Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)
 	if err != nil {
@@ -245,8 +244,9 @@ func main() {
 	})
 
 	httpServer := &http.Server{
-		Addr:    ":" + serverPort,
-		Handler: app,
+		Addr:              ":" + serverPort,
+		Handler:           app,
+		ReadHeaderTimeout: ServerReadHeaderTimeout(),
 	}
 
 	go func() {
@@ -284,6 +284,7 @@ func main() {
 	if err := db.Close(); err != nil {
 		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
+	cancel()
 }
 
 func requireEnv(ctx context.Context, key string) string {

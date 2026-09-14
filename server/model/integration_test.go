@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -43,7 +44,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		testDB, testDBErr = database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
 	})
 
-	if testDBErr == sql.ErrConnDone {
+	if errors.Is(testDBErr, sql.ErrConnDone) {
 		t.Skip("Skipping test: database credentials not found in environment")
 	}
 	require.NoError(t, testDBErr)

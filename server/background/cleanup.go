@@ -12,7 +12,7 @@ import (
 
 type CleanupService struct {
 	database  *sql.DB
-	interval  int //Number of minutes to wait between runs
+	interval  int // Number of minutes to wait between runs
 	running   bool
 	startLock *sync.Mutex
 }

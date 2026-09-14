@@ -174,7 +174,7 @@ func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, store mod
 		return err
 	}
 
-	//Remove the draft from the pick daemon
+	// Remove the draft from the pick daemon
 	return nil
 }
 
@@ -235,7 +235,7 @@ func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 	case d.inbox <- message:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return ctx.Err() //nolint:wrapcheck // context cancellation error is returned as-is
 	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout posting message to draft actor inbox")
 	}
@@ -316,7 +316,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		}
 	}
 
-	//Make sure that other players cannot accept someones draft
+	// Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != msg.AcceptingUserUuid {
 		log.Warn(ctx, "Invited player to draft", "invitedUserUuid", invite.InvitedUserUuid, "acceptingUserUuid", msg.AcceptingUserUuid)
 		return Result{
@@ -974,7 +974,7 @@ func (d *DraftActor) sendPickDiscordNotification(ctx context.Context, skippedPla
 		return
 	}
 	go func() {
-		if err := d.discordBus.PostPickNotification(event); err != nil {
+		if err := d.discordBus.PostPickNotification(ctx, event); err != nil {
 			log.Error(ctx, "Failed to post discord webhook", "error", err)
 		}
 	}()

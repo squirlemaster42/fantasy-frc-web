@@ -27,8 +27,8 @@ func getPlayerDiscordId(ctx context.Context, db database.DBTX, draftPlayerId int
 	var discordId sql.NullString
 	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId)
 	if err != nil {
-		return sql.NullString{}, err
-	}
+		return sql.NullString{}, fmt.Errorf("failed to scan getPlayerDiscordId row: %w", err)
+}
 
 	return discordId, nil
 }
@@ -57,8 +57,8 @@ func getPlayerPickNotificationId(ctx context.Context, db database.DBTX, draftPla
 	var wantsPickTurn bool
 	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId, &wantsPickTurn)
 	if err != nil {
-		return sql.NullString{}, err
-	}
+		return sql.NullString{}, fmt.Errorf("failed to scan getPlayerPickNotificationId row: %w", err)
+}
 
 	if !wantsPickTurn {
 		return sql.NullString{}, nil
@@ -84,8 +84,8 @@ func getDraftWebhook(ctx context.Context, db database.DBTX, draftId int) (string
 	var webhook sql.NullString
 	err = stmt.QueryRowContext(ctx, draftId).Scan(&webhook)
 	if err != nil {
-		return "", err
-	}
+		return "", fmt.Errorf("failed to scan getDraftWebhook row: %w", err)
+}
 
 	if !webhook.Valid {
 		return "", fmt.Errorf("draft with id %d does not have discord webhook set", draftId)
@@ -146,8 +146,8 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
 	rows, err := stmt.QueryContext(ctx, args...)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to execute query", "error", err)
-		return nil, err
-	}
+		return nil, fmt.Errorf("failed to query getDraftPickRows: %w", err)
+}
 	defer database.CloseRows(ctx, rows, "GetDraftPickRows")
 
 	var results []DraftPickRow
@@ -160,6 +160,10 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
 		} else {
 			results = append(results, r)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate draft pick rows: %w", err)
 	}
 
 	return results, nil

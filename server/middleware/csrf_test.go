@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewCSRF_PanicsOnEmptySecret(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCSRF_SkipsLoginAndRegister(t *testing.T) {
 
 	for _, path := range []string{"/login", "/register"} {
 		e := echo.New()
-		req := httptest.NewRequest(http.MethodPost, path, nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -43,7 +44,7 @@ func TestCSRF_SkipsLoginAndRegister(t *testing.T) {
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -53,8 +54,8 @@ func TestCSRF_SetsTokenCookieForSafeMethods(t *testing.T) {
 	middleware := csrf.CSRF()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/some-page", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "session-123"})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/some-page", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "session-123"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -63,7 +64,7 @@ func TestCSRF_SetsTokenCookieForSafeMethods(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	cookies := rec.Result().Cookies()
@@ -86,7 +87,7 @@ func TestCSRF_SafeMethodsSkipValidation(t *testing.T) {
 
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
 		e := echo.New()
-		req := httptest.NewRequest(method, "/some-page", nil)
+		req := httptest.NewRequestWithContext(t.Context(), method, "/some-page", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -95,7 +96,7 @@ func TestCSRF_SafeMethodsSkipValidation(t *testing.T) {
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -105,7 +106,7 @@ func TestCSRF_RejectsMissingSessionToken(t *testing.T) {
 	middleware := csrf.CSRF()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/some-page", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/some-page", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -114,7 +115,7 @@ func TestCSRF_RejectsMissingSessionToken(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
@@ -123,9 +124,9 @@ func TestCSRF_RejectsInvalidTokenFromForm(t *testing.T) {
 	middleware := csrf.CSRF()
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/some-page", strings.NewReader("csrf_token=invalid-token"))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/some-page", strings.NewReader("csrf_token=invalid-token"))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "session-123"})
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "session-123"}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -134,7 +135,7 @@ func TestCSRF_RejectsInvalidTokenFromForm(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
@@ -146,9 +147,9 @@ func TestCSRF_AcceptsValidTokenFromForm(t *testing.T) {
 	validToken := csrf.GenerateToken(sessionToken)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/some-page", strings.NewReader("csrf_token="+validToken))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/some-page", strings.NewReader("csrf_token="+validToken))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken})
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -157,7 +158,7 @@ func TestCSRF_AcceptsValidTokenFromForm(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -169,9 +170,9 @@ func TestCSRF_AcceptsValidTokenFromHeader(t *testing.T) {
 	validToken := csrf.GenerateToken(sessionToken)
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/some-page", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/some-page", nil)
 	req.Header.Set("X-CSRF-Token", validToken)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken})
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -180,7 +181,7 @@ func TestCSRF_AcceptsValidTokenFromHeader(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -191,8 +192,8 @@ func TestCSRF_StoresExpectedTokenInContext(t *testing.T) {
 	sessionToken := "session-123"
 
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/some-page", nil)
-	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/some-page", nil)
+	req.AddCookie(&http.Cookie{Name: "sessionToken", Value: sessionToken}) //nolint:gosec // test cookie
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -203,6 +204,6 @@ func TestCSRF_StoresExpectedTokenInContext(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, csrf.GenerateToken(sessionToken), contextToken)
 }

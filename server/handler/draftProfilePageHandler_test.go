@@ -11,6 +11,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/background"
@@ -64,7 +65,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 
 		err := h.HandleViewDraftProfile(c)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -98,7 +99,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 
 		err := h.HandleViewDraftProfile(c)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Invalid draft ID")
 	})
@@ -142,7 +143,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 
 		err := h.HandleViewDraftProfile(c)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	})
@@ -150,7 +151,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 
 func TestSearchPlayers(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		req := httptest.NewRequest(
+		req := httptest.NewRequestWithContext(t.Context(), 
 			http.MethodPost,
 			"/u/draft/42/searchPlayers",
 			strings.NewReader("search=john"),
@@ -166,7 +167,7 @@ func TestSearchPlayers(t *testing.T) {
 			"http://localhost/u/draft/42/profile",
 		)
 
-		req.AddCookie(&http.Cookie{
+		req.AddCookie(&http.Cookie{ //nolint:gosec // test cookie
 			Name:  "sessionToken",
 			Value: "test-session",
 		})
@@ -207,7 +208,7 @@ func TestSearchPlayers(t *testing.T) {
 
 		err := h.SearchPlayers(c)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
@@ -235,42 +236,6 @@ func TestHandleUninvitePlayer_ErrorHandling(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, expectedStatus)
 		assert.NotEmpty(t, expectedMsg)
-	})
-}
-
-func TestHandleUninvitePlayer_OwnerAuthorization(t *testing.T) {
-	t.Run("only draft owner can uninvite", func(t *testing.T) {
-		assert.True(
-			t,
-			true,
-			"Ownership check prevents unauthorized uninvites",
-		)
-	})
-
-	t.Run("handler uses DraftManager to load draft state", func(t *testing.T) {
-		assert.True(
-			t,
-			true,
-			"DraftManager validates draft state",
-		)
-	})
-}
-
-func TestHandleUninvitePlayer_ModelDelegation(t *testing.T) {
-	t.Run("delegates to model.UninvitePlayer", func(t *testing.T) {
-		assert.True(
-			t,
-			true,
-			"Handler delegates uninvite to model layer",
-		)
-	})
-
-	t.Run("refreshes pending invites list after uninvite", func(t *testing.T) {
-		assert.True(
-			t,
-			true,
-			"Pending invites list refreshes after uninvite",
-		)
 	})
 }
 
@@ -331,12 +296,12 @@ func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
 
 	err := h.HandleStartDraft(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "/u/draft/1/profile", rec.Header().Get("HX-Redirect"))
 
 	err = draftDaemon.AddDraft(c.Request().Context(), 1)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already added")
 	mockDraftStore.AssertExpectations(t)
 }
@@ -359,7 +324,7 @@ func TestHandleStartDraft_InvalidDraftId(t *testing.T) {
 
 	err := h.HandleStartDraft(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Draft Id is not a number")
 }
@@ -396,7 +361,7 @@ func TestHandleStartDraft_DraftLoadError(t *testing.T) {
 
 	err := h.HandleStartDraft(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Could not load draft")
 }
@@ -442,7 +407,7 @@ func TestHandleStartDraft_NonOwner(t *testing.T) {
 
 	err := h.HandleStartDraft(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Permission Denied")
 }
@@ -486,7 +451,7 @@ func TestHandleStartDraft_NotStartable(t *testing.T) {
 
 	err := h.HandleStartDraft(c)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Draft must have between")
 }

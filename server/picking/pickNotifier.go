@@ -16,19 +16,19 @@ type PickEvent struct {
 	DraftId int
 }
 
-//We need to store a set of connected clients
-//and what draft they are looking at
-//When a pick is made on a given draft we need
-//to notify all of the clients watching
-//that draft
+// We need to store a set of connected clients
+// and what draft they are looking at
+// When a pick is made on a given draft we need
+// to notify all of the clients watching
+// that draft
 
-//We are going to provide a block of html that will be the current state of the
-//draft. We will need to disable the text input for anyone who is not making
-//the current pick.
+// We are going to provide a block of html that will be the current state of the
+// draft. We will need to disable the text input for anyone who is not making
+// the current pick.
 
 type PickNotifier struct {
 	mu       sync.RWMutex
-	Watchers map[int][]Watcher //map the draft id to the group watching that draft
+	Watchers map[int][]Watcher // map the draft id to the group watching that draft
 }
 
 type Watcher struct {

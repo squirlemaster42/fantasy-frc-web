@@ -14,6 +14,7 @@ import (
 )
 
 func getTbaTok(t *testing.T) string {
+	t.Helper()
 	err := godotenv.Load(filepath.Join("../", ".env"))
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +48,7 @@ func TestSortMatchOrder(t *testing.T) {
 		"2024cur_f1m2",
 	}
 
-	assert.True(t, len(sorted) == len(standard), "Sorted array is not the correct length")
+	assert.Len(t, sorted, len(standard), "Sorted array is not the correct length")
 
 	for i, match := range standard {
 		assert.Equal(t, match, sorted[i])
@@ -55,7 +56,7 @@ func TestSortMatchOrder(t *testing.T) {
 }
 
 func TestScoreMatches(t *testing.T) {
-	//We should not need a tba handler or database
+	// We should not need a tba handler or database
 	tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
 	scorer := NewScorer(tbaHandler, nil, nil, nil)
 	match, _ := tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm1")
@@ -352,35 +353,35 @@ func TestGetAllianceSelectionScores(t *testing.T) {
 	alliances, _ := tbaHandler.MakeEliminationAllianceRequest(t.Context(), "2025mawor")
 	scorer := NewScorer(tbaHandler, nil, nil, nil)
 	allianceOneScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[0])
-	assert.EqualValues(t, 32*2, allianceOneScores["frc190"])
-	assert.EqualValues(t, 31*2, allianceOneScores["frc1768"])
-	assert.EqualValues(t, 9*2, allianceOneScores["frc3182"])
+	assert.Equal(t, 32*2, allianceOneScores["frc190"])
+	assert.Equal(t, 31*2, allianceOneScores["frc1768"])
+	assert.Equal(t, 9*2, allianceOneScores["frc3182"])
 	allianceTwoScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[1])
-	assert.EqualValues(t, 30*2, allianceTwoScores["frc125"])
-	assert.EqualValues(t, 29*2, allianceTwoScores["frc88"])
-	assert.EqualValues(t, 10*2, allianceTwoScores["frc8626"])
+	assert.Equal(t, 30*2, allianceTwoScores["frc125"])
+	assert.Equal(t, 29*2, allianceTwoScores["frc88"])
+	assert.Equal(t, 10*2, allianceTwoScores["frc8626"])
 	allianceThreeScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[2])
-	assert.EqualValues(t, 28*2, allianceThreeScores["frc1153"])
-	assert.EqualValues(t, 27*2, allianceThreeScores["frc230"])
-	assert.EqualValues(t, 11*2, allianceThreeScores["frc2079"])
+	assert.Equal(t, 28*2, allianceThreeScores["frc1153"])
+	assert.Equal(t, 27*2, allianceThreeScores["frc230"])
+	assert.Equal(t, 11*2, allianceThreeScores["frc2079"])
 	allianceFourScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[3])
-	assert.EqualValues(t, 26*2, allianceFourScores["frc2370"])
-	assert.EqualValues(t, 25*2, allianceFourScores["frc1100"])
-	assert.EqualValues(t, 12*2, allianceFourScores["frc1757"])
+	assert.Equal(t, 26*2, allianceFourScores["frc2370"])
+	assert.Equal(t, 25*2, allianceFourScores["frc1100"])
+	assert.Equal(t, 12*2, allianceFourScores["frc1757"])
 	allianceFiveScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[4])
-	assert.EqualValues(t, 24*2, allianceFiveScores["frc1277"])
-	assert.EqualValues(t, 23*2, allianceFiveScores["frc2067"])
-	assert.EqualValues(t, 13*2, allianceFiveScores["frc126"])
+	assert.Equal(t, 24*2, allianceFiveScores["frc1277"])
+	assert.Equal(t, 23*2, allianceFiveScores["frc2067"])
+	assert.Equal(t, 13*2, allianceFiveScores["frc126"])
 	allianceSixScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[5])
-	assert.EqualValues(t, 22*2, allianceSixScores["frc5459"])
-	assert.EqualValues(t, 21*2, allianceSixScores["frc1699"])
-	assert.EqualValues(t, 14*2, allianceSixScores["frc1740"])
+	assert.Equal(t, 22*2, allianceSixScores["frc5459"])
+	assert.Equal(t, 21*2, allianceSixScores["frc1699"])
+	assert.Equal(t, 14*2, allianceSixScores["frc1740"])
 	allianceSevenScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[6])
-	assert.EqualValues(t, 20*2, allianceSevenScores["frc5000"])
-	assert.EqualValues(t, 19*2, allianceSevenScores["frc1735"])
-	assert.EqualValues(t, 15*2, allianceSevenScores["frc1119"])
+	assert.Equal(t, 20*2, allianceSevenScores["frc5000"])
+	assert.Equal(t, 19*2, allianceSevenScores["frc1735"])
+	assert.Equal(t, 15*2, allianceSevenScores["frc1119"])
 	allianceEightScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[7])
-	assert.EqualValues(t, 18*2, allianceEightScores["frc7153"])
-	assert.EqualValues(t, 17*2, allianceEightScores["frc5422"])
-	assert.EqualValues(t, 16*2, allianceEightScores["frc9644"])
+	assert.Equal(t, 18*2, allianceEightScores["frc7153"])
+	assert.Equal(t, 17*2, allianceEightScores["frc5422"])
+	assert.Equal(t, 16*2, allianceEightScores["frc9644"])
 }

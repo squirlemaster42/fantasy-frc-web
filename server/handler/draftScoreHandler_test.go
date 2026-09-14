@@ -7,6 +7,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/cache"
 	"server/model"
@@ -41,7 +42,7 @@ func TestHandleDraftScore(t *testing.T) {
 		}
 
 		err := h.HandleDraftScore(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
@@ -80,7 +81,7 @@ func TestHandleDraftTeamScore(t *testing.T) {
 		}
 
 		err := h.HandleDraftTeamScore(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }

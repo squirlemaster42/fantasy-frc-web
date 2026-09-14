@@ -33,7 +33,7 @@ func (h *Handler) HandleViewDraftProfile(c *echo.Context) error {
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
-		//We want to redirect back to the home screen
+		// We want to redirect back to the home screen
 		log.Debug(c.Request().Context(), "User attempted to visit incorrect draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
@@ -76,9 +76,9 @@ func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		//The user would need to hand craft this payload
-		//so for now we just won't tell them what is wrong
-		//because it is probably malicious
+		// The user would need to hand craft this payload
+		// so for now we just won't tell them what is wrong
+		// because it is probably malicious
 		log.Warn(c.Request().Context(), "User tried to update draft but was not the owner", "userUuid", userUuid, "draftId", draftId, "ownerId", draftModel.Owner.UserUuid)
 		return c.String(http.StatusForbidden, "You do not have permission to update this draft")
 	}

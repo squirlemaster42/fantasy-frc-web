@@ -38,26 +38,32 @@ const (
 	LevelError = slog.LevelError
 )
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func Info(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Info(msg, args...)
 }
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func Warn(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Warn(msg, args...)
 }
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func Error(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Error(msg, args...)
 }
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func Debug(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Debug(msg, args...)
 }
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func DebugNoContext(msg string, args ...any) {
 	slog.Default().Debug(msg, args...)
 }
 
+//nolint:sloglint // wrapper forwards dynamic message and variadic key-value args
 func Fatal(ctx context.Context, msg string, args ...any) {
 	getLogger(ctx).Error(msg, args...)
 	os.Exit(1)
@@ -106,14 +112,14 @@ func LogWithContext(ctx context.Context) *slog.Logger {
 	}
 
 	if corrID := GetCorrelationID(ctx); corrID != "" {
-		logger = logger.With("correlationId", corrID)
+		logger = logger.With(slog.String("correlationId", corrID))
 	}
 
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		logger = logger.With(
-			"traceId", span.SpanContext().TraceID().String(),
-			"spanId", span.SpanContext().SpanID().String(),
+			slog.String("traceId", span.SpanContext().TraceID().String()),
+			slog.String("spanId", span.SpanContext().SpanID().String()),
 		)
 	}
 

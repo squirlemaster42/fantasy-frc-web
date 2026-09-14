@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetTeamAvatar(t *testing.T) {
@@ -24,7 +25,7 @@ func TestGetTeamAvatar(t *testing.T) {
 		}
 
 		err := h.GetTeamAvatar(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "image/png", rec.Header().Get(echo.HeaderContentType))
 		assert.Contains(t, rec.Header().Get("Cache-Control"), "private, max-age=")
@@ -42,9 +43,8 @@ func TestGetTeamAvatar(t *testing.T) {
 		}
 
 		err := h.GetTeamAvatar(c)
-		if assert.Error(t, err) {
-			invokeErrorHandler(e, err, c)
-		}
+		require.Error(t, err)
+		invokeErrorHandler(e, err, c)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
@@ -61,9 +61,8 @@ func TestGetTeamAvatar(t *testing.T) {
 		}
 
 		err := h.GetTeamAvatar(c)
-		if assert.Error(t, err) {
-			invokeErrorHandler(e, err, c)
-		}
+		require.Error(t, err)
+		invokeErrorHandler(e, err, c)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 }

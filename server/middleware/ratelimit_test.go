@@ -9,6 +9,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"uuid"
 )
 
@@ -45,7 +46,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 
 	// First 5 requests are allowed
 	for range 5 {
-		req := httptest.NewRequest(http.MethodPost, "/login", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -54,12 +55,12 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 
 	// Sixth request is blocked
-	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -68,7 +69,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 	assert.Equal(t, "900", rec.Header().Get("Retry-After"))
 }
@@ -84,7 +85,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 
 	// First 3 requests are allowed
 	for range 3 {
-		req := httptest.NewRequest(http.MethodPost, "/register", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/register", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -93,12 +94,12 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 
 	// Fourth request is blocked
-	req := httptest.NewRequest(http.MethodPost, "/register", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/register", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -107,7 +108,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
@@ -121,7 +122,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 	e := echo.New()
 
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
-		req := httptest.NewRequest(method, "/u/home", nil)
+		req := httptest.NewRequestWithContext(t.Context(), method, "/u/home", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
@@ -130,7 +131,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -144,7 +145,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/tbaWebhook", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/tbaWebhook", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -153,7 +154,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -167,7 +168,7 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First POST is allowed
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -176,11 +177,11 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// Second POST is blocked
-	req = httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 
@@ -189,7 +190,7 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	})
 
 	err = handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 	assert.Equal(t, "60", rec.Header().Get("Retry-After"))
 }
@@ -205,7 +206,7 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	// First POST by user is allowed
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
@@ -215,11 +216,11 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// Second POST by same user is blocked
-	req = httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
@@ -229,7 +230,7 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	})
 
 	err = handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
@@ -246,7 +247,7 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 	user2 := uuid.MustParse("550e8400-e29b-41d4-a716-446655440001")
 
 	for _, userUuid := range []uuid.UUID{user1, user2} {
-		req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("userUuid", userUuid)
@@ -256,7 +257,7 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -273,7 +274,7 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -282,7 +283,7 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -290,6 +291,6 @@ func TestRateLimiter_checkLimit_AllowsWhenRedisNil(t *testing.T) {
 	limiter := NewRateLimiter("", "", 0)
 
 	allowed, _, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, allowed)
 }

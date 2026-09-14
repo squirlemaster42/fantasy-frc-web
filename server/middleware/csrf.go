@@ -59,15 +59,15 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 				expectedToken := c.GenerateToken(sessionCookie.Value)
 				ctx.Set(string(CsrfTokenKey), expectedToken)
 
-				// Set non-HttpOnly cookie so JS can read it for HTMX requests
-				csrfCookie := new(http.Cookie)
-				csrfCookie.Name = CsrfTokenFieldName
-				csrfCookie.Value = expectedToken
-				csrfCookie.Path = "/"
-				csrfCookie.SameSite = http.SameSiteLaxMode
-				csrfCookie.Secure = c.secureCookie
-				csrfCookie.HttpOnly = false
-				ctx.SetCookie(csrfCookie)
+			// Set non-HttpOnly cookie so JS can read it for HTMX requests
+			csrfCookie := new(http.Cookie) //nolint:gosec // CSRF token cookie is intentionally readable by JS; Secure flag is configurable
+			csrfCookie.Name = CsrfTokenFieldName
+			csrfCookie.Value = expectedToken
+			csrfCookie.Path = "/"
+			csrfCookie.SameSite = http.SameSiteLaxMode
+			csrfCookie.Secure = c.secureCookie
+			csrfCookie.HttpOnly = false
+			ctx.SetCookie(csrfCookie)
 			}
 
 			// Skip validation for safe methods
@@ -112,11 +112,11 @@ func GenerateCSRFCookie(c *echo.Context) (string, error) {
 	// Generate new random token
 	b := make([]byte, CsrfTokenLength)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
+		return "", fmt.Errorf("failed to read random bytes: %w", err)
+}
 	token := hex.EncodeToString(b)
 
-	cookie := new(http.Cookie)
+	cookie := new(http.Cookie) //nolint:gosec // CSRF token cookie is intentionally readable by JS; Secure flag follows request scheme
 	cookie.Name = CsrfCookieName
 	cookie.Value = token
 	cookie.Path = "/"

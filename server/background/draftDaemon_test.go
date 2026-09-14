@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/draft"
@@ -30,10 +31,10 @@ func TestDraftDaemon_AddDraft(t *testing.T) {
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	err := daemon.AddDraft(context.Background(), 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = daemon.AddDraft(context.Background(), 1)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "draft already added")
 }
 
@@ -43,14 +44,14 @@ func TestDraftDaemon_RemoveDraft(t *testing.T) {
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	err := daemon.RemoveDraft(context.Background(), 1)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "draft not in daemon")
 
 	err = daemon.AddDraft(context.Background(), 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = daemon.RemoveDraft(context.Background(), 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestDraftDaemon_StartStop(t *testing.T) {
@@ -61,19 +62,19 @@ func TestDraftDaemon_StartStop(t *testing.T) {
 	ctx := t.Context()
 
 	err := daemon.Start(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, daemon.IsRunning())
 
 	err = daemon.Start(ctx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already started")
 
 	err = daemon.Stop(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, daemon.IsRunning())
 
 	err = daemon.Stop(ctx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not running")
 }
 
@@ -89,17 +90,17 @@ func TestDraftDaemon_StartStop_WithDraft(t *testing.T) {
 	ctx := t.Context()
 
 	err := daemon.AddDraft(ctx, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = daemon.Start(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, daemon.IsRunning())
 
 	// Give the daemon a moment to enter its loop
 	time.Sleep(50 * time.Millisecond)
 
 	err = daemon.Stop(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, daemon.IsRunning())
 }
 
@@ -111,10 +112,10 @@ func TestDraftDaemon_Run_RespectsStop(t *testing.T) {
 	ctx := context.Background()
 
 	err := daemon.Start(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = daemon.Stop(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Wait for the goroutine to observe the stop
 	assert.Eventually(t, func() bool {
@@ -135,10 +136,10 @@ func TestDraftDaemon_Run_DoesNotDeadlockOnSecondTick(t *testing.T) {
 	ctx := context.Background()
 
 	err := daemon.AddDraft(ctx, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = daemon.Start(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Wait long enough for at least two ticks to run
 	time.Sleep(25 * time.Millisecond)

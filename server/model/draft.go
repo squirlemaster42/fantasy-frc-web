@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"server/assert"
 	"server/database"
 	"server/log"
@@ -112,8 +113,8 @@ func (d *DraftPlayer) String() string {
 
 type Pick struct {
 	Id             int
-	Player         int            //DraftPlayerId
-	Pick           sql.NullString //TeamTbaId
+	Player         int            // DraftPlayerId
+	Pick           sql.NullString // TeamTbaId
 	PickTime       sql.NullTime
 	AvailableTime  time.Time
 	ExpirationTime time.Time
@@ -136,10 +137,10 @@ func (p *Pick) String() string {
 
 type DraftInvite struct {
 	Id                 int
-	DraftId            int //Draft
+	DraftId            int // Draft
 	DraftName          string
-	InvitedUserUuid    uuid.UUID //User
-	InvitingUserUuid   uuid.UUID //User
+	InvitedUserUuid    uuid.UUID // User
+	InvitingUserUuid   uuid.UUID // User
 	InvitingPlayerName string
 	InvitedPlayerName  string
 	SentTime           time.Time
@@ -185,6 +186,10 @@ func getDraftsByName(ctx context.Context, db database.DBTX, searchString string)
 		}
 
 		drafts = append(drafts, draft)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate drafts by name: %w", err)
 	}
 
 	return drafts, nil
@@ -255,6 +260,10 @@ func searchDrafts(ctx context.Context, db database.DBTX, search DraftSearchQuery
 		if status == PICKING {
 			pickingDraftIds = append(pickingDraftIds, draftId)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate search drafts: %w", err)
 	}
 
 	if len(drafts) == 0 {
@@ -629,6 +638,10 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 		draftModel.Players = append(draftModel.Players, draftPlayer)
 	}
 
+	if err := playerRows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate draft players: %w", err)
+	}
+
 	return nil
 }
 
@@ -827,6 +840,11 @@ func getInvites(ctx context.Context, db database.DBTX, userUuid uuid.UUID) ([]Dr
 
 		invites = append(invites, invite)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate invites: %w", err)
+	}
+
 	return invites, nil
 }
 
@@ -854,6 +872,7 @@ func uninvitePlayer(ctx context.Context, db database.DBTX, draftId int, ownerUui
 	if err != nil {
 		return fmt.Errorf("failed to prepare get draft owner statement: %w", err)
 	}
+	defer database.CloseStatement(ctx, ownerStmt, "uninvitePlayer")
 
 	var dbOwnerUuid string
 	err = ownerStmt.QueryRowContext(ctx, draftId).Scan(&dbOwnerUuid)
@@ -922,6 +941,10 @@ func getOutstandingInvitesForDraft(ctx context.Context, db database.DBTX, draftI
 		invites = append(invites, invite)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate outstanding invites: %w", err)
+	}
+
 	return invites, nil
 }
 
@@ -954,6 +977,10 @@ func getPicks(ctx context.Context, db database.DBTX, draftId int) ([]Pick, error
 		}
 
 		picks = append(picks, pick)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate picks: %w", err)
 	}
 
 	return picks, nil
@@ -1079,7 +1106,11 @@ func randomizePickOrder(ctx context.Context, db database.DBTX, draftId int) erro
 	}
 
 	for i := range awaitingAssignment {
-		j := rand.Intn(i + 1)
+		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return fmt.Errorf("failed to generate random pick order: %w", err)
+		}
+		j := int(jBig.Int64())
 		awaitingAssignment[i], awaitingAssignment[j] = awaitingAssignment[j], awaitingAssignment[i]
 	}
 
@@ -1461,6 +1492,10 @@ func getDraftsInStatus(ctx context.Context, db database.DBTX, status DraftState)
 		drafts = append(drafts, draftId)
 	}
 
+	if err := rows.Err(); err != nil {
+		errs = append(errs, err)
+	}
+
 	return drafts, errors.Join(errs...)
 }
 
@@ -1505,6 +1540,10 @@ func getDraftScore(ctx context.Context, db database.DBTX, draftId int) ([]DraftP
 
 		usernames[playerId] = username
 		picks[playerId] = append(picks[playerId], pick)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate draft scores: %w", err)
 	}
 
 	uniqueTeams := make(map[string]struct{})
@@ -1618,6 +1657,10 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 			return LeaderboardPage{}, fmt.Errorf("failed to scan leaderboard row: %w", err)
 		}
 		rawPicks = append(rawPicks, r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return LeaderboardPage{}, fmt.Errorf("failed to iterate leaderboard rows: %w", err)
 	}
 
 	type entryKey struct {

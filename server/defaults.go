@@ -13,6 +13,9 @@ const (
 	serverShutdownTimeoutEnvKey = "SERVER_SHUTDOWN_TIMEOUT"
 	defaultServerShutdownTimeout = 10 * time.Second
 
+	serverReadHeaderTimeoutEnvKey = "SERVER_READ_HEADER_TIMEOUT"
+	defaultServerReadHeaderTimeout = 60 * time.Second
+
 	otelServiceName = "fantasy-frc-web"
 )
 
@@ -24,12 +27,14 @@ var (
 type mainDefaults struct {
 	staticAssetMaxAgeSeconds int
 	serverShutdownTimeout    time.Duration
+	serverReadHeaderTimeout  time.Duration
 }
 
 func loadDefaults() mainDefaults {
 	return mainDefaults{
 		staticAssetMaxAgeSeconds: utils.MustGetEnvInt(staticAssetMaxAgeSecondsEnvKey, defaultStaticAssetMaxAgeSeconds),
 		serverShutdownTimeout:    utils.MustGetEnvDuration(serverShutdownTimeoutEnvKey, defaultServerShutdownTimeout),
+		serverReadHeaderTimeout:  utils.MustGetEnvDuration(serverReadHeaderTimeoutEnvKey, defaultServerReadHeaderTimeout),
 	}
 }
 
@@ -43,3 +48,6 @@ func StaticAssetMaxAgeSeconds() int { return getDefaults().staticAssetMaxAgeSeco
 
 // ServerShutdownTimeout returns the graceful shutdown timeout.
 func ServerShutdownTimeout() time.Duration { return getDefaults().serverShutdownTimeout }
+
+// ServerReadHeaderTimeout returns the HTTP server read header timeout.
+func ServerReadHeaderTimeout() time.Duration { return getDefaults().serverReadHeaderTimeout }

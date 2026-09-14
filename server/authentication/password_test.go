@@ -10,10 +10,10 @@ import (
 
 func TestNewBcryptPasswordHasher_InvalidCost(t *testing.T) {
 	_, err := NewBcryptPasswordHasher(3)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	_, err = NewBcryptPasswordHasher(32)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestBcryptPasswordHasher_HashAndCompare(t *testing.T) {
@@ -25,8 +25,8 @@ func TestBcryptPasswordHasher_HashAndCompare(t *testing.T) {
 	assert.NotEmpty(t, hash)
 	assert.NotEqual(t, "Secret123!", hash)
 
-	assert.NoError(t, hasher.Compare("Secret123!", hash))
-	assert.Error(t, hasher.Compare("wrongpassword", hash))
+	require.NoError(t, hasher.Compare("Secret123!", hash))
+	require.Error(t, hasher.Compare("wrongpassword", hash))
 }
 
 func TestBcryptPasswordHasher_DummyHashUsesConfiguredCost(t *testing.T) {

@@ -33,7 +33,7 @@ func getTeam(ctx context.Context, db database.DBTX, tbaId string) (*Team, error)
 	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // not found is represented as nil team with nil error
 		}
 		return nil, fmt.Errorf("failed to get team: %w", err)
 	}
@@ -62,7 +62,10 @@ func updateTeamAllianceScore(ctx context.Context, db database.DBTX, tbaId string
 	}
 	defer database.CloseStatement(ctx, stmt, "UpdateTeamAllianceScore")
 	_, err = stmt.ExecContext(ctx, allianceScore, tbaId)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to execute updateTeamAllianceScore: %w", err)
+	}
+	return nil
 }
 
 // MatchTeamScore represents a team's score in a specific match

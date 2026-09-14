@@ -6,6 +6,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/authentication"
 	authmocks "server/authentication/mocks"
@@ -34,7 +35,7 @@ func TestHandleViewUserProfile(t *testing.T) {
 		}
 
 		err := h.HandleViewUserProfile(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -44,7 +45,7 @@ func TestHandleViewUserProfile(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleViewUserProfile(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
@@ -71,7 +72,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserProfile(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Discord ID updated successfully")
 	})
@@ -95,7 +96,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserProfile(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Discord ID must be a numeric snowflake")
 	})
@@ -106,7 +107,7 @@ func TestHandleUpdateUserProfile(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleUpdateUserProfile(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
@@ -133,7 +134,7 @@ func TestHandleUpdateUserPassword(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserPassword(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Password updated successfully")
 	})
@@ -155,7 +156,7 @@ func TestHandleUpdateUserPassword(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserPassword(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Passwords do not match")
 	})
@@ -177,7 +178,7 @@ func TestHandleUpdateUserPassword(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserPassword(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Current password is required")
 	})
@@ -202,7 +203,7 @@ func TestHandleUpdateUserPassword(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserPassword(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Current password is incorrect")
 	})
@@ -213,7 +214,7 @@ func TestHandleUpdateUserPassword(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleUpdateUserPassword(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})
@@ -245,7 +246,7 @@ func TestHandleUpdateUserNotificationPreferences(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserNotificationPreferences(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Notification preferences updated")
 	})
@@ -270,7 +271,7 @@ func TestHandleUpdateUserNotificationPreferences(t *testing.T) {
 		}
 
 		err := h.HandleUpdateUserNotificationPreferences(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Notification preferences updated")
 	})
@@ -281,7 +282,7 @@ func TestHandleUpdateUserNotificationPreferences(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleUpdateUserNotificationPreferences(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})

@@ -17,7 +17,7 @@ import (
 
 type DiscordNotifier interface {
 	PostPreMatchNotification(event PreMatchDiscordEvent) error
-	PostPickNotification(event NextPickDiscordEvent) error
+	PostPickNotification(ctx context.Context, event NextPickDiscordEvent) error
 	Stop()
 }
 
@@ -130,7 +130,7 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 		return
 	}
 
-	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Error(ctx, "Failed to create discord pre-match webhook request", "error", err)
 		return
@@ -225,33 +225,33 @@ func buildInProgressWebhook(event NextPickDiscordEvent, previousIdentifier strin
 	}
 }
 
-func (d *DiscordWebhookBus) sendWebhookRequest(webhookURL string, webhook DiscordWebhook) error {
+func (d *DiscordWebhookBus) sendWebhookRequest(ctx context.Context, webhookURL string, webhook DiscordWebhook) error {
 	jsonData, err := json.Marshal(webhook)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal webhook: %w", err)
 	}
-	req, err := http.NewRequest("POST", webhookURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Warn(context.Background(), "Failed to create post pick notification request", "error", err)
-		return err
+		log.Warn(ctx, "Failed to create post pick notification request", "error", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return err
-	}
+		return fmt.Errorf("failed to send request: %w", err)
+}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
-		}
+			return fmt.Errorf("failed to read response: %w", err)
+	}
 		return fmt.Errorf("discord webhook was not successful: %s", string(body))
 	}
 	return nil
 }
 
-func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
+func (d *DiscordWebhookBus) PostPickNotification(ctx context.Context, event NextPickDiscordEvent) error {
 	previousIdentifier := Identifier(event.PreviousPickName, event.PreviousPickDiscordId)
 
 	var webhook DiscordWebhook
@@ -270,5 +270,5 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 		webhook = buildInProgressWebhook(event, previousIdentifier, nextIdentifier, strings.Trim(event.PreviousPickedTeam, "frc"))
 	}
 
-	return d.sendWebhookRequest(event.Webhook, webhook)
+	return d.sendWebhookRequest(ctx, event.Webhook, webhook)
 }

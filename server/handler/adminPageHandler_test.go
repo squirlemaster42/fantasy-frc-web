@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/background"
@@ -162,9 +163,9 @@ func TestModifyPickTimeCommandDurationParsing(t *testing.T) {
 			// Test duration parsing directly
 			_, err := time.ParseDuration(tt.duration)
 			if tt.shouldBeValid {
-				assert.NoError(t, err, tt.description)
+				require.NoError(t, err, tt.description)
 			} else {
-				assert.Error(t, err, tt.description)
+				require.Error(t, err, tt.description)
 			}
 		})
 	}
@@ -211,7 +212,7 @@ func TestModifyPickTimeCommandTimeCalculation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			duration, err := time.ParseDuration(tt.duration)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			now := time.Now()
 			newExpiration := now.Add(duration)
@@ -574,7 +575,7 @@ func TestStartDraftCommand_StartsAndWatchesDraft(t *testing.T) {
 
 	assert.Equal(t, "Draft Started", result)
 	err := draftDaemon.AddDraft(ctx, draftId)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already added")
 	mockDraftStore.AssertExpectations(t)
 }

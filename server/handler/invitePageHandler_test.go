@@ -8,6 +8,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
 
 	"server/draft"
@@ -34,7 +35,7 @@ func TestHandleViewInvites(t *testing.T) {
 	}
 
 	err := h.HandleViewInvites(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -57,7 +58,7 @@ func TestHandleAcceptInvite_InviteNotFound(t *testing.T) {
 	}
 
 	err := h.HandleAcceptInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invite not found")
 }
@@ -86,7 +87,7 @@ func TestHandleAcceptInvite_WrongUser(t *testing.T) {
 	}
 
 	err := h.HandleAcceptInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "not allowed to accept")
 }
@@ -123,7 +124,7 @@ func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
 	}
 
 	err := h.HandleAcceptInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "too many players")
 }
@@ -162,7 +163,7 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 	}
 
 	err := h.HandleAcceptInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -185,7 +186,7 @@ func TestHandleAcceptInvite_DatabaseError(t *testing.T) {
 	}
 
 	err := h.HandleAcceptInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "An error occurred")
 }
@@ -226,7 +227,7 @@ func TestHandleDeclineInvite_Success(t *testing.T) {
 	}
 
 	err := h.HandleDeclineInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -249,7 +250,7 @@ func TestHandleDeclineInvite_InviteNotFound(t *testing.T) {
 	}
 
 	err := h.HandleDeclineInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invite not found")
 }
@@ -285,7 +286,7 @@ func TestHandleDeclineInvite_WrongUser(t *testing.T) {
 	}
 
 	err := h.HandleDeclineInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "not allowed to decline")
 }
@@ -330,7 +331,7 @@ func TestHandleDeclineInvite_RevertsToFilling(t *testing.T) {
 	}
 
 	err := h.HandleDeclineInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -352,7 +353,7 @@ func TestHandleDeclineInvite_InvalidInviteId(t *testing.T) {
 	}
 
 	err := h.HandleDeclineInvite(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid invite ID")
 }

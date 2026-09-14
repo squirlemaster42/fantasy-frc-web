@@ -32,11 +32,11 @@ func TestRegisterUser_Integration(t *testing.T) {
 	})
 
 	taken, err := store.UsernameTaken(ctx, username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, taken)
 
 	storedHash, err := store.GetPasswordHashByUsername(ctx, username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, string(passwordHash), storedHash)
 }
 
@@ -48,7 +48,7 @@ func TestGetPasswordHashByUsername_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	passwordHash, err := store.GetPasswordHashByUsername(ctx, user.Username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, passwordHash)
 	assert.True(t, strings.HasPrefix(passwordHash, "$2a$"), "password should be a bcrypt hash")
 }
@@ -65,18 +65,18 @@ func TestSessionTokenFlow_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	valid, err := store.ValidateSessionToken(ctx, sessionToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, valid)
 
 	foundUuid, err := store.GetUserBySessionToken(ctx, sessionToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user.UserUuid, foundUuid)
 
 	err = store.UnRegisterSession(ctx, sessionToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	valid, err = store.ValidateSessionToken(ctx, sessionToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, valid)
 }
 
@@ -97,11 +97,11 @@ func TestInvalidateAllUserSessionsExcept_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	valid, err := store.ValidateSessionToken(ctx, token1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, valid)
 
 	valid, err = store.ValidateSessionToken(ctx, token2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, valid)
 }
 
@@ -113,7 +113,7 @@ func TestUserIsAdmin_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	isAdmin, err := store.UserIsAdmin(ctx, user.UserUuid)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, isAdmin)
 }
 
@@ -143,14 +143,14 @@ func TestDiscordId_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	discordId, err := store.GetDiscordId(ctx, user.UserUuid)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, discordId)
 
 	err = store.UpdateDiscordId(ctx, user.UserUuid, "12345678901234567")
 	require.NoError(t, err)
 
 	discordId, err = store.GetDiscordId(ctx, user.UserUuid)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "12345678901234567", discordId)
 }
 
@@ -163,7 +163,7 @@ func TestSearchUsers_Integration(t *testing.T) {
 
 	// Searching for the exact username should find the user
 	users, err := store.SearchUsers(ctx, user.Username, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, users)
 
 	found := false
@@ -184,7 +184,7 @@ func TestGetUsername_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	username, err := store.GetUsername(ctx, user.UserUuid)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user.Username, username)
 }
 
@@ -196,7 +196,7 @@ func TestGetUserUuidByUsername_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	foundUuid, err := store.GetUserUuidByUsername(ctx, user.Username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, user.UserUuid, foundUuid)
 }
 
@@ -218,10 +218,10 @@ func TestGetUserBySessionToken_ExpiredSession_Integration(t *testing.T) {
 
 	store := NewSQLUserStore(db)
 	_, err = store.GetUserBySessionToken(ctx, sessionToken)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	valid, err := store.ValidateSessionToken(ctx, sessionToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, valid)
 }
 
@@ -233,11 +233,11 @@ func TestUsernameTaken_Integration(t *testing.T) {
 	user := createTestUser(t, db)
 
 	taken, err := store.UsernameTaken(ctx, user.Username)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, taken)
 
 	taken, err = store.UsernameTaken(ctx, "totally_unique_"+randomString(16))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, taken)
 }
 

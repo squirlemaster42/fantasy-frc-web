@@ -9,6 +9,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model"
 	"server/model/mocks"
@@ -58,7 +59,7 @@ func TestHandleOverallLeaderboard(t *testing.T) {
 		}
 
 		err := h.HandleOverallLeaderboard(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		html := rec.Body.String()
@@ -103,7 +104,7 @@ func TestHandleOverallLeaderboard(t *testing.T) {
 		}
 
 		err := h.HandleOverallLeaderboard(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -137,7 +138,7 @@ func TestHandleOverallLeaderboard(t *testing.T) {
 		}
 
 		err := h.HandleOverallLeaderboard(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -162,7 +163,7 @@ func TestHandleOverallLeaderboard(t *testing.T) {
 		}
 
 		err := h.HandleOverallLeaderboard(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "An error occurred")
 	})
@@ -173,7 +174,7 @@ func TestHandleOverallLeaderboard(t *testing.T) {
 		h := &Handler{}
 
 		err := h.HandleOverallLeaderboard(c)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
 	})

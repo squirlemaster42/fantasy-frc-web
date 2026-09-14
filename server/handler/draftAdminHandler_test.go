@@ -9,6 +9,7 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model"
 	"server/model/mocks"
@@ -37,7 +38,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -59,7 +60,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
@@ -82,7 +83,7 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	})
@@ -110,15 +111,15 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 }
 
 func TestHandleAdminEndDraft(t *testing.T) {
 	t.Run("invalid draft id", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/abc/admin/endDraft", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/abc/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -138,13 +139,13 @@ func TestHandleAdminEndDraft(t *testing.T) {
 		}
 
 		err := h.HandleAdminEndDraft(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("draft not found", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/admin/endDraft", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -166,13 +167,13 @@ func TestHandleAdminEndDraft(t *testing.T) {
 		}
 
 		err := h.HandleAdminEndDraft(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("non-owner forbidden", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/admin/endDraft", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -198,15 +199,15 @@ func TestHandleAdminEndDraft(t *testing.T) {
 		}
 
 		err := h.HandleAdminEndDraft(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
 
 func TestHandleAdminSkipPick(t *testing.T) {
 	t.Run("invalid draft id", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/abc/admin/skip", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/abc/admin/skip", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -226,13 +227,13 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		}
 
 		err := h.HandleAdminSkipPick(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("draft not found", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/admin/skip", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/skip", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -254,7 +255,7 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		}
 
 		err := h.HandleAdminSkipPick(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }

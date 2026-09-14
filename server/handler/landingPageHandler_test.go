@@ -7,6 +7,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	authmocks "server/authentication/mocks"
 	"server/model/mocks"
@@ -21,7 +22,7 @@ func TestHandleViewLanding_Unauthenticated(t *testing.T) {
 	}
 
 	err := h.HandleViewLanding(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Log In")
 	assert.Contains(t, rec.Body.String(), "Sign Up")
@@ -42,7 +43,7 @@ func TestHandleViewLanding_Authenticated(t *testing.T) {
 	}
 
 	err := h.HandleViewLanding(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "TestUser")
 	assert.Contains(t, rec.Body.String(), "/u/home")
@@ -63,7 +64,7 @@ func TestHandleViewLanding_InvalidSession(t *testing.T) {
 	}
 
 	err := h.HandleViewLanding(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Log In")
 	mockAuthService.AssertExpectations(t)

@@ -57,12 +57,18 @@ func (a *AvatarStore) Close() error {
 	if a.client == nil {
 		return nil
 	}
-	return a.client.Close()
+	if err := a.client.Close(); err != nil {
+		return fmt.Errorf("failed to close redis client: %w", err)
+	}
+	return nil
 }
 
 func (a *AvatarStore) storeAvatar(ctx context.Context, teamNum int, avatar []byte) error {
 	// Store the avatar for the configured TTL.
-	return a.client.Set(ctx, strconv.Itoa(teamNum), avatar, AvatarCacheTTL()).Err()
+	if err := a.client.Set(ctx, strconv.Itoa(teamNum), avatar, AvatarCacheTTL()).Err(); err != nil {
+		return fmt.Errorf("failed to store avatar in redis: %w", err)
+	}
+	return nil
 }
 
 func (a *AvatarStore) checkCache(ctx context.Context, teamNum int) ([]byte, error) {
@@ -72,8 +78,8 @@ func (a *AvatarStore) checkCache(ctx context.Context, teamNum int) ([]byte, erro
 
 	avatar, err := a.client.Get(ctx, strconv.Itoa(teamNum)).Result()
 	if err != nil {
-		return nil, err
-	}
+		return nil, fmt.Errorf("failed to get redis result: %w", err)
+}
 	return []byte(avatar), err
 }
 
@@ -85,8 +91,8 @@ func (a *AvatarStore) getTbaAvatar(ctx context.Context, teamNum int) ([]byte, er
 
 	avatar, err := base64.StdEncoding.DecodeString(base64Str)
 	if err != nil {
-		return nil, err
-	}
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+}
 	return avatar, nil
 }
 
@@ -94,7 +100,8 @@ func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error
 	log.Debug(ctx, "Loading avatar", "teamNum", teamNum)
 	avatar, err := a.checkCache(ctx, teamNum)
 
-	if err == redis.Nil {
+	switch {
+	case errors.Is(err, redis.Nil):
 		log.Debug(ctx, "Avatar not in redis, loading from TBA", "teamNum", teamNum)
 		avatar, err = a.getTbaAvatar(ctx, teamNum)
 		if err != nil {
@@ -106,10 +113,10 @@ func (a *AvatarStore) GetAvatar(ctx context.Context, teamNum int) ([]byte, error
 		if err != nil {
 			log.Warn(ctx, "Failed to store avatar in redis", "error", err)
 		}
-	} else if err != nil {
+	case err != nil:
 		log.Warn(ctx, "Failed to get cached avatar", "teamNum", teamNum, "error", err)
 		return a.getTbaAvatar(ctx, teamNum)
-	} else {
+	default:
 		log.Debug(ctx, "Avatar in redis", "teamNum", teamNum)
 	}
 
@@ -161,8 +168,8 @@ func (a *AvatarStore) GetAvatarColor(ctx context.Context, teamNum int) string {
 func extractAvatarColor(avatar []byte) (string, error) {
 	img, err := png.Decode(bytes.NewReader(avatar))
 	if err != nil {
-		return "", err
-	}
+		return "", fmt.Errorf("failed to decode png: %w", err)
+}
 
 	bounds := img.Bounds()
 	var rSum, gSum, bSum, count uint64
@@ -187,10 +194,17 @@ func extractAvatarColor(avatar []byte) (string, error) {
 		return "", errors.New("no usable pixels for color extraction")
 	}
 
-	avgR := uint8(rSum / count)
-	avgG := uint8(gSum / count)
-	avgB := uint8(bSum / count)
+	avgR := clampUint8(rSum / count)
+	avgG := clampUint8(gSum / count)
+	avgB := clampUint8(bSum / count)
 	return backgroundColorFromAvatarColor(avgR, avgG, avgB), nil
+}
+
+func clampUint8(v uint64) uint8 {
+	if v > 255 {
+		return 255
+	}
+	return uint8(v)
 }
 
 func backgroundColorFromAvatarColor(r, g, b uint8) string {
