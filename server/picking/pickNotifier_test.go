@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/stretchr/testify/assert"
 
 	"server/model"
@@ -17,7 +17,7 @@ func TestPickNotifier_RegisterWatcher(t *testing.T) {
 	watcher := pn.RegisterWatcher(1)
 
 	assert.NotNil(t, watcher)
-	assert.NotEqual(t, uuid.Nil, watcher.WatcherId)
+	assert.NotEqual(t, uuid.Nil(), watcher.WatcherId)
 	assert.NotNil(t, watcher.NotifierQueue)
 	assert.Len(t, pn.Watchers[1], 1)
 }

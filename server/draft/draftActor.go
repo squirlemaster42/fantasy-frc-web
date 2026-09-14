@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type StateTransitionMessage struct {

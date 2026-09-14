@@ -16,7 +16,7 @@ import (
 	"server/view/errorpage"
 
 	"github.com/a-h/templ"
-	"github.com/google/uuid"
+	"uuid"
 	echootel "github.com/labstack/echo-opentelemetry"
 	"github.com/labstack/echo/v5"
 	echomiddleware "github.com/labstack/echo/v5/middleware"

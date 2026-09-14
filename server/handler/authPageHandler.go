@@ -8,7 +8,7 @@ import (
 	"server/middleware"
 	"server/view/login"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/labstack/echo/v5"
 )
 

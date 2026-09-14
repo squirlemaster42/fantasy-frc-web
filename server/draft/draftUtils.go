@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
+	"uuid"
 
 	"server/log"
 	"server/model"

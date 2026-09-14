@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/XSAM/otelsql"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/pgconn"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
@@ -67,15 +67,14 @@ func createConnectionString(username string, password string, ip string, dbName 
 // function never mixes user input into the returned strings.
 func Placeholders(startPos int, count int) []string {
 	placeholders := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		placeholders[i] = fmt.Sprintf("$%d", startPos+i)
 	}
 	return placeholders
 }
 
 func sqlState(err error) string {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
 		return pgErr.Code
 	}
 	return ""
@@ -85,8 +84,7 @@ func sqlState(err error) string {
 // statement error that indicates a code/schema mismatch. These errors should
 // crash the process because retrying will not resolve them.
 func isProgrammingError(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
 		switch {
 		case strings.HasPrefix(pgErr.Code, sqlStateSyntaxPrefix): // Syntax / Access Rule Violation
 			return true

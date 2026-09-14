@@ -40,8 +40,7 @@ func (h *Handler) ConsumeTbaWebhook(c *echo.Context) error {
 	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, TbaWebhookMaxBodyBytes())
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			log.Warn(c.Request().Context(), "Webhook payload too large")
 			return c.NoContent(http.StatusRequestEntityTooLarge)
 		}
@@ -180,15 +179,15 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 				}
 			}
 
-		if !row.WantsUpcomingMatch {
-			continue
-		}
+			if !row.WantsUpcomingMatch {
+				continue
+			}
 
-		// Username by default but use discord id if found
-		discordId := discord.Identifier(row.Username, row.DiscordId)
+			// Username by default but use discord id if found
+			discordId := discord.Identifier(row.Username, row.DiscordId)
 
-		// add user with that pick to that draft
-		draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
+			// add user with that pick to that draft
+			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
 		}
 	}
 

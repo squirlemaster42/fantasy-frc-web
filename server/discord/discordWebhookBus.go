@@ -106,19 +106,19 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 }
 
 func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event PreMatchDiscordEvent) {
-	var message string
-	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
+	var message strings.Builder
+	fmt.Fprintf(&message, "Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
 
 	for discordId, teamIds := range event.IdsToTeams {
 		for _, teamId := range teamIds {
 			teamNumber, _ := strings.CutPrefix(teamId, "frc")
-			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamNumber)
+			fmt.Fprintf(&message, "%s, team %s is about to compete.\n", discordId, teamNumber)
 		}
 	}
 
 	webhook := DiscordWebhook{
 		Username: "Match Notifier",
-		Content:  message,
+		Content:  message.String(),
 		AllowedMentions: AllowedMentions{
 			Parse: []string{"users"},
 		},

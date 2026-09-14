@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type DraftState string
@@ -26,8 +26,8 @@ const (
 	PICKING          DraftState = "Picking"
 	TEAMS_PLAYING    DraftState = "Teams Playing"
 	COMPLETE         DraftState = "Complete"
-    INCREMENT		 TimingType = "Increment"
-    PER_PICK		 TimingType = "Per Pick"
+	INCREMENT        TimingType = "Increment"
+	PER_PICK         TimingType = "Per Pick"
 )
 
 const (
@@ -43,10 +43,10 @@ func PicksPerDraft(acceptedPlayerCount int) int {
 }
 
 type DraftSearchQuery struct {
-	UserUuid uuid.UUID
+	UserUuid        uuid.UUID
 	DraftNameSearch string
-	PageNum int
-	PageSize int
+	PageNum         int
+	PageSize        int
 }
 
 type DraftModel struct {
@@ -60,7 +60,7 @@ type DraftModel struct {
 	NextPick          DraftPlayer
 	CurrentPick       Pick
 	Picks             []Pick
-	TimingType 	      TimingType
+	TimingType        TimingType
 	IncrementTimeSec  int16
 	PerPickExpTimeSec int16
 }
@@ -80,13 +80,13 @@ func (d *DraftModel) String() string {
 }
 
 type DraftPlayer struct {
-	Id          		 int
-	User        		 User
-	PlayerOrder 		 sql.NullInt16
-	Pending     		 bool
-	Score       		 int
-	Picks       		 []Pick
-	InviteId    		 int
+	Id                   int
+	User                 User
+	PlayerOrder          sql.NullInt16
+	Pending              bool
+	Score                int
+	Picks                []Pick
+	InviteId             int
 	RemainingPickTimeSec int
 }
 
@@ -440,7 +440,7 @@ func loadCurrentPicksBatch(ctx context.Context, db database.DBTX, draftIds []int
 }
 
 func createDraft(ctx context.Context, db database.DBTX, draft *DraftModel) (int, error) {
-	if draft.Owner.UserUuid == uuid.Nil {
+	if draft.Owner.UserUuid == uuid.Nil() {
 		return 0, errors.New("draft owner uuid is nil")
 	}
 
@@ -1675,10 +1675,7 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 	})
 
 	total := len(entries)
-	totalPages := (total + perPage - 1) / perPage
-	if totalPages < 1 {
-		totalPages = 1
-	}
+	totalPages := max((total+perPage-1)/perPage, 1)
 
 	if page < 1 {
 		page = 1
@@ -1688,10 +1685,7 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 	}
 
 	start := (page - 1) * perPage
-	end := start + perPage
-	if end > total {
-		end = total
-	}
+	end := min(start+perPage, total)
 
 	pagedEntries := entries[start:end]
 

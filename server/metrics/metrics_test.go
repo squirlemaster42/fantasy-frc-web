@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/XSAM/otelsql"
-	"github.com/joho/godotenv"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -83,7 +83,7 @@ func TestDBStatsCollectorQueryCount(t *testing.T) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(collectors.NewDBStatsCollector(db, "postgres"))
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := db.ExecContext(context.Background(), "SELECT 1")
 		assert.NoError(t, err)
 	}

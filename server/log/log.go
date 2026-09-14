@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/uuid"
+	"uuid"
 	"go.opentelemetry.io/otel/trace"
 )
 

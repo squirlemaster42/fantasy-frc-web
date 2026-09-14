@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type SQLUserStore struct {

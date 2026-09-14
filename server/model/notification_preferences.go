@@ -6,7 +6,7 @@ import (
 
 	"server/database"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // DraftNotificationPreference stores a user's Discord notification opt-ins for a specific draft.

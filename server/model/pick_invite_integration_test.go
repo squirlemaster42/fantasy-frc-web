@@ -10,9 +10,9 @@ import (
 
 	"server/database"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"uuid"
 )
 
 func TestInvitePlayer_Integration(t *testing.T) {
@@ -554,7 +554,7 @@ func TestGetOverallLeaderboard_Pagination_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	const numEntries = 5
-	for i := 0; i < numEntries; i++ {
+	for range numEntries {
 		user := createTestUser(t, db)
 		draft := createTestDraft(t, db, user)
 		team := "frc" + randomString(4)
@@ -771,7 +771,7 @@ func TestRunInTransaction_FinalPick_Integration(t *testing.T) {
 	// Create all pick rows directly, marking all but the last as already made
 	totalPicks := PicksPerDraft(1)
 	availablePickId := 0
-	for i := 0; i < totalPicks; i++ {
+	for i := range totalPicks {
 		pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
 		require.NoError(t, err)
 		if i < totalPicks-1 {

@@ -21,9 +21,9 @@ import (
 	"server/tbaHandler"
 	"server/utils"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"uuid"
 )
 
 type testDiscordStore struct {
@@ -472,7 +472,7 @@ func TestDraftActorMap_ModifyCurrentPickExpirationTime(t *testing.T) {
 	draftId := 1
 	pickId := 42
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id: draftId,
+		Id:          draftId,
 		CurrentPick: model.Pick{Id: pickId, ExpirationTime: time.Now()},
 	}, nil).Once()
 	mockStore.On("UpdatePickExpirationTime", mock.Anything, pickId, mock.Anything).Return(nil).Once()
@@ -509,7 +509,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 	draftId := 1
 	pickId := 42
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id: draftId,
+		Id:          draftId,
 		CurrentPick: model.Pick{Id: pickId},
 	}, nil).Once()
 	mockStore.On("GetPreviousPick", mock.Anything, draftId, pickId).Return(model.Pick{Id: 41}, nil).Once()
@@ -517,7 +517,7 @@ func TestDraftActorMap_UndoLastPick(t *testing.T) {
 	mockStore.On("DeletePick", mock.Anything, pickId).Return(nil).Once()
 	mockStore.On("ResetPick", mock.Anything, 41, mock.Anything).Return(nil).Once()
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id: draftId,
+		Id:          draftId,
 		CurrentPick: model.Pick{Id: 41},
 	}, nil).Once()
 
@@ -687,7 +687,7 @@ func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
 	}()
 
 	// Fill watcher2's buffer so it also times out
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		select {
 		case watcher2.NotifierQueue <- true:
 		default:
@@ -815,17 +815,15 @@ func TestDraftActorMap_ConcurrentGetActor(t *testing.T) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 50 {
+		wg.Go(func() {
 			actor, err := actorMap.GetActor(t.Context(), draftId)
 			assert.NoError(t, err)
 			assert.NotNil(t, actor)
 			mu.Lock()
 			actors = append(actors, actor)
 			mu.Unlock()
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -847,28 +845,24 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Concurrent register/unregister
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 20 {
+		wg.Go(func() {
 			watcher := notifier.RegisterWatcher(draftId)
 			time.Sleep(10 * time.Millisecond)
 			notifier.UnregisterWatcher(t.Context(), watcher)
-		}()
+		})
 	}
 
 	// Concurrent events
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for i := range 20 {
+		wg.Go(func() {
 			event := picking.PickEvent{
 				DraftId: draftId,
 				Pick:    model.Pick{Id: i},
 			}
 			err := notifier.ReceivePickEvent(t.Context(), event)
 			assert.NoError(t, err)
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -881,18 +875,18 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1
 	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
-		Id:     draftId,
-		Status: model.FILLING,
+		Id:          draftId,
+		Status:      model.FILLING,
 		CurrentPick: model.Pick{Id: 42},
 	}, nil).Once()
-	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil).Return(nil).Maybe()
+	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil()).Return(nil).Maybe()
 
 	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
 	assert.NoError(t, err)
 	assert.NotNil(t, actor)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()

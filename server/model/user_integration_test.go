@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -24,7 +24,7 @@ func TestRegisterUser_Integration(t *testing.T) {
 	userUuid, err := store.RegisterUser(ctx, username, string(passwordHash))
 
 	require.NoError(t, err)
-	assert.NotEqual(t, uuid.Nil, userUuid)
+	assert.NotEqual(t, uuid.Nil(), userUuid)
 
 	// Cleanup is handled by createTestUser helper, but here we register directly
 	t.Cleanup(func() {

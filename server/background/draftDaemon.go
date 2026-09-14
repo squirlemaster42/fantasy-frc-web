@@ -3,6 +3,7 @@ package background
 import (
 	"context"
 	"errors"
+	"maps"
 	"server/assert"
 	"server/draft"
 	"server/log"
@@ -77,9 +78,7 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 func (d *DraftDaemon) checkForPicksToSkip(ctx context.Context) {
 	d.mu.RLock()
 	runningDraftsCopy := make(map[int]bool, len(d.runningDrafts))
-	for k, v := range d.runningDrafts {
-		runningDraftsCopy[k] = v
-	}
+	maps.Copy(runningDraftsCopy, d.runningDrafts)
 	d.mu.RUnlock()
 
 	for draftId, running := range runningDraftsCopy {

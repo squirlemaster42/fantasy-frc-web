@@ -8,7 +8,7 @@ import (
 
 	"server/database"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type SQLDraftStore struct {

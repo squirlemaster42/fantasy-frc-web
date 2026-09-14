@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	uuid "github.com/google/uuid"
+	uuid "uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 

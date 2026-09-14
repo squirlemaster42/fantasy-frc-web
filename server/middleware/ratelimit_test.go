@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"uuid"
 )
 
 func TestNewRateLimiter_DisabledWhenAddrEmpty(t *testing.T) {
@@ -44,7 +44,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First 5 requests are allowed
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		req := httptest.NewRequest(http.MethodPost, "/login", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -83,7 +83,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First 3 requests are allowed
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		req := httptest.NewRequest(http.MethodPost, "/register", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)

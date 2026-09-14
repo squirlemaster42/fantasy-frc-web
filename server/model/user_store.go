@@ -3,7 +3,7 @@ package model
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type UserStore interface {

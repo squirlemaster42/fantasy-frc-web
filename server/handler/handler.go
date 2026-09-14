@@ -13,7 +13,7 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/labstack/echo/v5"
 )
 

@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"database/sql"
+	"slices"
 	"testing"
 	"time"
 
@@ -47,10 +48,10 @@ func TestGetDraftsForUser_Integration(t *testing.T) {
 	drafts, err := store.SearchDrafts(
 		ctx,
 		DraftSearchQuery{
-			UserUuid: user.UserUuid,
+			UserUuid:        user.UserUuid,
 			DraftNameSearch: draft.DisplayName,
-			PageSize: 20,
-			PageNum: 0,
+			PageSize:        20,
+			PageNum:         0,
 		},
 	)
 	require.NoError(t, err)
@@ -135,13 +136,7 @@ func TestGetDraftsInStatus_Integration(t *testing.T) {
 	drafts, err := store.GetDraftsInStatus(ctx, FILLING)
 	require.NoError(t, err)
 
-	found := false
-	for _, id := range drafts {
-		if id == draft.Id {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(drafts, draft.Id)
 	assert.True(t, found)
 }
 
@@ -180,18 +175,16 @@ func TestGetDraftsForUser_MultipleDrafts_Integration(t *testing.T) {
 	_, err := store.InvitePlayer(ctx, draftB.Id, owner.UserUuid, invited.UserUuid)
 	require.NoError(t, err)
 
-
 	drafts, err := store.SearchDrafts(
 		ctx,
 		DraftSearchQuery{
 			UserUuid: owner.UserUuid,
 			PageSize: 20,
-			PageNum: 0,
+			PageNum:  0,
 		},
 	)
 	require.NoError(t, err)
 	require.Len(t, drafts, 2)
-
 
 	draftIds := make(map[int]bool)
 	for _, d := range drafts {
@@ -212,7 +205,7 @@ func TestGetDraftsForUser_MultipleDrafts_Integration(t *testing.T) {
 		DraftSearchQuery{
 			UserUuid: invited.UserUuid,
 			PageSize: 20,
-			PageNum: 0,
+			PageNum:  0,
 		},
 	)
 	require.NoError(t, err)
@@ -249,10 +242,10 @@ func TestGetDraftsForUser_PickingStatus_Integration(t *testing.T) {
 	drafts, err := store.SearchDrafts(
 		ctx,
 		DraftSearchQuery{
-			UserUuid: owner.UserUuid,
+			UserUuid:        owner.UserUuid,
 			DraftNameSearch: draft.DisplayName,
-			PageSize: 20,
-			PageNum: 0,
+			PageSize:        20,
+			PageNum:         0,
 		},
 	)
 	require.NoError(t, err)

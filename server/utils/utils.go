@@ -40,16 +40,16 @@ func ParseArgString(argStr string) (map[string]string, error) {
 		if argStr[curChar] == '-' && len(argStr) > curChar+1 {
 			//We need to go from the next char to right before the =
 			//and make that the command name
-			argName := ""
+			var argName strings.Builder
 			curChar++
 			for len(argStr) > curChar && argStr[curChar] != '=' {
-				argName += string(argStr[curChar])
+				argName.WriteString(string(argStr[curChar]))
 				curChar++
 			}
 
 			if len(argStr) <= curChar || argStr[curChar] != '=' {
 				//There is no value for this flag so we just signify its present by putting the key in the map
-				argMap[argName] = ""
+				argMap[argName.String()] = ""
 				continue
 			}
 
@@ -68,13 +68,13 @@ func ParseArgString(argStr string) (map[string]string, error) {
 				curChar++
 			}
 
-			argVal := ""
+			var argVal strings.Builder
 			for len(argStr) > curChar && argStr[curChar] != searchChar {
-				argVal += string(argStr[curChar])
+				argVal.WriteString(string(argStr[curChar]))
 				curChar++
 			}
 
-			argMap[argName] = argVal
+			argMap[argName.String()] = argVal.String()
 		}
 		curChar++
 	}

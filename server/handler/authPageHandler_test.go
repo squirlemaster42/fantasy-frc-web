@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/stretchr/testify/assert"
 
 	"server/authentication"

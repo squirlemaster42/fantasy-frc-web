@@ -58,8 +58,7 @@ func TestDraftDaemon_StartStop(t *testing.T) {
 	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	err := daemon.Start(ctx)
 	assert.NoError(t, err)
@@ -87,8 +86,7 @@ func TestDraftDaemon_StartStop_WithDraft(t *testing.T) {
 	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	err := daemon.AddDraft(ctx, 1)
 	assert.NoError(t, err)

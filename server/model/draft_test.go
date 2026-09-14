@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"uuid"
 )
 
 func TestUpdatePickExpirationTimeQuery(t *testing.T) {
@@ -320,14 +320,14 @@ func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
 	for _, playerCount := range testCases {
 		t.Run(fmt.Sprintf("%d players full draft", playerCount), func(t *testing.T) {
 			players := make([]DraftPlayer, playerCount)
-			for i := 0; i < playerCount; i++ {
+			for i := range playerCount {
 				players[i] = makePlayer(i+1, i)
 			}
 
 			totalPicks := PicksPerDraft(playerCount)
 			picks := make([]Pick, 0, totalPicks)
 
-			for pickIndex := 0; pickIndex < totalPicks; pickIndex++ {
+			for pickIndex := range totalPicks {
 				next, err := DetermineNextPick(players, picks)
 				assert.NoError(t, err, "pick %d", pickIndex)
 				assert.Equal(t, expectedOrder(playerCount, pickIndex), int(next.PlayerOrder.Int16), "pick %d", pickIndex)
@@ -342,7 +342,7 @@ func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
 func TestCanStartDraft_PlayerCountRange(t *testing.T) {
 	makeDraft := func(acceptedCount int) DraftModel {
 		players := make([]DraftPlayer, acceptedCount)
-		for i := 0; i < acceptedCount; i++ {
+		for i := range acceptedCount {
 			players[i] = DraftPlayer{Pending: false}
 		}
 		return DraftModel{Players: players}
@@ -368,4 +368,3 @@ func TestCanStartDraft_PlayerCountRange(t *testing.T) {
 		assert.False(t, CanStartDraft(makeDraft(17)))
 	})
 }
-

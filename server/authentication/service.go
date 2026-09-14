@@ -8,7 +8,7 @@ import (
 	"server/log"
 	"server/model"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // AuthConfig holds validation settings for authentication flows.

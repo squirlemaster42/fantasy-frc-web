@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v5"
 )

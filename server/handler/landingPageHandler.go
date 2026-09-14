@@ -6,7 +6,7 @@ import (
 	"server/log"
 	"server/view"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/labstack/echo/v5"
 )
 

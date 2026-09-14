@@ -11,7 +11,7 @@ package swagger
 // A year-specific event insight object expressed as a JSON string, separated in to `qual` and `playoff` fields. See also Event_Insights_2016, Event_Insights_2017, etc.
 type EventInsights struct {
 	// Inights for the qualification round of an event
-	Qual *interface{} `json:"qual,omitempty"`
+	Qual *any `json:"qual,omitempty"`
 	// Insights for the playoff round of an event
-	Playoff *interface{} `json:"playoff,omitempty"`
+	Playoff *any `json:"playoff,omitempty"`
 }

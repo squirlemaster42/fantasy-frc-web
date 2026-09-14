@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/stretchr/testify/assert"
 
 	"server/model"

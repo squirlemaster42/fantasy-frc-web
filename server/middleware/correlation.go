@@ -3,7 +3,7 @@ package middleware
 import (
 	"server/log"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/labstack/echo/v5"
 )
 

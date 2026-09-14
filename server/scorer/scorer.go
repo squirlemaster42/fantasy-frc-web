@@ -8,6 +8,7 @@ import (
 	"server/swagger"
 	"server/tbaHandler"
 	"server/utils"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -204,12 +205,7 @@ func (s *Scorer) merge(ctx context.Context, left []string, right []string) []str
 }
 
 func isDqed(team string, dqedTeams []string) bool {
-	for _, dqed := range dqedTeams {
-		if team == dqed {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(dqedTeams, team)
 }
 
 func (s *Scorer) GetAllianceSelectionScore(ctx context.Context, alliance swagger.EliminationAlliance) map[string]int {

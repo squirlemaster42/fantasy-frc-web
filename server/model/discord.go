@@ -110,7 +110,7 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
 	// input values are passed as arguments, so this remains safe from SQL
 	// injection.
 	placeholders := database.Placeholders(1, len(teamKeys))
-	args := make([]interface{}, len(teamKeys))
+	args := make([]any, len(teamKeys))
 	for i, key := range teamKeys {
 		args[i] = key
 	}

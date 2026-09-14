@@ -13,7 +13,7 @@ import (
 	"server/model"
 	"server/view/userProfile"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/labstack/echo/v5"
 )
 

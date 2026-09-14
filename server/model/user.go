@@ -8,7 +8,7 @@ import (
 	"server/database"
 	"server/log"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type User struct {

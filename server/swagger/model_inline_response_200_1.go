@@ -10,7 +10,7 @@ package swagger
 
 type InlineResponse2001 struct {
 	// Inights for the qualification round of an event
-	Qual *interface{} `json:"qual,omitempty"`
+	Qual *any `json:"qual,omitempty"`
 	// Insights for the playoff round of an event
-	Playoff *interface{} `json:"playoff,omitempty"`
+	Playoff *any `json:"playoff,omitempty"`
 }

@@ -11,8 +11,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"net/url"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	"server/model"
 	"server/types"
@@ -249,7 +248,7 @@ func DraftList(drafts []model.DraftModel, userUuid uuid.UUID, pageNumber int, se
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/u/draftList?page=%d&search=%s", pageNumber+1, url.QueryEscape(searchTerm)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 93, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 92, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 			if templ_7745c5c3_Err != nil {
@@ -298,7 +297,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(draft.DisplayName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 110, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 109, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -311,7 +310,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(string(draft.Status))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 116, Col: 165}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 115, Col: 165}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -329,7 +328,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(draft.NextPick.User.Username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 121, Col: 176}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 120, Col: 176}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -358,7 +357,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(player.User.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 134, Col: 159}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 133, Col: 159}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -383,7 +382,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(player.User.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 144, Col: 159}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 143, Col: 159}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -402,7 +401,7 @@ func DraftCard(draft model.DraftModel, userUuid uuid.UUID) templ.Component {
 		var templ_7745c5c3_Var15 templ.SafeURL
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/profile", draft.Id)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 151, Col: 233}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/home.templ`, Line: 150, Col: 233}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
