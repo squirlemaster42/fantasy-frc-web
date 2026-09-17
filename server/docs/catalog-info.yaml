@@ -59,4 +59,4 @@ spec:
   owner: user:jmisbach
 
   definition:
-    $text: https://raw.githubusercontent.com/squirlemaster42/fantasy-frc-web/main/server/docs/openapi.yaml
+    $text: https://github.com/squirlemaster42/fantasy-frc-web/main/server/docs/openapi.yaml
