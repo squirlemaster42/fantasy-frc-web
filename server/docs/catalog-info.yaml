@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: API
+
+metadata:
+  name: fantasy-frc
+
+spec:
+  type: openapi
+  lifecycle: production
+  owner: user:jmisbach
+
+  definition:
+    $text: https://github.com/squirlemaster42/fantasy-frc-web/blob/main/server/docs/openapi.yaml
