@@ -3,7 +3,7 @@
 > **AI-Generated Documentation**
 > This documentation was generated with AI assistance and may contain errors or outdated information
 
-Welcome to the documentation for the Fantasy FRC web application
+Welcome to the documentation for the Fantasy FRC web application!
 
 ## 📚 Documentation Index
 
