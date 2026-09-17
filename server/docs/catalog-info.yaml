@@ -3,11 +3,17 @@ kind: API
 
 metadata:
   name: fantasy-frc
+  title: Fantasy FRC API
+  description: HTTP interface for the Fantasy FRC web application.
+  tags:
+    - go
+    - openapi
+    - frc
+    - fantasy
 
 spec:
   type: openapi
   lifecycle: production
   owner: user:jmisbach
-
   definition:
-    $text: https://github.com/squirlemaster42/fantasy-frc-web/blob/main/server/docs/openapi.yaml
+    $text: https://raw.githubusercontent.com/squirlemaster42/fantasy-frc-web/main/server/docs/openapi.yaml
