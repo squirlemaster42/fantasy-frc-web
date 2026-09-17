@@ -4,7 +4,49 @@ kind: API
 metadata:
   name: fantasy-frc
   title: Fantasy FRC API
-  description: HTTP interface for the Fantasy FRC web application.
+  description: |
+    HTTP interface for the Fantasy FRC web application.
+
+    API routes:
+
+    GET /
+    GET /healthz
+    GET /metrics
+
+    GET /login
+    POST /login
+
+    GET /register
+    POST /register
+
+    POST /tbaWebhook
+
+    GET /u/home
+    GET /u/profile
+    GET /u/standings
+    GET /u/leaderboard
+    GET /u/draft
+    GET /u/draft/{id}
+    GET /u/draft/{id}/picks
+    POST /u/draft/{id}/makePick
+    GET /u/team
+    GET /u/team/{id}
+    GET /u/matches
+    GET /u/matches/{id}
+    GET /u/fantasy
+    GET /u/fantasy/{id}
+
+    GET /api/teams
+    GET /api/teams/{id}
+    GET /api/matches
+    GET /api/matches/{id}
+
+    GET /admin
+    GET /admin/users
+    GET /admin/teams
+    GET /admin/drafts
+    GET /admin/matches
+
   tags:
     - go
     - openapi
@@ -15,5 +57,6 @@ spec:
   type: openapi
   lifecycle: production
   owner: user:jmisbach
+
   definition:
     $text: https://raw.githubusercontent.com/squirlemaster42/fantasy-frc-web/main/server/docs/openapi.yaml
