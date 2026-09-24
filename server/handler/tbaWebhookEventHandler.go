@@ -12,6 +12,7 @@ import (
 	"os"
 	"server/discord"
 	"server/log"
+	"server/otel"
 	"server/swagger"
 	"server/utils"
 	"time"
@@ -72,15 +73,27 @@ func (h *Handler) ConsumeTbaWebhook(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Routing event", "messageType", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		go h.HandleUpcomingMatchEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-upcoming-match")
+			defer span.End()
+			h.HandleUpcomingMatchEvent(ctx, event.MessageData)
+		}()
 	case "match_score":
-		go h.HandleMatchScoreEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-match-score")
+			defer span.End()
+			h.HandleMatchScoreEvent(ctx, event.MessageData)
+		}()
 	case "match_video":
 		h.HandleMatchVideoEvent(c.Request().Context(), event.MessageData)
 	case "starting_comp_level":
 		h.HandleCompLevelStartingEvent(c.Request().Context(), event.MessageData)
 	case "alliance_selection":
-		go h.HandleAllianceSelectionEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-alliance-selection")
+			defer span.End()
+			h.HandleAllianceSelectionEvent(ctx, event.MessageData)
+		}()
 	case "awards_posted":
 		h.HandleAwardsPostedEvent(c.Request().Context(), event.MessageData)
 	case "schedule_updated":
