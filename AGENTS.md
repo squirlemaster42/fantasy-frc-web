@@ -307,6 +307,7 @@ The server fails fast on startup if a required variable is missing or if an opti
 - `DISCORD_MIN_ID_LENGTH` (int, default `17`): Minimum valid Discord snowflake length.
 - `TBA_ALLIANCE_MAX_RETRIES` (int, default `5`): Retries when TBA returns an empty elimination alliance list.
 - `TBA_ALLIANCE_BACKOFF_BASE` (duration, default `1s`): Base duration for exponential backoff between alliance retries.
+- `TBA_REQUEST_TIMEOUT` (duration, default `30s`): HTTP client timeout for outbound TBA API requests.
 - `SCORER_QUAL_WIN_POINTS` (int, default `3`): Points awarded to the winning alliance of a qualification match.
 - `SCORER_ENERGIZED_BONUS_POINTS` (int, default `1`): Bonus points for the Energized ranking point.
 - `SCORER_SUPERCHARGED_BONUS_POINTS` (int, default `1`): Bonus points for the Supercharged ranking point.

@@ -44,6 +44,7 @@ func NewHandler(tbaToken string, database *sql.DB) *TBAHandler {
 		database: database,
 		client: &http.Client{
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
+			Timeout:   TbaRequestTimeout(),
 		},
 	}
 	return handler
@@ -70,8 +71,13 @@ func (t *TBAHandler) checkCache(ctx context.Context, url string) ([]byte, string
 	var etag string
 	var body []byte
 	err = stmt.QueryRowContext(ctx, url).Scan(&etag, &body)
-
-	return body, etag, fmt.Errorf("failed to scan checkCache row: %w", err)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, "", fmt.Errorf("no cached tba response for url: %w", err)
+		}
+		return nil, "", fmt.Errorf("failed to scan checkCache row: %w", err)
+	}
+	return body, etag, nil
 }
 
 func (t *TBAHandler) cacheData(ctx context.Context, url string, etag string, body []byte) {

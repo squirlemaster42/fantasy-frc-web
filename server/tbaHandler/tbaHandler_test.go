@@ -315,6 +315,51 @@ func TestMakeRequest_429ReturnsError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+type headerRecordingTransport struct {
+	response  *http.Response
+	err       error
+	seenReq   *http.Request
+}
+
+func (h *headerRecordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	h.seenReq = req
+	if h.err != nil {
+		return nil, h.err
+	}
+	return h.response, nil
+}
+
+func TestMakeRequest_CacheHitSendsIfNoneMatch(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	cachedBody := []byte(`[{"cached":true}]`)
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnRows(sqlmock.NewRows([]string{"etag", "responseBody"}).AddRow(etag, cachedBody))
+
+	transport := &headerRecordingTransport{
+		response: &http.Response{
+			StatusCode: http.StatusNotModified,
+			Body:       io.NopCloser(strings.NewReader("")),
+			Header:     make(http.Header),
+			Request:    nil,
+		},
+	}
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: transport}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.NoError(t, err)
+	assert.Equal(t, cachedBody, resp)
+	require.NotNil(t, transport.seenReq)
+	assert.Equal(t, etag, transport.seenReq.Header.Get("If-None-Match"))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestMakeRequest_NetworkError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

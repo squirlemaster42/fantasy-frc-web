@@ -261,13 +261,13 @@ func (d *DiscordWebhookBus) PostPickNotification(ctx context.Context, event Next
 			Content: fmt.Sprintf(
 				"%s has picked %s. The draft is complete!",
 				previousIdentifier,
-				strings.Trim(event.PreviousPickedTeam, "frc"),
+				strings.TrimPrefix(event.PreviousPickedTeam, "frc"),
 			),
 			AllowedMentions: AllowedMentions{},
 		}
 	} else {
 		nextIdentifier := Identifier(event.NextPickName, event.NextPickDiscordId)
-		webhook = buildInProgressWebhook(event, previousIdentifier, nextIdentifier, strings.Trim(event.PreviousPickedTeam, "frc"))
+		webhook = buildInProgressWebhook(event, previousIdentifier, nextIdentifier, strings.TrimPrefix(event.PreviousPickedTeam, "frc"))
 	}
 
 	return d.sendWebhookRequest(ctx, event.Webhook, webhook)
