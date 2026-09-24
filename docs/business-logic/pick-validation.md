@@ -13,7 +13,7 @@ Pick validation ensures that all team selections during a draft are valid, legal
 
 ### 1. Team Existence Validation
 
-**Rule**: The selected team must exist in The Blue Alliance (TBA) database.
+**Rule**: The selected team must exist in The Blue Alliance (TBA) database
 
 **Validation Process**:
 - Team ID format: `frc{number}` (e.g., `frc254`)

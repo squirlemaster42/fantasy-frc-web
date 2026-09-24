@@ -1,6 +1,6 @@
 # Component Interactions
 
-How the various subsystems of the Fantasy FRC application communicate and interact.
+How the various subsystems of the Fantasy FRC application communicate and interact
 
 ## 🔄 Interaction Patterns
 

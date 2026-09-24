@@ -1,6 +1,6 @@
 # Data Flow
 
-How data moves through the Fantasy FRC system from external sources to end users.
+How data moves through the Fantasy FRC system from external sources to end users
 
 ## 🌊 Data Flow Overview
 

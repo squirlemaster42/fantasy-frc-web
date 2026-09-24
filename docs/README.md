@@ -55,7 +55,7 @@ Welcome to the documentation for the Fantasy FRC web application!
 graph TD
     A[Web Client] --> B[Echo Web Server]
     B --> C[Authentication]
-    B --> D[Draft Actor Map]
+    B --> D[Draft Actor]
     B --> E[Scorer]
     B --> F[TBA Handler]
     C --> G[PostgreSQL Database]
