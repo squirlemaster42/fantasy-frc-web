@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -398,4 +399,51 @@ func TestMakeRequest_UnexpectedStatus(t *testing.T) {
 	assert.Contains(t, err.Error(), "unexpected status")
 	assert.Nil(t, resp)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBuildTbaUrl_EscapesPathSegments(t *testing.T) {
+	teamId := "frc254/foo"
+	eventId := "2026 event"
+	expected := BASE_URL + "team/" + url.PathEscape(teamId) + "/event/" + url.PathEscape(eventId) + "/matches"
+
+	assert.Equal(t, expected, buildTbaUrl("team/%s/event/%s/matches", teamId, eventId))
+}
+
+func TestBuildTbaUrl_PreservesNonStringArguments(t *testing.T) {
+	teamId := "frc254"
+	year := 2026
+	expected := BASE_URL + "team/" + teamId + "/events/2026/keys"
+
+	assert.Equal(t, expected, buildTbaUrl("team/%s/events/%d/keys", teamId, year))
+}
+
+type urlRecordingTransport struct {
+	seenUrl *url.URL
+}
+
+func (u *urlRecordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	u.seenUrl = req.URL
+	headers := make(http.Header)
+	headers.Set("Etag", "mock-etag")
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"key":"2026casnv_qm24"}`)),
+		Header:     headers,
+		Request:    req,
+	}, nil
+}
+
+func TestMakeMatchReq_EscapesMatchId(t *testing.T) {
+	matchId := "2026casnv/qm 24"
+	transport := &urlRecordingTransport{}
+
+	handler := NewHandler("test-token", nil)
+	handler.client = &http.Client{Transport: transport}
+
+	_, err := handler.MakeMatchReq(t.Context(), matchId)
+	require.NoError(t, err)
+	require.NotNil(t, transport.seenUrl)
+
+	expectedPath := "/api/v3/match/" + url.PathEscape(matchId)
+	assert.Equal(t, expectedPath, transport.seenUrl.EscapedPath())
 }

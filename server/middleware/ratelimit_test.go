@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -71,7 +72,10 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	err := handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-	assert.Equal(t, "900", rec.Header().Get("Retry-After"))
+	retryAfter, parseErr := strconv.Atoi(rec.Header().Get("Retry-After"))
+	require.NoError(t, parseErr)
+	assert.Positive(t, retryAfter)
+	assert.LessOrEqual(t, retryAfter, 900)
 }
 
 func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
@@ -192,7 +196,10 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-	assert.Equal(t, "60", rec.Header().Get("Retry-After"))
+	retryAfter, parseErr := strconv.Atoi(rec.Header().Get("Retry-After"))
+	require.NoError(t, parseErr)
+	assert.Positive(t, retryAfter)
+	assert.LessOrEqual(t, retryAfter, 60)
 }
 
 func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
@@ -290,7 +297,62 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 func TestRateLimiter_checkLimit_AllowsWhenRedisNil(t *testing.T) {
 	limiter := NewRateLimiter("", "", 0)
 
-	allowed, _, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
+	allowed, _, retryAfter, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
 	require.NoError(t, err)
 	assert.True(t, allowed)
+	assert.Equal(t, time.Duration(0), retryAfter)
+}
+
+func TestRateLimiter_WindowRollover_ResetsCounter(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	limiter := NewRateLimiter(s.Addr(), "", 0)
+	middleware := limiter.RateLimitLogin()
+
+	e := echo.New()
+
+	// Exhaust the limit for the current window
+	for range 5 {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		handler := middleware(func(c *echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := handler(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	// Next request in the same window is blocked
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := middleware(func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+
+	// Advance past the window boundary
+	s.FastForward(16 * time.Minute)
+
+	// Request in the new window is allowed again
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+
+	handler = middleware(func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err = handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }

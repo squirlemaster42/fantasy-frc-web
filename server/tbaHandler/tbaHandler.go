@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
+	neturl "net/url"
 	db "server/database"
 	"server/log"
 	"server/metrics"
@@ -36,6 +36,18 @@ type TBAHandler struct {
 	tbaToken string
 	database *sql.DB
 	client   *http.Client
+}
+
+// buildTbaUrl constructs a TBA API URL, path-escaping all string arguments.
+func buildTbaUrl(format string, args ...interface{}) string {
+	escaped := make([]interface{}, len(args))
+	copy(escaped, args)
+	for i, arg := range escaped {
+		if s, ok := arg.(string); ok {
+			escaped[i] = neturl.PathEscape(s)
+		}
+	}
+	return BASE_URL + fmt.Sprintf(format, escaped...)
 }
 
 func NewHandler(tbaToken string, database *sql.DB) *TBAHandler {
@@ -190,7 +202,7 @@ func (t *TBAHandler) makeRequest(ctx context.Context, url string, endpoint strin
 
 // MakeMatchListReq requests the list of matches for a team at an event from The Blue Alliance.
 func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventId string) ([]swagger.Match, error) {
-	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches"
+	url := buildTbaUrl("team/%s/event/%s/matches", teamId, eventId)
 	endpoint := "/team/{team}/event/{event}/matches"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -206,7 +218,7 @@ func (t *TBAHandler) MakeMatchListReq(ctx context.Context, teamId string, eventI
 
 // MakeEventListReq requests the list of events for a team from The Blue Alliance.
 func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
-	url := BASE_URL + "team/" + teamId + "/events/" + strconv.Itoa(utils.TbaSeasonYear) + "/keys"
+	url := buildTbaUrl("team/%s/events/%d/keys", teamId, utils.TbaSeasonYear)
 	endpoint := "/team/{team}/events/{year}/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -222,7 +234,7 @@ func (t *TBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]str
 
 // MakeMatchReq requests a single match from The Blue Alliance.
 func (t *TBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error) {
-	url := BASE_URL + "match/" + matchId
+	url := buildTbaUrl("match/%s", matchId)
 	endpoint := "/match/{match}"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -238,7 +250,7 @@ func (t *TBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.
 
 // MakeMatchKeysRequest requests the match keys for a team at an event from The Blue Alliance.
 func (t *TBAHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, eventId string) ([]string, error) {
-	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/matches/keys"
+	url := buildTbaUrl("team/%s/event/%s/matches/keys", teamId, eventId)
 	endpoint := "/team/{team}/event/{event}/matches/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -254,7 +266,7 @@ func (t *TBAHandler) MakeMatchKeysRequest(ctx context.Context, teamId string, ev
 
 // MakeEventMatchKeysRequest requests the match keys for an event from The Blue Alliance.
 func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error) {
-	url := BASE_URL + "event/" + eventId + "/matches/keys"
+	url := buildTbaUrl("event/%s/matches/keys", eventId)
 	endpoint := "/event/{event}/matches/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -270,7 +282,7 @@ func (t *TBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId stri
 
 // MakeMatchKeysYearRequest requests the match keys for a team in a specific year from The Blue Alliance.
 func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string) ([]string, error) {
-	url := BASE_URL + "team/" + teamId + "/matches/" + strconv.Itoa(utils.TbaHistoricMatchYear) + "/keys"
+	url := buildTbaUrl("team/%s/matches/%d/keys", teamId, utils.TbaHistoricMatchYear)
 	endpoint := "/team/{team}/matches/{year}/keys"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -286,7 +298,7 @@ func (t *TBAHandler) MakeMatchKeysYearRequest(ctx context.Context, teamId string
 
 // MakeTeamEventStatusRequest requests the team event status from The Blue Alliance.
 func (t *TBAHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId string, eventId string) (swagger.TeamEventStatus, error) {
-	url := BASE_URL + "team/" + teamId + "/event/" + eventId + "/status"
+	url := buildTbaUrl("team/%s/event/%s/status", teamId, eventId)
 	endpoint := "/team/{team}/event/{event}/status"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -302,7 +314,7 @@ func (t *TBAHandler) MakeTeamEventStatusRequest(ctx context.Context, teamId stri
 
 // MakeTeamsAtEventRequest requests the teams at an event from The Blue Alliance.
 func (t *TBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
-	url := BASE_URL + "event/" + eventId + "/teams/simple"
+	url := buildTbaUrl("event/%s/teams/simple", eventId)
 	endpoint := "/event/{event}/teams/simple"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {
@@ -319,7 +331,7 @@ func (t *TBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string
 // MakeEliminationAllianceRequest requests the elimination alliances for an event from The Blue Alliance.
 // Retries with exponential backoff when TBA returns an empty alliance list (up to 5 retries).
 func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
-	url := BASE_URL + "event/" + eventId + "/alliances"
+	url := buildTbaUrl("event/%s/alliances", eventId)
 	endpoint := "/event/{event}/alliances"
 
 	maxRetries := TbaAllianceMaxRetries()
@@ -352,7 +364,7 @@ func (t *TBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId
 
 // MakeTeamAvatarRequest requests the team avatar/media from The Blue Alliance.
 func (t *TBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
-	url := fmt.Sprintf("%steam/%s/media/%d", BASE_URL, teamId, time.Now().Year())
+	url := buildTbaUrl("team/%s/media/%d", teamId, time.Now().Year())
 	endpoint := "/team/{team}/media/{year}"
 	jsonData, err := t.makeRequest(ctx, url, endpoint)
 	if err != nil {

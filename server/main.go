@@ -281,6 +281,7 @@ func main() {
 	if err := cleanupService.Stop(ctx); err != nil {
 		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
 	}
+	database.CloseCachedStatements(shutdownCtx, db)
 	if err := db.Close(); err != nil {
 		log.Error(ctx, "Failed to close database connection", "error", err)
 	}

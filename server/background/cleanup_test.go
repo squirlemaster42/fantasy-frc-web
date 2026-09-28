@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"server/database"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,6 +67,7 @@ func TestCleanupService_cleanExpiredSessionTokens(t *testing.T) {
 
 	service.cleanExpiredSessionTokens(context.Background())
 
+	database.CloseCachedStatements(context.Background(), db)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -99,6 +102,7 @@ func TestCleanupService_cleanExpiredSessionTokens_ExecError(t *testing.T) {
 	// Should not panic on exec error
 	service.cleanExpiredSessionTokens(context.Background())
 
+	database.CloseCachedStatements(context.Background(), db)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -124,5 +128,6 @@ func TestCleanupService_Start_RunsCleanup(t *testing.T) {
 	err = service.Stop(ctx)
 	require.NoError(t, err)
 
+	database.CloseCachedStatements(context.Background(), db)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

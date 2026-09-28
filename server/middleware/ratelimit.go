@@ -36,23 +36,30 @@ func NewRateLimiter(addr, password string, db int) *RateLimiter {
 	return &RateLimiter{client: rdb}
 }
 
-func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, window time.Duration) (bool, int64, error) {
+func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, window time.Duration) (bool, int64, time.Duration, error) {
 	if r.client == nil {
-		return true, 0, nil
+		return true, 0, 0, nil
 	}
+
+	now := time.Now()
+	windowStart := now.Truncate(window)
+	windowKey := fmt.Sprintf("%s:%d", key, windowStart.Unix())
+
 	pipe := r.client.Pipeline()
-	incr := pipe.Incr(ctx, key)
-	pipe.Expire(ctx, key, window)
+	incr := pipe.Incr(ctx, windowKey)
+	pipe.Expire(ctx, windowKey, window)
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		log.Error(ctx, "Rate limiter Redis error", "error", err)
-		return true, 0, fmt.Errorf("failed to execute rate limit pipeline: %w", err)
-}
-	count := incr.Val()
-	if count > limit {
-		return false, count, nil
+		return true, 0, 0, fmt.Errorf("failed to execute rate limit pipeline: %w", err)
 	}
-	return true, count, nil
+
+	count := incr.Val()
+	retryAfter := window - now.Sub(windowStart)
+	if count > limit {
+		return false, count, retryAfter, nil
+	}
+	return true, count, retryAfter, nil
 }
 
 func (r *RateLimiter) RateLimitLogin() echo.MiddlewareFunc {
@@ -87,14 +94,14 @@ func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc
 				key = fmt.Sprintf("%s:%s", rateLimitKeyPrefixGeneral, c.RealIP())
 			}
 
-			allowed, _, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, window)
+			allowed, _, retryAfter, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, window)
 			if err != nil {
 				log.Warn(c.Request().Context(), "Rate limiter failing open", "path", c.Request().URL.Path, "ip", c.RealIP(), "error", err)
 				return next(c) // Fail open
 			}
 			if !allowed {
 				log.Warn(c.Request().Context(), "Rate limit exceeded", "path", c.Request().URL.Path, "ip", c.RealIP(), "key", key)
-				c.Response().Header().Set("Retry-After", strconv.FormatInt(int64(window.Seconds()), 10))
+				c.Response().Header().Set("Retry-After", strconv.FormatInt(int64(retryAfter.Round(time.Second).Seconds()), 10))
 				return c.NoContent(http.StatusTooManyRequests)
 			}
 			return next(c)
@@ -107,7 +114,7 @@ func (r *RateLimiter) rateLimitMiddleware(prefix string, limit int64, window tim
 		return func(c *echo.Context) error {
 			ip := c.RealIP()
 			key := fmt.Sprintf("%s:%s", prefix, ip)
-			allowed, _, err := r.checkLimit(c.Request().Context(), key, limit, window)
+			allowed, _, retryAfter, err := r.checkLimit(c.Request().Context(), key, limit, window)
 			if err != nil {
 				log.Warn(c.Request().Context(), "Rate limiter failing open", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix, "error", err)
 				// Fail open on Redis errors
@@ -115,7 +122,7 @@ func (r *RateLimiter) rateLimitMiddleware(prefix string, limit int64, window tim
 			}
 			if !allowed {
 				log.Warn(c.Request().Context(), "Rate limit exceeded", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix)
-				c.Response().Header().Set("Retry-After", strconv.FormatInt(int64(window.Seconds()), 10))
+				c.Response().Header().Set("Retry-After", strconv.FormatInt(int64(retryAfter.Round(time.Second).Seconds()), 10))
 				return c.NoContent(http.StatusTooManyRequests)
 			}
 			return next(c)

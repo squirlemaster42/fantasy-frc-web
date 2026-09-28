@@ -446,10 +446,62 @@ func TestGetDraftPickRows_Integration(t *testing.T) {
 	store := NewSQLDraftStore(db)
 	ctx := context.Background()
 
-	// With no teams picked, should return empty
-	rows, err := store.GetDraftPickRows(ctx, []string{"frc254"})
+	owner := createTestUser(t, db)
+	draft := createTestDraft(t, db, owner)
+
+	_, err := db.ExecContext(ctx, "UPDATE Drafts SET DiscordWebhook = $1 WHERE Id = $2", "https://discord.com/api/webhooks/test", draft.Id)
 	require.NoError(t, err)
-	assert.Empty(t, rows)
+
+	_, err = db.ExecContext(ctx, "UPDATE Users SET DiscordId = $1 WHERE UserUuid = $2", "12345678901234567", owner.UserUuid)
+	require.NoError(t, err)
+
+	playerId, err := store.GetDraftPlayerId(ctx, draft.Id, owner.UserUuid)
+	require.NoError(t, err)
+
+	teamA := "frc" + randomString(4)
+	teamB := "frc" + randomString(4)
+	teamC := "frc" + randomString(4)
+	createTestTeam(t, db, teamA)
+	createTestTeam(t, db, teamB)
+
+	pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
+	require.NoError(t, err)
+
+	pick := Pick{
+		Id:       pickId,
+		Player:   playerId,
+		Pick:     sql.NullString{String: teamA, Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+	require.NoError(t, store.MakePick(ctx, pick))
+
+	t.Run("empty team keys returns empty", func(t *testing.T) {
+		rows, err := store.GetDraftPickRows(ctx, []string{})
+		require.NoError(t, err)
+		assert.Empty(t, rows)
+	})
+
+	t.Run("single matching team key returns row", func(t *testing.T) {
+		rows, err := store.GetDraftPickRows(ctx, []string{teamA})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, draft.Id, rows[0].DraftId)
+		assert.Equal(t, teamA, rows[0].Pick)
+		assert.Equal(t, owner.Username, rows[0].Username)
+	})
+
+	t.Run("multiple team keys with one match returns matched row", func(t *testing.T) {
+		rows, err := store.GetDraftPickRows(ctx, []string{teamA, teamB})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, teamA, rows[0].Pick)
+	})
+
+	t.Run("no matching team keys returns empty", func(t *testing.T) {
+		rows, err := store.GetDraftPickRows(ctx, []string{teamC})
+		require.NoError(t, err)
+		assert.Empty(t, rows)
+	})
 }
 
 func TestGetDraftPlayerUser_Integration(t *testing.T) {

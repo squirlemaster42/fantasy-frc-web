@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"server/database"
 	"server/log"
-	"strings"
 )
 
 func getPlayerDiscordId(ctx context.Context, db database.DBTX, draftPlayerId int) (sql.NullString, error) {
@@ -105,17 +104,11 @@ type DraftPickRow struct {
 }
 
 func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) ([]DraftPickRow, error) {
-	// Build positional placeholders ($1, $2, ...) and argument slice.
-	// Only numeric placeholders are concatenated into the query; all user
-	// input values are passed as arguments, so this remains safe from SQL
-	// injection.
-	placeholders := database.Placeholders(1, len(teamKeys))
-	args := make([]any, len(teamKeys))
-	for i, key := range teamKeys {
-		args[i] = key
+	if len(teamKeys) == 0 {
+		return []DraftPickRow{}, nil
 	}
-	// query
-	query := fmt.Sprintf(`
+
+	query := `
         SELECT
             d.id,
             d.discordwebhook,
@@ -132,10 +125,9 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
         LEFT JOIN UserDraftNotificationPreferences prefs
             ON prefs.UserUuid = u.UserUuid AND prefs.DraftId = d.id
         WHERE
-            p.pick IN (%s)
-            AND d.discordwebhook IS NOT NULL;
-    `, strings.Join(placeholders, ","))
-	// prepare query
+            p.pick = ANY($1)
+            AND d.discordwebhook IS NOT NULL;`
+
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to prepare statement", "error", err)
@@ -143,7 +135,7 @@ func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) 
 	}
 	defer database.CloseStatement(ctx, stmt, "GetDraftPickRows")
 
-	rows, err := stmt.QueryContext(ctx, args...)
+	rows, err := stmt.QueryContext(ctx, teamKeys)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to execute query", "error", err)
 		return nil, fmt.Errorf("failed to query getDraftPickRows: %w", err)

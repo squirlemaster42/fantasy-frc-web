@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/XSAM/otelsql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
@@ -136,4 +137,132 @@ func TestPrepare_ReturnsContextError(t *testing.T) {
 	stmt, err := Prepare(ctx, &failingDBTX{err: context.Canceled}, "SELECT 1")
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Nil(t, stmt)
+}
+
+func TestPrepare_CachesStatementsForSameDB(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		CloseCachedStatements(context.Background(), db)
+		_ = db.Close()
+	}()
+
+	query := "SELECT 1"
+	mock.ExpectPrepare(query)
+
+	stmt1, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	require.NotNil(t, stmt1)
+
+	stmt2, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	require.NotNil(t, stmt2)
+
+	assert.Equal(t, stmt1, stmt2, "expected cached statement to be reused")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPrepare_DifferentDBsDoNotShareCache(t *testing.T) {
+	db1, mock1, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		CloseCachedStatements(context.Background(), db1)
+		_ = db1.Close()
+	}()
+
+	db2, mock2, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		CloseCachedStatements(context.Background(), db2)
+		_ = db2.Close()
+	}()
+
+	query := "SELECT 1"
+	mock1.ExpectPrepare(query)
+	mock2.ExpectPrepare(query)
+
+	stmt1, err := Prepare(context.Background(), db1, query)
+	require.NoError(t, err)
+
+	stmt2, err := Prepare(context.Background(), db2, query)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, stmt1, stmt2, "expected different DBs to have different cached statements")
+	require.NoError(t, mock1.ExpectationsWereMet())
+	require.NoError(t, mock2.ExpectationsWereMet())
+}
+
+func TestPrepare_TransactionStatementsAreNotCached(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		CloseCachedStatements(context.Background(), db)
+		_ = db.Close()
+	}()
+
+	query := "SELECT 1"
+	mock.ExpectBegin()
+	mock.ExpectPrepare(query)
+	mock.ExpectRollback()
+
+	tx, err := db.BeginTx(context.Background(), nil)
+	require.NoError(t, err)
+
+	stmt, err := Prepare(context.Background(), tx, query)
+	require.NoError(t, err)
+	require.NotNil(t, stmt)
+	assert.False(t, isCachedStatement(stmt), "transaction statements should not be cached")
+
+	CloseStatement(context.Background(), stmt, "TestPrepare_TransactionStatementsAreNotCached")
+	require.NoError(t, tx.Rollback())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCloseStatement_DoesNotCloseCachedStatement(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() {
+		CloseCachedStatements(context.Background(), db)
+		_ = db.Close()
+	}()
+
+	query := "SELECT 1"
+	mock.ExpectPrepare(query)
+
+	stmt, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	require.True(t, isCachedStatement(stmt))
+
+	// CloseStatement should be a no-op for cached statements.
+	CloseStatement(context.Background(), stmt, "TestCloseStatement_DoesNotCloseCachedStatement")
+
+	// A subsequent prepare should return the exact same statement.
+	stmt2, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	assert.Equal(t, stmt, stmt2)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCloseCachedStatements_ClosesAndRemovesCache(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	query := "SELECT 1"
+	mock.ExpectPrepare(query)
+
+	stmt, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	require.True(t, isCachedStatement(stmt))
+
+	CloseCachedStatements(context.Background(), db)
+
+	assert.False(t, isCachedStatement(stmt), "statement should no longer be tracked after cleanup")
+
+	// After cleanup, preparing the same query should create a new statement.
+	mock.ExpectPrepare(query)
+	stmt2, err := Prepare(context.Background(), db, query)
+	require.NoError(t, err)
+	assert.NotEqual(t, stmt, stmt2)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
