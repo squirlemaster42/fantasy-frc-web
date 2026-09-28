@@ -6,6 +6,7 @@ import (
 	"server/authentication"
 	"server/log"
 	"server/middleware"
+	"server/model"
 	"server/view/login"
 
 	"uuid"
@@ -31,6 +32,7 @@ func (h *Handler) setSessionCookie(c *echo.Context, sessionToken string) {
 	cookie.Secure = h.Config.SecureHttpCookie
 	cookie.SameSite = http.SameSiteLaxMode
 	cookie.Path = "/"
+	cookie.MaxAge = model.SessionExpirationDays() * 86400
 	c.SetCookie(cookie)
 }
 
