@@ -65,7 +65,7 @@ go mod verify
 
 ### Database Migrations
 
-Migrations are managed with [goose](https://github.com/pressly/goose) in the `database/` directory.
+Migrations are managed with [goose](https://github.com/pressly/goose) in the `database/` directory
 
 ```bash
 # Install goose CLI
