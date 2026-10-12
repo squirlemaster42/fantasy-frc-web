@@ -9,7 +9,7 @@ import (
 	"uuid"
 
 	"github.com/a-h/templ"
-	echootel "github.com/labstack/echo-opentelemetry"
+	echootel "github.com/labstack/echo-otel/v5"
 	"github.com/labstack/echo/v5"
 	echomiddleware "github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
