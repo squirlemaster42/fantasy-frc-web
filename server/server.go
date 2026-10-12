@@ -117,6 +117,10 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	authHandler := apihandler.NewAuthHandler(cfg.Handler.Stores.ApiKeyStore, cfg.JwtSigningKey)
 	apiHandler := apihandler.NewHandler(cfg.Handler.Stores.DraftStore, cfg.Handler.Stores.UserStore, cfg.Handler.Stores.ApiKeyStore, cfg.Handler.Stores.TeamStore, cfg.Handler.Services.DraftActorMap)
 	apiV1 := app.Group("/api/v1")
+
+	// Public API discovery
+	apiV1.GET("/openapi.yaml", apihandler.ServeOpenAPI)
+
 	apiTokenMiddleware := []echo.MiddlewareFunc{}
 	if rateLimiter != nil {
 		apiTokenMiddleware = append(apiTokenMiddleware, rateLimiter.RateLimitApiToken())

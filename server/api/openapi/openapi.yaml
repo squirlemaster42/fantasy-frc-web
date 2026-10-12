@@ -17,6 +17,19 @@ servers:
 security: []
 
 paths:
+  /openapi.yaml:
+    get:
+      operationId: getOpenAPISpec
+      summary: Get the OpenAPI specification
+      security: []
+      responses:
+        '200':
+          description: OpenAPI specification in YAML
+          content:
+            application/yaml:
+              schema:
+                type: string
+
   /auth/token:
     post:
       operationId: createToken
