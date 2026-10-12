@@ -145,6 +145,11 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite)
 	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite)
 
+	// Integrations (API key management)
+	apiV1Protected.GET("/integrations", apiHandler.ListIntegrations)
+	apiV1Protected.POST("/integrations", apiHandler.CreateIntegration)
+	apiV1Protected.POST("/integrations/:id/revoke", apiHandler.RevokeIntegration)
+
 	// Admin
 	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick)
 	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime)
