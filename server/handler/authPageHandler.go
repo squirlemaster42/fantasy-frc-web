@@ -136,13 +136,14 @@ func (h *Handler) HandlerRegisterPost(c *echo.Context) error {
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
+	confirmPassword := c.FormValue("confirm_password")
 
-	userUuid, sessionToken, err := h.Services.AuthService.Register(c.Request().Context(), username, password)
+	userUuid, sessionToken, err := h.Services.AuthService.Register(c.Request().Context(), username, password, confirmPassword)
 	if err != nil {
 		switch {
 		case errors.Is(err, authentication.ErrUsernameTaken):
 			log.Warn(c.Request().Context(), "Account creation attempt for existing user but username was taken", "username", username)
-			return h.renderRegisterWithError(c, "Username Taken")
+			return h.renderRegisterWithError(c, "Username is already taken")
 		case authentication.IsValidationError(err):
 			log.Warn(c.Request().Context(), "Registration validation failed", "username", username)
 			return h.renderRegisterWithError(c, err.Error())

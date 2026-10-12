@@ -82,7 +82,7 @@ func TestAuthService_Register_Success(t *testing.T) {
 	userStore.On("RegisterUser", ctx, "newuser", mock.AnythingOfType("string")).Return(userUuid, nil)
 	userStore.On("RegisterSession", ctx, userUuid, mock.AnythingOfType("string")).Return(nil)
 
-	returnedUuid, sessionToken, err := service.Register(ctx, "newuser", "Secret123!")
+	returnedUuid, sessionToken, err := service.Register(ctx, "newuser", "Secret123!", "Secret123!")
 	require.NoError(t, err)
 	assert.Equal(t, userUuid, returnedUuid)
 	assert.NotEmpty(t, sessionToken)
@@ -94,7 +94,7 @@ func TestAuthService_Register_UsernameTaken(t *testing.T) {
 
 	userStore.On("UsernameTaken", ctx, "existing").Return(true, nil)
 
-	_, _, err := service.Register(ctx, "existing", "Secret123!")
+	_, _, err := service.Register(ctx, "existing", "Secret123!", "Secret123!")
 	require.ErrorIs(t, err, ErrUsernameTaken)
 }
 
@@ -102,7 +102,7 @@ func TestAuthService_Register_InvalidUsername(t *testing.T) {
 	service, userStore, _ := newTestAuthService(t)
 	ctx := context.Background()
 
-	_, _, err := service.Register(ctx, "ab", "Secret123!")
+	_, _, err := service.Register(ctx, "ab", "Secret123!", "Secret123!")
 	assert.True(t, IsValidationError(err))
 	userStore.AssertExpectations(t)
 }
@@ -111,7 +111,16 @@ func TestAuthService_Register_WeakPassword(t *testing.T) {
 	service, userStore, _ := newTestAuthService(t)
 	ctx := context.Background()
 
-	_, _, err := service.Register(ctx, "newuser", "short")
+	_, _, err := service.Register(ctx, "newuser", "short", "short")
+	assert.True(t, IsValidationError(err))
+	userStore.AssertExpectations(t)
+}
+
+func TestAuthService_Register_PasswordsDoNotMatch(t *testing.T) {
+	service, userStore, _ := newTestAuthService(t)
+	ctx := context.Background()
+
+	_, _, err := service.Register(ctx, "newuser", "Secret123!", "Different123!")
 	assert.True(t, IsValidationError(err))
 	userStore.AssertExpectations(t)
 }

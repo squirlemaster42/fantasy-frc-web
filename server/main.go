@@ -250,6 +250,7 @@ func main() {
 	}
 
 	go func() {
+		// Use net/http directly so we can configure server-level timeouts such as ReadHeaderTimeout.
 		err := httpServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			assert.NoError(ctx, err, "Failed to start server")

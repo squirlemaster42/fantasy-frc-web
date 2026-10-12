@@ -34,7 +34,7 @@ func validateUsername(username string, minLength, maxLength int, allowedSpecialC
 // meets the configured complexity rules.
 func validatePassword(password, confirmPassword string, minLength int) string {
 	if password != confirmPassword {
-		return "Passwords Do Not Match"
+		return "Passwords do not match"
 	}
 	if len(password) < minLength {
 		return fmt.Sprintf("Password must be at least %d characters", minLength)

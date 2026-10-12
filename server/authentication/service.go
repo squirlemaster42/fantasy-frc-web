@@ -25,7 +25,7 @@ type AuthService interface {
 	// Login validates credentials and returns the user UUID and a new session token.
 	Login(ctx context.Context, username, password string) (uuid.UUID, string, error)
 	// Register creates a new user and returns the user UUID and a new session token.
-	Register(ctx context.Context, username, password string) (uuid.UUID, string, error)
+	Register(ctx context.Context, username, password, confirmPassword string) (uuid.UUID, string, error)
 	// Logout invalidates the given session token.
 	Logout(ctx context.Context, sessionToken string) error
 	// ChangePassword validates the current password and updates to the new password.
@@ -91,13 +91,13 @@ func (s *authService) Login(ctx context.Context, username, password string) (uui
 
 	if err := s.userStore.RegisterSession(ctx, userUuid, sessionToken); err != nil {
 		log.Error(ctx, "Failed to register session", "error", err)
-		return nilUuid, "", fmt.Errorf("failed to create session: %w", err)
+		return nilUuid, "", fmt.Errorf("failed to register session: %w", err)
 	}
 
 	return userUuid, sessionToken, nil
 }
 
-func (s *authService) Register(ctx context.Context, username, password string) (uuid.UUID, string, error) {
+func (s *authService) Register(ctx context.Context, username, password, confirmPassword string) (uuid.UUID, string, error) {
 	var nilUuid uuid.UUID
 
 	originalUsername := username
@@ -108,7 +108,7 @@ func (s *authService) Register(ctx context.Context, username, password string) (
 	}
 	username = normalizedUsername
 
-	if errMsg := validatePassword(password, password, s.config.MinPasswordLength); errMsg != "" {
+	if errMsg := validatePassword(password, confirmPassword, s.config.MinPasswordLength); errMsg != "" {
 		log.Warn(ctx, "Registration password validation failed", "username", username)
 		return nilUuid, "", &ValidationError{Message: errMsg}
 	}

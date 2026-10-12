@@ -4,8 +4,8 @@ package mocks
 
 import (
 	context "context"
-
 	uuid "uuid"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -105,9 +105,9 @@ func (_m *MockAuthService) Logout(ctx context.Context, sessionToken string) erro
 	return r0
 }
 
-// Register provides a mock function with given fields: ctx, username, password
-func (_m *MockAuthService) Register(ctx context.Context, username string, password string) (uuid.UUID, string, error) {
-	ret := _m.Called(ctx, username, password)
+// Register provides a mock function with given fields: ctx, username, password, confirmPassword
+func (_m *MockAuthService) Register(ctx context.Context, username string, password string, confirmPassword string) (uuid.UUID, string, error) {
+	ret := _m.Called(ctx, username, password, confirmPassword)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Register")
@@ -116,25 +116,25 @@ func (_m *MockAuthService) Register(ctx context.Context, username string, passwo
 	var r0 uuid.UUID
 	var r1 string
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, string, error)); ok {
-		return rf(ctx, username, password)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (uuid.UUID, string, error)); ok {
+		return rf(ctx, username, password, confirmPassword)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) uuid.UUID); ok {
-		r0 = rf(ctx, username, password)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) uuid.UUID); ok {
+		r0 = rf(ctx, username, password, confirmPassword)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) string); ok {
-		r1 = rf(ctx, username, password)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) string); ok {
+		r1 = rf(ctx, username, password, confirmPassword)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
-		r2 = rf(ctx, username, password)
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, string) error); ok {
+		r2 = rf(ctx, username, password, confirmPassword)
 	} else {
 		r2 = ret.Error(2)
 	}

@@ -48,7 +48,7 @@ func usernameTaken(ctx context.Context, db *sql.DB, username string) (bool, erro
 	err = stmt.QueryRowContext(ctx, username).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to scan usernameTaken row: %w", err)
-}
+	}
 	return count > 0, nil
 }
 
@@ -122,7 +122,7 @@ func getPasswordHashByUsername(ctx context.Context, db *sql.DB, username string)
 	err = stmt.QueryRowContext(ctx, username).Scan(&passwordHash)
 	if err != nil {
 		return "", fmt.Errorf("failed to scan getPasswordHashByUsername row: %w", err)
-}
+	}
 	return passwordHash, nil
 }
 
