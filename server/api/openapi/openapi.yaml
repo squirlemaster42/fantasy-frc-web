@@ -734,19 +734,32 @@ components:
         - Teams Playing
         - Complete
 
+    TimingType:
+      type: string
+      enum:
+        - Increment
+        - Per Pick
+
     CreateDraftRequest:
       type: object
       required:
         - display_name
-        - interval
+        - timing_type
+        - increment_time_sec
+        - per_pick_exp_time_sec
       properties:
         display_name:
           type: string
         description:
           type: string
-        interval:
+        timing_type:
+          $ref: '#/components/schemas/TimingType'
+        increment_time_sec:
           type: integer
-          description: Number of seconds per pick
+          description: Seconds added to the clock per pick (Increment mode)
+        per_pick_exp_time_sec:
+          type: integer
+          description: Seconds each pick has before expiring (Per Pick mode)
 
     UpdateDraftRequest:
       type: object
@@ -755,9 +768,14 @@ components:
           type: string
         description:
           type: string
-        interval:
+        timing_type:
+          $ref: '#/components/schemas/TimingType'
+        increment_time_sec:
           type: integer
-          description: Number of seconds per pick
+          description: Seconds added to the clock per pick (Increment mode)
+        per_pick_exp_time_sec:
+          type: integer
+          description: Seconds each pick has before expiring (Per Pick mode)
 
     Draft:
       type: object
@@ -765,7 +783,9 @@ components:
         - id
         - display_name
         - description
-        - interval
+        - timing_type
+        - increment_time_sec
+        - per_pick_exp_time_sec
         - owner
         - status
         - players
@@ -776,7 +796,11 @@ components:
           type: string
         description:
           type: string
-        interval:
+        timing_type:
+          $ref: '#/components/schemas/TimingType'
+        increment_time_sec:
+          type: integer
+        per_pick_exp_time_sec:
           type: integer
         owner:
           $ref: '#/components/schemas/UserSummary'
@@ -895,7 +919,7 @@ components:
         - inviting_user_uuid
         - inviting_player_name
         - sent_time
-        - accepted
+        - status
       properties:
         id:
           type: integer
@@ -917,8 +941,13 @@ components:
         accepted_time:
           type: string
           format: date-time
-        accepted:
-          type: boolean
+        status:
+          type: string
+          enum:
+            - pending
+            - accepted
+            - declined
+            - canceled
 
     AdminActionResponse:
       type: object
