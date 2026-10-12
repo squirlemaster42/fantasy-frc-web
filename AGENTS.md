@@ -224,15 +224,15 @@ The server fails fast on startup if a required variable is missing or if an opti
 
 #### Required
 
-- `TBA_TOKEN` (string): API token for The Blue Alliance.
-- `DB_PASSWORD` (string): PostgreSQL password.
-- `DB_USERNAME` (string): PostgreSQL username.
-- `DB_IP` (string): PostgreSQL host.
-- `DB_NAME` (string): PostgreSQL database name.
-- `SERVER_PORT` (int): Port the HTTP server listens on (must be 1–65535).
-- `TBA_WEBHOOK_SECRET` (string): Secret used to verify TBA webhook HMAC signatures.
-- `METRIC_SECRET` (string): Secret required to access the metrics endpoint.
-- `CSRF_SECRET` (string): Secret used to sign CSRF tokens.
+- `TBA_TOKEN` (string): API token for The Blue Alliance
+- `DB_PASSWORD` (string): PostgreSQL password
+- `DB_USERNAME` (string): PostgreSQL username
+- `DB_IP` (string): PostgreSQL host
+- `DB_NAME` (string): PostgreSQL database name
+- `SERVER_PORT` (int): Port the HTTP server listens on (must be 1–65535)
+- `TBA_WEBHOOK_SECRET` (string): Secret used to verify TBA webhook HMAC signatures
+- `METRIC_SECRET` (string): Secret required to access the metrics endpoint
+- `CSRF_SECRET` (string): Secret used to sign CSRF tokens
 
 #### Optional
 
