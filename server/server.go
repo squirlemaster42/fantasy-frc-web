@@ -117,7 +117,11 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	authHandler := apihandler.NewAuthHandler(cfg.Handler.Stores.ApiKeyStore, cfg.JwtSigningKey)
 	apiHandler := apihandler.NewHandler(cfg.Handler.Stores.DraftStore, cfg.Handler.Stores.UserStore, cfg.Handler.Stores.ApiKeyStore, cfg.Handler.Stores.TeamStore, cfg.Handler.Services.DraftActorMap)
 	apiV1 := app.Group("/api/v1")
-	apiV1.POST("/auth/token", authHandler.Token)
+	apiTokenMiddleware := []echo.MiddlewareFunc{}
+	if rateLimiter != nil {
+		apiTokenMiddleware = append(apiTokenMiddleware, rateLimiter.RateLimitApiToken())
+	}
+	apiV1.POST("/auth/token", authHandler.Token, apiTokenMiddleware...)
 
 	apiV1Protected := apiV1.Group("")
 	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))

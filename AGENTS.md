@@ -292,7 +292,8 @@ The server fails fast on startup if a required variable is missing or if an opti
 - `DRAFT_DAEMON_TICK_TIMEOUT` (duration, default `55s`): Per-tick context timeout for the draft daemon.
 - `RATE_LIMIT_LOGIN_ATTEMPTS` (int64, default `5`): Login attempts allowed per `RATE_LIMIT_AUTH_WINDOW`.
 - `RATE_LIMIT_REGISTER_ATTEMPTS` (int64, default `3`): Registration attempts allowed per `RATE_LIMIT_AUTH_WINDOW`.
-- `RATE_LIMIT_AUTH_WINDOW` (duration, default `15m`): Sliding window for login/register rate limits.
+- `RATE_LIMIT_API_TOKEN_ATTEMPTS` (int64, default `10`): Machine API token endpoint attempts allowed per `RATE_LIMIT_AUTH_WINDOW`.
+- `RATE_LIMIT_AUTH_WINDOW` (duration, default `15m`): Sliding window for login/register/API token rate limits.
 - `RATE_LIMIT_REDIS_PING_TIMEOUT` (duration, default `2s`): Redis availability check timeout when initializing rate limiting.
 - `HSTS_MAX_AGE_SECONDS` (int, default `63072000`): `Strict-Transport-Security` max-age in seconds.
 - `SESSION_TOKEN_BYTES` (int, default `16`): Number of random bytes in a session token.

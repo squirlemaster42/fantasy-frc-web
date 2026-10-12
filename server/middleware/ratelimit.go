@@ -70,6 +70,10 @@ func (r *RateLimiter) RateLimitRegister() echo.MiddlewareFunc {
 	return r.rateLimitMiddleware(rateLimitKeyPrefixRegister, RateLimitRegisterAttempts(), RateLimitAuthWindow())
 }
 
+func (r *RateLimiter) RateLimitApiToken() echo.MiddlewareFunc {
+	return r.rateLimitMiddleware(rateLimitKeyPrefixApiToken, RateLimitApiTokenAttempts(), RateLimitAuthWindow())
+}
+
 func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc {
 	window := rateLimitGeneralWindow
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
