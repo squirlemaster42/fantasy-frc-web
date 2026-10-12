@@ -827,8 +827,8 @@ components:
     TimingType:
       type: string
       enum:
-        - Increment
-        - Per Pick
+        - increment
+        - per_pick
 
     CreateDraftRequest:
       type: object
@@ -850,6 +850,9 @@ components:
         per_pick_exp_time_sec:
           type: integer
           description: Seconds each pick has before expiring (Per Pick mode)
+        discord_webhook:
+          type: string
+          description: Discord webhook URL for draft notifications
 
     UpdateDraftRequest:
       type: object
@@ -866,6 +869,9 @@ components:
         per_pick_exp_time_sec:
           type: integer
           description: Seconds each pick has before expiring (Per Pick mode)
+        discord_webhook:
+          type: string
+          description: Discord webhook URL for draft notifications
 
     Draft:
       type: object
@@ -876,6 +882,7 @@ components:
         - timing_type
         - increment_time_sec
         - per_pick_exp_time_sec
+        - discord_webhook
         - owner
         - status
         - players
@@ -892,6 +899,8 @@ components:
           type: integer
         per_pick_exp_time_sec:
           type: integer
+        discord_webhook:
+          type: string
         owner:
           $ref: '#/components/schemas/UserSummary'
         status:

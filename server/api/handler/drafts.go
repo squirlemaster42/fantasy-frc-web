@@ -86,7 +86,7 @@ func (h *Handler) CreateDraft(c *echo.Context) error {
 
 	timingType := model.TimingType(req.TimingType)
 	if timingType != model.INCREMENT && timingType != model.PER_PICK {
-		api.BadRequest(c.Response(), "timing_type must be 'Increment' or 'Per Pick'")
+		api.BadRequest(c.Response(), "timing_type must be 'increment' or 'per_pick'")
 		return nil
 	}
 
@@ -99,6 +99,7 @@ func (h *Handler) CreateDraft(c *echo.Context) error {
 		TimingType:        timingType,
 		IncrementTimeSec:  req.IncrementTimeSec,
 		PerPickExpTimeSec: req.PerPickExpTimeSec,
+		DiscordWebhook:    req.DiscordWebhook,
 		Status:            model.FILLING,
 	}
 
@@ -162,7 +163,7 @@ func (h *Handler) UpdateDraft(c *echo.Context) error {
 	if req.TimingType != "" {
 		timingType := model.TimingType(req.TimingType)
 		if timingType != model.INCREMENT && timingType != model.PER_PICK {
-			api.BadRequest(c.Response(), "timing_type must be 'Increment' or 'Per Pick'")
+			api.BadRequest(c.Response(), "timing_type must be 'increment' or 'per_pick'")
 			return nil
 		}
 		update.TimingType = timingType
@@ -179,6 +180,7 @@ func (h *Handler) UpdateDraft(c *echo.Context) error {
 	} else {
 		update.PerPickExpTimeSec = draftModel.PerPickExpTimeSec
 	}
+	update.DiscordWebhook = req.DiscordWebhook
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {

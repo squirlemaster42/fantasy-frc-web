@@ -42,10 +42,12 @@ type UndoLastPickMessage struct {
 }
 
 type UpdateDraftProfileMessage struct {
-	Name           string
-	Description    string
-	Interval       int
-	DiscordWebhook string
+	Name              string
+	Description       string
+	TimingType        model.TimingType
+	IncrementTimeSec  int16
+	PerPickExpTimeSec int16
+	DiscordWebhook    string
 }
 
 type TransferDraftOwnershipMessage struct {
@@ -845,6 +847,15 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	draftModel := d.draftState
 	draftModel.DisplayName = msg.Name
 	draftModel.Description = msg.Description
+	if msg.TimingType != "" {
+		draftModel.TimingType = msg.TimingType
+	}
+	if msg.IncrementTimeSec > 0 {
+		draftModel.IncrementTimeSec = msg.IncrementTimeSec
+	}
+	if msg.PerPickExpTimeSec > 0 {
+		draftModel.PerPickExpTimeSec = msg.PerPickExpTimeSec
+	}
 	draftModel.DiscordWebhook = msg.DiscordWebhook
 
 	err := d.draftStore.UpdateDraft(ctx, &draftModel)
@@ -859,6 +870,9 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.mu.Lock()
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
+	d.draftState.TimingType = msg.TimingType
+	d.draftState.IncrementTimeSec = msg.IncrementTimeSec
+	d.draftState.PerPickExpTimeSec = msg.PerPickExpTimeSec
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
 	d.mu.Unlock()
 

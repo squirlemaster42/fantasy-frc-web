@@ -137,6 +137,7 @@ func mapDraft(d model.DraftModel) apimodel.DraftResponse {
 		TimingType:        string(d.TimingType),
 		IncrementTimeSec:  d.IncrementTimeSec,
 		PerPickExpTimeSec: d.PerPickExpTimeSec,
+		DiscordWebhook:    d.DiscordWebhook,
 		Owner:             mapUser(d.Owner),
 		Status:            mapDraftState(d.Status),
 		Players:           players,

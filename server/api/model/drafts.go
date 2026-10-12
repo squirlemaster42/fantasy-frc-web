@@ -9,6 +9,7 @@ type CreateDraftRequest struct {
 	TimingType        string `json:"timing_type"`
 	IncrementTimeSec  int16  `json:"increment_time_sec"`
 	PerPickExpTimeSec int16  `json:"per_pick_exp_time_sec"`
+	DiscordWebhook    string `json:"discord_webhook"`
 }
 
 // UpdateDraftRequest is the body for PATCH /api/v1/drafts/:id.
@@ -18,6 +19,7 @@ type UpdateDraftRequest struct {
 	TimingType        string `json:"timing_type,omitempty"`
 	IncrementTimeSec  int16  `json:"increment_time_sec,omitempty"`
 	PerPickExpTimeSec int16  `json:"per_pick_exp_time_sec,omitempty"`
+	DiscordWebhook    string `json:"discord_webhook,omitempty"`
 }
 
 // DraftResponse is the JSON representation of a draft.
@@ -28,6 +30,7 @@ type DraftResponse struct {
 	TimingType        string                `json:"timing_type"`
 	IncrementTimeSec  int16                 `json:"increment_time_sec"`
 	PerPickExpTimeSec int16                 `json:"per_pick_exp_time_sec"`
+	DiscordWebhook    string                `json:"discord_webhook"`
 	Owner             UserSummary           `json:"owner"`
 	Status            DraftState            `json:"status"`
 	Players           []DraftPlayerResponse `json:"players"`
