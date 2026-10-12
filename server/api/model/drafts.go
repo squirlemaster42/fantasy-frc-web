@@ -4,28 +4,34 @@ import "time"
 
 // CreateDraftRequest is the body for POST /api/v1/drafts.
 type CreateDraftRequest struct {
-	DisplayName string `json:"display_name"`
-	Description string `json:"description"`
-	Interval    int    `json:"interval"`
+	DisplayName       string `json:"display_name"`
+	Description       string `json:"description"`
+	TimingType        string `json:"timing_type"`
+	IncrementTimeSec  int16  `json:"increment_time_sec"`
+	PerPickExpTimeSec int16  `json:"per_pick_exp_time_sec"`
 }
 
 // UpdateDraftRequest is the body for PATCH /api/v1/drafts/:id.
 type UpdateDraftRequest struct {
-	DisplayName string `json:"display_name,omitempty"`
-	Description string `json:"description,omitempty"`
-	Interval    int    `json:"interval,omitempty"`
+	DisplayName       string `json:"display_name,omitempty"`
+	Description       string `json:"description,omitempty"`
+	TimingType        string `json:"timing_type,omitempty"`
+	IncrementTimeSec  int16  `json:"increment_time_sec,omitempty"`
+	PerPickExpTimeSec int16  `json:"per_pick_exp_time_sec,omitempty"`
 }
 
 // DraftResponse is the JSON representation of a draft.
 type DraftResponse struct {
-	Id          int                   `json:"id"`
-	DisplayName string                `json:"display_name"`
-	Description string                `json:"description"`
-	Interval    int                   `json:"interval"`
-	Owner       UserSummary           `json:"owner"`
-	Status      DraftState            `json:"status"`
-	Players     []DraftPlayerResponse `json:"players"`
-	NextPick    *DraftPlayerResponse  `json:"next_pick,omitempty"`
+	Id                int                   `json:"id"`
+	DisplayName       string                `json:"display_name"`
+	Description       string                `json:"description"`
+	TimingType        string                `json:"timing_type"`
+	IncrementTimeSec  int16                 `json:"increment_time_sec"`
+	PerPickExpTimeSec int16                 `json:"per_pick_exp_time_sec"`
+	Owner             UserSummary           `json:"owner"`
+	Status            DraftState            `json:"status"`
+	Players           []DraftPlayerResponse `json:"players"`
+	NextPick          *DraftPlayerResponse  `json:"next_pick,omitempty"`
 }
 
 // DraftPlayerResponse is the JSON representation of a draft player.

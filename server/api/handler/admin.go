@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // AdminSkipPick skips the current pick. Owner only.
-func (h *Handler) AdminSkipPick(c echo.Context) error {
+func (h *Handler) AdminSkipPick(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -54,7 +54,7 @@ func (h *Handler) AdminSkipPick(c echo.Context) error {
 }
 
 // AdminExtendTime extends the current pick's expiration time. Owner only.
-func (h *Handler) AdminExtendTime(c echo.Context) error {
+func (h *Handler) AdminExtendTime(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -108,7 +108,7 @@ func (h *Handler) AdminExtendTime(c echo.Context) error {
 }
 
 // AdminMakePick makes a pick on behalf of the current player. Owner only.
-func (h *Handler) AdminMakePick(c echo.Context) error {
+func (h *Handler) AdminMakePick(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -175,7 +175,7 @@ func (h *Handler) AdminMakePick(c echo.Context) error {
 }
 
 // AdminUndoPick undoes the last pick. Owner only.
-func (h *Handler) AdminUndoPick(c echo.Context) error {
+func (h *Handler) AdminUndoPick(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {

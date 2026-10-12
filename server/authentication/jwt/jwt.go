@@ -15,8 +15,7 @@ import (
 	"server/log"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 const (

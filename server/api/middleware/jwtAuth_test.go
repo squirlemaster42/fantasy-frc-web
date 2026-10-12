@@ -6,9 +6,9 @@ import (
 	"server/authentication/jwt"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +25,7 @@ func TestJWTAuth_Success(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := JWTAuth(key)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -47,7 +47,7 @@ func TestJWTAuth_MissingHeader(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := JWTAuth(key)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -66,7 +66,7 @@ func TestJWTAuth_InvalidToken(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := JWTAuth(key)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -88,7 +88,7 @@ func TestJWTAuth_ExpiredToken(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := JWTAuth(key)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
@@ -110,7 +110,7 @@ func TestJWTAuth_WrongScheme(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	middleware := JWTAuth(key)
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 

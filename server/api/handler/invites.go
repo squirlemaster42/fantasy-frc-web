@@ -10,13 +10,13 @@ import (
 	"server/log"
 	"server/model"
 	"strconv"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // ListInvites returns all invites for the authenticated user.
-func (h *Handler) ListInvites(c echo.Context) error {
+func (h *Handler) ListInvites(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -40,7 +40,7 @@ func (h *Handler) ListInvites(c echo.Context) error {
 }
 
 // CreateInvite invites a user to a draft. Only the owner can invite.
-func (h *Handler) CreateInvite(c echo.Context) error {
+func (h *Handler) CreateInvite(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -99,7 +99,7 @@ func (h *Handler) CreateInvite(c echo.Context) error {
 }
 
 // AcceptInvite accepts an invite for the authenticated user.
-func (h *Handler) AcceptInvite(c echo.Context) error {
+func (h *Handler) AcceptInvite(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -147,7 +147,7 @@ func (h *Handler) AcceptInvite(c echo.Context) error {
 }
 
 // DeclineInvite cancels/declines an invite for the authenticated user.
-func (h *Handler) DeclineInvite(c echo.Context) error {
+func (h *Handler) DeclineInvite(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {

@@ -11,9 +11,9 @@ import (
 	"server/model/mocks"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	mocklib "github.com/stretchr/testify/mock"
 )

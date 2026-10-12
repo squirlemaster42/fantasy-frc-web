@@ -6,21 +6,19 @@ import (
 	"server/log"
 	"server/model"
 	"server/view/integrations"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func (h *Handler) HandleViewIntegrations(c echo.Context) error {
+func (h *Handler) HandleViewIntegrations(c *echo.Context) error {
 	ctx := c.Request().Context()
-	userUuidVal := c.Get("userUuid")
-	if userUuidVal == nil {
-		log.Warn(ctx, "Failed to get user uuid from context")
-		return c.Redirect(http.StatusSeeOther, "/login")
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
 	}
-	userUuid := userUuidVal.(uuid.UUID)
 
-	keys, err := h.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
+	keys, err := h.Stores.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
 	if err != nil {
 		log.Error(ctx, "Failed to get api keys for user", "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -34,18 +32,16 @@ func (h *Handler) HandleViewIntegrations(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleCreateIntegration(c echo.Context) error {
+func (h *Handler) HandleCreateIntegration(c *echo.Context) error {
 	ctx := c.Request().Context()
-	userUuidVal := c.Get("userUuid")
-	if userUuidVal == nil {
-		log.Warn(ctx, "Failed to get user uuid from context")
-		return c.Redirect(http.StatusSeeOther, "/login")
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
 	}
-	userUuid := userUuidVal.(uuid.UUID)
 
 	displayName := c.FormValue("displayName")
 	if displayName == "" {
-		keys, err := h.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
+		keys, err := h.Stores.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
 		if err != nil {
 			log.Error(ctx, "Failed to get api keys for user", "UserUuid", userUuid, "Error", err)
 			return c.String(http.StatusInternalServerError, "An error occurred")
@@ -57,13 +53,13 @@ func (h *Handler) HandleCreateIntegration(c echo.Context) error {
 		return nil
 	}
 
-	key, secret, err := h.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName)
+	key, secret, err := h.Stores.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName)
 	if err != nil {
 		log.Error(ctx, "Failed to create api key", "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
 	}
 
-	keys, err := h.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
+	keys, err := h.Stores.ApiKeyStore.GetApiKeysForUser(ctx, userUuid)
 	if err != nil {
 		log.Error(ctx, "Failed to get api keys for user", "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -76,14 +72,12 @@ func (h *Handler) HandleCreateIntegration(c echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleRevokeIntegration(c echo.Context) error {
+func (h *Handler) HandleRevokeIntegration(c *echo.Context) error {
 	ctx := c.Request().Context()
-	userUuidVal := c.Get("userUuid")
-	if userUuidVal == nil {
-		log.Warn(ctx, "Failed to get user uuid from context")
-		return c.Redirect(http.StatusSeeOther, "/login")
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
 	}
-	userUuid := userUuidVal.(uuid.UUID)
 
 	idParam := c.Param("id")
 	keyId, err := uuid.Parse(idParam)
@@ -91,7 +85,7 @@ func (h *Handler) HandleRevokeIntegration(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid integration id")
 	}
 
-	if err := h.ApiKeyStore.RevokeApiKey(ctx, keyId, userUuid); err != nil {
+	if err := h.Stores.ApiKeyStore.RevokeApiKey(ctx, keyId, userUuid); err != nil {
 		if errors.Is(err, model.ErrNotFound) {
 			return c.String(http.StatusNotFound, "Integration not found")
 		}

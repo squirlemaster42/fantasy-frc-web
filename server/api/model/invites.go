@@ -17,5 +17,5 @@ type InviteResponse struct {
 	InvitingPlayerName string     `json:"inviting_player_name"`
 	SentTime           time.Time  `json:"sent_time"`
 	AcceptedTime       *time.Time `json:"accepted_time,omitempty"`
-	Accepted           bool       `json:"accepted"`
+	Status             string     `json:"status"`
 }

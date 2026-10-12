@@ -11,7 +11,7 @@ import (
 	"server/model"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 const (
@@ -30,7 +30,7 @@ func NewAuthHandler(apiKeyStore model.ApiKeyStore, jwtSigningKey []byte) *AuthHa
 	}
 }
 
-func (h *AuthHandler) Token(c echo.Context) error {
+func (h *AuthHandler) Token(c *echo.Context) error {
 	ctx := c.Request().Context()
 
 	var req apimodel.TokenRequest

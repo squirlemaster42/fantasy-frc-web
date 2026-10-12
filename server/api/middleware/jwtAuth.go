@@ -5,16 +5,16 @@ import (
 	"server/api"
 	"server/authentication/jwt"
 	"strings"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // JWTAuth returns Echo middleware that validates a Bearer JWT and stores the
 // user UUID in the context under the key "userUuid".
 func JWTAuth(signingKey []byte) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			authHeader := c.Request().Header.Get("Authorization")
 			if authHeader == "" {
 				api.Unauthorized(c.Response(), "Authorization header is required")
@@ -45,7 +45,7 @@ func JWTAuth(signingKey []byte) echo.MiddlewareFunc {
 }
 
 // GetUserUuid extracts the authenticated user UUID from the Echo context.
-func GetUserUuid(c echo.Context) (uuid.UUID, bool) {
+func GetUserUuid(c *echo.Context) (uuid.UUID, bool) {
 	v := c.Get("userUuid")
 	if v == nil {
 		return uuid.UUID{}, false

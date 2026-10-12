@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // ListDrafts returns all drafts visible to the authenticated user.
-func (h *Handler) ListDrafts(c echo.Context) error {
+func (h *Handler) ListDrafts(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -39,7 +39,7 @@ func (h *Handler) ListDrafts(c echo.Context) error {
 }
 
 // GetDraft returns a single draft by id.
-func (h *Handler) GetDraft(c echo.Context) error {
+func (h *Handler) GetDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -65,7 +65,7 @@ func (h *Handler) GetDraft(c echo.Context) error {
 }
 
 // CreateDraft creates a new draft owned by the authenticated user.
-func (h *Handler) CreateDraft(c echo.Context) error {
+func (h *Handler) CreateDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -83,8 +83,10 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 		api.BadRequest(c.Response(), "display_name is required")
 		return nil
 	}
-	if req.Interval <= 0 {
-		api.BadRequest(c.Response(), "interval must be greater than 0")
+
+	timingType := model.TimingType(req.TimingType)
+	if timingType != model.INCREMENT && timingType != model.PER_PICK {
+		api.BadRequest(c.Response(), "timing_type must be 'Increment' or 'Per Pick'")
 		return nil
 	}
 
@@ -92,10 +94,12 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 		Owner: model.User{
 			UserUuid: userUuid,
 		},
-		DisplayName: req.DisplayName,
-		Description: req.Description,
-		Interval:    req.Interval,
-		Status:      model.FILLING,
+		DisplayName:       req.DisplayName,
+		Description:       req.Description,
+		TimingType:        timingType,
+		IncrementTimeSec:  req.IncrementTimeSec,
+		PerPickExpTimeSec: req.PerPickExpTimeSec,
+		Status:            model.FILLING,
 	}
 
 	draftId, err := h.DraftStore.CreateDraft(ctx, &draftModel)
@@ -110,7 +114,7 @@ func (h *Handler) CreateDraft(c echo.Context) error {
 }
 
 // UpdateDraft updates draft metadata. Only the owner can update.
-func (h *Handler) UpdateDraft(c echo.Context) error {
+func (h *Handler) UpdateDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -155,10 +159,25 @@ func (h *Handler) UpdateDraft(c echo.Context) error {
 	} else {
 		update.Description = draftModel.Description
 	}
-	if req.Interval > 0 {
-		update.Interval = req.Interval
+	if req.TimingType != "" {
+		timingType := model.TimingType(req.TimingType)
+		if timingType != model.INCREMENT && timingType != model.PER_PICK {
+			api.BadRequest(c.Response(), "timing_type must be 'Increment' or 'Per Pick'")
+			return nil
+		}
+		update.TimingType = timingType
 	} else {
-		update.Interval = draftModel.Interval
+		update.TimingType = draftModel.TimingType
+	}
+	if req.IncrementTimeSec > 0 {
+		update.IncrementTimeSec = req.IncrementTimeSec
+	} else {
+		update.IncrementTimeSec = draftModel.IncrementTimeSec
+	}
+	if req.PerPickExpTimeSec > 0 {
+		update.PerPickExpTimeSec = req.PerPickExpTimeSec
+	} else {
+		update.PerPickExpTimeSec = draftModel.PerPickExpTimeSec
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
@@ -178,7 +197,7 @@ func (h *Handler) UpdateDraft(c echo.Context) error {
 }
 
 // StartDraft transitions a draft from FILLING to WAITING_TO_START.
-func (h *Handler) StartDraft(c echo.Context) error {
+func (h *Handler) StartDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -234,7 +253,7 @@ func (h *Handler) StartDraft(c echo.Context) error {
 }
 
 // ListPicks returns all picks for a draft.
-func (h *Handler) ListPicks(c echo.Context) error {
+func (h *Handler) ListPicks(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -272,7 +291,7 @@ func (h *Handler) ListPicks(c echo.Context) error {
 }
 
 // MakePick submits a pick for the authenticated player.
-func (h *Handler) MakePick(c echo.Context) error {
+func (h *Handler) MakePick(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -340,7 +359,7 @@ func (h *Handler) MakePick(c echo.Context) error {
 }
 
 // ToggleSkip marks whether the authenticated player's picks should be skipped.
-func (h *Handler) ToggleSkip(c echo.Context) error {
+func (h *Handler) ToggleSkip(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -376,7 +395,7 @@ func (h *Handler) ToggleSkip(c echo.Context) error {
 }
 
 // GetDraftScore returns the current score breakdown for a draft.
-func (h *Handler) GetDraftScore(c echo.Context) error {
+func (h *Handler) GetDraftScore(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {
@@ -418,7 +437,7 @@ func (h *Handler) GetDraftScore(c echo.Context) error {
 }
 
 // GetTeamScore returns scores for a specific FRC team.
-func (h *Handler) GetTeamScore(c echo.Context) error {
+func (h *Handler) GetTeamScore(c *echo.Context) error {
 	ctx := c.Request().Context()
 	teamNumberStr := c.QueryParam("team_number")
 	if teamNumberStr == "" {
@@ -465,7 +484,7 @@ func (h *Handler) GetTeamScore(c echo.Context) error {
 }
 
 // SearchUsers returns users matching the query who are not already in the draft.
-func (h *Handler) SearchUsers(c echo.Context) error {
+func (h *Handler) SearchUsers(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
 	if !ok {

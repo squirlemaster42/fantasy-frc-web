@@ -10,16 +10,16 @@ import (
 	"server/log"
 	"server/model"
 	"strconv"
+	"uuid"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
-func getAuthenticatedUser(c echo.Context) (uuid.UUID, bool) {
+func getAuthenticatedUser(c *echo.Context) (uuid.UUID, bool) {
 	return apimiddleware.GetUserUuid(c)
 }
 
-func parseDraftId(c echo.Context) (int, bool) {
+func parseDraftId(c *echo.Context) (int, bool) {
 	draftIdStr := c.Param("id")
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
@@ -29,7 +29,7 @@ func parseDraftId(c echo.Context) (int, bool) {
 	return draftId, true
 }
 
-func loadDraft(ctx context.Context, h *Handler, c echo.Context, draftId int) (model.DraftModel, bool) {
+func loadDraft(ctx context.Context, h *Handler, c *echo.Context, draftId int) (model.DraftModel, bool) {
 	draftModel, err := h.DraftStore.GetDraft(ctx, draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -43,7 +43,7 @@ func loadDraft(ctx context.Context, h *Handler, c echo.Context, draftId int) (mo
 	return draftModel, true
 }
 
-func requireDraftOwner(c echo.Context, draftModel model.DraftModel, userUuid uuid.UUID) bool {
+func requireDraftOwner(c *echo.Context, draftModel model.DraftModel, userUuid uuid.UUID) bool {
 	if draftModel.Owner.UserUuid != userUuid {
 		api.Forbidden(c.Response(), "You do not have permission to perform this action")
 		return false
@@ -51,7 +51,7 @@ func requireDraftOwner(c echo.Context, draftModel model.DraftModel, userUuid uui
 	return true
 }
 
-func requireDraftPlayer(c echo.Context, draftModel model.DraftModel, userUuid uuid.UUID) bool {
+func requireDraftPlayer(c *echo.Context, draftModel model.DraftModel, userUuid uuid.UUID) bool {
 	for _, player := range draftModel.Players {
 		if player.User.UserUuid == userUuid {
 			return true
@@ -131,16 +131,18 @@ func mapDraft(d model.DraftModel) apimodel.DraftResponse {
 	}
 
 	r := apimodel.DraftResponse{
-		Id:          d.Id,
-		DisplayName: d.DisplayName,
-		Description: d.Description,
-		Interval:    d.Interval,
-		Owner:       mapUser(d.Owner),
-		Status:      mapDraftState(d.Status),
-		Players:     players,
+		Id:                d.Id,
+		DisplayName:       d.DisplayName,
+		Description:       d.Description,
+		TimingType:        string(d.TimingType),
+		IncrementTimeSec:  d.IncrementTimeSec,
+		PerPickExpTimeSec: d.PerPickExpTimeSec,
+		Owner:             mapUser(d.Owner),
+		Status:            mapDraftState(d.Status),
+		Players:           players,
 	}
 
-	if d.NextPick.User.UserUuid != uuid.Nil {
+	if d.NextPick.User.UserUuid != uuid.Nil() {
 		next := mapDraftPlayer(d.NextPick)
 		r.NextPick = &next
 	}
@@ -157,7 +159,7 @@ func mapInvite(i model.DraftInvite) apimodel.InviteResponse {
 		InvitingUserUuid:   i.InvitingUserUuid.String(),
 		InvitingPlayerName: i.InvitingPlayerName,
 		SentTime:           i.SentTime,
-		Accepted:           i.Accepted,
+		Status:             i.Status,
 	}
 	if !i.AcceptedTime.IsZero() {
 		t := i.AcceptedTime
@@ -169,7 +171,7 @@ func mapInvite(i model.DraftInvite) apimodel.InviteResponse {
 // respondJSON is a small helper that logs on encoding failure.
 // If encoding fails after headers have already been sent, we log the error
 // but do not attempt a second write.
-func respondJSON(c echo.Context, status int, payload any) error {
+func respondJSON(c *echo.Context, status int, payload any) error {
 	if err := c.JSON(status, payload); err != nil {
 		log.Error(c.Request().Context(), "Failed to encode JSON response", "Error", err)
 	}

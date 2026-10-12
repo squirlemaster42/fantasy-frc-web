@@ -9,8 +9,8 @@ import (
 	"server/authentication/jwt"
 	"server/log"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 

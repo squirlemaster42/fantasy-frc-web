@@ -5,8 +5,8 @@ package mocks
 import (
 	"context"
 	"server/model"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
 

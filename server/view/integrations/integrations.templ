@@ -3,6 +3,7 @@ package integrations
 import (
 	"fmt"
 	"server/model"
+	"server/types"
 	"server/view"
 	"server/view/partials"
 	"time"
@@ -120,7 +121,7 @@ templ IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage
 }
 
 templ Integrations(page string, fromProtected bool, username string, cmp templ.Component) {
-	@view.Index(page, fromProtected, username, nil) {
+	@view.Index(page, fromProtected, username, types.NewPageData(0, "", false)) {
 		@cmp
 	}
 }
