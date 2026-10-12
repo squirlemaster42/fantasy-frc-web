@@ -3,12 +3,14 @@ package model
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"uuid"
 )
 
 func TestUpdatePickExpirationTimeQuery(t *testing.T) {
@@ -94,82 +96,276 @@ func TestUpdatePickExpirationTimeBehavior(t *testing.T) {
 	})
 }
 
-func TestGetInvite_FunctionBehavior(t *testing.T) {
-	// This test documents the expected behavior of GetInvite after the critical bug fix
-	// Previously, GetInvite would crash the server with log.Fatal() on any error
-	// Now it returns errors gracefully
-
-	t.Run("returns error for non-existent invite", func(t *testing.T) {
-		// When invite ID doesn't exist in database, GetInvite should return
-		// sql.ErrNoRows instead of crashing
-		// This is tested in integration tests with real database
-
-		// Verify the error type that should be returned
-		expectedErr := sql.ErrNoRows
-		assert.NotNil(t, expectedErr)
-		assert.Equal(t, "sql: no rows in result set", expectedErr.Error())
-	})
-
-	t.Run("returns DraftInvite and error", func(t *testing.T) {
-		// Verify function signature: returns (DraftInvite, error)
-		// This is a compile-time check
-		fn := getInvite
-		assert.NotNil(t, fn)
-	})
-}
-
-func TestGetInvite_ReturnsInviteWhenFound(t *testing.T) {
-	// Document expected behavior when invite exists
-	// This test describes what should happen in integration tests
-
-	t.Run("invite exists - returns invite data", func(t *testing.T) {
-		// Expected invite structure when found:
-		expectedInvite := DraftInvite{
-			Id:                 1,
-			DraftId:            42,
-			DraftName:          "Test Draft",
-			InvitedUserUuid:    uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-			InvitingPlayerName: "inviter_user",
+func TestDraftInvite_InvitedPlayerNameField(t *testing.T) {
+	t.Run("struct includes invited player name", func(t *testing.T) {
+		invite := DraftInvite{
+			InvitedPlayerName: "test_user",
 		}
-
-		// Verify the structure is valid
-		assert.NotZero(t, expectedInvite.Id)
-		assert.NotZero(t, expectedInvite.DraftId)
-		assert.NotEmpty(t, expectedInvite.DraftName)
-		assert.NotEqual(t, uuid.Nil, expectedInvite.InvitedUserUuid)
+		assert.Equal(t, "test_user", invite.InvitedPlayerName)
 	})
 }
 
-func TestGetInvite_ErrorHandling(t *testing.T) {
-	t.Run("returns sql.ErrNoRows for non-existent invite", func(t *testing.T) {
-		// Document expected error behavior
-		// In production with real DB, this should return sql.ErrNoRows
-		// which the handler checks with errors.Is(err, sql.ErrNoRows)
+func TestMakePick_IdMismatch_ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
 
-		err := sql.ErrNoRows
-		assert.True(t, errors.Is(err, sql.ErrNoRows),
-			"Error should be sql.ErrNoRows for non-existent invite")
+	pick := Pick{
+		Id:       42,
+		Player:   7,
+		Pick:     sql.NullString{String: "frc254", Valid: true},
+		PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
+	}
+
+	mock.ExpectPrepare(`Update Picks Set pick = \$1, pickTime = \$2 Where Id = \$3 Returning Id;`).
+		ExpectQuery().
+		WithArgs(pick.Pick, pick.PickTime, pick.Id).
+		WillReturnRows(sqlmock.NewRows([]string{"Id"}).AddRow(99))
+
+	err = makePick(context.Background(), db, pick)
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetDraftScore_ZeroDraftId_ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	_, err = getDraftScore(context.Background(), db, 0)
+	require.Error(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDetermineNextPick(t *testing.T) {
+	makePlayer := func(id int, order int16, userUuid uuid.UUID) DraftPlayer {
+		return DraftPlayer{
+			Id: id,
+			User: User{
+				UserUuid: userUuid,
+			},
+			PlayerOrder: sql.NullInt16{Int16: order, Valid: true},
+		}
+	}
+
+	makePick := func(playerId int) Pick {
+		return Pick{Player: playerId}
+	}
+
+	uuidA := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	uuidB := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	uuidC := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	uuidD := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+
+	t.Run("empty players returns error", func(t *testing.T) {
+		_, err := DetermineNextPick([]DraftPlayer{}, []Pick{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "no players in draft")
 	})
 
-	t.Run("returns error for database connection issues", func(t *testing.T) {
-		// Document that database errors are returned, not crashed on
-		// This was the critical bug - previously it would log.Fatal()
+	t.Run("unset player order returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			{
+				Id:          1,
+				User:        User{UserUuid: uuidA},
+				PlayerOrder: sql.NullInt16{Valid: false},
+			},
+		}
+		_, err := DetermineNextPick(players, []Pick{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player order not set")
+	})
 
-		// The function should return any database error instead of crashing
-		// Handler can then decide how to respond (e.g., show error message)
-		testErr := errors.New("connection refused")
-		assert.Error(t, testErr)
+	t.Run("first pick returns player order zero", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+		}
+		next, err := DetermineNextPick(players, []Pick{})
+		require.NoError(t, err)
+		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 1, next.Id)
+	})
+
+	t.Run("second pick returns player order one", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+		}
+		picks := []Pick{makePick(1)}
+		next, err := DetermineNextPick(players, picks)
+		require.NoError(t, err)
+		assert.Equal(t, 1, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 2, next.Id)
+	})
+
+	t.Run("snake forward with four players", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2)}
+		next, err := DetermineNextPick(players, picks)
+		require.NoError(t, err)
+		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 3, next.Id)
+	})
+
+	t.Run("snake wrap at end of round", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4)}
+		next, err := DetermineNextPick(players, picks)
+		require.NoError(t, err)
+		assert.Equal(t, 3, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 4, next.Id)
+	})
+
+	t.Run("snake reverse after end of round", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(2), makePick(3), makePick(4), makePick(4)}
+		next, err := DetermineNextPick(players, picks)
+		require.NoError(t, err)
+		assert.Equal(t, 2, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 3, next.Id)
+	})
+
+	t.Run("full round completed resets direction to zero", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{
+			makePick(1), makePick(2), makePick(3), makePick(4),
+			makePick(4), makePick(3), makePick(2), makePick(1),
+		}
+		next, err := DetermineNextPick(players, picks)
+		require.NoError(t, err)
+		assert.Equal(t, 0, int(next.PlayerOrder.Int16))
+		assert.Equal(t, 1, next.Id)
+	})
+
+	t.Run("last pick player not found returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+		}
+		picks := []Pick{makePick(1), makePick(99)}
+		_, err := DetermineNextPick(players, picks)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player 99 not found")
+	})
+
+	t.Run("second to last pick player not found returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+		}
+		picks := []Pick{makePick(99), makePick(1)}
+		_, err := DetermineNextPick(players, picks)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "player 99 not found")
+	})
+
+	t.Run("next index out of bounds returns error", func(t *testing.T) {
+		players := []DraftPlayer{
+			makePlayer(1, 0, uuidA),
+			makePlayer(2, 1, uuidB),
+			makePlayer(3, 2, uuidC),
+			makePlayer(4, 3, uuidD),
+		}
+		picks := []Pick{makePick(1), makePick(4)}
+		_, err := DetermineNextPick(players, picks)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "next pick is out of bounds")
 	})
 }
 
-func TestGetInvite_FunctionSignature(t *testing.T) {
-	// Verify the function signature is correct
-	// This test ensures the function returns (DraftInvite, error) not just DraftInvite
+func TestDetermineNextPick_VariousPlayerCounts(t *testing.T) {
+	makePlayer := func(id int, order int16) DraftPlayer {
+		return DraftPlayer{
+			Id: id,
+			User: User{
+				UserUuid: uuid.New(),
+			},
+			PlayerOrder: sql.NullInt16{Int16: order, Valid: true},
+		}
+	}
 
-	// Function should accept database and invite ID
-	// and return both the invite and an error
-	type getInviteFunc func(context.Context, *sql.DB, int) (DraftInvite, error)
+	expectedOrder := func(playerCount, pickIndex int) int {
+		round := pickIndex / playerCount
+		pos := pickIndex % playerCount
+		if round%2 == 0 {
+			return pos
+		}
+		return playerCount - 1 - pos
+	}
 
-	// This will compile only if getInvite has the correct signature
-	var _ getInviteFunc = getInvite
+	testCases := []int{2, 3, 5, 8, 12, 16}
+
+	for _, playerCount := range testCases {
+		t.Run(fmt.Sprintf("%d players full draft", playerCount), func(t *testing.T) {
+			players := make([]DraftPlayer, playerCount)
+			for i := range playerCount {
+				players[i] = makePlayer(i+1, int16(i))
+			}
+
+			totalPicks := PicksPerDraft(playerCount)
+			picks := make([]Pick, 0, totalPicks)
+
+			for pickIndex := range totalPicks {
+				next, err := DetermineNextPick(players, picks)
+				require.NoError(t, err, "pick %d", pickIndex)
+				assert.Equal(t, expectedOrder(playerCount, pickIndex), int(next.PlayerOrder.Int16), "pick %d", pickIndex)
+
+				// Record the pick using the player's Id so the next iteration can continue.
+				picks = append(picks, Pick{Player: next.Id})
+			}
+		})
+	}
+}
+
+func TestCanStartDraft_PlayerCountRange(t *testing.T) {
+	makeDraft := func(acceptedCount int) DraftModel {
+		players := make([]DraftPlayer, acceptedCount)
+		for i := range acceptedCount {
+			players[i] = DraftPlayer{Pending: false}
+		}
+		return DraftModel{Players: players}
+	}
+
+	t.Run("below minimum cannot start", func(t *testing.T) {
+		assert.False(t, CanStartDraft(makeDraft(1)))
+	})
+
+	t.Run("at minimum can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(MinDraftPlayers)))
+	})
+
+	t.Run("at old default can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(8)))
+	})
+
+	t.Run("at maximum can start", func(t *testing.T) {
+		assert.True(t, CanStartDraft(makeDraft(MaxDraftPlayers)))
+	})
+
+	t.Run("above maximum cannot start", func(t *testing.T) {
+		assert.False(t, CanStartDraft(makeDraft(17)))
+	})
 }

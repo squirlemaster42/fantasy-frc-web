@@ -65,6 +65,37 @@
       --wait \
       --timeout 10m
 
-- name: Install Promtail
+- name: Remove legacy Promtail resources
   shell: |
-    kubectl apply -f /home/{{ regular_user }}/fantasy-frc-web/infra/k8s/monitoring/promtail.yaml
+    kubectl delete --ignore-not-found=true -n {{ monitoring_namespace }} daemonset/promtail configmap/promtail-config serviceaccount/promtail
+    kubectl delete --ignore-not-found=true clusterrole/promtail clusterrolebinding/promtail
+
+- name: Render Alloy values
+  template:
+    src: alloy-values.yaml.j2
+    dest: /tmp/alloy-values.yaml
+    mode: '0644'
+
+- name: Install Grafana Alloy
+  shell: |
+    helm upgrade --install alloy grafana/alloy \
+      --namespace {{ monitoring_namespace }} \
+      --version {{ alloy_chart_version }} \
+      --values /tmp/alloy-values.yaml \
+      --wait \
+      --timeout 10m
+
+- name: Check if Alloy service already exposes OTLP ports
+  shell: |
+    kubectl get svc alloy -n {{ monitoring_namespace }} -o jsonpath='{range .spec.ports[*]}{.name}{"\n"}{end}' | grep -cE '^otlp-(grpc|http)$'
+  register: alloy_otlp_ports
+  changed_when: false
+  ignore_errors: yes
+
+- name: Add OTLP ports to Alloy service
+  shell: |
+    kubectl patch svc alloy -n {{ monitoring_namespace }} --type='json' -p='[
+      {"op": "add", "path": "/spec/ports/-", "value": {"name": "otlp-grpc", "port": 4317, "targetPort": 4317, "protocol": "TCP"}},
+      {"op": "add", "path": "/spec/ports/-", "value": {"name": "otlp-http", "port": 4318, "targetPort": 4318, "protocol": "TCP"}}
+    ]'
+  when: alloy_otlp_ports.stdout | default('0') | int < 2

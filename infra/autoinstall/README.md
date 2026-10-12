@@ -1,6 +1,6 @@
 # Ubuntu Autoinstall
 
-This directory contains an Ubuntu 24.04 autoinstall configuration for quickly provisioning physical Kubernetes nodes.
+This directory contains an Ubuntu 24.04 autoinstall configuration for quickly provisioning physical Kubernetes nodes
 
 ## Files
 

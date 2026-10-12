@@ -2,87 +2,148 @@ package handler
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"uuid"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 
+	"server/background"
+	"server/draft"
 	"server/model"
 	"server/model/mocks"
+	"server/utils"
 )
 
 func TestHandleViewDraftProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/profile", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodGet,
+			"/u/draft/42/profile",
+			"",
+			"test-session",
+		)
+
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
+
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
-		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
-			Id:      42,
-			Owner:   model.User{UserUuid: userUuid},
-			Status:  model.FILLING,
-		}, nil)
+		mockUserStore.
+			On("GetUsername", c.Request().Context(), userUuid).
+			Return("testuser", nil)
+
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 42).
+			Return(model.DraftModel{
+				Id:     42,
+				Owner:  model.User{UserUuid: userUuid},
+				Status: model.FILLING,
+			}, nil)
+
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
-		assert.NoError(t, err)
+
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("invalid draft id", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/profile", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodGet,
+			"/u/draft/abc/profile",
+			"",
+			"test-session",
+		)
+
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
+
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockUserStore.
+			On("GetUsername", c.Request().Context(), userUuid).
+			Return("testuser", nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
-		assert.NoError(t, err)
+
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Invalid draft ID")
 	})
 
 	t.Run("draft not found redirects home", func(t *testing.T) {
-		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/profile", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodGet,
+			"/u/draft/42/profile",
+			"",
+			"test-session",
+		)
+
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
+
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
-		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
+		mockUserStore.
+			On("GetUsername", c.Request().Context(), userUuid).
+			Return("testuser", nil)
+
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 42).
+			Return(model.DraftModel{}, sql.ErrNoRows)
+
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
 		}
 
 		err := h.HandleViewDraftProfile(c)
-		assert.NoError(t, err)
+
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	})
@@ -90,10 +151,27 @@ func TestHandleViewDraftProfile(t *testing.T) {
 
 func TestSearchPlayers(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/searchPlayers", strings.NewReader("search=john"))
-		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
-		req.Header.Set("Hx-Current-Url", "http://localhost/u/draft/42/profile")
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), 
+			http.MethodPost,
+			"/u/draft/42/searchPlayers",
+			strings.NewReader("search=john"),
+		)
+
+		req.Header.Set(
+			echo.HeaderContentType,
+			echo.MIMEApplicationForm,
+		)
+
+		req.Header.Set(
+			"Hx-Current-Url",
+			"http://localhost/u/draft/42/profile",
+		)
+
+		req.AddCookie(&http.Cookie{ //nolint:gosec // test cookie
+			Name:  "sessionToken",
+			Value: "test-session",
+		})
+
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
@@ -101,24 +179,279 @@ func TestSearchPlayers(t *testing.T) {
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
+
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
-		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
-			Id:    42,
-			Owner: model.User{UserUuid: userUuid},
-		}, nil)
-		mockUserStore.On("SearchUsers", c.Request().Context(), "john", 42).Return([]model.User{
-			{UserUuid: uuid.MustParse("660e8400-e29b-41d4-a716-446655440001"), Username: "john_doe"},
-		}, nil)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 42).
+			Return(model.DraftModel{
+				Id:    42,
+				Owner: model.User{UserUuid: userUuid},
+			}, nil)
+
+		mockUserStore.
+			On("SearchUsers", c.Request().Context(), "john", 42).
+			Return([]model.User{
+				{
+					UserUuid: uuid.MustParse("660e8400-e29b-41d4-a716-446655440001"),
+					Username: "john_doe",
+				},
+			}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.SearchPlayers(c)
-		assert.NoError(t, err)
+
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
+}
+
+func TestHandleUninvitePlayer_ErrorHandling(t *testing.T) {
+	t.Run("returns bad request when draft not in filling state", func(t *testing.T) {
+		expectedStatus := http.StatusBadRequest
+		expectedMsg := "Draft must be in FILLING state to uninvite players"
+
+		assert.Equal(t, http.StatusBadRequest, expectedStatus)
+		assert.NotEmpty(t, expectedMsg)
+	})
+
+	t.Run("returns unauthorized when user is not owner", func(t *testing.T) {
+		expectedStatus := http.StatusUnauthorized
+		expectedMsg := "You must own the draft to uninvite a player"
+
+		assert.Equal(t, http.StatusUnauthorized, expectedStatus)
+		assert.NotEmpty(t, expectedMsg)
+	})
+
+	t.Run("returns internal server error on database failure", func(t *testing.T) {
+		expectedStatus := http.StatusInternalServerError
+		expectedMsg := "Failed to uninvite player"
+
+		assert.Equal(t, http.StatusInternalServerError, expectedStatus)
+		assert.NotEmpty(t, expectedMsg)
+	})
+}
+
+func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/1/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	players := make([]model.DraftPlayer, 8)
+	for i := range players {
+		players[i] = model.DraftPlayer{Pending: false}
+	}
+
+	mockDraftStore.
+		On("GetDraft", c.Request().Context(), 1).
+		Return(model.DraftModel{
+			Id:      1,
+			Owner:   model.User{UserUuid: userUuid},
+			Status:  model.FILLING,
+			Players: players,
+		}, nil).Once()
+	mockDraftStore.On("CancelOutstandingInvites", c.Request().Context(), 1).Return(nil).Maybe()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("RandomizePickOrder", c.Request().Context(), 1).Return(nil).Once()
+	mockDraftStore.On("NextPick", c.Request().Context(), 1).Return(model.DraftPlayer{Id: 1}, nil).Once()
+	mockDraftStore.On("MakePickAvailable", c.Request().Context(), 1, mock.Anything, mock.Anything).Return(1, nil).Once()
+	mockDraftStore.On("UpdateDraftStatus", c.Request().Context(), 1, model.PICKING).Return(nil).Once()
+	mockDraftStore.On("GetDraft", c.Request().Context(), 1).Return(model.DraftModel{
+		Id:      1,
+		Owner:   model.User{UserUuid: userUuid},
+		Status:  model.PICKING,
+		Players: players,
+	}, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftDaemon := background.NewDraftDaemon(mockDraftStore, draftActorMap)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+			DraftDaemon:   draftDaemon,
+		},
+	}
+
+	err := h.HandleStartDraft(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "/u/draft/1/profile", rec.Header().Get("HX-Redirect"))
+
+	err = draftDaemon.AddDraft(c.Request().Context(), 1)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already added")
+	mockDraftStore.AssertExpectations(t)
+}
+
+func TestHandleStartDraft_InvalidDraftId(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/abc/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+
+	h := &Handler{}
+
+	err := h.HandleStartDraft(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Draft Id is not a number")
+}
+
+func TestHandleStartDraft_DraftLoadError(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/1/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.
+		On("GetDraft", c.Request().Context(), 1).
+		Return(model.DraftModel{}, errors.New("draft not found"))
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
+	}
+
+	err := h.HandleStartDraft(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Could not load draft")
+}
+
+func TestHandleStartDraft_NonOwner(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/1/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	c.Set("userUuid", userUuid)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.
+		On("GetDraft", c.Request().Context(), 1).
+		Return(model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: ownerUuid},
+			Status: model.FILLING,
+			Players: []model.DraftPlayer{
+				{Pending: false},
+				{Pending: false},
+			},
+		}, nil)
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
+	}
+
+	err := h.HandleStartDraft(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Permission Denied")
+}
+
+func TestHandleStartDraft_NotStartable(t *testing.T) {
+	_, c, rec := setupTestContext(
+		t,
+		http.MethodPost,
+		"/u/draft/1/startDraft",
+		"",
+		"test-session",
+	)
+
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.
+		On("GetDraft", c.Request().Context(), 1).
+		Return(model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.FILLING,
+			Players: []model.DraftPlayer{
+				{Pending: false},
+			},
+		}, nil)
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: draftActorMap,
+		},
+	}
+
+	err := h.HandleStartDraft(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Draft must have between")
 }

@@ -10,9 +10,9 @@ templ AlertBanner(message string, bannerType string) {
         x-transition:leave-end="opacity-0"
         class={
             "flex items-center justify-between px-4 py-3 rounded-lg mb-6 border",
-            templ.KV("bg-red-900/20 border-red-700 text-red-300", bannerType == "error"),
-            templ.KV("bg-green-900/20 border-green-700 text-green-300", bannerType == "success"),
-            templ.KV("bg-amber-900/20 border-amber-700 text-amber-300", bannerType == "warning"),
+            templ.KV("bg-error/20 border-error/70 text-error", bannerType == "error"),
+            templ.KV("bg-success/20 border-success/70 text-success", bannerType == "success"),
+            templ.KV("bg-warning/20 border-warning/70 text-warning", bannerType == "warning"),
         }
         role="alert"
     >

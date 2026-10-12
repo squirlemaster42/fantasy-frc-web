@@ -69,23 +69,25 @@ flowchart TD
 
 ## 🏆 Alliance Selection Scoring
 
+Base scores are stored per alliance rank. Final scores are base × `SCORER_ALLIANCE_PICK_MULTIPLIER` (default 2).
+
 ```mermaid
 graph LR
-    A[Alliance 1] --> B[Captain: 64pts]
-    A --> C[Pick 1: 62pts]
-    A --> D[Pick 2: 18pts]
-    A --> E[Pick 3: 16pts]
-    
-    F[Alliance 2] --> G[Captain: 60pts]
-    F --> H[Pick 1: 58pts]
-    F --> I[Pick 2: 20pts]
-    F --> J[Pick 3: 14pts]
-    
-    K[Alliance 8] --> L[Captain: 36pts]
-    K --> M[Pick 1: 34pts]
-    K --> N[Pick 2: 32pts]
-    K --> O[Pick 3: 2pts]
-    
+    A[Alliance 1] --> B[Captain: 32 base × 2 = 64pts]
+    A --> C[Pick 1: 31 base × 2 = 62pts]
+    A --> D[Pick 2: 9 base × 2 = 18pts]
+    A --> E[Pick 3: 8 base × 2 = 16pts]
+
+    F[Alliance 2] --> G[Captain: 30 base × 2 = 60pts]
+    F --> H[Pick 1: 29 base × 2 = 58pts]
+    F --> I[Pick 2: 10 base × 2 = 20pts]
+    F --> J[Pick 3: 7 base × 2 = 14pts]
+
+    K[Alliance 8] --> L[Captain: 18 base × 2 = 36pts]
+    K --> M[Pick 1: 17 base × 2 = 34pts]
+    K --> N[Pick 2: 16 base × 2 = 32pts]
+    K --> O[Pick 3: 1 base × 2 = 2pts]
+
     style A fill:#e1f5fe
     style F fill:#e1f5fe
     style K fill:#e1f5fe
@@ -139,9 +141,9 @@ graph TD
     D --> E[QF Points: 0]
     
     A --> F[Alliance: 3rd Captain]
-    F --> G[Alliance Points: 56 × 2 = 112]
-    
-    C --> H[Total: 130 points]
+    F --> G[Alliance Points: 28 × 2 = 56]
+
+    C --> H[Total: 74 points]
     E --> H
     G --> H
 ```
@@ -156,9 +158,9 @@ graph TD
     D --> E[Einstein Points: 30]
     
     A --> F[Regular Event Alliance: 5th Pick]
-    F --> G[Alliance Points: 26 × 2 = 52]
-    
-    E --> H[Total: 82 points]
+    F --> G[Alliance Points: 23 × 2 = 46]
+
+    E --> H[Total: 76 points]
     G --> H
 ```
 
@@ -199,6 +201,6 @@ flowchart TD
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Visual guide complements the detailed scoring algorithm documentation at [scoring.md](./scoring.md)*

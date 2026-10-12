@@ -60,24 +60,27 @@ Points based on where teams get selected during championship alliance selection.
 2. Each captain picks 3 other teams to join their alliance
 3. Selection order matters for scoring
 
-**Scoring Table (Base Values):**
+**Alliance Selection Base Scores:**
+
+The code stores base scores per alliance rank. Final scores are base × `SCORER_ALLIANCE_PICK_MULTIPLIER` (default 2).
+
 | Alliance Position | Captain | 1st Pick | 2nd Pick | 3rd Pick |
 |------------------|---------|----------|----------|----------|
-| 1st Alliance     | 64      | 62       | 18       | 16       |
-| 2nd Alliance     | 60      | 58       | 20       | 14       |
-| 3rd Alliance     | 56      | 54       | 22       | 12       |
-| 4th Alliance     | 52      | 50       | 24       | 10       |
-| 5th Alliance     | 48      | 46       | 26       | 8        |
-| 6th Alliance     | 44      | 42       | 28       | 6        |
-| 7th Alliance     | 40      | 38       | 30       | 4        |
-| 8th Alliance     | 36      | 34       | 32       | 2        |
+| 1st Alliance     | 32      | 31       | 9        | 8        |
+| 2nd Alliance     | 30      | 29       | 10       | 7        |
+| 3rd Alliance     | 28      | 27       | 11       | 6        |
+| 4th Alliance     | 26      | 25       | 12       | 5        |
+| 5th Alliance     | 24      | 23       | 13       | 4        |
+| 6th Alliance     | 22      | 21       | 14       | 3        |
+| 7th Alliance     | 20      | 19       | 15       | 2        |
+| 8th Alliance     | 18      | 17       | 16       | 1        |
 
-**Important:** All alliance scores are **doubled** from the table values!
+**Important:** Final alliance scores are **base × 2**.
 
 **Example:**
 - Team gets picked as 2nd pick by 3rd alliance
-- Base value: 54 points
-- Final score: 54 × 2 = 108 points
+- Base value: 27 points
+- Final score: 27 × 2 = 54 points
 
 ### 4. Einstein Score  
 Special scoring for the Einstein Championship (the ultimate final).
@@ -118,26 +121,26 @@ The final championship featuring:
 ### Example 2: Successful Team
 - **Qualification**: 8 matches, 6 wins with bonuses = 24 points
 - **Playoffs**: Win semifinal, lose finals = 33 points
-- **Alliance**: 4th alliance captain = 104 points
+- **Alliance**: 4th alliance captain = 52 points
 - **Einstein**: Don't qualify = 0 points
-- **Total Team Score**: 161 points
+- **Total Team Score**: 109 points
 
 ### Example 3: Championship Team
 - **Qualification**: 8 matches, 7 wins = 28 points
 - **Playoffs**: Win division, qualify for Einstein = 33 points
-- **Alliance**: 1st alliance captain = 128 points
+- **Alliance**: 1st alliance captain = 64 points
 - **Einstein**: Win Einstein semifinal = 30 points
-- **Total Team Score**: 219 points
+- **Total Team Score**: 155 points
 
 ## 🎮 Real-Life Scoring Examples
 
 ### Current Season Game-Specific Bonuses
 *(Note: These change yearly with FRC game rules)*
 
-Examples from recent seasons include:
-- **Auto Bonus** (+1 point): Team achieves autonomous period objectives
-- **Barge Bonus** (+1 point): Team completes barge-related scoring
-- **Coral Bonus** (+1 point): Team successfully places coral pieces
+Configurable bonus point constants include:
+- **Energized Bonus** (+1 point by default)
+- **Supercharged Bonus** (+1 point by default)
+- **Traversal Bonus** (+2 points by default)
 
 **Example Match with All Bonuses:**
 - Team wins match = 3 points
@@ -151,15 +154,15 @@ Your final fantasy score is simple addition:
 
 **Your 8-Team Roster:**
 1. Team A: 45 points
-2. Team B: 128 points  
+2. Team B: 98 points
 3. Team C: 18 points
 4. Team D: 0 points
 5. Team E: 67 points
 6. Team F: 23 points
-7. Team G: 104 points
+7. Team G: 82 points
 8. Team H: 56 points
 
-**Your Total Score**: 441 points
+**Your Total Score**: 389 points
 
 ### League Standings
 Players are ranked by total points:
@@ -169,10 +172,9 @@ Players are ranked by total points:
 
 ## 🔄 Score Updates
 
-### Real-Time Scoring
-- **Live updates**: Scores update as matches complete
-- **Instant notifications**: Draft room shows score changes
-- **Background processing**: System calculates automatically
+### Score Updates
+- **Background processing**: System calculates automatically when TBA webhooks arrive or the scoring runner processes queued matches
+- **Refresh to see updates**: Draft score pages refresh to show the latest standings
 
 ### Score Sources
 - **The Blue Alliance (TBA)**: Official FRC data source
@@ -239,6 +241,6 @@ Teams that don't qualify for championships earn 0 points in all categories.
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Now that you understand scoring, [learn some winning strategies!](./strategy-tips.md)*

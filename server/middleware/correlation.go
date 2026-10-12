@@ -3,13 +3,13 @@ package middleware
 import (
 	"server/log"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"uuid"
+	"github.com/labstack/echo/v5"
 )
 
 func CorrelationID() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			corrID := c.Request().Header.Get(log.CorrelationIDHeader)
 			if corrID == "" {
 				corrID = uuid.New().String()

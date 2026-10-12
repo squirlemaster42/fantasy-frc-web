@@ -2,13 +2,16 @@ package middleware
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"server/authentication"
 	"server/log"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type csrfContextKey string
@@ -41,7 +44,7 @@ func (c *CSRFMiddleware) GenerateToken(sessionToken string) string {
 // and stores the expected token in the Echo context for handlers to use.
 func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(ctx echo.Context) error {
+		return func(ctx *echo.Context) error {
 			method := ctx.Request().Method
 			path := ctx.Request().URL.Path
 
@@ -51,20 +54,20 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 			}
 
 			// Get expected token from session and store it in context
-			sessionCookie, err := ctx.Cookie("sessionToken")
+			sessionCookie, err := ctx.Cookie(authentication.SessionCookieName)
 			if err == nil && sessionCookie.Value != "" {
 				expectedToken := c.GenerateToken(sessionCookie.Value)
 				ctx.Set(string(CsrfTokenKey), expectedToken)
 
-				// Set non-HttpOnly cookie so JS can read it for HTMX requests
-				csrfCookie := new(http.Cookie)
-				csrfCookie.Name = "csrf_token"
-				csrfCookie.Value = expectedToken
-				csrfCookie.Path = "/"
-				csrfCookie.SameSite = http.SameSiteLaxMode
-				csrfCookie.Secure = c.secureCookie
-				csrfCookie.HttpOnly = false
-				ctx.SetCookie(csrfCookie)
+			// Set non-HttpOnly cookie so JS can read it for HTMX requests
+			csrfCookie := new(http.Cookie) //nolint:gosec // CSRF token cookie is intentionally readable by JS; Secure flag is configurable
+			csrfCookie.Name = CsrfTokenFieldName
+			csrfCookie.Value = expectedToken
+			csrfCookie.Path = "/"
+			csrfCookie.SameSite = http.SameSiteLaxMode
+			csrfCookie.Secure = c.secureCookie
+			csrfCookie.HttpOnly = false
+			ctx.SetCookie(csrfCookie)
 			}
 
 			// Skip validation for safe methods
@@ -72,27 +75,68 @@ func (c *CSRFMiddleware) CSRF() echo.MiddlewareFunc {
 				return next(ctx)
 			}
 
-		// Validate token for state-changing requests
-		if err != nil || sessionCookie.Value == "" {
-			log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "no_session_token")
-			return ctx.NoContent(http.StatusForbidden)
-		}
+			// Validate token for state-changing requests
+			if err != nil || sessionCookie.Value == "" {
+				log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "no_session_token")
+				return ctx.NoContent(http.StatusForbidden)
+			}
 
-		// Get token from form or header
-		var submittedToken string
-		if ctx.Request().FormValue("csrf_token") != "" {
-			submittedToken = ctx.Request().FormValue("csrf_token")
-		} else {
-			submittedToken = ctx.Request().Header.Get("X-CSRF-Token")
-		}
+			// Get token from form or header
+			var submittedToken string
+			if ctx.Request().FormValue(CsrfTokenFieldName) != "" {
+				submittedToken = ctx.Request().FormValue(CsrfTokenFieldName)
+			} else {
+				submittedToken = ctx.Request().Header.Get(CsrfTokenHeaderName)
+			}
 
-		expectedToken := c.GenerateToken(sessionCookie.Value)
-		if subtle.ConstantTimeCompare([]byte(submittedToken), []byte(expectedToken)) != 1 {
-			log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "token_mismatch")
-			return ctx.NoContent(http.StatusForbidden)
-		}
+			expectedToken := c.GenerateToken(sessionCookie.Value)
+			if subtle.ConstantTimeCompare([]byte(submittedToken), []byte(expectedToken)) != 1 {
+				log.Warn(ctx.Request().Context(), "CSRF validation failed", "path", path, "method", method, "ip", ctx.RealIP(), "reason", "token_mismatch")
+				return ctx.NoContent(http.StatusForbidden)
+			}
 
 			return next(ctx)
 		}
 	}
+}
+
+// GenerateCSRFCookie creates a double-submit CSRF cookie for unauthenticated forms
+// (login/register). It returns the token to embed in the form.
+func GenerateCSRFCookie(c *echo.Context) (string, error) {
+	// Check if cookie already exists
+	existing, err := c.Cookie(CsrfCookieName)
+	if err == nil && existing.Value != "" {
+		return existing.Value, nil
+	}
+
+	// Generate new random token
+	b := make([]byte, CsrfTokenLength)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to read random bytes: %w", err)
+}
+	token := hex.EncodeToString(b)
+
+	cookie := new(http.Cookie) //nolint:gosec // CSRF token cookie is intentionally readable by JS; Secure flag follows request scheme
+	cookie.Name = CsrfCookieName
+	cookie.Value = token
+	cookie.Path = "/"
+	cookie.SameSite = http.SameSiteLaxMode
+	cookie.Secure = c.Scheme() == "https"
+	cookie.HttpOnly = false
+	c.SetCookie(cookie)
+
+	return token, nil
+}
+
+// ValidateCSRFCookie checks the double-submit CSRF token for unauthenticated forms.
+func ValidateCSRFCookie(c *echo.Context) bool {
+	submitted := c.FormValue(CsrfTokenFieldName)
+	if submitted == "" {
+		return false
+	}
+	cookie, err := c.Cookie(CsrfCookieName)
+	if err != nil || cookie.Value == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(submitted), []byte(cookie.Value)) == 1
 }

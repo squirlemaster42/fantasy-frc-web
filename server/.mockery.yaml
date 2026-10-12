@@ -13,3 +13,8 @@ packages:
       DraftStore:
       UserStore:
       TeamStore:
+  server/authentication:
+    config:
+      all: false
+    interfaces:
+      AuthService:

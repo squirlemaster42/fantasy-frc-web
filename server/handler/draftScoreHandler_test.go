@@ -4,9 +4,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"server/cache"
 	"server/model"
 	"server/model/mocks"
 )
@@ -14,8 +17,7 @@ import (
 func TestHandleDraftScore(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/draftScore", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -30,12 +32,17 @@ func TestHandleDraftScore(t *testing.T) {
 		mockDraftStore.On("GetDraftScore", c.Request().Context(), 42).Return([]model.DraftPlayer{}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+			Services: ServiceGroup{
+				AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
+			},
 		}
 
 		err := h.HandleDraftScore(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
@@ -43,8 +50,10 @@ func TestHandleDraftScore(t *testing.T) {
 func TestHandleDraftTeamScore(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/team/254", "", "test-session")
-		c.SetParamNames("id", "teamNumber")
-		c.SetParamValues("42", "254")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "42"},
+			{Name: "teamNumber", Value: "254"},
+		})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -61,13 +70,18 @@ func TestHandleDraftTeamScore(t *testing.T) {
 		mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
-			TeamStore:  mockTeamStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+				TeamStore:  mockTeamStore,
+			},
+			Services: ServiceGroup{
+				AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
+			},
 		}
 
 		err := h.HandleDraftTeamScore(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }

@@ -1,9 +1,22 @@
 version: 2
 updates:
-  # Enable version updates for go
   - package-ecosystem: "gomod"
-    # Look for a `Dockerfile` in the `root` directory
-    directory: "/"
-    # Check for updates once a week
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gomod"
+    directory: "/draftAgent"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gomod"
+    directory: "/draftTester"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gomod"
+    directory: "/fuzzer"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/client"
     schedule:
       interval: "weekly"

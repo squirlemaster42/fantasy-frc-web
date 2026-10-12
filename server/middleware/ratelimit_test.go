@@ -3,13 +3,15 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"uuid"
 )
 
 func TestNewRateLimiter_DisabledWhenAddrEmpty(t *testing.T) {
@@ -44,33 +46,36 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First 5 requests are allowed
-	for i := 0; i < 5; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	for range 5 {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 
 	// Sixth request is blocked
-	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-	assert.Equal(t, "900", rec.Header().Get("Retry-After"))
+	retryAfter, parseErr := strconv.Atoi(rec.Header().Get("Retry-After"))
+	require.NoError(t, parseErr)
+	assert.Positive(t, retryAfter)
+	assert.LessOrEqual(t, retryAfter, 900)
 }
 
 func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
@@ -83,31 +88,31 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First 3 requests are allowed
-	for i := 0; i < 3; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/register", nil)
+	for range 3 {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/register", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 
 	// Fourth request is blocked
-	req := httptest.NewRequest(http.MethodPost, "/register", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/register", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
@@ -121,16 +126,16 @@ func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 	e := echo.New()
 
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodOptions} {
-		req := httptest.NewRequest(method, "/u/home", nil)
+		req := httptest.NewRequestWithContext(t.Context(), method, "/u/home", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -144,16 +149,16 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/tbaWebhook", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/tbaWebhook", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -167,31 +172,34 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	e := echo.New()
 
 	// First POST is allowed
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// Second POST is blocked
-	req = httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 
-	handler = middleware(func(c echo.Context) error {
+	handler = middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err = handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-	assert.Equal(t, "60", rec.Header().Get("Retry-After"))
+	retryAfter, parseErr := strconv.Atoi(rec.Header().Get("Retry-After"))
+	require.NoError(t, parseErr)
+	assert.Positive(t, retryAfter)
+	assert.LessOrEqual(t, retryAfter, 60)
 }
 
 func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
@@ -205,31 +213,31 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
 	// First POST by user is allowed
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// Second POST by same user is blocked
-	req = httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec = httptest.NewRecorder()
 	c = e.NewContext(req, rec)
 	c.Set("userUuid", userUuid)
 
-	handler = middleware(func(c echo.Context) error {
+	handler = middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err = handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
@@ -246,17 +254,17 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 	user2 := uuid.MustParse("550e8400-e29b-41d4-a716-446655440001")
 
 	for _, userUuid := range []uuid.UUID{user1, user2} {
-		req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("userUuid", userUuid)
 
-		handler := middleware(func(c echo.Context) error {
+		handler := middleware(func(c *echo.Context) error {
 			return c.String(http.StatusOK, "ok")
 		})
 
 		err := handler(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	}
 }
@@ -273,23 +281,78 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodPost, "/u/home", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/home", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	handler := middleware(func(c echo.Context) error {
+	handler := middleware(func(c *echo.Context) error {
 		return c.String(http.StatusOK, "ok")
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRateLimiter_checkLimit_AllowsWhenRedisNil(t *testing.T) {
 	limiter := NewRateLimiter("", "", 0)
 
-	allowed, _, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
-	assert.NoError(t, err)
+	allowed, _, retryAfter, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
+	require.NoError(t, err)
 	assert.True(t, allowed)
+	assert.Equal(t, time.Duration(0), retryAfter)
+}
+
+func TestRateLimiter_WindowRollover_ResetsCounter(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	limiter := NewRateLimiter(s.Addr(), "", 0)
+	middleware := limiter.RateLimitLogin()
+
+	e := echo.New()
+
+	// Exhaust the limit for the current window
+	for range 5 {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		handler := middleware(func(c *echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := handler(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	// Next request in the same window is blocked
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := middleware(func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+
+	// Advance past the window boundary
+	s.FastForward(16 * time.Minute)
+
+	// Request in the new window is allowed again
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/login", nil)
+	rec = httptest.NewRecorder()
+	c = e.NewContext(req, rec)
+
+	handler = middleware(func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err = handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }

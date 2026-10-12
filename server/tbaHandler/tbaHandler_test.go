@@ -1,101 +1,122 @@
 package tbaHandler
 
 import (
+	"database/sql"
+	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-
 func getTbaTok(t *testing.T) string {
-    err := godotenv.Load(filepath.Join("../", ".env"))
-    if err != nil {
-        t.Skipf("Skipping test: failed to load .env file %v", err)
-    }
-    token := os.Getenv("TBA_TOKEN")
-    if token == "" {
-        t.Skip("Skipping test: TBA_TOKEN not found in environment")
-    }
-    return token
+	t.Helper()
+	err := godotenv.Load(filepath.Join("../", ".env"))
+	if err != nil {
+		t.Skipf("Skipping test: failed to load .env file %v", err)
+	}
+	token := os.Getenv("TBA_TOKEN")
+	if token == "" {
+		t.Skip("Skipping test: TBA_TOKEN not found in environment")
+	}
+	return token
 }
 
 func TestMatchListReq(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    matches := handler.MakeMatchListReq(t.Context(), "frc254", "2026casnv")
-    assert.True(t, len(matches) > 0, "No matches were found")
-    firstMatch := matches[0]
-    if (firstMatch.EventKey != "2026casnv") {
-        t.Fatalf("Match Key Incorrect")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	matches, err := handler.MakeMatchListReq(t.Context(), "frc254", "2026casnv")
+	require.NoError(t, err)
+	assert.NotEmpty(t, matches, "No matches were found")
+	firstMatch := matches[0]
+	if firstMatch.EventKey != "2026casnv" {
+		t.Fatalf("Match Key Incorrect")
+	}
 
-    if (firstMatch.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
-        t.Fatalf("Score is not set")
-    }
+	if firstMatch.ScoreBreakdown.Blue.TotalTeleopPoints == 0 {
+		t.Fatalf("Score is not set")
+	}
 }
 
 func TestEventListReq(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    events := handler.MakeEventListReq(t.Context(), "frc1690")
-    if (len(events) == 0) {
-        t.Fatalf("No events were found")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	events, err := handler.MakeEventListReq(t.Context(), "frc1690")
+	if err != nil {
+		t.Fatalf("Failed to get event list: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatalf("No events were found")
+	}
 }
 
 func TestMatchReq(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    match := handler.MakeMatchReq(t.Context(), "2026casnv_qm24")
-    if (match.ScoreBreakdown.Blue.TotalTeleopPoints == 0) {
-        t.Fatalf("Score not set correctly")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	match, err := handler.MakeMatchReq(t.Context(), "2026casnv_qm24")
+	if err != nil {
+		t.Fatalf("Failed to get match: %v", err)
+	}
+	if match.ScoreBreakdown.Blue.TotalTeleopPoints == 0 {
+		t.Fatalf("Score not set correctly")
+	}
 }
 
 func TestMatchKeysRequest(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysRequest(t.Context(), "frc1690", "2024isde1")
-    if (len(keys) == 0) {
-        t.Fatalf("No match keys found")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	keys, err := handler.MakeMatchKeysRequest(t.Context(), "frc1690", "2024isde1")
+	if err != nil {
+		t.Fatalf("Failed to get match keys: %v", err)
+	}
+	if len(keys) == 0 {
+		t.Fatalf("No match keys found")
+	}
 }
 
 func TestMatchKeysYearRequest(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    keys := handler.MakeMatchKeysYearRequest(t.Context(), "frc1690")
-    if (len(keys) == 0) {
-        t.Fatalf("No match keys found")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	keys, err := handler.MakeMatchKeysYearRequest(t.Context(), "frc1690")
+	if err != nil {
+		t.Fatalf("Failed to get match keys by year: %v", err)
+	}
+	if len(keys) == 0 {
+		t.Fatalf("No match keys found")
+	}
 }
 
 func TestTeamEventStatusRequest(t *testing.T) {
-    tbaTok := getTbaTok(t)
-    assert.True(t, len(tbaTok) > 0, "TBA Token was not loaded correctly")
-    handler := NewHandler(tbaTok, nil)
-    event := handler.MakeTeamEventStatusRequest(t.Context(), "frc1690", "2024isde1")
-    if (event.LastMatchKey == "") {
-        t.Fatalf("There should be a last match")
-    }
+	tbaTok := getTbaTok(t)
+	assert.NotEmpty(t, tbaTok, "TBA Token was not loaded correctly")
+	handler := NewHandler(tbaTok, nil)
+	event, err := handler.MakeTeamEventStatusRequest(t.Context(), "frc1690", "2024isde1")
+	if err != nil {
+		t.Fatalf("Failed to get team event status: %v", err)
+	}
+	if event.LastMatchKey == "" {
+		t.Fatalf("There should be a last match")
+	}
 }
 
 type mockAllianceTransport struct {
-	requestCount     int
-	emptyResponses   int
-	responseBody     string
+	requestCount   int
+	emptyResponses int
+	responseBody   string
 }
 
 func (m *mockAllianceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -107,7 +128,7 @@ func (m *mockAllianceTransport) RoundTrip(req *http.Request) (*http.Response, er
 	headers := make(http.Header)
 	headers.Set("Etag", "mock-etag")
 	return &http.Response{
-		StatusCode: 200,
+		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(body)),
 		Header:     headers,
 		Request:    req,
@@ -125,16 +146,17 @@ func TestEliminationAllianceRequestRetrySuccess(t *testing.T) {
 	handler.client = &http.Client{Transport: mock}
 
 	start := time.Now()
-	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	alliances, err := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
 	elapsed := time.Since(start)
 
+	require.NoError(t, err)
 	assert.Equal(t, 3, mock.requestCount, "Expected 3 requests (2 empty + 1 success)")
-	assert.Equal(t, 2, len(alliances), "Expected 2 alliances after retry")
+	assert.Len(t, alliances, 2, "Expected 2 alliances after retry")
 	assert.Equal(t, "Alliance 1", alliances[0].Name)
 	assert.Equal(t, "frc254", alliances[0].Picks[0])
 
 	// Exponential backoff: 1s + 2s = 3s minimum
-	assert.True(t, elapsed >= 3*time.Second, "Expected at least 3s of backoff delay")
+	assert.GreaterOrEqual(t, elapsed, 3*time.Second, "Expected at least 3s of backoff delay")
 }
 
 func TestEliminationAllianceRequestRetryExhausted(t *testing.T) {
@@ -147,12 +169,281 @@ func TestEliminationAllianceRequestRetryExhausted(t *testing.T) {
 	handler.client = &http.Client{Transport: mock}
 
 	start := time.Now()
-	alliances := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
+	alliances, err := handler.MakeEliminationAllianceRequest(t.Context(), "2026test")
 	elapsed := time.Since(start)
 
+	require.NoError(t, err)
 	assert.Equal(t, 6, mock.requestCount, "Expected 6 requests (initial + 5 retries)")
-	assert.Equal(t, 0, len(alliances), "Expected empty alliances after all retries exhausted")
+	assert.Empty(t, alliances, "Expected empty alliances after all retries exhausted")
 
 	// Exponential backoff: 1s + 2s + 4s + 8s + 16s = 31s minimum
-	assert.True(t, elapsed >= 31*time.Second, "Expected at least 31s of backoff delay")
+	assert.GreaterOrEqual(t, elapsed, 31*time.Second, "Expected at least 31s of backoff delay")
+}
+
+type mockTransport struct {
+	responses []mockResponse
+	index     int
+}
+
+type mockResponse struct {
+	statusCode int
+	body       string
+	etag       string
+	err        error
+}
+
+func (m *mockTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.index >= len(m.responses) {
+		return nil, errors.New("no more mocked responses")
+	}
+	r := m.responses[m.index]
+	m.index++
+	if r.err != nil {
+		return nil, r.err
+	}
+	headers := make(http.Header)
+	if r.etag != "" {
+		headers.Set("Etag", r.etag)
+	}
+	return &http.Response{
+		StatusCode: r.statusCode,
+		Body:       io.NopCloser(strings.NewReader(r.body)),
+		Header:     headers,
+		Request:    req,
+	}, nil
+}
+
+func TestMakeRequest_CacheMiss200(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	body := `[{"key":"value"}]`
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+	mock.ExpectPrepare(`Insert Into TbaCache \(url, etag, responseBody\) Values \(\$1, \$2, \$3\) On Conflict \(url\) Do Update Set etag = excluded\.etag, responseBody = excluded\.responseBody;`).
+		ExpectExec().WithArgs(url, etag, []byte(body)).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusOK, body: body, etag: etag}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.NoError(t, err)
+	assert.Equal(t, []byte(body), resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_CacheHitNotModified(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	cachedBody := []byte(`[{"cached":true}]`)
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnRows(sqlmock.NewRows([]string{"etag", "responseBody"}).AddRow(etag, cachedBody))
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusNotModified, body: ""}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.NoError(t, err)
+	assert.Equal(t, cachedBody, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_404ReturnsNil(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusNotFound, body: "not found"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.NoError(t, err)
+	assert.Nil(t, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_500ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusInternalServerError, body: "server error"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server error")
+	assert.Nil(t, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_429ReturnsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusTooManyRequests, body: "rate limited"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rate limit")
+	assert.Nil(t, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+type headerRecordingTransport struct {
+	response  *http.Response
+	err       error
+	seenReq   *http.Request
+}
+
+func (h *headerRecordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	h.seenReq = req
+	if h.err != nil {
+		return nil, h.err
+	}
+	return h.response, nil
+}
+
+func TestMakeRequest_CacheHitSendsIfNoneMatch(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+	etag := "test-etag"
+	cachedBody := []byte(`[{"cached":true}]`)
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnRows(sqlmock.NewRows([]string{"etag", "responseBody"}).AddRow(etag, cachedBody))
+
+	transport := &headerRecordingTransport{
+		response: &http.Response{
+			StatusCode: http.StatusNotModified,
+			Body:       io.NopCloser(strings.NewReader("")),
+			Header:     make(http.Header),
+			Request:    nil,
+		},
+	}
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: transport}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.NoError(t, err)
+	assert.Equal(t, cachedBody, resp)
+	require.NotNil(t, transport.seenReq)
+	assert.Equal(t, etag, transport.seenReq.Header.Get("If-None-Match"))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_NetworkError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{err: errors.New("connection refused")}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connection refused")
+	assert.Nil(t, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestMakeRequest_UnexpectedStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	url := "https://www.thebluealliance.com/api/v3/test"
+
+	mock.ExpectPrepare(`Select etag, responseBody From TbaCache Where url = \$1;`).
+		ExpectQuery().WithArgs(url).WillReturnError(sql.ErrNoRows)
+
+	handler := NewHandler("test-token", db)
+	handler.client = &http.Client{Transport: &mockTransport{responses: []mockResponse{{statusCode: http.StatusBadRequest, body: "bad request"}}}}
+
+	resp, err := handler.makeRequest(t.Context(), url, "/test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected status")
+	assert.Nil(t, resp)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBuildTbaUrl_EscapesPathSegments(t *testing.T) {
+	teamId := "frc254/foo"
+	eventId := "2026 event"
+	expected := BASE_URL + "team/" + url.PathEscape(teamId) + "/event/" + url.PathEscape(eventId) + "/matches"
+
+	assert.Equal(t, expected, buildTbaUrl("team/%s/event/%s/matches", teamId, eventId))
+}
+
+func TestBuildTbaUrl_PreservesNonStringArguments(t *testing.T) {
+	teamId := "frc254"
+	year := 2026
+	expected := BASE_URL + "team/" + teamId + "/events/2026/keys"
+
+	assert.Equal(t, expected, buildTbaUrl("team/%s/events/%d/keys", teamId, year))
+}
+
+type urlRecordingTransport struct {
+	seenUrl *url.URL
+}
+
+func (u *urlRecordingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	u.seenUrl = req.URL
+	headers := make(http.Header)
+	headers.Set("Etag", "mock-etag")
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"key":"2026casnv_qm24"}`)),
+		Header:     headers,
+		Request:    req,
+	}, nil
+}
+
+func TestMakeMatchReq_EscapesMatchId(t *testing.T) {
+	matchId := "2026casnv/qm 24"
+	transport := &urlRecordingTransport{}
+
+	handler := NewHandler("test-token", nil)
+	handler.client = &http.Client{Transport: transport}
+
+	_, err := handler.MakeMatchReq(t.Context(), matchId)
+	require.NoError(t, err)
+	require.NotNil(t, transport.seenUrl)
+
+	expectedPath := "/api/v3/match/" + url.PathEscape(matchId)
+	assert.Equal(t, expectedPath, transport.seenUrl.EscapedPath())
 }

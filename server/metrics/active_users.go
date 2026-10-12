@@ -32,7 +32,7 @@ func RecordUserActivity(userUuid string) {
 }
 
 func collectActiveUsers() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(ActiveUserCollectorTickInterval())
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -44,14 +44,14 @@ func collectActiveUsers() {
 
 		for uuid, lastSeen := range activeUsers {
 			age := now.Sub(lastSeen)
-			if age > 15*time.Minute {
+			if age > activeUserWindow15m {
 				continue
 			}
 			pruned[uuid] = lastSeen
-			if age <= 1*time.Minute {
+			if age <= activeUserWindow1m {
 				count1m++
 			}
-			if age <= 5*time.Minute {
+			if age <= activeUserWindow5m {
 				count5m++
 			}
 			count15m++

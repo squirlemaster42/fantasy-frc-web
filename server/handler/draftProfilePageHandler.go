@@ -6,23 +6,23 @@ import (
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/types"
 	draftView "server/view/draft"
 	"strconv"
 	"strings"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"uuid"
+	"github.com/labstack/echo/v5"
 )
 
 // HandleViewDraftProfile renders the draft profile page for the given draft ID.
-func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
+func (h *Handler) HandleViewDraftProfile(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got a request to serve the draft profile page")
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-	username, err := h.UserStore.GetUsername(c.Request().Context(), userUuid)
+	userUuid, username, err := h.requireUser(c)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get username", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		log.Warn(c.Request().Context(), "Did not have required player", "Error", err)
+		return err
 	}
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -31,18 +31,18 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	// TODO I think this should go through the draft manager
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
-		//We want to redirect back to the home screen
+		// We want to redirect back to the home screen
 		log.Debug(c.Request().Context(), "User attempted to visit incorrect draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.Redirect(http.StatusSeeOther, "/u/home")
 	}
+	draftModel := draft.GetDraft(draftActor)
 
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
-	draftView := draftView.DraftProfile(" | Draft Profile", true, username, draftIndex, draftId, isOwner)
+	draftView := draftView.DraftProfile("Draft Profile", true, username, draftIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
 	if err := Render(c, draftView); err != nil {
 		log.Error(c.Request().Context(), "Handle View Draft Profile Failed To Render", "draftId", draftId, "error", err)
 		return err
@@ -51,7 +51,7 @@ func (h *Handler) HandleViewDraftProfile(c echo.Context) error {
 }
 
 // HandleUpdateDraftProfile updates the draft profile fields (name, description, interval, times, webhook).
-func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
+func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to update a draft")
 
 	draftId, err := strconv.Atoi(c.Param("id"))
@@ -62,27 +62,23 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
-	interval := c.FormValue("interval")
 	discordWebhook := c.FormValue("discordWebhook")
 
-	intInterval, err := strconv.Atoi(interval)
+	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse interval", "error", err)
-		return c.String(http.StatusBadRequest, "Invalid interval")
+		return err
 	}
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
-
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
-		//The user would need to hand craft this payload
-		//so for now we just won't tell them what is wrong
-		//because it is probably malicious
+		// The user would need to hand craft this payload
+		// so for now we just won't tell them what is wrong
+		// because it is probably malicious
 		log.Warn(c.Request().Context(), "User tried to update draft but was not the owner", "userUuid", userUuid, "draftId", draftId, "ownerId", draftModel.Owner.UserUuid)
 		return c.String(http.StatusForbidden, "You do not have permission to update this draft")
 	}
@@ -94,11 +90,10 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 		},
 		DisplayName:    draftName,
 		Description:    description,
-		Interval:       intInterval,
 		DiscordWebhook: discordWebhook,
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to get draft actor", "draftId", draftId, "error", err)
 		return err
@@ -116,8 +111,8 @@ func (h *Handler) HandleUpdateDraftProfile(c echo.Context) error {
 }
 
 // SearchPlayers searches for users to invite to a draft and returns the results as HTML.
-func (h *Handler) SearchPlayers(c echo.Context) error {
-	currentUrl := c.Request().Header.Get("Hx-Current-Url")
+func (h *Handler) SearchPlayers(c *echo.Context) error {
+	currentUrl := c.Request().Header.Get(htmxCurrentUrlHeader)
 	if currentUrl == "" {
 		log.Warn(c.Request().Context(), "Missing Hx-Current-Url header")
 		return c.String(http.StatusBadRequest, "Missing required header")
@@ -131,19 +126,22 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 	searchInput := c.FormValue("search")
 	log.Debug(c.Request().Context(), "Got request to search users")
 
-	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to search users", "draftId", draftId, "searchInput", searchInput, "error", err)
 		return c.String(http.StatusInternalServerError, "Failed to search users")
 	}
 
-	draftModel, err := h.DraftStore.GetDraft(c.Request().Context(), draftId)
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Debug(c.Request().Context(), "User attempted to search for players in an invalid draft", "draftId", draftId, "error", err)
 		return c.String(http.StatusBadRequest, "Invalid draft ID")
 	}
 
-	userUuid := c.Get("userUuid").(uuid.UUID)
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	isOwner := userUuid == draftModel.Owner.UserUuid
 
 	searchResults := draftView.PlayerSearchResults(users, draftId, isOwner, h.csrfToken(c))
@@ -155,8 +153,11 @@ func (h *Handler) SearchPlayers(c echo.Context) error {
 }
 
 // InviteDraftPlayer invites a user to join the draft.
-func (h *Handler) InviteDraftPlayer(c echo.Context) error {
-	userUuid := c.Get("userUuid").(uuid.UUID)
+func (h *Handler) InviteDraftPlayer(c *echo.Context) error {
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftIdStr := c.Param("id")
 	invitingUserUuid := userUuid
 	draftId, err := strconv.Atoi(draftIdStr)
@@ -172,7 +173,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	}
 
 	// Check that the draft is in the correct state
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to load draft", "draftId", draftId, "error", err)
 		return err
@@ -202,7 +203,7 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 
 	searchInput := c.FormValue("search")
 
-	users, err := h.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
 
 	if err != nil {
 		log.Error(c.Request().Context(), "Failed to search users", "draftId", draftId, "searchInput", searchInput, "error", err)
@@ -222,15 +223,18 @@ func (h *Handler) InviteDraftPlayer(c echo.Context) error {
 	return nil
 }
 
-// HandleStartDraft transitions the draft from FILLING to WAITING_TO_START after validating 8 players.
-func (h *Handler) HandleStartDraft(c echo.Context) error {
+// HandleStartDraft transitions the draft from FILLING to PICKING after validating the player count.
+func (h *Handler) HandleStartDraft(c *echo.Context) error {
 	draftIdStr := c.Param("id")
 	log.Debug(c.Request().Context(), "Got a request to start a draft", "draftId", draftIdStr)
-	requestingUser := c.Get("userUuid").(uuid.UUID)
+	requestingUser, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
 	draftId, err := strconv.Atoi(draftIdStr)
 	if err != nil {
 		log.Warn(c.Request().Context(), "Could not parse draftId", "draftIdString", draftIdStr, "error", err)
-		c.Response().Status = http.StatusBadRequest
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
 			"Draft Id is not a number",
@@ -240,10 +244,10 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return Render(c, page)
 	}
 
-	draftActor, err := h.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		log.Error(c.Request().Context(), "Could not load draft", "draftId", draftId, "error", err)
-		c.Response().Status = http.StatusBadRequest
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Could not load draft", false, h.csrfToken(c))
 		return Render(c, page)
 	}
@@ -251,25 +255,17 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 
 	if draftModel.Owner.UserUuid != requestingUser {
 		log.Warn(c.Request().Context(), "User is not draft owner", "draftId", draftId, "userUuid", requestingUser)
-		c.Response().Status = http.StatusUnauthorized
+		setResponseStatus(c, http.StatusUnauthorized)
 		page := draftView.StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draftId), "Permission Denied", false, h.csrfToken(c))
 		return Render(c, page)
 	}
 
-	// Check that eight players have accepted the draft
-	numAccepted := 0
-	for _, p := range draftModel.Players {
-		if !p.Pending {
-			numAccepted++
-		}
-	}
-
-	if numAccepted != 8 {
-		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId, "numAccepted", numAccepted)
-		c.Response().Status = http.StatusBadRequest
+	if !model.CanStartDraft(draftModel) {
+		log.Warn(c.Request().Context(), "User attempted to start a draft with an incorrect number of players", "draftId", draftId)
+		setResponseStatus(c, http.StatusBadRequest)
 		page := draftView.StartDraftButton(
 			fmt.Sprintf("/u/draft/%d/startDraft", draftId),
-			fmt.Sprintf("Draft must have exactly 8 accepted players to start (current: %d)", numAccepted),
+			fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers),
 			true,
 			h.csrfToken(c),
 		)
@@ -277,7 +273,7 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 	}
 
 	// Cancel the invites for players who have not accepted the draft
-	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+	if err := h.Stores.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "draftId", draftId, "error", err)
 	}
 
@@ -288,12 +284,78 @@ func (h *Handler) HandleStartDraft(c echo.Context) error {
 		return err
 	}
 
+	if err := h.Services.DraftDaemon.AddDraft(c.Request().Context(), draftId); err != nil {
+		log.Warn(c.Request().Context(), "Failed to add draft to daemon", "draftId", draftId, "error", err)
+	}
+
 	// Cancel the invites for players who have not accepted the draft
-	if err := h.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
+	if err := h.Stores.DraftStore.CancelOutstandingInvites(c.Request().Context(), draftId); err != nil {
 		log.Error(c.Request().Context(), "Failed to cancel outstanding invites", "error", err, "draftId", draftId)
 	}
 
 	log.Info(c.Request().Context(), "Draft started", "draftId", draftId, "userUuid", requestingUser)
 	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
+	return nil
+}
+
+// HandleUninvitePlayer removes a pending invite from the draft.
+func (h *Handler) HandleUninvitePlayer(c *echo.Context) error {
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
+	draftId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft id", "error", err)
+		return c.String(http.StatusBadRequest, "Invalid draft ID")
+	}
+
+	inviteIdStr := c.FormValue("inviteId")
+	inviteId, err := strconv.Atoi(inviteIdStr)
+	if err != nil || inviteId <= 0 {
+		log.Warn(c.Request().Context(), "Invalid invite id", "inviteId", inviteIdStr, "error", err)
+		return c.String(http.StatusBadRequest, "Invalid invite ID")
+	}
+
+	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to load draft", "draftId", draftId, "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to load draft")
+	}
+	draftModel := draft.GetDraft(draftActor)
+
+	if draftModel.Status != model.FILLING {
+		log.Warn(c.Request().Context(), "User attempted to uninvite player from draft not in FILLING state", "draftId", draftId, "status", draftModel.Status)
+		return c.String(http.StatusBadRequest, "Draft must be in FILLING state to uninvite players")
+	}
+
+	if userUuid != draftModel.Owner.UserUuid {
+		log.Warn(c.Request().Context(), "User attempted to uninvite player from draft they do not own", "draftId", draftId, "userUuid", userUuid)
+		return c.String(http.StatusUnauthorized, "You must own the draft to uninvite a player")
+	}
+
+	err = draft.UninvitePlayer(c.Request().Context(), draftActor, draftId, userUuid, inviteId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to uninvite player", "draftId", draftId, "inviteId", inviteId, "error", err)
+		return c.String(http.StatusInternalServerError, "Failed to uninvite player")
+	}
+
+	// Reload draft model from actor cache (updated by UninvitePlayer)
+	draftModel = draft.GetDraft(draftActor)
+	isOwner := userUuid == draftModel.Owner.UserUuid
+
+	// Re-fetch search results so the uninvited player reappears as invitable
+	searchInput := c.FormValue("search")
+	users, err := h.Stores.UserStore.SearchUsers(c.Request().Context(), searchInput, draftId)
+	if err != nil {
+		log.Error(c.Request().Context(), "Failed to search users after uninvite", "draftId", draftId, "searchInput", searchInput, "error", err)
+	}
+
+	page := draftView.UpdateAfterInvite(users, draftId, draftModel.Players, isOwner, h.csrfToken(c))
+	if err := Render(c, page); err != nil {
+		log.Error(c.Request().Context(), "Uninvite Player Failed To Render", "draftId", draftId, "error", err)
+		return err
+	}
+
 	return nil
 }

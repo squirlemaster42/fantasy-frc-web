@@ -10,16 +10,24 @@ import (
 )
 
 type PickValidator struct {
-    handler *tbaHandler.TBAHandler
+    handler    tbaHandler.TBAInterface
     draftStore model.DraftStore
-	draftId int
+    draftId    int
+    eventSet   map[string]struct{}
 }
 
-func NewPickValidator(handler *tbaHandler.TBAHandler, draftStore model.DraftStore, draftId int) PickValidator {
+func NewPickValidator(handler tbaHandler.TBAInterface, draftStore model.DraftStore, draftId int) PickValidator {
+    validEvents := utils.Events()
+    eventSet := make(map[string]struct{}, len(validEvents))
+    for _, event := range validEvents {
+        eventSet[event] = struct{}{}
+    }
+
     return PickValidator{
-        handler: handler,
+        handler:    handler,
         draftStore: draftStore,
-		draftId: draftId,
+        draftId:    draftId,
+        eventSet:   eventSet,
     }
 }
 
@@ -41,28 +49,19 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 		return errors.New("team already picked")
 	}
 
-	events := p.handler.MakeEventListReq(ctx, pick.Pick.String)
-	draftEvents := utils.Events()
+	events, err := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	if err != nil {
+		return err
+	}
 
-	validEvent := false
-	//Looping here should always be faster because of the small lists
-	log.Debug(ctx, "Checking is team is in a valid event", "teamEvents", events, "draftEvents", draftEvents)
+	log.Debug(ctx, "Checking if team is in a valid event", "teamEvents", events)
 	for _, event := range events {
-		for _, draftEvent := range draftEvents {
-			if event == draftEvent {
-				validEvent = true
-				break
-			}
-		}
-
-		if validEvent {
-			break
+		if _, ok := p.eventSet[event]; ok {
+			log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", true)
+			return nil
 		}
 	}
 
-	log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", validEvent)
-	if !validEvent {
-		return errors.New("team not at event")
-	}
-	return nil
+	log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", false)
+	return errors.New("team not at event")
 }

@@ -66,7 +66,8 @@ func main() {
 		}
 
 		slog.Info("Got picking player", "Username", pickingPlayer.Username)
-		if rand.IntN(10) < 3 {
+		// if rand.IntN(20) < 2 {
+		if 1 == 1 {
 			pickingPlayer = selectRandomPlayer(users)
 			slog.Info("Chose random player instead", "Username", pickingPlayer.Username)
 		}
@@ -185,9 +186,9 @@ func isPickingPlayer(user *User, draftId int) bool {
 	return strings.Contains(string(body), `name="pickInput"`)
 }
 
-// TODO We should make a list of valid teams to pick and then just flip a coin for if we will pick them
 func getRandomTeamId(validPicks []int) int {
-	if rand.IntN(10) != 1 {
+	// if rand.IntN(2) == 1 {
+	if 1 == 1 {
 		return validPicks[rand.IntN(len(validPicks))]
 	}
 	return rand.IntN(10000)

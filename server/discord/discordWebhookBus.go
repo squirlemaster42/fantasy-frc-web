@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+type DiscordNotifier interface {
+	PostPreMatchNotification(event PreMatchDiscordEvent) error
+	PostPickNotification(ctx context.Context, event NextPickDiscordEvent) error
+	Stop()
+}
+
 type DiscordWebhookBus struct {
 	client     *http.Client
 	preMatchCh chan PreMatchDiscordEvent
@@ -25,9 +31,9 @@ type DiscordWebhookBus struct {
 func NewBus() *DiscordWebhookBus {
 	d := &DiscordWebhookBus{
 		client: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: DiscordWebhookTimeout(),
 		},
-		preMatchCh: make(chan PreMatchDiscordEvent, 100),
+		preMatchCh: make(chan PreMatchDiscordEvent, DiscordPreMatchQueueBuffer()),
 		stopCh:     make(chan struct{}),
 	}
 	d.wg.Add(1)
@@ -87,6 +93,7 @@ type NextPickDiscordEvent struct {
 	Webhook               string
 	ExpirationTime        time.Time
 	DraftComplete         bool
+	Skipped               bool
 }
 
 func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent) error {
@@ -99,19 +106,19 @@ func (d *DiscordWebhookBus) PostPreMatchNotification(event PreMatchDiscordEvent)
 }
 
 func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event PreMatchDiscordEvent) {
-	var message string
-	message += fmt.Sprintf("Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
+	var message strings.Builder
+	fmt.Fprintf(&message, "Upcoming Match at %s\nExpected to start at <t:%d:f>\n", event.EventName, event.PredictedTime.Unix())
 
 	for discordId, teamIds := range event.IdsToTeams {
 		for _, teamId := range teamIds {
 			teamNumber, _ := strings.CutPrefix(teamId, "frc")
-			message += fmt.Sprintf("%s, team %s is about to compete.\n", discordId, teamNumber)
+			fmt.Fprintf(&message, "%s, team %s is about to compete.\n", discordId, teamNumber)
 		}
 	}
 
 	webhook := DiscordWebhook{
 		Username: "Match Notifier",
-		Content:  message,
+		Content:  message.String(),
 		AllowedMentions: AllowedMentions{
 			Parse: []string{"users"},
 		},
@@ -123,7 +130,7 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 		return
 	}
 
-	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, event.Webhook, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Error(ctx, "Failed to create discord pre-match webhook request", "error", err)
 		return
@@ -148,16 +155,104 @@ func (d *DiscordWebhookBus) sendPreMatchNotification(ctx context.Context, event 
 	}
 }
 
-func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) error {
-	previousIdentifier := event.PreviousPickName
-	if event.PreviousPickDiscordId.Valid {
-		previousPickId := event.PreviousPickDiscordId.String
-		// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
-		_, err := strconv.ParseUint(previousPickId, 10, 64)
-		if len(previousPickId) >= 17 && err == nil {
-			previousIdentifier = fmt.Sprintf("<@%s>", previousPickId)
+// Identifier returns a Discord mention ("<@id>") if discordId is a valid
+// 17+ digit snowflake; otherwise it returns the provided fallback name.
+func Identifier(name string, discordId sql.NullString) string {
+	if !discordId.Valid {
+		return name
+	}
+
+	id := discordId.String
+	if IsValidId(id) {
+		return fmt.Sprintf("<@%s>", id)
+	}
+	return name
+}
+
+// IsValidId reports whether s looks like a Discord snowflake (a 17+ digit integer).
+func IsValidId(s string) bool {
+	if len(s) < DiscordMinIdLength() {
+		return false
+	}
+	_, err := strconv.ParseUint(s, 10, 64)
+	return err == nil
+}
+
+func buildInProgressWebhook(event NextPickDiscordEvent, previousIdentifier string, nextIdentifier string, previousPickedTeam string) DiscordWebhook {
+	var allowedUserMentions []string
+	if event.NextPickDiscordId.Valid && IsValidId(event.NextPickDiscordId.String) {
+		allowedUserMentions = []string{
+			event.NextPickDiscordId.String,
 		}
 	}
+
+	var content string
+	if event.Skipped {
+		if previousIdentifier == nextIdentifier {
+			content = fmt.Sprintf(
+				"%s, your pick was skipped, and it is your turn again. Your pick expires at <t:%d:f>.",
+				previousIdentifier,
+				event.ExpirationTime.Unix(),
+			)
+		} else {
+			content = fmt.Sprintf(
+				"%s, your pick was skipped. %s it is now your pick. Your pick expires at <t:%d:f>.",
+				previousIdentifier,
+				nextIdentifier,
+				event.ExpirationTime.Unix(),
+			)
+		}
+	} else {
+		message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%d:f>."
+		if previousIdentifier == nextIdentifier {
+			message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%d:f>."
+		}
+		content = fmt.Sprintf(
+			message,
+			previousIdentifier,
+			previousPickedTeam,
+			nextIdentifier,
+			event.ExpirationTime.Unix(),
+		)
+	}
+
+	return DiscordWebhook{
+		Username: "Pick Notifier",
+		Content:  content,
+		AllowedMentions: AllowedMentions{
+			Users: allowedUserMentions,
+		},
+	}
+}
+
+func (d *DiscordWebhookBus) sendWebhookRequest(ctx context.Context, webhookURL string, webhook DiscordWebhook) error {
+	jsonData, err := json.Marshal(webhook)
+	if err != nil {
+		return fmt.Errorf("failed to marshal webhook: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Warn(ctx, "Failed to create post pick notification request", "error", err)
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response: %w", err)
+	}
+		return fmt.Errorf("discord webhook was not successful: %s", string(body))
+	}
+	return nil
+}
+
+func (d *DiscordWebhookBus) PostPickNotification(ctx context.Context, event NextPickDiscordEvent) error {
+	previousIdentifier := Identifier(event.PreviousPickName, event.PreviousPickDiscordId)
 
 	var webhook DiscordWebhook
 	if event.DraftComplete {
@@ -166,73 +261,14 @@ func (d *DiscordWebhookBus) PostPickNotification(event NextPickDiscordEvent) err
 			Content: fmt.Sprintf(
 				"%s has picked %s. The draft is complete!",
 				previousIdentifier,
-				strings.Trim(event.PreviousPickedTeam, "frc"),
+				strings.TrimPrefix(event.PreviousPickedTeam, "frc"),
 			),
 			AllowedMentions: AllowedMentions{},
 		}
 	} else {
-		var allowedUserMentions []string
-		nextIdentifier := event.NextPickName
-		if event.NextPickDiscordId.Valid {
-			nextPickId := event.NextPickDiscordId.String
-			// discord IDs are unique 17+ digit integers, so we can validate them by checking length and seeing if they are numbers
-			_, err := strconv.ParseUint(nextPickId, 10, 64)
-			if len(nextPickId) >= 17 && err == nil {
-				nextIdentifier = fmt.Sprintf("<@%s>", nextPickId)
-				allowedUserMentions = []string{
-					nextPickId,
-				}
-			}
-		}
-
-		message := "%s has picked %s. %s it is your pick. Your pick expires at <t:%d:f>."
-		if previousIdentifier == nextIdentifier {
-			message = "%s has picked %s, and %s it is your turn again. Your pick expires at <t:%d:f>."
-		}
-
-		webhook = DiscordWebhook{
-			Username: "Pick Notifier",
-			Content: fmt.Sprintf(
-				message,
-				previousIdentifier,
-				strings.Trim(event.PreviousPickedTeam, "frc"),
-				nextIdentifier,
-				event.ExpirationTime.Unix(),
-			),
-			AllowedMentions: AllowedMentions{
-				Users: allowedUserMentions,
-			},
-		}
+		nextIdentifier := Identifier(event.NextPickName, event.NextPickDiscordId)
+		webhook = buildInProgressWebhook(event, previousIdentifier, nextIdentifier, strings.TrimPrefix(event.PreviousPickedTeam, "frc"))
 	}
 
-	jsonData, err := json.Marshal(webhook)
-
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("POST", event.Webhook, bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Warn(context.Background(), "Failed to create post pick notification request", "error", err)
-		return err
-	}
-	req.Header.Add("Content-Type", "application/json")
-
-	resp, err := d.client.Do(req)
-
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("discord webhook was not successful: %s", string(body))
-	}
-
-	return nil
+	return d.sendWebhookRequest(ctx, event.Webhook, webhook)
 }

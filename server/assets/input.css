@@ -4,6 +4,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom DaisyUI theme: Fantasy FRC - Dark Urban Slate */
+[data-theme="fantasy-frc"] {
+    color-scheme: dark;
+
+    /* Base layers */
+    --b1: #16181a;
+    --b2: #1f2225;
+    --b3: #2d3136;
+    --bc: #e9e7e8;
+
+    /* Main accents */
+    --p: #7d94b2;
+    --pc: #16181a;
+    --s: #8b919d;
+    --sc: #16181a;
+    --a: #ac978c;
+    --ac: #16181a;
+
+    /* Neutral */
+    --n: #5f5652;
+    --nc: #e9e7e8;
+
+    /* States */
+    --in: #7d94b2;
+    --inc: #16181a;
+    --su: #85b885;
+    --suc: #16181a;
+    --wa: #c49a6a;
+    --wac: #16181a;
+    --er: #c47a7a;
+    --erc: #16181a;
+
+    /* Shape tokens */
+    --rounded-box: 1rem;
+    --rounded-btn: 0.5rem;
+    --rounded-badge: 1.9rem;
+    --animation-btn: 0.25s;
+    --animation-input: 0.2s;
+    --btn-focus-scale: 0.95;
+    --border-btn: 1px;
+    --tab-border: 1px;
+    --tab-radius: 0.5rem;
+}
+
 body {
     font-family: "Kanit", sans-serif;
 }
@@ -59,10 +103,10 @@ body {
 
 @keyframes pulse-glow {
     0%, 100% { 
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); 
+        box-shadow: 0 0 20px rgba(106, 125, 153, 0.35); 
     }
     50% { 
-        box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); 
+        box-shadow: 0 0 40px rgba(106, 125, 153, 0.55); 
     }
 }
 
@@ -111,20 +155,20 @@ body {
 
 .circuit-bg {
     background-image: 
-        linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
+        linear-gradient(rgba(106, 125, 153, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(106, 125, 153, 0.12) 1px, transparent 1px);
     background-size: 50px 50px;
     animation: circuit-pattern 20s linear infinite;
 }
 
 .hero-gradient {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #312e81 100%);
+    background: linear-gradient(135deg, #1f2225 0%, #16181a 50%, #1f2225 100%);
     background-size: 200% 200%;
     animation: gradient-shift 10s ease infinite;
 }
 
 .text-gradient {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+    background: linear-gradient(135deg, #6a7d99, #7a7f8b, #ac978c);
     background-size: 200% 200%;
     animation: gradient-shift 3s ease infinite;
     -webkit-background-clip: text;
@@ -138,28 +182,28 @@ body {
 
 .card-hover:hover {
     transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 20px 40px rgba(106, 125, 153, 0.18);
 }
 
 /* Enhanced Button Styles */
 .btn-gradient {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, #6a7d99, #7a7f8b);
     transition: all 0.3s ease;
 }
 
 .btn-gradient:hover {
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    background: linear-gradient(135deg, #5a6d89, #6a6f7b);
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 10px 25px rgba(106, 125, 153, 0.25);
 }
 
 /* Shimmer Effect for Loading States */
 .shimmer {
     background: linear-gradient(
         90deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        rgba(255, 255, 255, 0.2) 50%,
-        rgba(255, 255, 255, 0.1) 100%
+        rgba(233, 231, 232, 0.06) 0%,
+        rgba(233, 231, 232, 0.12) 50%,
+        rgba(233, 231, 232, 0.06) 100%
     );
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
@@ -167,24 +211,24 @@ body {
 
 /* Glass Morphism Effect */
 .glass {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(31, 34, 37, 0.65);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(45, 49, 54, 0.8);
 }
 
 /* Enhanced Card Styles */
 .card-enhanced {
-    background: rgba(30, 41, 59, 0.8);
+    background: rgba(31, 34, 37, 0.85);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(172, 151, 140, 0.30);
     transition: all 0.3s ease;
 }
 
 .card-enhanced:hover {
-    background: rgba(30, 41, 59, 0.9);
-    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(31, 34, 37, 0.95);
+    border-color: rgba(106, 125, 153, 0.45);
     transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
 }
 
 /* define animations for the old and new content */
@@ -204,8 +248,8 @@ body {
 }
 
 .terminal {
-    background-color: #1e1e1e;
-    color: #00ff00;
+    background-color: oklch(var(--b2));
+    color: oklch(var(--su));
     font-family: 'Courier New', monospace;
     display: flex;
     flex-direction: column;
@@ -217,7 +261,7 @@ body {
     background-color: transparent;
     background: transparent;
     border: none;
-    color: #00ff00;
+    color: oklch(var(--su));
     font-family: 'Courier New', monospace;
     width: 100%;
 }
@@ -225,7 +269,7 @@ body {
 /* Responsive Design Improvements */
 @media (max-width: 768px) {
     .hero-gradient {
-        background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%);
+        background: linear-gradient(135deg, #1f2225 0%, #16181a 100%);
     }
     
     .card-hover:hover {
@@ -248,14 +292,111 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-    background: #1e293b;
+    background: #16181a;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, #6a7d99, #7a7f8b);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    background: linear-gradient(135deg, #5a6d89, #6a6f7b);
+}
+
+/* DaisyUI button overrides for stronger contrast */
+[data-theme="fantasy-frc"] .btn-primary {
+    background-color: #7d94b2;
+    border-color: #7d94b2;
+    color: #16181a;
+    box-shadow: 0 4px 14px rgba(125, 148, 178, 0.25);
+}
+
+[data-theme="fantasy-frc"] .btn-primary:hover {
+    background-color: #8da6c8;
+    border-color: #8da6c8;
+    box-shadow: 0 6px 20px rgba(125, 148, 178, 0.40);
+}
+
+[data-theme="fantasy-frc"] .btn-primary.btn-outline {
+    background-color: transparent;
+    border-color: #7d94b2;
+    color: #7d94b2;
+}
+
+[data-theme="fantasy-frc"] .btn-primary.btn-outline:hover {
+    background-color: #7d94b2;
+    color: #16181a;
+}
+
+[data-theme="fantasy-frc"] .btn-success {
+    background-color: #85b885;
+    border-color: #85b885;
+    color: #16181a;
+    box-shadow: 0 4px 14px rgba(133, 184, 133, 0.20);
+}
+
+[data-theme="fantasy-frc"] .btn-success:hover {
+    background-color: #96c896;
+    border-color: #96c896;
+    box-shadow: 0 6px 20px rgba(133, 184, 133, 0.35);
+}
+
+[data-theme="fantasy-frc"] .btn-warning {
+    background-color: #c49a6a;
+    border-color: #c49a6a;
+    color: #16181a;
+}
+
+[data-theme="fantasy-frc"] .btn-warning:hover {
+    background-color: #d4aa7a;
+    border-color: #d4aa7a;
+}
+
+[data-theme="fantasy-frc"] .btn-error {
+    background-color: #c47a7a;
+    border-color: #c47a7a;
+    color: #16181a;
+}
+
+[data-theme="fantasy-frc"] .btn-error:hover {
+    background-color: #d48a8a;
+    border-color: #d48a8a;
+}
+
+/* Reusable component classes */
+.sidebar-nav-link {
+    @apply flex items-center justify-center p-3 rounded-lg transition-all duration-200 text-base-content/70 hover:text-primary hover:bg-base-300;
+}
+
+.sidebar-nav-link-active {
+    @apply bg-base-300 text-primary;
+}
+
+.app-card {
+    @apply bg-base-200 shadow-lg rounded-2xl border border-base-300;
+}
+
+.app-card-hover {
+    @apply hover:shadow-xl hover:border-base-content/30 transition-all duration-300;
+}
+
+.app-input {
+    @apply w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+}
+
+.app-input-disabled {
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.app-badge {
+    @apply bg-base-300 text-base-content/80 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap;
+}
+
+.app-icon {
+    @apply text-base-content/70;
+}
+
+.app-icon-active {
+    @apply text-primary;
 }

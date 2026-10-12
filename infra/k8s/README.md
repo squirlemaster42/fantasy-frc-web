@@ -2,7 +2,7 @@
 
 > **Superseded by `infra/ansible/`**
 >
-> The automated Ansible setup in [`infra/ansible/`](../ansible/) is now the recommended way to provision the cluster **and** deploy the full Fantasy FRC stack. Use it for both single-node home labs and multi-node HA clusters.
+> The automated Ansible setup in [`infra/ansible/`](../ansible/) is now the recommended way to provision the cluster **and** deploy the full Fantasy FRC stack. Use it for both single-node home labs and multi-node HA clusters
 >
 > This directory is kept as a reference for the raw Kubernetes manifests, Helm values, and manual scripts that the Ansible playbooks automate.
 
@@ -223,7 +223,7 @@ kubectl wait --for=condition=complete job/fantasy-frc-migrate -n fantasy-frc
 bash infra/k8s/fantasy-frc/install-fantasy-frc.sh
 ```
 
-> Note: The containerd import scripts are node-specific helper scripts. They are not committed to git. See the `k8sSetup/fantasy-frc/` directory on the original server for examples, or create your own using `ctr -n k8s.io image import`.
+> Note: The containerd import scripts are node-specific helper scripts. They are not committed to git. Create your own using `ctr -n k8s.io image import` or the Ansible playbooks in `infra/ansible/`.
 
 ### 7. Access the applications
 

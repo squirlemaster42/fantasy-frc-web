@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
+	"uuid"
 
 	"server/log"
 	"server/model"
@@ -38,11 +38,39 @@ func SkipCurrentPick(ctx context.Context, draftActor *DraftActor, draftId int, c
 		} else {
 			skipped = true
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		log.Warn(ctx, "Skipping current pick in draft timed out", "draftId", draftId, "currentPickId", draftActor.GetDraftState().CurrentPick.Id)
 		skipped = false
 	}
 	return skipped
+}
+
+func EndDraft(ctx context.Context, draftActor *DraftActor, draftId int) bool {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: EndDraftMessage{},
+		Reply:   replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		log.Error(ctx, "Failed to post end draft message to draft actor", "draftId", draftId, "error", err)
+		return false
+	}
+	select {
+	case result := <-message.Reply:
+		if result.Error != nil || !result.Value.(bool) {
+			if result.Error != nil {
+				log.Error(ctx, "Ending draft failed", "draftId", draftId, "error", result.Error)
+			} else {
+				log.Warn(ctx, "Ending draft returned false", "draftId", draftId)
+			}
+			return false
+		}
+		return true
+	case <-time.After(DraftActorRequestTimeout()):
+		log.Warn(ctx, "Ending draft timed out", "draftId", draftId)
+		return false
+	}
 }
 
 func ModifyCurrentPickExpirationTime(ctx context.Context, draftActor *DraftActor, extension time.Duration) error {
@@ -61,7 +89,7 @@ func ModifyCurrentPickExpirationTime(ctx context.Context, draftActor *DraftActor
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout modifying pick expiration time")
 	}
 }
@@ -88,7 +116,7 @@ func MakePick(ctx context.Context, draftActor *DraftActor, pick model.Pick) erro
 		if result.Error != nil {
 			pickError = result.Error
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout making pick")
 	}
 	return pickError
@@ -109,7 +137,7 @@ func UndoLastPick(ctx context.Context, draftActor *DraftActor) error {
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout undoing last pick")
 	}
 }
@@ -124,7 +152,6 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 		Content: UpdateDraftProfileMessage{
 			Name:           draftModel.DisplayName,
 			Description:    draftModel.Description,
-			Interval:       draftModel.Interval,
 			DiscordWebhook: draftModel.DiscordWebhook,
 		},
 		Reply: replyChan,
@@ -136,7 +163,7 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout updating draft")
 	}
 }
@@ -158,35 +185,34 @@ func ExecuteDraftStateTransition(ctx context.Context, draftActor *DraftActor, re
 		if result.Error != nil {
 			return result.Error
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout executing draft state transition")
 	}
 	return nil
 }
 
 func ShutdownActor(actorMap *DraftActorMap, ctx context.Context, draftId int) error {
-	actor, ok := actorMap.actorMap.Load(draftId)
+	actor, ok := actorMap.actorCache.Get(draftId)
 	if !ok {
 		return nil
 	}
 
-	draftActor := actor.(*DraftActor)
 	replyChan := make(chan Result)
 	message := Message{
 		Content: ShutdownMessage{},
 		Reply:   replyChan,
 	}
-	err := draftActor.PostMessage(ctx, message)
+	err := actor.PostMessage(ctx, message)
 	if err != nil {
 		return err
 	}
 	select {
 	case <-message.Reply:
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		log.Warn(ctx, "Shutdown message timed out", "draftId", draftId)
 	}
 
-	actorMap.actorMap.Delete(draftId)
+	actorMap.actorCache.Remove(draftId)
 	log.Info(ctx, "Evicted draft actor from map", "draftId", draftId)
 	return nil
 }
@@ -206,8 +232,51 @@ func InvitePlayer(ctx context.Context, draftActor *DraftActor, invite model.Draf
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout inviting player")
+	}
+}
+
+func UninvitePlayer(ctx context.Context, draftActor *DraftActor, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: UninvitePlayerMessage{
+			DraftId:   draftId,
+			OwnerUuid: ownerUuid,
+			InviteId:  inviteId,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(DraftActorRequestTimeout()):
+		return errors.New("timeout uninviting player")
+	}
+}
+
+func DeclineInvite(ctx context.Context, draftActor *DraftActor, inviteId int, userUuid uuid.UUID) error {
+	replyChan := make(chan Result)
+	message := Message{
+		Content: DeclineInviteMessage{
+			InviteId: inviteId,
+			UserUuid: userUuid,
+		},
+		Reply: replyChan,
+	}
+	err := draftActor.PostMessage(ctx, message)
+	if err != nil {
+		return err
+	}
+	select {
+	case result := <-message.Reply:
+		return result.Error
+	case <-time.After(DraftActorRequestTimeout()):
+		return errors.New("timeout declining invite")
 	}
 }
 
@@ -227,7 +296,7 @@ func AcceptInvite(ctx context.Context, draftActor *DraftActor, inviteId int, acc
 	select {
 	case result := <-message.Reply:
 		return result.Error
-	case <-time.After(5 * time.Second):
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout accepting invite")
 	}
 }

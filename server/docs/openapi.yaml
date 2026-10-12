@@ -1,0 +1,1751 @@
+openapi: 3.0.1
+info:
+  title: Fantasy FRC Web Server API
+  description: |
+    HTTP interface for the Fantasy FRC web application. This is a server-rendered
+    HTMX + templ application, so most endpoints return `text/html` fragments or
+    full pages rather than JSON. JSON is only used for inbound webhooks and a
+    small number of system endpoints.
+  version: "1.0.0"
+
+servers:
+  - url: /
+    description: Local development server
+
+tags:
+  - name: Public
+    description: Unauthenticated pages.
+  - name: Authentication
+    description: Login, logout, and registration.
+  - name: System
+    description: Health, metrics, and operational endpoints.
+  - name: TBA Webhook
+    description: Inbound webhook events from The Blue Alliance.
+  - name: Home
+    description: Authenticated home and draft list pages.
+  - name: Drafts
+    description: Draft creation, profile, invites, and lifecycle.
+  - name: Picks
+    description: Pick page, making picks, and admin pick actions.
+  - name: Team
+    description: Team score reports and avatar images.
+  - name: Leaderboard
+    description: Overall draft leaderboard.
+  - name: User Profile
+    description: Profile, password, and notification preferences.
+  - name: Admin
+    description: Administrator console and commands.
+  - name: WebSocket
+    description: Real-time pick update WebSocket.
+
+paths:
+  /:
+    get:
+      tags:
+        - Public
+      summary: Landing page
+      operationId: getLanding
+      security: []
+      responses:
+        "200":
+          description: The public landing page.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /login:
+    get:
+      tags:
+        - Public
+        - Authentication
+      summary: Login form
+      operationId: getLogin
+      security: []
+      responses:
+        "200":
+          description: Login page with CSRF token.
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      tags:
+        - Authentication
+      summary: Submit login
+      operationId: postLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login result. On success the response includes an `HX-Redirect` header to `/u/home`; on failure the login form is re-rendered with an error message.
+          content:
+            text/html:
+              schema:
+                type: string
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target on successful login.
+              schema:
+                type: string
+        "400":
+          description: Invalid request or CSRF failure.
+
+  /register:
+    get:
+      tags:
+        - Public
+        - Authentication
+      summary: Registration form
+      operationId: getRegister
+      security: []
+      responses:
+        "200":
+          description: Registration page with CSRF token.
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      tags:
+        - Authentication
+      summary: Submit registration
+      operationId: postRegister
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: Registration result. On success the response includes an `HX-Redirect` header to `/u/home`; on failure the registration form is re-rendered with an error message.
+          content:
+            text/html:
+              schema:
+                type: string
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target on successful registration.
+              schema:
+                type: string
+        "400":
+          description: Invalid request or CSRF failure.
+
+  /healthz:
+    get:
+      tags:
+        - System
+      summary: Health check
+      operationId: getHealthz
+      security: []
+      responses:
+        "200":
+          description: Server is healthy.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+
+  /metrics:
+    get:
+      tags:
+        - System
+      summary: Prometheus metrics
+      operationId: getMetrics
+      security:
+        - metricSecret: []
+      responses:
+        "200":
+          description: Prometheus exposition format metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+        "401":
+          description: Missing or invalid metric secret.
+
+  /tbaWebhook:
+    post:
+      tags:
+        - TBA Webhook
+      summary: Receive TBA webhook events
+      operationId: postTbaWebhook
+      security: []
+      parameters:
+        - name: X-TBA-HMAC
+          in: header
+          required: true
+          description: Hex-encoded HMAC-SHA256 of the raw request body, keyed by `TBA_WEBHOOK_SECRET`.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TBAWebhookEnvelope"
+      responses:
+        "200":
+          description: Event accepted and processed (verification events return here).
+        "204":
+          description: Event accepted; no response body.
+        "400":
+          description: Invalid JSON or unreadable body.
+        "401":
+          description: HMAC validation failed.
+        "413":
+          description: Request body exceeded `TBA_WEBHOOK_MAX_BODY_BYTES`.
+
+  /u/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Log out
+      operationId: postLogout
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Logout result with session cookie cleared and `HX-Redirect` to `/login`.
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target.
+              schema:
+                type: string
+                example: /login
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+
+  /u/home:
+    get:
+      tags:
+        - Home
+      summary: Home page
+      operationId: getHome
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Optional draft name search filter.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Authenticated home page listing the user's drafts.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+
+  /u/draftList:
+    get:
+      tags:
+        - Home
+      summary: Paginated draft list
+      operationId: getDraftList
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          description: Optional draft name search filter.
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          description: Zero-indexed page number.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: HTML fragment or full page of drafts.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid page number.
+        "401":
+          description: Not authenticated.
+
+  /u/createDraft:
+    get:
+      tags:
+        - Drafts
+      summary: Create draft form
+      operationId: getCreateDraft
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Draft creation form.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+    post:
+      tags:
+        - Drafts
+      summary: Create a new draft
+      operationId: postCreateDraft
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/CreateDraftRequest"
+      responses:
+        "200":
+          description: Draft created successfully. Response includes `HX-Redirect` to the new draft profile.
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target.
+              schema:
+                type: string
+                example: /u/draft/123/profile
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+        "500":
+          description: Server error while creating the draft.
+
+  /u/draft/{id}/profile:
+    get:
+      tags:
+        - Drafts
+      summary: Draft profile page
+      operationId: getDraftProfile
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draft profile page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "302":
+          description: Redirect to `/u/home` if the draft does not exist or the user is not a member.
+        "401":
+          description: Not authenticated.
+
+  /u/draft/{id}/updateDraft:
+    post:
+      tags:
+        - Drafts
+      summary: Update draft profile
+      operationId: postUpdateDraft
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UpdateDraftRequest"
+      responses:
+        "200":
+          description: Draft updated. Response includes `HX-Redirect` to the draft profile.
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target.
+              schema:
+                type: string
+                example: /u/draft/123/profile
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/startDraft:
+    post:
+      tags:
+        - Drafts
+      summary: Start the draft
+      operationId: postStartDraft
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draft started successfully. Response includes `HX-Redirect` to the draft profile, or an HTML fragment showing the start button result.
+          headers:
+            HX-Redirect:
+              description: HTMX redirect target on success.
+              schema:
+                type: string
+                example: /u/draft/123/profile
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID or draft cannot be started (wrong player count).
+        "401":
+          description: Not authenticated or not the draft owner.
+
+  /u/draft/{id}/pick:
+    get:
+      tags:
+        - Picks
+      summary: Draft pick page
+      operationId: getDraftPick
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Pick page for the draft.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+
+  /u/draft/{id}/makePick:
+    post:
+      tags:
+        - Picks
+      summary: Make a pick
+      operationId: postMakePick
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/MakePickRequest"
+      responses:
+        "200":
+          description: Pick result rendered as HTML. On success the page is refreshed; on error an error message is shown.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID or pick.
+        "401":
+          description: Not authenticated or not the current picker.
+
+  /u/draft/{id}/pickNotifier:
+    get:
+      tags:
+        - WebSocket
+      summary: WebSocket pick notifier
+      operationId: getPickNotifier
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "101":
+          description: WebSocket upgraded. Server sends `websocket.TextMessage` frames containing HTML fragments of the current pick state whenever a pick is made. Server pings every `WS_PING_INTERVAL`.
+        "200":
+          description: Placeholder 2XX response for OpenAPI compatibility; the actual response is a 101 Switching Protocols.
+        "400":
+          description: Invalid draft ID or WebSocket upgrade failed.
+        "401":
+          description: Not authenticated.
+        "404":
+          description: Draft not found.
+
+  /u/draft/{id}/invitePlayer:
+    post:
+      tags:
+        - Drafts
+        - Invites
+      summary: Invite a player to a draft
+      operationId: postInvitePlayer
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/InvitePlayerRequest"
+      responses:
+        "200":
+          description: Updated invite/search results HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID, user UUID, or draft not in FILLING state.
+        "401":
+          description: Not authenticated or not the draft owner.
+
+  /u/draft/{id}/uninvitePlayer:
+    post:
+      tags:
+        - Drafts
+        - Invites
+      summary: Uninvite a pending player
+      operationId: postUninvitePlayer
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UninvitePlayerRequest"
+      responses:
+        "200":
+          description: Updated invite/search results HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID, invite ID, or draft not in FILLING state.
+        "401":
+          description: Not authenticated or not the draft owner.
+
+  /u/searchPlayers:
+    post:
+      tags:
+        - Drafts
+        - Invites
+      summary: Search users to invite
+      operationId: postSearchPlayers
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: Hx-Current-Url
+          in: header
+          required: true
+          description: HTMX header containing the current page URL, used to derive the draft ID.
+          schema:
+            type: string
+            example: https://example.com/u/draft/123/profile
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SearchPlayersRequest"
+      responses:
+        "200":
+          description: HTML fragment of matching users.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Missing header or invalid draft ID.
+        "401":
+          description: Not authenticated.
+
+  /u/team/score:
+    get:
+      tags:
+        - Team
+      summary: Team score lookup page
+      operationId: getTeamScorePage
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Team score search page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+    post:
+      tags:
+        - Team
+      summary: Get score report for a team
+      operationId: postTeamScore
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TeamScoreRequest"
+      responses:
+        "200":
+          description: HTML score report for the requested team.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+        "500":
+          description: Server error.
+
+  /u/draft/{id}/draftScore:
+    get:
+      tags:
+        - Drafts
+        - Team
+      summary: Draft score standings
+      operationId: getDraftScore
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HTML page showing draft player scores and picks.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "404":
+          description: Draft not found.
+
+  /u/draft/{id}/team/{teamNumber}:
+    get:
+      tags:
+        - Drafts
+        - Team
+      summary: Team score breakdown within a draft
+      operationId: getDraftTeamScore
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+        - name: teamNumber
+          in: path
+          required: true
+          description: FRC team number (without the `frc` prefix).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HTML score breakdown page for the team within the draft context.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "404":
+          description: Draft not found.
+
+  /u/draft/{id}/admin:
+    get:
+      tags:
+        - Admin
+        - Drafts
+      summary: Draft admin page
+      operationId: getDraftAdmin
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Admin page for the draft owner.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/admin/endDraft:
+    post:
+      tags:
+        - Admin
+        - Drafts
+      summary: End the draft
+      operationId: postAdminEndDraft
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HTML admin message fragment indicating success or failure.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/admin/skipPick:
+    post:
+      tags:
+        - Admin
+        - Picks
+      summary: Skip the current pick
+      operationId: postAdminSkipPick
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HTML admin message fragment indicating success or failure.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/admin/extendTime:
+    post:
+      tags:
+        - Admin
+        - Picks
+      summary: Extend current pick expiration
+      operationId: postAdminExtendTime
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/ExtendPickTimeRequest"
+      responses:
+        "200":
+          description: HTML admin message fragment indicating success or failure.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID or duration.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/admin/makePick:
+    post:
+      tags:
+        - Admin
+        - Picks
+      summary: Make a pick on behalf of the current player
+      operationId: postAdminMakePick
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/AdminMakePickRequest"
+      responses:
+        "200":
+          description: HTML admin message fragment indicating success or failure.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID or team number.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/draft/{id}/admin/undoPick:
+    post:
+      tags:
+        - Admin
+        - Picks
+      summary: Undo the last pick
+      operationId: postAdminUndoPick
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: HTML admin message fragment indicating success or failure.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+        "403":
+          description: User is not the draft owner.
+
+  /u/leaderboard:
+    get:
+      tags:
+        - Leaderboard
+      summary: Overall leaderboard
+      operationId: getLeaderboard
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: One-indexed page number.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: HTML leaderboard page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+
+  /u/viewInvites:
+    get:
+      tags:
+        - Invites
+      summary: View pending invites
+      operationId: getViewInvites
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: HTML page listing pending draft invites.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+
+  /u/acceptInvite:
+    post:
+      tags:
+        - Invites
+      summary: Accept a draft invite
+      operationId: postAcceptInvite
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/InviteActionRequest"
+      responses:
+        "200":
+          description: Updated invites table HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid invite ID.
+        "401":
+          description: Not authenticated or invite not for this user.
+
+  /u/declineInvite:
+    post:
+      tags:
+        - Invites
+      summary: Decline a draft invite
+      operationId: postDeclineInvite
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/InviteActionRequest"
+      responses:
+        "200":
+          description: Updated invites table HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid invite ID.
+        "401":
+          description: Not authenticated or invite not for this user.
+
+  /u/draft/{id}/skipPickToggle:
+    post:
+      tags:
+        - Picks
+      summary: Toggle skipping for the current player
+      operationId: postSkipPickToggle
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Draft ID.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SkipPickToggleRequest"
+      responses:
+        "200":
+          description: Empty body on success (HTMX `hx-swap="none"`).
+        "400":
+          description: Invalid draft ID.
+        "401":
+          description: Not authenticated.
+
+  /u/team/{id}/avatar:
+    get:
+      tags:
+        - Team
+      summary: Team avatar image
+      operationId: getTeamAvatar
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: FRC team number.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PNG avatar image.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid team number.
+        "401":
+          description: Not authenticated.
+
+  /u/userProfile:
+    get:
+      tags:
+        - User Profile
+      summary: User profile page
+      operationId: getUserProfile
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: User profile page with account, password, and notification cards.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+    post:
+      tags:
+        - User Profile
+      summary: Update Discord ID
+      operationId: postUpdateUserProfile
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UpdateDiscordIdRequest"
+      responses:
+        "200":
+          description: Updated account card HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid Discord ID.
+        "401":
+          description: Not authenticated.
+
+  /u/userProfile/password:
+    post:
+      tags:
+        - User Profile
+      summary: Change password
+      operationId: postUpdateUserPassword
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/UpdatePasswordRequest"
+      responses:
+        "200":
+          description: Updated password card HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Password validation error.
+        "401":
+          description: Not authenticated or current password incorrect.
+
+  /u/userProfile/notifications:
+    post:
+      tags:
+        - User Profile
+      summary: Update notification preferences
+      operationId: postUpdateNotificationPreferences
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferencesRequest"
+      responses:
+        "200":
+          description: Updated notifications card HTML fragment.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated.
+
+  /u/admin/console:
+    get:
+      tags:
+        - Admin
+      summary: Admin console
+      operationId: getAdminConsole
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Admin console page.
+          content:
+            text/html:
+              schema:
+                type: string
+        "401":
+          description: Not authenticated or not an admin.
+
+  /u/admin/processCommand:
+    post:
+      tags:
+        - Admin
+      summary: Run an admin command
+      operationId: postAdminCommand
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/AdminCommandRequest"
+      responses:
+        "200":
+          description: HTML fragment showing command output.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Invalid or missing command.
+        "401":
+          description: Not authenticated or not an admin.
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sessionToken
+      description: Session token cookie returned by a successful login or registration.
+    metricSecret:
+      type: apiKey
+      in: query
+      name: secret
+      description: Metric secret configured via the `METRIC_SECRET` environment variable.
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+        password:
+          type: string
+          format: password
+          minLength: 12
+
+    CreateDraftRequest:
+      type: object
+      required:
+        - draftName
+      properties:
+        draftName:
+          type: string
+        description:
+          type: string
+
+    UpdateDraftRequest:
+      type: object
+      required:
+        - draftName
+      properties:
+        draftName:
+          type: string
+        description:
+          type: string
+        discordWebhook:
+          type: string
+          format: uri
+          description: Discord webhook URL for draft notifications.
+
+    MakePickRequest:
+      type: object
+      required:
+        - pickInput
+      properties:
+        pickInput:
+          type: string
+          description: FRC team number (without the `frc` prefix). The server prepends `frc` before storing.
+
+    InvitePlayerRequest:
+      type: object
+      required:
+        - userUuid
+      properties:
+        userUuid:
+          type: string
+          format: uuid
+          description: UUID of the user to invite.
+        search:
+          type: string
+          description: Optional current search term used to refresh the search results.
+
+    UninvitePlayerRequest:
+      type: object
+      required:
+        - inviteId
+      properties:
+        inviteId:
+          type: integer
+          description: ID of the pending invite to cancel.
+        search:
+          type: string
+          description: Optional current search term used to refresh the search results.
+
+    SearchPlayersRequest:
+      type: object
+      required:
+        - search
+      properties:
+        search:
+          type: string
+          description: Username search string.
+
+    InviteActionRequest:
+      type: object
+      required:
+        - inviteId
+      properties:
+        inviteId:
+          type: integer
+
+    TeamScoreRequest:
+      type: object
+      required:
+        - teamNumber
+      properties:
+        teamNumber:
+          type: string
+          description: FRC team number (without the `frc` prefix).
+
+    ExtendPickTimeRequest:
+      type: object
+      required:
+        - duration
+      properties:
+        duration:
+          type: string
+          description: Go duration string, e.g. `30m`, `1h`, `2h30m`.
+          example: 30m
+
+    AdminMakePickRequest:
+      type: object
+      required:
+        - teamNumber
+      properties:
+        teamNumber:
+          type: string
+          description: FRC team number (without the `frc` prefix).
+
+    SkipPickToggleRequest:
+      type: object
+      properties:
+        skipping:
+          type: string
+          description: Presence of any value indicates the player wants to skip picks; omit or send empty to disable skipping.
+
+    UpdateDiscordIdRequest:
+      type: object
+      properties:
+        discordId:
+          type: string
+          description: Discord snowflake ID. Empty string clears the stored ID.
+
+    UpdatePasswordRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+        - confirmNewPassword
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+        confirmNewPassword:
+          type: string
+          format: password
+
+    NotificationPreferencesRequest:
+      type: object
+      description: |
+        Form fields are dynamic based on the drafts the user belongs to. For each
+        draft with ID `<id>`, two checkbox fields may be present:
+        `draft_<id>_upcomingMatch` and `draft_<id>_pickTurn`. Presence of a value
+        means enabled; absence means disabled.
+      additionalProperties:
+        type: string
+      example:
+        draft_42_upcomingMatch: "on"
+        draft_42_pickTurn: ""
+
+    AdminCommandRequest:
+      type: object
+      required:
+        - command
+      properties:
+        command:
+          type: string
+          description: |
+            Admin command followed by arguments. Supported commands:
+            `ping`, `populateTeams`, `listdraft`, `startdraft`, `skippick`,
+            `viewWebhookKey`, `modifypicktime`, `adminpick`, `renamedraft`,
+            `undopick`.
+          example: "startdraft -id=42"
+
+    TBAWebhookEnvelope:
+      type: object
+      required:
+        - message_type
+        - message_data
+      properties:
+        message_type:
+          type: string
+          enum:
+            - verification
+            - upcoming_match
+            - match_score
+            - match_video
+            - starting_comp_level
+            - alliance_selection
+            - awards_posted
+            - schedule_updated
+            - ping
+            - broadcast
+        message_data:
+          oneOf:
+            - $ref: "#/components/schemas/VerificationMessage"
+            - $ref: "#/components/schemas/UpcomingMatchMessage"
+            - $ref: "#/components/schemas/MatchScoreMessage"
+            - $ref: "#/components/schemas/MatchVideoMessage"
+            - $ref: "#/components/schemas/StartingCompLevelMessage"
+            - $ref: "#/components/schemas/AllianceSelectionMessage"
+            - $ref: "#/components/schemas/AwardsPostedMessage"
+            - $ref: "#/components/schemas/ScheduleUpdatedMessage"
+            - $ref: "#/components/schemas/PingMessage"
+            - $ref: "#/components/schemas/BroadcastMessage"
+
+    VerificationMessage:
+      type: object
+      required:
+        - verification_key
+      properties:
+        verification_key:
+          type: string
+
+    UpcomingMatchMessage:
+      type: object
+      required:
+        - event_key
+        - match_key
+        - team_key
+        - event_name
+        - team_keys
+        - scheduled_time
+        - predicted_time
+      properties:
+        event_key:
+          type: string
+        match_key:
+          type: string
+        team_key:
+          type: string
+        event_name:
+          type: string
+        team_keys:
+          type: array
+          items:
+            type: string
+        scheduled_time:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds.
+        predicted_time:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds.
+        webcast:
+          $ref: "#/components/schemas/Webcast"
+
+    MatchScoreMessage:
+      type: object
+      required:
+        - event_key
+        - match_key
+        - team_key
+        - event_name
+        - match
+      properties:
+        event_key:
+          type: string
+        match_key:
+          type: string
+        team_key:
+          type: string
+        event_name:
+          type: string
+        match:
+          $ref: "#/components/schemas/Match"
+
+    MatchVideoMessage:
+      type: object
+      required:
+        - event_key
+        - match_key
+        - team_key
+        - event_name
+        - match
+      properties:
+        event_key:
+          type: string
+        match_key:
+          type: string
+        team_key:
+          type: string
+        event_name:
+          type: string
+        match:
+          $ref: "#/components/schemas/Match"
+
+    StartingCompLevelMessage:
+      type: object
+      required:
+        - event_key
+        - event_name
+        - comp_level
+        - scheduled_time
+      properties:
+        event_key:
+          type: string
+        event_name:
+          type: string
+        comp_level:
+          type: string
+        scheduled_time:
+          type: string
+
+    AllianceSelectionMessage:
+      type: object
+      required:
+        - event_key
+        - team_key
+        - event_name
+        - event
+      properties:
+        event_key:
+          type: string
+        team_key:
+          type: string
+        event_name:
+          type: string
+        event:
+          $ref: "#/components/schemas/Event"
+
+    AwardsPostedMessage:
+      type: object
+      required:
+        - event_key
+        - team_key
+        - event_name
+        - awards
+      properties:
+        event_key:
+          type: string
+        team_key:
+          type: string
+        event_name:
+          type: string
+        awards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Award"
+
+    ScheduleUpdatedMessage:
+      type: object
+      required:
+        - event_key
+        - event_name
+        - first_match_time
+      properties:
+        event_key:
+          type: string
+        event_name:
+          type: string
+        first_match_time:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds.
+
+    PingMessage:
+      type: object
+      required:
+        - title
+        - desc
+      properties:
+        title:
+          type: string
+        desc:
+          type: string
+
+    BroadcastMessage:
+      type: object
+      required:
+        - title
+        - desc
+        - url
+      properties:
+        title:
+          type: string
+        desc:
+          type: string
+        url:
+          type: string
+          format: uri
+
+    # Simplified TBA types used inside webhook message_data.
+    # The full canonical schemas are in swagger/api/swagger.yaml.
+    Match:
+      type: object
+      description: TBA Match object. See swagger/api/swagger.yaml for the complete schema.
+      additionalProperties: true
+      properties:
+        key:
+          type: string
+        comp_level:
+          type: string
+        set_number:
+          type: integer
+        match_number:
+          type: integer
+        event_key:
+          type: string
+        alliances:
+          type: object
+          additionalProperties: true
+        winning_alliance:
+          type: string
+        score_breakdown:
+          type: object
+          nullable: true
+          additionalProperties: true
+        videos:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        time:
+          type: integer
+          nullable: true
+        predicted_time:
+          type: integer
+          nullable: true
+        actual_time:
+          type: integer
+          nullable: true
+
+    Event:
+      type: object
+      description: TBA Event object. See swagger/api/swagger.yaml for the complete schema.
+      additionalProperties: true
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        event_code:
+          type: string
+        event_type:
+          type: integer
+        district:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DistrictList"
+        city:
+          type: string
+          nullable: true
+        state_prov:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        year:
+          type: integer
+
+    DistrictList:
+      type: object
+      description: TBA district summary.
+      additionalProperties: true
+      properties:
+        abbreviation:
+          type: string
+        display_name:
+          type: string
+        key:
+          type: string
+        year:
+          type: integer
+
+    Award:
+      type: object
+      description: TBA Award object. See swagger/api/swagger.yaml for the complete schema.
+      additionalProperties: true
+      properties:
+        name:
+          type: string
+        year:
+          type: integer
+        event_key:
+          type: string
+        award_type:
+          type: integer
+        recipient_list:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    Webcast:
+      type: object
+      description: TBA Webcast object. See swagger/api/swagger.yaml for the complete schema.
+      additionalProperties: true
+      properties:
+        type:
+          type: string
+        channel:
+          type: string
+        file:
+          type: string
+          nullable: true

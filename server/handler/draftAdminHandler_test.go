@@ -6,9 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"uuid"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"server/model"
 	"server/model/mocks"
@@ -17,8 +18,7 @@ import (
 func TestHandleDraftAdminGet(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -31,19 +31,20 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("invalid draft id", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -52,19 +53,20 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
 	t.Run("draft not found redirects home", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
@@ -74,20 +76,21 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/u/home", rec.Header().Get("Location"))
 	})
 
 	t.Run("non-owner forbidden", func(t *testing.T) {
 		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/admin", "", "test-session")
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
 		ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
@@ -101,26 +104,27 @@ func TestHandleDraftAdminGet(t *testing.T) {
 		}, nil)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleDraftAdminGet(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 }
 
-func TestHandleAdminSkipPick(t *testing.T) {
+func TestHandleAdminEndDraft(t *testing.T) {
 	t.Run("invalid draft id", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/abc/admin/skip", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/abc/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("abc")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -128,24 +132,25 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		mockDraftStore := mocks.NewMockDraftStore(t)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
-		err := h.HandleAdminSkipPick(c)
-		assert.NoError(t, err)
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("draft not found", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/u/draft/42/admin/skip", nil)
-		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"})
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
 		rec := httptest.NewRecorder()
 
 		e := echo.New()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues("42")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
 
 		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		c.Set("userUuid", userUuid)
@@ -155,12 +160,102 @@ func TestHandleAdminSkipPick(t *testing.T) {
 		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
 
 		h := &Handler{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("non-owner forbidden", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/endDraft", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
+		rec := httptest.NewRecorder()
+
+		e := echo.New()
+		c := e.NewContext(req, rec)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+			Id:    42,
+			Owner: model.User{UserUuid: ownerUuid},
+		}, nil)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+}
+
+func TestHandleAdminSkipPick(t *testing.T) {
+	t.Run("invalid draft id", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/abc/admin/skip", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
+		rec := httptest.NewRecorder()
+
+		e := echo.New()
+		c := e.NewContext(req, rec)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
 		}
 
 		err := h.HandleAdminSkipPick(c)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/admin/skip", nil)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
+		rec := httptest.NewRecorder()
+
+		e := echo.New()
+		c := e.NewContext(req, rec)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleAdminSkipPick(c)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }

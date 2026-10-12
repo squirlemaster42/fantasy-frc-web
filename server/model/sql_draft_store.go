@@ -3,17 +3,47 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"server/database"
 )
 
 type SQLDraftStore struct {
-	db *sql.DB
+	db   database.DBTX
+	isTx bool
 }
 
 func NewSQLDraftStore(db *sql.DB) *SQLDraftStore {
-	return &SQLDraftStore{db: db}
+	return &SQLDraftStore{db: db, isTx: false}
+}
+
+func (s *SQLDraftStore) RunInTransaction(ctx context.Context, fn func(db database.DBTX) error) error {
+	if s.isTx {
+		return fn(s.db)
+	}
+	sqlDB, ok := s.db.(*sql.DB)
+	if !ok {
+		return errors.New("runInTransaction called on a store without an underlying *sql.DB")
+	}
+	tx, err := sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLDraftStore) WithTx(tx database.DBTX) DraftStore {
+	return &SQLDraftStore{db: tx, isTx: true}
 }
 
 func (s *SQLDraftStore) GetDraft(ctx context.Context, draftId int) (DraftModel, error) {
@@ -32,12 +62,21 @@ func (s *SQLDraftStore) GetDraftPickRows(ctx context.Context, teamKeys []string)
 	return getDraftPickRows(ctx, s.db, teamKeys)
 }
 
-func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error) {
-	return getDraftsForUser(ctx, s.db, userUuid)
+func (s *SQLDraftStore) SearchDrafts(ctx context.Context, search DraftSearchQuery) ([]DraftModel, error) {
+	return searchDrafts(ctx, s.db, search)
 }
 
 func (s *SQLDraftStore) CreateDraft(ctx context.Context, draft *DraftModel) (int, error) {
-	return createDraft(ctx, s.db, draft)
+	var draftId int
+	err := s.RunInTransaction(ctx, func(tx database.DBTX) error {
+		var err error
+		draftId, err = createDraft(ctx, tx, draft)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return draftId, nil
 }
 
 func (s *SQLDraftStore) GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error) {
@@ -50,6 +89,14 @@ func (s *SQLDraftStore) GetInvite(ctx context.Context, inviteId int) (DraftInvit
 
 func (s *SQLDraftStore) GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error) {
 	return getNumPlayersInInvitedDraft(ctx, s.db, inviteId)
+}
+
+func (s *SQLDraftStore) GetNumPlayersInDraft(ctx context.Context, draftId int) (int, error) {
+	return getNumPlayersInDraft(ctx, s.db, draftId)
+}
+
+func (s *SQLDraftStore) LockDraft(ctx context.Context, draftId int) error {
+	return lockDraft(ctx, s.db, draftId)
 }
 
 func (s *SQLDraftStore) CancelOutstandingInvites(ctx context.Context, draftId int) error {
@@ -146,4 +193,36 @@ func (s *SQLDraftStore) RandomizePickOrder(ctx context.Context, draftId int) err
 
 func (s *SQLDraftStore) HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error) {
 	return hasBeenPicked(ctx, s.db, draftId, team)
+}
+
+func (s *SQLDraftStore) CancelInvite(ctx context.Context, inviteId int) error {
+	return cancelInvite(ctx, s.db, inviteId)
+}
+
+func (s *SQLDraftStore) UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error {
+	return uninvitePlayer(ctx, s.db, draftId, ownerUuid, inviteId)
+}
+
+func (s *SQLDraftStore) GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error) {
+	return getOutstandingInvitesForDraft(ctx, s.db, draftId)
+}
+
+func (s *SQLDraftStore) GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error) {
+	return getOverallLeaderboard(ctx, s.db, page, perPage)
+}
+
+func (s *SQLDraftStore) TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error {
+	return transferOwnership(ctx, s.db, draftId, newOwnerUuid)
+}
+
+func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error) {
+	return getDraftsForUser(ctx, s.db, userUuid)
+}
+
+func (s *SQLDraftStore) GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]DraftNotificationPreference, error) {
+	return getUserDraftNotificationPreferences(ctx, s.db, userUuid)
+}
+
+func (s *SQLDraftStore) UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error {
+	return updateUserDraftNotificationPreference(ctx, s.db, userUuid, draftId, upcomingMatch, pickTurn)
 }

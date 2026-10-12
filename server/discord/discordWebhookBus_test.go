@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewBus(t *testing.T) {
@@ -29,11 +30,11 @@ func TestPostPreMatchNotification_Success(t *testing.T) {
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var webhook DiscordWebhook
 		err = json.Unmarshal(body, &webhook)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		received <- webhook
 		w.WriteHeader(http.StatusNoContent)
@@ -53,7 +54,7 @@ func TestPostPreMatchNotification_Success(t *testing.T) {
 	}
 
 	err := bus.PostPreMatchNotification(event)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	select {
 	case webhook := <-received:
@@ -77,12 +78,12 @@ func TestPostPreMatchNotification_QueueFull(t *testing.T) {
 	defer bus.Stop()
 
 	// Fill the channel to capacity
-	for i := 0; i < cap(bus.preMatchCh); i++ {
+	for range cap(bus.preMatchCh) {
 		bus.preMatchCh <- PreMatchDiscordEvent{EventName: "fill", Webhook: server.URL}
 	}
 
 	err := bus.PostPreMatchNotification(PreMatchDiscordEvent{EventName: "overflow", Webhook: server.URL})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "queue is full")
 }
 
@@ -103,7 +104,7 @@ func TestPostPreMatchNotification_HandlesNon2xxResponse(t *testing.T) {
 	}
 
 	err := bus.PostPreMatchNotification(event)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Give the worker time to process and log the non-2xx response
 	time.Sleep(100 * time.Millisecond)
@@ -113,11 +114,11 @@ func TestPostPickNotification_DraftComplete(t *testing.T) {
 	received := make(chan DiscordWebhook, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var webhook DiscordWebhook
 		err = json.Unmarshal(body, &webhook)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		received <- webhook
 		w.WriteHeader(http.StatusOK)
@@ -134,8 +135,8 @@ func TestPostPickNotification_DraftComplete(t *testing.T) {
 		DraftComplete:      true,
 	}
 
-	err := bus.PostPickNotification(event)
-	assert.NoError(t, err)
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
 
 	select {
 	case webhook := <-received:
@@ -152,11 +153,11 @@ func TestPostPickNotification_NextPickWithMention(t *testing.T) {
 	received := make(chan DiscordWebhook, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var webhook DiscordWebhook
 		err = json.Unmarshal(body, &webhook)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		received <- webhook
 		w.WriteHeader(http.StatusOK)
@@ -176,8 +177,8 @@ func TestPostPickNotification_NextPickWithMention(t *testing.T) {
 		ExpirationTime:        time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
 	}
 
-	err := bus.PostPickNotification(event)
-	assert.NoError(t, err)
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
 
 	select {
 	case webhook := <-received:
@@ -193,11 +194,11 @@ func TestPostPickNotification_InvalidDiscordIdIgnored(t *testing.T) {
 	received := make(chan DiscordWebhook, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var webhook DiscordWebhook
 		err = json.Unmarshal(body, &webhook)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		received <- webhook
 		w.WriteHeader(http.StatusOK)
@@ -217,8 +218,8 @@ func TestPostPickNotification_InvalidDiscordIdIgnored(t *testing.T) {
 		ExpirationTime:        time.Now(),
 	}
 
-	err := bus.PostPickNotification(event)
-	assert.NoError(t, err)
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
 
 	select {
 	case webhook := <-received:
@@ -248,8 +249,8 @@ func TestPostPickNotification_Non2xxResponse(t *testing.T) {
 		ExpirationTime:     time.Now(),
 	}
 
-	err := bus.PostPickNotification(event)
-	assert.Error(t, err)
+	err := bus.PostPickNotification(t.Context(), event)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid webhook")
 }
 
@@ -257,11 +258,11 @@ func TestPostPickNotification_ConsecutivePicksMessage(t *testing.T) {
 	received := make(chan DiscordWebhook, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		var webhook DiscordWebhook
 		err = json.Unmarshal(body, &webhook)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		received <- webhook
 		w.WriteHeader(http.StatusOK)
@@ -279,12 +280,97 @@ func TestPostPickNotification_ConsecutivePicksMessage(t *testing.T) {
 		ExpirationTime:     time.Now(),
 	}
 
-	err := bus.PostPickNotification(event)
-	assert.NoError(t, err)
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
 
 	select {
 	case webhook := <-received:
 		assert.Contains(t, webhook.Content, "it is your turn again")
+	case <-time.After(time.Second):
+		t.Fatal("expected webhook to be received")
+	}
+}
+
+func TestPostPickNotification_SkipDifferentPlayers(t *testing.T) {
+	received := make(chan DiscordWebhook, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var webhook DiscordWebhook
+		err = json.Unmarshal(body, &webhook)
+		require.NoError(t, err)
+
+		received <- webhook
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	bus := NewBus()
+	defer bus.Stop()
+
+	event := NextPickDiscordEvent{
+		PreviousPickName:      "Charlie",
+		PreviousPickDiscordId: sql.NullString{String: "12345678901234567", Valid: true},
+		NextPickName:          "David",
+		NextPickDiscordId:     sql.NullString{String: "98765432109876543", Valid: true},
+		Webhook:               server.URL,
+		ExpirationTime:        time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		Skipped:               true,
+	}
+
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
+
+	select {
+	case webhook := <-received:
+		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.Contains(t, webhook.Content, "<@98765432109876543>")
+		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "it is now your pick")
+		assert.Equal(t, []string{"98765432109876543"}, webhook.AllowedMentions.Users)
+	case <-time.After(time.Second):
+		t.Fatal("expected webhook to be received")
+	}
+}
+
+func TestPostPickNotification_SkipSamePlayer(t *testing.T) {
+	received := make(chan DiscordWebhook, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+
+		var webhook DiscordWebhook
+		err = json.Unmarshal(body, &webhook)
+		require.NoError(t, err)
+
+		received <- webhook
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	bus := NewBus()
+	defer bus.Stop()
+
+	event := NextPickDiscordEvent{
+		PreviousPickName:      "Charlie",
+		PreviousPickDiscordId: sql.NullString{String: "12345678901234567", Valid: true},
+		NextPickName:          "Charlie",
+		NextPickDiscordId:     sql.NullString{String: "12345678901234567", Valid: true},
+		Webhook:               server.URL,
+		ExpirationTime:        time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC),
+		Skipped:               true,
+	}
+
+	err := bus.PostPickNotification(t.Context(), event)
+	require.NoError(t, err)
+
+	select {
+	case webhook := <-received:
+		assert.Contains(t, webhook.Content, "<@12345678901234567>")
+		assert.Contains(t, webhook.Content, "your pick was skipped")
+		assert.Contains(t, webhook.Content, "it is your turn again")
+		assert.Equal(t, []string{"12345678901234567"}, webhook.AllowedMentions.Users)
 	case <-time.After(time.Second):
 		t.Fatal("expected webhook to be received")
 	}

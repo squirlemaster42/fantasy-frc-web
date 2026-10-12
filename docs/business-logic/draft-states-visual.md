@@ -7,8 +7,7 @@ Visual representations of Fantasy FRC draft lifecycle and state management.
 ```mermaid
 stateDiagram-v2
     [*] --> FILLING: Create Draft
-    FILLING --> WAITING_TO_START: Start Draft
-    WAITING_TO_START --> PICKING: Scheduled Time
+    FILLING --> PICKING: Owner Starts Draft
     PICKING --> TEAMS_PLAYING: All Picks Complete
     TEAMS_PLAYING --> COMPLETE: Event Finished
     COMPLETE --> [*]
@@ -18,10 +17,9 @@ stateDiagram-v2
 
 | Current State | Next State | Trigger | Auto? |
 |---------------|-------------|----------|---------|
-| FILLING | WAITING_TO_START | Owner starts draft | ❌ |
-| WAITING_TO_START | PICKING | Scheduled time reached | ✅ |
+| FILLING | PICKING | Owner starts draft | ❌ |
 | PICKING | TEAMS_PLAYING | 64 picks completed | ✅ |
-| TEAMS_PLAYING | COMPLETE | All events finished | ✅ |
+| TEAMS_PLAYING | COMPLETE | (defined but not triggered) | ❌ |
 
 ## 🎮 Draft Lifecycle Timeline
 
@@ -33,10 +31,9 @@ gantt
     
     section Draft States
     Setup Phase :active, filling, 0, 3
-    Waiting Period :active, waiting, 3, 5
-    Picking Phase :active, picking, 5, 9
-    Competition :active, playing, 9, 13
-    Completed :done, complete, 13, 14
+    Picking Phase :active, picking, 3, 7
+    Competition :active, playing, 7, 11
+    Completed :done, complete, 11, 12
 ```
 
 ## 🔄 Pick Management Flow
@@ -137,22 +134,15 @@ graph LR
 
 ```mermaid
 sequenceDiagram
-    participant D1 as Draft Manager 1
-    participant D2 as Draft Manager 2
+    participant D1 as Draft Actor 1
+    participant D2 as Draft Actor 2
     participant DB as Database
-    participant L as Lock Manager
-    
-    D1->>L: Request Load Lock
-    L-->>D1: Lock Granted
-    D2->>L: Request Load Lock
-    L-->>D2: Wait
-    
+
     D1->>DB: Load Draft Data
     DB-->>D1: Draft Loaded
-    D1->>L: Release Load Lock
-    
-    L-->>D2: Lock Granted
+
     D2->>DB: Load Draft Data
+    DB-->>D2: Draft Loaded
 ```
 
 ## 📡 Real-time Notification Flow
@@ -160,20 +150,21 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant P as Player
-    participant DM as Draft Manager
-    participant PM as Pick Manager
-    participant WS as WebSocket Hub
+    participant DA as Draft Actor
+    participant PN as Pick Notifier
+    participant WS as WebSocket Handler
     participant C as All Clients
-    
-    P->>DM: Make Pick
-    DM->>PM: Process Pick
-    PM->>PM: Validate Pick
-    PM->>PM: Record in Database
-    
-    PM->>WS: Pick Event
-    WS->>C: Broadcast Update
-    
-    Note over C: All players see live updates
+
+    P->>DA: Make Pick
+    DA->>DA: Validate Pick
+    DA->>DA: Record in Database
+
+    DA->>PN: Pick Event Signal
+    PN->>WS: Notify Watchers
+    WS->>WS: Re-render Picks
+    WS->>C: Push HTML Fragment
+
+    Note over C: All watchers see live updates
 ```
 
 ## 🎯 State-Specific Operations
@@ -259,8 +250,8 @@ flowchart TD
 ### Pick Validation Failures
 ```mermaid
 graph TD
-    A[Pick Attempt] --> B{Team Exists?}
-    B -->|No| C[Error: Invalid Team]
+    A[Pick Attempt] --> B{Non-empty Input?}
+    B -->|No| C[Error: No Team Entered]
     B -->|Yes| D{Team Available?}
     D -->|No| E[Error: Already Picked]
     D -->|Yes| F{Valid Event?}

@@ -1,10 +1,12 @@
 package scorer
 
 import (
+	"context"
 	"server/swagger"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMatchQueueOrdering(t *testing.T) {
@@ -33,12 +35,29 @@ func TestMatchQueueOrdering(t *testing.T) {
     queue.PushMatch(swagger.Match{
         Key: "2024cur_f1m2",
     })
-    assert.Equal(t, "2024cur_qm1", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_qm72", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_qm112", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_sf2m1", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_sf9m1", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_sf12m1", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_f1m1", queue.PopMatch().Key)
-    assert.Equal(t, "2024cur_f1m2", queue.PopMatch().Key)
+    ctx := context.Background()
+    match, err := queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_qm1", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_qm72", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_qm112", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_sf2m1", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_sf9m1", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_sf12m1", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_f1m1", match.Key)
+    match, err = queue.PopMatch(ctx)
+    require.NoError(t, err)
+    assert.Equal(t, "2024cur_f1m2", match.Key)
 }

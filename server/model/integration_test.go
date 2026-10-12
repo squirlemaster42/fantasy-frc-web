@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"server/database"
 )
@@ -42,7 +44,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		testDB, testDBErr = database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
 	})
 
-	if testDBErr == sql.ErrConnDone {
+	if errors.Is(testDBErr, sql.ErrConnDone) {
 		t.Skip("Skipping test: database credentials not found in environment")
 	}
 	require.NoError(t, testDBErr)
@@ -59,7 +61,9 @@ func createTestUser(t *testing.T, db *sql.DB) User {
 	ctx := context.Background()
 
 	username := "testuser_" + randomString(8)
-	userUuid, err := store.RegisterUser(ctx, username, "Password123!")
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("Password123!"), bcrypt.MinCost)
+	require.NoError(t, err)
+	userUuid, err := store.RegisterUser(ctx, username, string(passwordHash))
 	require.NoError(t, err)
 
 	user := User{
@@ -84,7 +88,6 @@ func createTestDraft(t *testing.T, db *sql.DB, owner User) DraftModel {
 	draft := &DraftModel{
 		DisplayName: "Test Draft " + randomString(8),
 		Description: "Integration test draft",
-		Interval:    3600,
 		Owner:       owner,
 		Status:      FILLING,
 	}

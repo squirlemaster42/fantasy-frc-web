@@ -10,11 +10,9 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
-
-	"github.com/joho/godotenv"
 
 	"server/assert"
+	"server/authentication"
 	"server/background"
 	"server/cache"
 	"server/database"
@@ -28,11 +26,13 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
+
+	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	assert := assert.CreateAssertWithContext("Main")
 
@@ -53,103 +53,67 @@ func main() {
 	if err != nil {
 		log.Info(ctx, "No .env file loaded, using environment variables")
 	}
-	tbaTok := os.Getenv("TBA_TOKEN")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbUsername := os.Getenv("DB_USERNAME")
-	dbIp := os.Getenv("DB_IP")
-	dbName := os.Getenv("DB_NAME")
-	serverPort := os.Getenv("SERVER_PORT")
-	tbaWebhookSecret := os.Getenv("TBA_WEBHOOK_SECRET")
-	metricSecret := os.Getenv("METRIC_SECRET")
-	secureHttpCookieVar := os.Getenv("SECURE_HTTP_COOKIE")
-	csrfSecret := os.Getenv("CSRF_SECRET")
-	trustProxyVar := os.Getenv("TRUST_PROXY")
-	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	jwtSigningKey := os.Getenv("JWT_SIGNING_KEY")
-	minPasswordLengthVar := os.Getenv("MIN_PASSWORD_LENGTH")
-	redisAddr := os.Getenv("REDIS_ADDR")
-	redisPassword := os.Getenv("REDIS_PASSWORD")
-	redisRateLimitDBVar := os.Getenv("REDIS_RATE_LIMIT_DB")
-	redisAvatarDBVar := os.Getenv("REDIS_AVATAR_DB")
-	postsPerMinuteVar := os.Getenv("RATE_LIMIT_POSTS_PER_MINUTE")
-	rateLimitEnabledVar := os.Getenv("RATE_LIMIT_ENABLED")
+	tbaTok := requireEnv(ctx, "TBA_TOKEN")
+	dbPassword := requireEnv(ctx, "DB_PASSWORD")
+	dbUsername := requireEnv(ctx, "DB_USERNAME")
+	dbIp := requireEnv(ctx, "DB_IP")
+	dbName := requireEnv(ctx, "DB_NAME")
+	tbaWebhookSecret := requireEnv(ctx, "TBA_WEBHOOK_SECRET")
+	metricSecret := requireEnv(ctx, "METRIC_SECRET")
+	csrfSecret := requireEnv(ctx, "CSRF_SECRET")
+	jwtSigningKey := requireEnv(ctx, "JWT_SIGNING_KEY")
 
-	if csrfSecret == "" {
-		panic("CSRF_SECRET environment variable is required")
+	allowedOrigin := utils.MustGetEnvString("ALLOWED_ORIGIN", "")
+	redisAddr := utils.MustGetEnvString("REDIS_ADDR", "")
+	redisPassword := utils.MustGetEnvString("REDIS_PASSWORD", "")
+	usernameAllowedSpecialChars := utils.MustGetEnvString("USERNAME_ALLOWED_SPECIAL_CHARS", "_-")
+
+	serverPortNum := mustGetEnvInt(ctx, "SERVER_PORT", 0)
+	if serverPortNum < 1 || serverPortNum > 65535 {
+		log.Fatal(ctx, "SERVER_PORT must be between 1 and 65535", "value", serverPortNum)
 	}
-	if jwtSigningKey == "" {
-		panic("JWT_SIGNING_KEY environment variable is required")
-	}
+
 	if len(jwtSigningKey) < 32 {
-		log.Error(ctx, "JWT_SIGNING_KEY must be at least 32 bytes")
-		os.Exit(1)
+		log.Fatal(ctx, "JWT_SIGNING_KEY must be at least 32 bytes")
 	}
 
-	minPasswordLength := 12
-	if minPasswordLengthVar != "" {
-		parsed, err := strconv.Atoi(minPasswordLengthVar)
-		if err == nil && parsed > 0 {
-			minPasswordLength = parsed
-		}
+	minPasswordLength := mustGetEnvInt(ctx, "MIN_PASSWORD_LENGTH", 12)
+	minUsernameLength := mustGetEnvInt(ctx, "MIN_USERNAME_LENGTH", 3)
+	maxUsernameLength := mustGetEnvInt(ctx, "MAX_USERNAME_LENGTH", 32)
+
+	bcryptCost := mustGetEnvInt(ctx, "BCRYPT_COST", 14)
+	if bcryptCost < bcrypt.MinCost || bcryptCost > bcrypt.MaxCost {
+		log.Warn(ctx, "BCRYPT_COST out of range, using default", "value", bcryptCost, "default", 14)
+		bcryptCost = 14
 	}
 
-	redisRateLimitDB := 1
-	if redisRateLimitDBVar != "" {
-		parsed, err := strconv.Atoi(redisRateLimitDBVar)
-		if err == nil {
-			redisRateLimitDB = parsed
-		}
+	redisRateLimitDB := mustGetEnvInt(ctx, "REDIS_RATE_LIMIT_DB", 1)
+	redisAvatarDB := mustGetEnvInt(ctx, "REDIS_AVATAR_DB", 2)
+	postsPerMinute := mustGetEnvInt64(ctx, "RATE_LIMIT_POSTS_PER_MINUTE", 100)
+
+	rateLimitEnabled := mustGetEnvBool(ctx, "RATE_LIMIT_ENABLED", true)
+	secureHttpCookie := mustGetEnvBool(ctx, "SECURE_HTTP_COOKIE", true)
+	trustProxy := mustGetEnvBool(ctx, "TRUST_PROXY", false)
+	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
+
+	if trustProxy && allowedOrigin == "" {
+		log.Fatal(ctx, "ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
 	}
 
-	redisAvatarDB := 2
-	if redisAvatarDBVar != "" {
-		parsed, err := strconv.Atoi(redisAvatarDBVar)
-		if err == nil {
-			redisAvatarDB = parsed
-		}
-	}
-
-	postsPerMinute := int64(100)
-	if postsPerMinuteVar != "" {
-		parsed, err := strconv.ParseInt(postsPerMinuteVar, 10, 64)
-		if err == nil && parsed > 0 {
-			postsPerMinute = parsed
-		}
-	}
-
-	rateLimitEnabled := true
-	if rateLimitEnabledVar != "" {
-		parsed, err := strconv.ParseBool(rateLimitEnabledVar)
-		if err == nil {
-			rateLimitEnabled = parsed
-		}
+	draftActorCacheSize := mustGetEnvInt(ctx, "DRAFT_ACTOR_CACHE_SIZE", 128)
+	if draftActorCacheSize < 1 {
+		log.Fatal(ctx, "DRAFT_ACTOR_CACHE_SIZE must be at least 1", "value", draftActorCacheSize)
 	}
 
 	log.Info(ctx, "Extracted Env Vars")
-	database, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
+	db, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	if err != nil {
 		log.Error(ctx, "Failed to register database connection", "error", err)
 		os.Exit(1)
 	}
 	log.Info(ctx, "Registered Database Connection")
 
-	tbaHandler := tbaHandler.NewHandler(tbaTok, database)
-
-	secureHttpCookie, err := strconv.ParseBool(secureHttpCookieVar)
-	if err != nil {
-		log.Warn(ctx, "failed to parse secure http cookie env var. setting secureHttp to true", "error", err)
-		secureHttpCookie = true
-	}
-
-	trustProxy, err := strconv.ParseBool(trustProxyVar)
-	if err != nil {
-		trustProxy = false
-	}
-	log.Info(ctx, "Trust proxy setting", "TRUST_PROXY", trustProxy)
-
-	if trustProxy && allowedOrigin == "" {
-		panic("ALLOWED_ORIGIN environment variable is required when TRUST_PROXY is true")
-	}
+	tbaHandler := tbaHandler.NewHandler(tbaTok, db)
 	if allowedOrigin != "" {
 		log.Info(ctx, "WebSocket origin validation configured", "ALLOWED_ORIGIN", allowedOrigin)
 	} else {
@@ -157,20 +121,38 @@ func main() {
 	}
 
 	discordWebhookBus := discord.NewBus()
-	draftStore := model.NewSQLDraftStore(database)
-	userStore := model.NewSQLUserStore(database)
-	apiKeyStore := model.NewSQLApiKeyStore(database)
-	teamStore := model.NewSQLTeamStore(database)
-	discordStore := model.NewSQLDiscordStore(database)
-	matchStore := model.NewSQLMatchStore(database)
-	matchTeamStore := model.NewSQLMatchTeamStore(database)
+	draftStore := model.NewSQLDraftStore(db)
+	userStore := model.NewSQLUserStore(db)
+	apiKeyStore := model.NewSQLApiKeyStore(db)
+
+	passwordHasher, err := authentication.NewBcryptPasswordHasher(bcryptCost)
+	if err != nil {
+		assert.NoError(ctx, err, "Failed to create password hasher")
+	}
+
+	authService := authentication.NewAuthService(userStore, passwordHasher, authentication.AuthConfig{
+		MinPasswordLength:           minPasswordLength,
+		MinUsernameLength:           minUsernameLength,
+		MaxUsernameLength:           maxUsernameLength,
+		UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
+	})
+
+	teamStore := model.NewSQLTeamStore(db)
+	discordStore := model.NewSQLDiscordStore(db)
+	matchStore := model.NewSQLMatchStore(db)
+	matchTeamStore := model.NewSQLMatchTeamStore(db)
 
 	pickNotifier := &picking.PickNotifier{
 		Watchers: make(map[int][]picking.Watcher),
 	}
 
-	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier)
-	//Start the draft daemon and add all running drafts to it
+	pickConfig, err := utils.LoadPickWindowConfigFromEnv()
+	if err != nil {
+		assert.NoError(ctx, err, "Failed to load pick window configuration")
+	}
+
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig, draftActorCacheSize)
+	// Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)
 	if err != nil {
@@ -192,12 +174,13 @@ func main() {
 	}
 
 	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
+	var waitScorer <-chan struct{}
 	if !*skipScoring {
 		log.Info(ctx, "Started Scorer")
-		scorer.RunScorer(ctx)
+		waitScorer = scorer.RunScorer(ctx)
 	}
 
-	cleanupService := background.NewCleanupService(database, 60)
+	cleanupService := background.NewCleanupService(db, background.CleanupIntervalMinutes())
 	err = cleanupService.Start(ctx)
 	if err != nil {
 		log.Error(ctx, "Failed to start cleanup service", "error", err)
@@ -207,24 +190,34 @@ func main() {
 		redisAddr = "localhost:6379"
 	}
 
-	avatarStore, err := cache.NewAvatarStore(ctx, *tbaHandler, redisAddr, redisPassword, redisAvatarDB)
+	avatarStore, err := cache.NewAvatarStore(ctx, tbaHandler, redisAddr, redisPassword, redisAvatarDB)
 	assert.NoError(ctx, err, "Failed to create avatar store")
 
 	handler := handler.Handler{
-		DraftStore:        draftStore,
-		UserStore:         userStore,
-		ApiKeyStore:       apiKeyStore,
-		TeamStore:         teamStore,
-		TBAHandler:        *tbaHandler,
-		DraftActorMap:     draftActorMap,
-		Scorer:            scorer,
-		AvatarStore:       &avatarStore,
-		DiscordWebhookBus: discordWebhookBus,
-		SecureHttpCookie:  secureHttpCookie,
-		MinPasswordLength: minPasswordLength,
-		CsrfSecret:        csrfSecret,
-		AllowedOrigin:     allowedOrigin,
-		JwtSigningKey:     []byte(jwtSigningKey),
+		Stores: handler.StorageGroup{
+			DraftStore:  draftStore,
+			UserStore:   userStore,
+			ApiKeyStore: apiKeyStore,
+			TeamStore:   teamStore,
+		},
+		Services: handler.ServiceGroup{
+			AuthService:       authService,
+			TBAHandler:        tbaHandler,
+			DraftActorMap:     draftActorMap,
+			DraftDaemon:       draftDaemon,
+			Scorer:            scorer,
+			AvatarStore:       &avatarStore,
+			DiscordWebhookBus: discordWebhookBus,
+		},
+		Config: handler.ConfigGroup{
+			SecureHttpCookie:            secureHttpCookie,
+			MinPasswordLength:           minPasswordLength,
+			MinUsernameLength:           minUsernameLength,
+			MaxUsernameLength:           maxUsernameLength,
+			UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
+			AllowedOrigin:               allowedOrigin,
+			JwtSigningKey:               []byte(jwtSigningKey),
+		},
 	}
 
 	// Load the tba webhook secret
@@ -237,15 +230,17 @@ func main() {
 		if err != nil {
 			log.Warn(ctx, "Failed to read tba webhook file body", "error", err)
 		} else {
-			handler.TbaVerificationCode = string(body)
+			handler.Config.TbaVerificationCode = string(body)
 		}
 	}
-	handler.TbaWebhookSecret = tbaWebhookSecret
+	handler.Config.TbaWebhookSecret = tbaWebhookSecret
+
+	serverPort := strconv.Itoa(serverPortNum)
 
 	app, otelShutdown := CreateServer(ctx, ServerConfig{
 		ServerPort:       serverPort,
 		Handler:          handler,
-		Database:         database,
+		Database:         db,
 		MetricSecret:     metricSecret,
 		CsrfSecret:       csrfSecret,
 		JwtSigningKey:    []byte(jwtSigningKey),
@@ -258,8 +253,15 @@ func main() {
 		AllowedOrigin:    allowedOrigin,
 	})
 
+	httpServer := &http.Server{
+		Addr:              ":" + serverPort,
+		Handler:           app,
+		ReadHeaderTimeout: ServerReadHeaderTimeout(),
+	}
+
 	go func() {
-		err := app.Start(":" + serverPort)
+		// Use net/http directly so we can configure server-level timeouts such as ReadHeaderTimeout.
+		err := httpServer.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			assert.NoError(ctx, err, "Failed to start server")
 		}
@@ -273,10 +275,14 @@ func main() {
 	log.Info(ctx, "Shutting down gracefully...")
 	cancel()
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if waitScorer != nil {
+		<-waitScorer
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), ServerShutdownTimeout())
 	defer shutdownCancel()
 
-	if err := app.Shutdown(shutdownCtx); err != nil {
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Warn(ctx, "Failed to shutdown server gracefully", "error", err)
 	}
 	if err := otelShutdown(shutdownCtx); err != nil {
@@ -286,7 +292,41 @@ func main() {
 	if err := cleanupService.Stop(ctx); err != nil {
 		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
 	}
-	if err := database.Close(); err != nil {
+	database.CloseCachedStatements(shutdownCtx, db)
+	if err := db.Close(); err != nil {
 		log.Error(ctx, "Failed to close database connection", "error", err)
 	}
+	cancel()
+}
+
+func requireEnv(ctx context.Context, key string) string {
+	val, err := utils.RequireEnv(key)
+	if err != nil {
+		log.Fatal(ctx, "missing required environment variable", "key", key)
+	}
+	return val
+}
+
+func mustGetEnvInt(ctx context.Context, key string, defaultVal int) int {
+	val, err := utils.GetEnvIntStrict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
+}
+
+func mustGetEnvInt64(ctx context.Context, key string, defaultVal int64) int64 {
+	val, err := utils.GetEnvInt64Strict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
+}
+
+func mustGetEnvBool(ctx context.Context, key string, defaultVal bool) bool {
+	val, err := utils.GetEnvBoolStrict(key, defaultVal)
+	if err != nil {
+		log.Fatal(ctx, "invalid environment variable", "error", err)
+	}
+	return val
 }

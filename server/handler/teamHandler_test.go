@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"server/cache"
 	"server/model"
 	"server/model/mocks"
 )
@@ -20,11 +22,13 @@ func TestHandleTeamScore(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 
 	h := &Handler{
-		UserStore: mockUserStore,
+		Stores: StorageGroup{
+			UserStore: mockUserStore,
+		},
 	}
 
 	err := h.HandleTeamScore(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
@@ -37,10 +41,15 @@ func TestHandleGetTeamScore(t *testing.T) {
 	mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return([]model.MatchTeamScore{}, nil)
 
 	h := &Handler{
-		TeamStore: mockTeamStore,
+		Stores: StorageGroup{
+			TeamStore: mockTeamStore,
+		},
+		Services: ServiceGroup{
+			AvatarStore: &mockAvatarStore{color: cache.DefaultAvatarColor},
+		},
 	}
 
 	err := h.HandleGetTeamScore(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }

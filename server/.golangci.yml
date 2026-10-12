@@ -1,0 +1,93 @@
+version: "2"
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    # Error handling
+    - errorlint
+    - wrapcheck
+    - nilerr
+    - nilnil
+
+    # Database / HTTP
+    - bodyclose
+    - rowserrcheck
+    # sqlclosecheck disabled: it does not recognize the project's custom
+    # database.CloseStatement / database.CloseRows helpers that already close resources.
+    # - sqlclosecheck
+    - noctx
+
+    # Security
+    - gosec
+
+    # Code quality
+    - gocritic
+    - misspell
+    - prealloc
+    - whitespace
+    - copyloopvar
+    - intrange
+    - usetesting
+    - usestdlibvars
+
+    # Logging
+    - loggercheck
+    - sloglint
+
+    # Tests
+    - thelper
+    - testifylint
+
+    # Governance
+    - nolintlint
+    - musttag
+
+  settings:
+    errorlint:
+      errorf: true
+      errorf-multi: true
+      asserts: true
+      comparison: true
+    wrapcheck:
+      ignore-package-globs:
+        - "server/*"
+      ignore-sig-regexps:
+        - "\\(\\*github.com/labstack/echo/v5\\.Context\\)\\.(String|HTML|Blob|NoContent|Redirect)"
+    gosec:
+      excludes:
+        - G104 # Already handled by errcheck
+    sloglint:
+      attr-only: true
+      no-mixed-args: true
+      context-only: false
+      static-msg: true
+    testifylint:
+      enable-all: true
+      disable:
+        - suite-broken-parallel
+        - suite-dont-use-pkg
+        - suite-extra-assert-call
+        - suite-subtest-run
+        - suite-thelper
+      go-require:
+        ignore-http-handlers: true
+
+  exclusions:
+    generated: lax
+    paths:
+      - ".*_templ\\.go$"
+      - "authentication/mocks/.*"
+      - "model/mocks/.*"
+      - "swagger/.*"
+      - "third_party/$"
+      - "vendor/$"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+

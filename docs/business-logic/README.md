@@ -75,9 +75,9 @@ Rules governing valid team selections:
 
 ### Core Services
 - **Scorer**: Background service processing match results
-- **Draft Manager**: State machine for draft lifecycle
-- **Pick Manager**: Turn-based pick validation and processing
-- **WebSocket Hub**: Real-time event broadcasting
+- **Draft Actor Map**: Per-draft actor state machine
+- **Pick Notifier**: Signals WebSocket handlers when picks change
+- **WebSocket Handler**: Pushes re-rendered HTML fragments to watchers
 
 ### Data Sources
 - **The Blue Alliance API**: Official FRC competition data
@@ -86,6 +86,6 @@ Rules governing valid team selections:
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Business logic documentation focuses on the rules and algorithms that make Fantasy FRC engaging and fair for all participants.*

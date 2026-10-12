@@ -3,7 +3,7 @@
 > **AI-Generated Documentation**
 > This documentation was generated with AI assistance and may contain errors or outdated information. For official guidance, verify with the development team or consult source code.
 
-Ready to dominate your Fantasy FRC league? These strategies could help you build a winning team and outsmart your competition.
+Ready to dominate your Fantasy FRC league? These strategies could help you build a winning set of teams and outsmart your competition.
 
 ## 🎯 Core Strategy Principles
 
@@ -313,6 +313,6 @@ Ready to dominate your Fantasy FRC league? These strategies could help you build
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *You're ready to dominate! [Create your account and join a draft today!](./getting-started.md)*

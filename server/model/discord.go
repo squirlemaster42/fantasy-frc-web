@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"server/assert"
+	"server/database"
 	"server/log"
-	"strings"
 )
 
-func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int) (sql.NullString, error) {
+func getPlayerDiscordId(ctx context.Context, db database.DBTX, draftPlayerId int) (sql.NullString, error) {
 	query := `
 		Select
 			u.DiscordId
@@ -18,26 +17,56 @@ func getPlayerDiscordId(ctx context.Context, database *sql.DB, draftPlayerId int
 		Where dp.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Player Discord Id")
-	assert.AddContext("Draft Player Id", draftPlayerId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetPlayerDiscordId: Failed to close statement", "error", err)
-		}
-	}()
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return sql.NullString{}, err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetPlayerDiscordId")
 
 	var discordId sql.NullString
 	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId)
 	if err != nil {
+		return sql.NullString{}, fmt.Errorf("failed to scan getPlayerDiscordId row: %w", err)
+}
+
+	return discordId, nil
+}
+
+// getPlayerPickNotificationId returns the player's Discord ID only if they have opted
+// into pick-turn notifications for the draft; otherwise it returns an invalid NullString.
+func getPlayerPickNotificationId(ctx context.Context, db database.DBTX, draftPlayerId int) (sql.NullString, error) {
+	query := `
+		Select
+			u.DiscordId,
+			COALESCE(p.PickTurn, false) As PickTurn
+		From DraftPlayers dp
+		Inner Join Users u On u.UserUUID = dp.UserUUID
+		Left Join UserDraftNotificationPreferences p
+			On p.UserUuid = u.UserUuid And p.DraftId = dp.DraftId
+		Where dp.Id = $1
+	`
+
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
 		return sql.NullString{}, err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetPlayerPickNotificationId")
+
+	var discordId sql.NullString
+	var wantsPickTurn bool
+	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&discordId, &wantsPickTurn)
+	if err != nil {
+		return sql.NullString{}, fmt.Errorf("failed to scan getPlayerPickNotificationId row: %w", err)
+}
+
+	if !wantsPickTurn {
+		return sql.NullString{}, nil
 	}
 
 	return discordId, nil
 }
 
-func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string, error) {
+func getDraftWebhook(ctx context.Context, db database.DBTX, draftId int) (string, error) {
 	query := `
 		Select
 			d.DiscordWebhook
@@ -45,21 +74,17 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 		Where d.Id = $1
 	`
 
-	assert := assert.CreateAssertWithContext("Get Next Pick Discord Event")
-	assert.AddContext("draftId", draftId)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "Failed to prepare query")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftWebhook: Failed to close statement", "error", err)
-		}
-	}()
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return "", err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetDraftWebhook")
 
 	var webhook sql.NullString
 	err = stmt.QueryRowContext(ctx, draftId).Scan(&webhook)
 	if err != nil {
-		return "", err
-	}
+		return "", fmt.Errorf("failed to scan getDraftWebhook row: %w", err)
+}
 
 	if !webhook.Valid {
 		return "", fmt.Errorf("draft with id %d does not have discord webhook set", draftId)
@@ -69,73 +94,68 @@ func getDraftWebhook(ctx context.Context, database *sql.DB, draftId int) (string
 }
 
 type DraftPickRow struct {
-	DraftId   int
-	DraftName string
-	Username  string
-	Pick      string
-	DiscordId sql.NullString
-	Webhook   sql.NullString
+	DraftId            int
+	DraftName          string
+	Username           string
+	Pick               string
+	DiscordId          sql.NullString
+	Webhook            sql.NullString
+	WantsUpcomingMatch bool
 }
 
-func getDraftPickRows(ctx context.Context, database *sql.DB, teamKeys []string) ([]DraftPickRow, error) {
-	// set up query params
-	placeholders := make([]string, len(teamKeys))
-	args := make([]interface{}, len(teamKeys))
-	for i, key := range teamKeys {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = key
+func getDraftPickRows(ctx context.Context, db database.DBTX, teamKeys []string) ([]DraftPickRow, error) {
+	if len(teamKeys) == 0 {
+		return []DraftPickRow{}, nil
 	}
-	// query
-	query := fmt.Sprintf(`
+
+	query := `
         SELECT
             d.id,
             d.discordwebhook,
             d.displayname,
             u.username,
             u.discordid,
-            p.pick
+            p.pick,
+            COALESCE(prefs.UpcomingMatch, false) AS wants_upcoming_match
         FROM
             Drafts d
         JOIN DraftPlayers dp ON d.id = dp.draftid
         JOIN Users u ON dp.useruuid = u.useruuid
         JOIN Picks p ON dp.id = p.player
+        LEFT JOIN UserDraftNotificationPreferences prefs
+            ON prefs.UserUuid = u.UserUuid AND prefs.DraftId = d.id
         WHERE
-            p.pick IN (%s)
-            AND d.discordwebhook IS NOT NULL;
-    `, strings.Join(placeholders, ","))
-	// prepare query
-	stmt, err := database.PrepareContext(ctx, query)
+            p.pick = ANY($1)
+            AND d.discordwebhook IS NOT NULL;`
+
+	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to prepare statement", "error", err)
 		return nil, err
 	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "GetDraftPickRows: Failed to close statement", "error", err)
-		}
-	}()
+	defer database.CloseStatement(ctx, stmt, "GetDraftPickRows")
 
-	rows, err := stmt.QueryContext(ctx, args...)
+	rows, err := stmt.QueryContext(ctx, teamKeys)
 	if err != nil {
 		log.Error(ctx, "GetDraftPickRows: Failed to execute query", "error", err)
-		return nil, err
-	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			log.Error(ctx, "GetDraftPickRows: Failed to close rows", "error", err)
-		}
-	}()
+		return nil, fmt.Errorf("failed to query getDraftPickRows: %w", err)
+}
+	defer database.CloseRows(ctx, rows, "GetDraftPickRows")
 
 	var results []DraftPickRow
 
 	for rows.Next() {
 		var r DraftPickRow
-		err = rows.Scan(&r.DraftId, &r.Webhook, &r.DraftName, &r.Username, &r.DiscordId, &r.Pick)
+		err = rows.Scan(&r.DraftId, &r.Webhook, &r.DraftName, &r.Username, &r.DiscordId, &r.Pick, &r.WantsUpcomingMatch)
 		if err != nil {
 			log.Error(ctx, "GetDraftPickRows: Failed to scan draft pick row", "error", err)
 		} else {
 			results = append(results, r)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate draft pick rows: %w", err)
 	}
 
 	return results, nil

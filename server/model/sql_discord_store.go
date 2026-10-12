@@ -20,3 +20,7 @@ func (s *SQLDiscordStore) GetPlayerDiscordId(ctx context.Context, draftPlayerId 
 func (s *SQLDiscordStore) GetDraftWebhook(ctx context.Context, draftId int) (string, error) {
 	return getDraftWebhook(ctx, s.db, draftId)
 }
+
+func (s *SQLDiscordStore) GetPlayerPickNotificationId(ctx context.Context, draftPlayerId int) (sql.NullString, error) {
+	return getPlayerPickNotificationId(ctx, s.db, draftPlayerId)
+}

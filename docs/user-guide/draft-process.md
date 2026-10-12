@@ -8,16 +8,18 @@ This guide walks you through everything you need to know about drafting in Fanta
 ## 🎯 Draft Overview
 
 ### What is a Fantasy FRC Draft?
-A live, timed event where 8 players take turns selecting FRC teams for their fantasy roster. Each player will end up with 8 teams total.
+A live, timed event where 8 players take turns selecting FRC teams for their fantasy roster. Each player will end up with 8 teams total. Drafts of other sizes may be possible in the future.
 
 ### Draft Format
 - **8 players per draft**
 - **Snake draft order**: 1→8→8→1... (reverses each round)
 - **8 rounds** of drafting
 - **64 total team selections** (8 teams × 8 players)
-- **Time limits** for each pick (typically 3 hours, decreasing as we get closer to the first match). Work and school hours are typically excluded. 
+- **Time limits** for each pick (default 1 hour, configurable by the league operator via `PICK_WINDOWS_CONFIG_FILE`). Picks are only available during configured business hours; work and school hours are typically excluded.
 
 ## 📅 Before the Draft
+
+You can either join your friends in an existing draft or create a new draft and invite others.
 
 ### 1. Join a Draft
 **Accepting an Invitation:**
@@ -31,10 +33,8 @@ A live, timed event where 8 players take turns selecting FRC teams for their fan
 2. Fill in draft settings:
    - **Draft Name**: Give your league a fun name
    - **Description**: Optional rules or theme
-   - **Pick Interval**: Time per pick
-   - **Start Time**: When drafting opens
-   - **End Time**: When drafting must be completed
 3. Invite players using the search function
+4. Once 8 players have accepted, click "Start Draft" to begin picking immediately
 
 ### 2. Research Phase
 **Know the Events:**
@@ -212,16 +212,16 @@ Round 3: Player 1 → Player 2 → Player 3 → ... → Player 8
 Unfortunately, picks are final once submitted. Double-check before confirming!
 
 **Can I trade with other players after the draft?**
-Currently, trading is not supported. Your roster is locked after the draft.
+Currently, trading is not supported.
 
 **What happens if the draft server goes down?**
 The system has backup mechanisms. Contact your draft commissioner for assistance.
 
 **How are ties broken in final standings?**
-Ties are broken by draft position (earlier pick wins) in most leagues.
+Ties are displayed as equal scores in the leaderboard. No tiebreaker is currently applied.
 
 ---
 
-*Last updated: 2026-05-01*
+*Last updated: 2026-09-04*
 
 *Ready to draft? [Learn how teams score points next!](./scoring-explained.md)*

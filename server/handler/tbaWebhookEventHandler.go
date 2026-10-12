@@ -7,18 +7,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"server/discord"
 	"server/log"
+	"server/otel"
 	"server/swagger"
 	"server/utils"
-	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type TbaWebsocketEvent struct {
@@ -37,13 +36,12 @@ func validMAC(message []byte, messageMAC string, key []byte) bool {
 	return hmac.Equal(messageMACBytes, expectedMAC)
 }
 
-func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
+func (h *Handler) ConsumeTbaWebhook(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Received webhook message")
-	c.Request().Body = http.MaxBytesReader(c.Response().Writer, c.Request().Body, 1<<20) // 1 MB
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, TbaWebhookMaxBodyBytes())
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			log.Warn(c.Request().Context(), "Webhook payload too large")
 			return c.NoContent(http.StatusRequestEntityTooLarge)
 		}
@@ -53,17 +51,17 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 
 	// Validate HMAC BEFORE processing any events
 	messageMac := c.Request().Header.Get("X-TBA-HMAC")
-	valid := validMAC(body, messageMac, []byte(h.TbaWebhookSecret))
+	valid := validMAC(body, messageMac, []byte(h.Config.TbaWebhookSecret))
 
 	if !valid {
-		log.Warn(c.Request().Context(), "Webhook event authentication failed", "message", string(body))
-		return c.NoContent(http.StatusOK)
+		log.Warn(c.Request().Context(), "Webhook event authentication failed")
+		return c.NoContent(http.StatusUnauthorized)
 	}
 
 	var event TbaWebsocketEvent
 	err = json.Unmarshal(body, &event)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to decode webhook message", "error", err, "message", string(body))
+		log.Error(c.Request().Context(), "Failed to decode webhook message", "error", err)
 		return c.NoContent(http.StatusBadRequest)
 	}
 
@@ -75,15 +73,27 @@ func (h *Handler) ConsumeTbaWebhook(c echo.Context) error {
 	log.Debug(c.Request().Context(), "Routing event", "messageType", event.MessageType)
 	switch event.MessageType {
 	case "upcoming_match":
-		go h.HandleUpcomingMatchEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-upcoming-match")
+			defer span.End()
+			h.HandleUpcomingMatchEvent(ctx, event.MessageData)
+		}()
 	case "match_score":
-		go h.HandleMatchScoreEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-match-score")
+			defer span.End()
+			h.HandleMatchScoreEvent(ctx, event.MessageData)
+		}()
 	case "match_video":
 		h.HandleMatchVideoEvent(c.Request().Context(), event.MessageData)
 	case "starting_comp_level":
 		h.HandleCompLevelStartingEvent(c.Request().Context(), event.MessageData)
 	case "alliance_selection":
-		go h.HandleAllianceSelectionEvent(c.Request().Context(), event.MessageData)
+		go func() {
+			ctx, span := otel.StartAsyncSpan(c.Request().Context(), "handle-alliance-selection")
+			defer span.End()
+			h.HandleAllianceSelectionEvent(ctx, event.MessageData)
+		}()
 	case "awards_posted":
 		h.HandleAwardsPostedEvent(c.Request().Context(), event.MessageData)
 	case "schedule_updated":
@@ -115,7 +125,7 @@ func (h *Handler) HandleMatchScoreEvent(ctx context.Context, messageData json.Ra
 		log.Warn(ctx, "Failed to decode match score notification", "error", err, "message", messageData)
 		return
 	}
-	h.Scorer.AddMatchToScore(scoreNotification.Match)
+	h.Services.Scorer.AddMatchToScore(scoreNotification.Match)
 }
 
 type AllianceSelectionNotification struct {
@@ -133,7 +143,7 @@ func (h *Handler) HandleAllianceSelectionEvent(ctx context.Context, messageData 
 		log.Warn(ctx, "Failed to decode alliance selection notification", "error", err, "message", messageData)
 		return
 	}
-	h.Scorer.ScoreAllianceSelection(ctx, notification.EventKey)
+	h.Services.Scorer.ScoreAllianceSelection(ctx, notification.EventKey)
 }
 
 type UpcomingMatchEvent struct {
@@ -154,12 +164,12 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 		return
 	}
 
-	if len(tbaEvent.TeamKeys) != 6 {
+	if len(tbaEvent.TeamKeys) != TbaUpcomingMatchTeamCount() {
 		log.Warn(ctx, "Upcoming match received without 6 teams", "TeamCount", len(tbaEvent.TeamKeys))
 		return
 	}
 
-	rows, err := h.DraftStore.GetDraftPickRows(ctx, tbaEvent.TeamKeys)
+	rows, err := h.Stores.DraftStore.GetDraftPickRows(ctx, tbaEvent.TeamKeys)
 
 	if err != nil {
 		log.Error(ctx, "Failed to get picked rows", "error", err)
@@ -182,16 +192,12 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 				}
 			}
 
-			// Username by default but use discord id if found
-			discordId := row.Username
-			if row.DiscordId.Valid {
-				// discord IDs must be 17+ characters and all numbers, so this is a quick way to mostly validate
-				// that the id in the database is not just a random string
-				_, err := strconv.ParseUint(row.DiscordId.String, 10, 64)
-				if len(row.DiscordId.String) >= 17 && err == nil {
-					discordId = fmt.Sprintf("<@%s>", row.DiscordId.String)
-				}
+			if !row.WantsUpcomingMatch {
+				continue
 			}
+
+			// Username by default but use discord id if found
+			discordId := discord.Identifier(row.Username, row.DiscordId)
 
 			// add user with that pick to that draft
 			draftMap[row.DraftId].IdsToTeams[discordId] = append(draftMap[row.DraftId].IdsToTeams[discordId], row.Pick)
@@ -202,7 +208,7 @@ func (h *Handler) HandleUpcomingMatchEvent(ctx context.Context, messageData json
 	for _, event := range draftMap {
 		if len(event.IdsToTeams) > 0 {
 			log.Info(ctx, "Posting pre match notification webhook")
-			err := h.DiscordWebhookBus.PostPreMatchNotification(*event)
+			err := h.Services.DiscordWebhookBus.PostPreMatchNotification(*event)
 			if err != nil {
 				log.Error(ctx, "Failed to post pre match notification webhook", "error", err)
 			}
@@ -287,12 +293,12 @@ func (h *Handler) HandleVerificationEvent(ctx context.Context, messageData json.
 		return
 	}
 
-	h.TbaVerificationCode = event.VerificationKey
+	h.Config.TbaVerificationCode = event.VerificationKey
 
 	// Only create the file if it doesn't already exist
 	_, err = os.Stat(utils.GetWebhookFilePath())
 	if os.IsNotExist(err) {
-		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.TbaVerificationCode), 0600)
+		err = os.WriteFile(utils.GetWebhookFilePath(), []byte(h.Config.TbaVerificationCode), webhookSecretFileMode)
 		if err != nil {
 			log.Error(ctx, "Failed to write tba webhook file body", "error", err)
 		}

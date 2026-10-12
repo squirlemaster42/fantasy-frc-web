@@ -4,8 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"server/assert"
-	"server/log"
+	"server/database"
 )
 
 type MatchTeam struct {
@@ -20,31 +19,24 @@ func (m *MatchTeam) String() string {
 		m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
-func associateTeam(ctx context.Context, database *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
-	team, err := getTeam(ctx, database, teamTbaId)
+func associateTeam(ctx context.Context, db *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
+	team, err := getTeam(ctx, db, teamTbaId)
 	if err != nil {
 		return fmt.Errorf("failed to get team: %w", err)
 	}
 	if team == nil {
-		if err := createTeam(ctx, database, teamTbaId, ""); err != nil {
+		if err := createTeam(ctx, db, teamTbaId, ""); err != nil {
 			return fmt.Errorf("failed to create team: %w", err)
 		}
 	}
 
 	query := `INSERT INTO Matches_Teams (team_tbaId, match_tbaId, alliance, isDqed) Values ($1, $2, $3, $4)
         On Conflict (team_tbaId, match_tbaId) Do Update Set alliance = excluded.alliance, isDqed = excluded.isDqed;`
-	assert := assert.CreateAssertWithContext("Associate Team")
-	assert.AddContext("Match Id", matchTbaId)
-	assert.AddContext("Team Id", teamTbaId)
-	assert.AddContext("Alliance", alliance)
-	assert.AddContext("Is Dqed", isDqed)
-	stmt, err := database.PrepareContext(ctx, query)
-	assert.NoError(ctx, err, "failed to prepare statement")
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			log.Error(ctx, "AssociateTeam: Failed to close statement", "error", err)
-		}
-	}()
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return err
+	}
+	defer database.CloseStatement(ctx, stmt, "AssociateTeam")
 	_, err = stmt.ExecContext(ctx, teamTbaId, matchTbaId, alliance, isDqed)
 	if err != nil {
 		return fmt.Errorf("failed to associate team: %w", err)

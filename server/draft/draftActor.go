@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"server/assert"
+	"server/database"
 	"server/discord"
 	"server/log"
 	"server/model"
@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type StateTransitionMessage struct {
@@ -35,6 +35,8 @@ type SkipCurrentPickMessage struct {
 	CurrentPickId int
 }
 
+type EndDraftMessage struct{}
+
 type UndoLastPickMessage struct {
 	CurrentPickId int
 }
@@ -47,8 +49,8 @@ type UpdateDraftProfileMessage struct {
 }
 
 type TransferDraftOwnershipMessage struct {
-	Initiator int
-	UpdatedOwnerId int
+	Initiator      int
+	UpdatedOwnerId uuid.UUID
 }
 
 type InvitePlayerMessage struct {
@@ -60,8 +62,15 @@ type AcceptInviteMessage struct {
 	AcceptingUserUuid uuid.UUID
 }
 
+type UninvitePlayerMessage struct {
+	DraftId   int
+	OwnerUuid uuid.UUID
+	InviteId  int
+}
+
 type DeclineInviteMessage struct {
 	InviteId int
+	UserUuid uuid.UUID
 }
 
 type ShutdownMessage struct{}
@@ -71,10 +80,10 @@ type DraftActor struct {
 	draftStore model.DraftStore
 	draftState model.DraftModel
 	discordStore model.DiscordStore
-	discordBus *discord.DiscordWebhookBus
-	// TODO Does tba handler need to be a pointer?
-	tbaHandler *tbaHandler.TBAHandler
+	discordBus discord.DiscordNotifier
+	tbaHandler tbaHandler.TBAInterface
 	pickNotifier *picking.PickNotifier
+	pickConfig utils.PickWindowConfig
 	states map[model.DraftState]*state
 	shutdown bool
 	mu sync.RWMutex
@@ -100,14 +109,15 @@ func (e *invalidStateTransitionError) Error() string {
 	return fmt.Sprintf("Invalid state transition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler *tbaHandler.TBAHandler, discordStore model.DiscordStore, discordBus *discord.DiscordWebhookBus, pickNotifier *picking.PickNotifier) (*DraftActor, error) {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig) (*DraftActor, error) {
 	actor := &DraftActor {
-		inbox: make(chan Message, 100),
+		inbox: make(chan Message, DraftActorInboxBuffer()),
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
 		discordStore: discordStore,
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
+		pickConfig: pickConfig,
 		states: setupStates(ctx, draftStore),
 	}
 
@@ -124,64 +134,54 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 }
 
 type stateTransition interface {
-	executeTransition(context context.Context, draft model.DraftModel) error
+	executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error
 }
 
-type ToStartTransition struct {
-	draftStore model.DraftStore
+type ToStartTransition struct{}
+
+func (tst *ToStartTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
+	return store.UpdateDraftStatus(ctx, draft.Id, model.WAITING_TO_START)
 }
 
-func (tst *ToStartTransition) executeTransition(ctx context.Context, draft model.DraftModel) error {
-	return tst.draftStore.UpdateDraftStatus(ctx, draft.Id, model.WAITING_TO_START)
-}
+type ToPickingTransition struct{}
 
-type ToPickingTransition struct {
-	draftStore model.DraftStore
-}
-
-func (tpt *ToPickingTransition) executeTransition(ctx context.Context, draft model.DraftModel) error {
-	err := tpt.draftStore.RandomizePickOrder(ctx, draft.Id)
-	if err != nil {
+func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
+	if err := store.RandomizePickOrder(ctx, draft.Id); err != nil {
 		return err
 	}
-	nextPickPlayer, err := tpt.draftStore.NextPick(ctx, draft.Id)
+	nextPickPlayer, err := store.NextPick(ctx, draft.Id)
 	if err != nil {
 		log.Error(ctx, "failed to get next pick when transitioning to picking", "draftId", draft.Id, "error", err)
 		return err
 	}
-	_, err = tpt.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME))
-	if err != nil {
+	if _, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), pickConfig.GetPickExpirationTime(ctx, time.Now(), pickConfig.PickTime)); err != nil {
 		log.Error(ctx, "failed to make first pick available", "draftId", draft.Id, "error", err)
+		return err
 	}
-	err = tpt.draftStore.UpdateDraftStatus(ctx, draft.Id, model.PICKING)
-	if err != nil {
+	if err := store.UpdateDraftStatus(ctx, draft.Id, model.PICKING); err != nil {
 		log.Error(ctx, "Failed to update draft status", "draftId", draft.Id, "error", err)
 		return err
 	}
 	return nil
 }
 
-type ToPlayingTransition struct {
-	draftStore model.DraftStore
-}
+type ToPlayingTransition struct{}
 
-func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, draft model.DraftModel) error {
+func (tpt *ToPlayingTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
 	log.Info(ctx, "Executing TEAMS_PLAYING playing transition", "draftId", draft.Id)
-	err := tpt.draftStore.UpdateDraftStatus(ctx, draft.Id, model.TEAMS_PLAYING)
-	if err != nil {
+	if err := store.UpdateDraftStatus(ctx, draft.Id, model.TEAMS_PLAYING); err != nil {
 		log.Error(ctx, "Failed to update draft status", "draftId", draft.Id, "error", err)
+		return err
 	}
 
-	//Remove the draft from the pick daemon
+	// Remove the draft from the pick daemon
 	return nil
 }
 
-type ToCompleteTransition struct {
-	draftStore model.DraftStore
-}
+type ToCompleteTransition struct{}
 
-func (tct *ToCompleteTransition) executeTransition(ctx context.Context, draft model.DraftModel) error {
-	return tct.draftStore.UpdateDraftStatus(ctx, draft.Id, model.COMPLETE)
+func (tct *ToCompleteTransition) executeTransition(ctx context.Context, store model.DraftStore, draft model.DraftModel, pickConfig utils.PickWindowConfig) error {
+	return store.UpdateDraftStatus(ctx, draft.Id, model.COMPLETE)
 }
 
 type state struct {
@@ -195,25 +195,19 @@ func setupStates(ctx context.Context, draftStore model.DraftStore) map[model.Dra
 		state:       model.FILLING,
 		transitions: make(map[model.DraftState]stateTransition),
 	}
-	states[model.FILLING].transitions[model.PICKING] = &ToPickingTransition{
-		draftStore: draftStore,
-	}
+	states[model.FILLING].transitions[model.PICKING] = &ToPickingTransition{}
 
 	states[model.PICKING] = &state{
 		state:       model.PICKING,
 		transitions: make(map[model.DraftState]stateTransition),
 	}
-	states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{
-		draftStore: draftStore,
-	}
+	states[model.PICKING].transitions[model.TEAMS_PLAYING] = &ToPlayingTransition{}
 
 	states[model.TEAMS_PLAYING] = &state{
 		state:       model.TEAMS_PLAYING,
 		transitions: make(map[model.DraftState]stateTransition),
 	}
-	states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = &ToCompleteTransition{
-		draftStore: draftStore,
-	}
+	states[model.TEAMS_PLAYING].transitions[model.COMPLETE] = &ToCompleteTransition{}
 
 	states[model.COMPLETE] = &state{
 		state:       model.COMPLETE,
@@ -241,8 +235,8 @@ func (d *DraftActor) PostMessage(ctx context.Context, message Message) error {
 	case d.inbox <- message:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(5 * time.Second):
+		return ctx.Err() //nolint:wrapcheck // context cancellation error is returned as-is
+	case <-time.After(DraftActorRequestTimeout()):
 		return errors.New("timeout posting message to draft actor inbox")
 	}
 }
@@ -251,6 +245,12 @@ func (d *DraftActor) run() {
 	for message := range d.inbox {
 		if _, isShutdown := message.Content.(ShutdownMessage); isShutdown {
 			d.close()
+			if message.Reply != nil {
+				select {
+				case message.Reply <- Result{}:
+				case <-time.After(DraftActorRequestTimeout()):
+				}
+			}
 			break
 		}
 
@@ -259,7 +259,7 @@ func (d *DraftActor) run() {
 		if message.Reply != nil {
 			select {
 			case message.Reply <- result:
-			case <- time.After(5 * time.Second):
+			case <-time.After(DraftActorRequestTimeout()):
 			}
 		}
 	}
@@ -277,6 +277,8 @@ func (d *DraftActor) handleMessage(message Message) Result {
 		return d.handleShutdown(message.context, msg)
 	case SkipCurrentPickMessage:
 		return d.handleSkipCurrentPick(message.context, msg)
+	case EndDraftMessage:
+		return d.handleEndDraft(message.context, msg)
 	case UndoLastPickMessage:
 		return d.handleUndoLastPick(message.context, msg)
 	case UpdateDraftProfileMessage:
@@ -287,6 +289,8 @@ func (d *DraftActor) handleMessage(message Message) Result {
 		return d.handleInvitePlayer(message.context, msg)
 	case AcceptInviteMessage:
 		return d.handleAcceptInvite(message.context, msg)
+	case UninvitePlayerMessage:
+		return d.handleUninvitePlayer(message.context, msg)
 	case DeclineInviteMessage:
 		return d.handleDeclineInvite(message.context, msg)
 	default:
@@ -295,6 +299,8 @@ func (d *DraftActor) handleMessage(message Message) Result {
 		}
 	}
 }
+
+var ErrTooManyPlayers = errors.New("too many players are already in the draft; please contact the draft owner if you think this is an error")
 
 func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMessage) Result {
 	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
@@ -310,7 +316,7 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 		}
 	}
 
-	//Make sure that other players cannot accept someones draft
+	// Make sure that other players cannot accept someones draft
 	if invite.InvitedUserUuid != msg.AcceptingUserUuid {
 		log.Warn(ctx, "Invited player to draft", "invitedUserUuid", invite.InvitedUserUuid, "acceptingUserUuid", msg.AcceptingUserUuid)
 		return Result{
@@ -320,67 +326,109 @@ func (d *DraftActor) handleAcceptInvite(ctx context.Context, msg AcceptInviteMes
 
 	log.Info(ctx, "Accepting invite from player", "inviteId", msg.InviteId, "userUuid", msg.AcceptingUserUuid)
 
-	// If more than 8 players are invites then we cancel the other outstanding invites
-	// Maybe we need an active bool
-	// Check that accepting this invite will not lead to more than eight players being in the draft
-	numPlayers, err := d.draftStore.GetNumPlayersInInvitedDraft(ctx, msg.InviteId)
+	err = d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		store := d.draftStore.WithTx(tx)
+
+		if err := store.LockDraft(ctx, d.draftState.Id); err != nil {
+			return err
+		}
+
+		numPlayers, err := store.GetNumPlayersInDraft(ctx, d.draftState.Id)
+		if err != nil {
+			return err
+		}
+		if numPlayers >= model.MaxDraftPlayers {
+			return ErrTooManyPlayers
+		}
+
+		draftId, playerId, err := store.AcceptInvite(ctx, msg.InviteId)
+		if err != nil {
+			return err
+		}
+		if err := store.AddPlayerToDraft(ctx, draftId, playerId); err != nil {
+			return err
+		}
+
+		if numPlayers >= model.MaxDraftPlayers-1 {
+			return store.CancelOutstandingInvites(ctx, d.draftState.Id)
+		}
+		return nil
+	})
 	if err != nil {
-		log.Error(ctx, "Failed to get num players in invited draft", "error", err, "inviteId", msg.InviteId)
-		return Result{
-			Error: err,
-		}
-	}
-	if numPlayers >= 8 {
-		if err := d.draftStore.CancelOutstandingInvites(ctx, d.draftState.Id); err != nil {
-			log.Error(ctx, "Failed to cancel outstanding invites", "error", err, "draftId", d.draftState.Id)
-		}
-		return Result{
-			Error: errors.New("too many players are already in the draft; please contact the draft owner if you think this is an error"),
+	if errors.Is(err, ErrTooManyPlayers) {
+		if cancelErr := d.draftStore.CancelOutstandingInvites(ctx, d.draftState.Id); cancelErr != nil {
+			log.Error(ctx, "Failed to cancel outstanding invites", "error", cancelErr, "draftId", d.draftState.Id)
 		}
 	}
 
-	draftId, playerId, err := d.draftStore.AcceptInvite(ctx, msg.InviteId)
-	if err != nil {
 		log.Error(ctx, "Failed to accept invite", "error", err, "inviteId", msg.InviteId)
 		return Result{
 			Error: err,
 		}
 	}
-	if err := d.draftStore.AddPlayerToDraft(ctx, draftId, playerId); err != nil {
-		log.Error(ctx, "Failed to add player to draft", "error", err, "draftId", draftId, "playerId", playerId)
-		return Result{
-			Error: err,
-		}
-	}
 
-	if numPlayers >= 7 {
-		if err := d.draftStore.CancelOutstandingInvites(ctx, d.draftState.Id); err != nil {
-			log.Error(ctx, "Failed to cancel outstanding invites", "error", err, "draftId", d.draftState.Id)
-			return Result{
-				Error: err,
-			}
-		}
-	}
-
-	// Reload draft state so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
+	if err := d.reloadDraftState(ctx); err != nil {
 		log.Error(ctx, "Failed to reload draft after accepting invite", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
 	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
 
 	return Result{}
 }
 
 func (d *DraftActor) handleDeclineInvite(ctx context.Context, msg DeclineInviteMessage) Result {
-	return Result{
-		Error: errors.New("declining invites is not yet supported"),
+	invite, err := d.draftStore.GetInvite(ctx, msg.InviteId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Result{
+				Error: errors.New("invite not found. It may have been cancelled or expired"),
+			}
+		}
+		log.Error(ctx, "Failed to get invite", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: fmt.Errorf("could not decline invite. If this continues please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
+		}
 	}
+
+	if invite.InvitedUserUuid != msg.UserUuid {
+		log.Info(ctx, "User attempted to decline invite for another player", "InvitedUserUuid", invite.InvitedUserUuid, "RequestingUserUuid", msg.UserUuid)
+		return Result{
+			Error: errors.New("you are not allowed to decline invites for other players"),
+		}
+	}
+
+	err = d.draftStore.CancelInvite(ctx, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to cancel invite", "error", err, "inviteId", msg.InviteId)
+		return Result{
+			Error: fmt.Errorf("could not decline invite. If this continues please contact support and provide this reference id: %s", log.GetCorrelationID(ctx)),
+		}
+	}
+
+	// Check whether the draft should revert from WAITING_TO_START to FILLING
+	acceptedPlayers := 0
+	for _, player := range d.draftState.Players {
+		if !player.Pending {
+			acceptedPlayers++
+		}
+	}
+
+	if acceptedPlayers < model.MinDraftPlayers && d.draftState.Status == model.WAITING_TO_START {
+		err = d.draftStore.UpdateDraftStatus(ctx, d.draftState.Id, model.FILLING)
+		if err != nil {
+			log.Error(ctx, "Failed to revert draft status to filling after decline", "error", err, "draftId", d.draftState.Id)
+		}
+	}
+
+	if err := d.reloadDraftState(ctx); err != nil {
+		log.Error(ctx, "Failed to reload draft after declining invite", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+		}
+	}
+
+	return Result{}
 }
 
 func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMessage) Result {
@@ -406,32 +454,54 @@ func (d *DraftActor) handleInvitePlayer(ctx context.Context, msg InvitePlayerMes
 		}
 	}
 
-	// Reload draft state so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
+	if err := d.reloadDraftState(ctx); err != nil {
 		log.Error(ctx, "Failed to reload draft after inviting player", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
 	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
+
+	return Result{}
+}
+
+func (d *DraftActor) handleUninvitePlayer(ctx context.Context, msg UninvitePlayerMessage) Result {
+	if d.draftState.Status != model.FILLING {
+		return Result{
+			Error: errors.New("draft must be in FILLING state to uninvite players"),
+		}
+	}
+
+	if msg.OwnerUuid != d.draftState.Owner.UserUuid {
+		return Result{
+			Error: errors.New("you must own the draft to uninvite a player"),
+		}
+	}
+
+	err := d.draftStore.UninvitePlayer(ctx, msg.DraftId, msg.OwnerUuid, msg.InviteId)
+	if err != nil {
+		log.Error(ctx, "Failed to uninvite player", "error", err)
+		return Result{
+			Error: err,
+		}
+	}
+
+	if err := d.reloadDraftState(ctx); err != nil {
+		log.Error(ctx, "Failed to reload draft after uninviting player", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+		}
+	}
 
 	return Result{}
 }
 
 func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransitionMessage) Result {
 	log.Info(ctx, "Got request to execute draft state transition", "draftId", d.draftState.Id, "requestedState", msg.RequestedState)
-	assert := assert.CreateAssertWithContext("Execute Draft State Transition")
-
-	assert.AddContext("draftId", d.draftState.Id)
-	assert.AddContext("Current Draft Model State", string(d.draftState.Status))
-	assert.AddContext("requestedState", string(msg.RequestedState))
 
 	state, stateFound := d.states[d.draftState.Status]
-	assert.AddContext("Current Draft State", state)
-	assert.RunAssert(ctx, stateFound, "Current draft state is not registered in state machine")
+	if !stateFound {
+		return Result{Error: fmt.Errorf("current draft state is not registered in state machine")}
+	}
 	log.Debug(ctx, "Found draft state", "draftId", d.draftState.Id, "State", state.state)
 	transition, transitionFound := state.transitions[msg.RequestedState]
 	if !transitionFound {
@@ -445,7 +515,10 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 	}
 
 	log.Info(ctx, "Executing Draft State Transition", "draftId", d.draftState.Id, "requestedState", msg.RequestedState)
-	err := transition.executeTransition(ctx, d.draftState)
+		err := d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		transactedStore := d.draftStore.WithTx(tx)
+		return transition.executeTransition(ctx, transactedStore, d.draftState, d.pickConfig)
+	})
 	if err != nil {
 		log.Error(ctx, "Failed to execute draft state transition", "draftId", d.draftState.Id, "error", err)
 		return Result{
@@ -454,197 +527,170 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 	}
 	log.Info(ctx, "Executed draft state transition", "draftId", d.draftState.Id)
 
-	// Reload draft state so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
+	if err := d.reloadDraftState(ctx); err != nil {
 		log.Error(ctx, "Failed to reload draft after state transition", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
 	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
 
 	return Result{}
 }
 
-func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
-	pickingComplete := false
-
-	if !msg.Pick.Pick.Valid {
-		return Result{
-			Error: errors.New("no team entered"),
-			Value: false,
+func (d *DraftActor) executeTransition(ctx context.Context, store model.DraftStore, requestedState model.DraftState) error {
+	state, stateFound := d.states[d.draftState.Status]
+	if !stateFound {
+		return fmt.Errorf("current draft state is not registered in state machine")
+	}
+	transition, transitionFound := state.transitions[requestedState]
+	if !transitionFound {
+		log.Error(ctx, "Did not find draft state transition", "currentState", d.draftState.Status, "requestedState", requestedState)
+		return &invalidStateTransitionError{
+			currentState:   d.draftState.Status,
+			requestedState: requestedState,
 		}
 	}
+	return transition.executeTransition(ctx, store, d.draftState, d.pickConfig)
+}
 
-	// Check that we are still trying to make the current pick
-	currentPick := d.draftState.CurrentPick
-	if currentPick.Id != msg.Pick.Id {
-		log.Warn(ctx, "Pick attempt made against pick that is not the current pick", "currentPickId", currentPick.Id, "attemptedPickId", msg.Pick.Id)
-		return Result{
-			Error: errors.New("attempting to make pick that is not the current pick"),
-			Value: false,
-		}
+
+
+func (d *DraftActor) validatePickInput(ctx context.Context, msg PickMessage) error {
+	if !msg.Pick.Pick.Valid {
+		return errors.New("no team entered")
+	}
+
+	if d.draftState.CurrentPick.Id != msg.Pick.Id {
+		log.Warn(ctx, "Pick attempt made against pick that is not the current pick", "currentPickId", d.draftState.CurrentPick.Id, "attemptedPickId", msg.Pick.Id)
+		return errors.New("attempting to make pick that is not the current pick")
 	}
 
 	validator := NewPickValidator(d.tbaHandler, d.draftStore, d.draftState.Id)
-	err := validator.ValidatePick(ctx, msg.Pick)
+	return validator.ValidatePick(ctx, msg.Pick)
+}
+
+type pickOutcome struct {
+	previousPlayerId int
+	pickedTeam       string
+	nextPick         model.DraftPlayer
+	complete         bool
+	skipped          bool
+	sendDiscord      bool
+	logMsg           string
+	logPickId        int
+	notifyPick       model.Pick
+}
+
+func (d *DraftActor) prepareDraftAdvance(ctx context.Context) (model.DraftPlayer, bool, error) {
+	acceptedPlayers := make([]model.DraftPlayer, 0, len(d.draftState.Players))
+	for _, player := range d.draftState.Players {
+		if !player.Pending {
+			acceptedPlayers = append(acceptedPlayers, player)
+		}
+	}
+
+	complete := len(d.draftState.Picks) == model.PicksPerDraft(len(acceptedPlayers))
+	if complete {
+		return model.DraftPlayer{}, true, nil
+	}
+
+	nextPick, err := model.DetermineNextPick(acceptedPlayers, d.draftState.Picks)
 	if err != nil {
-		return Result{
-			Error: err,
-			Value: false,
-		}
+		log.Error(ctx, "Failed to determine next pick", "draftId", d.draftState.Id, "error", err)
+		return model.DraftPlayer{}, false, err
 	}
 
-	//If we have not found any errors indicating that the pick is invalid, make the pick
-	err = d.draftStore.MakePick(ctx, msg.Pick)
-	if err != nil {
-		return Result{
-			Error: err,
-			Value: false,
+	return nextPick, false, nil
+}
+
+func (d *DraftActor) commitDraftAdvance(ctx context.Context, action func(model.DraftStore) error, nextPick model.DraftPlayer, complete bool) error {
+	return d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		store := d.draftStore.WithTx(tx)
+		if err := action(store); err != nil {
+			return err
 		}
-	}
-
-	// Reload draft state so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
-		log.Error(ctx, "Failed to reload draft after pick", "draftId", d.draftState.Id, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
+		if complete {
+			return d.executeTransition(ctx, store, model.TEAMS_PLAYING)
 		}
-	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
-
-		nextPickPlayer, err := d.draftStore.NextPick(ctx, d.draftState.Id)
-		if err != nil {
-			log.Error(ctx, "failed to get next pick", "pickId", msg.Pick.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-
-		//Make the next pick available if we havn't already made all picks
-		picks, err := d.draftStore.GetPicks(ctx, d.draftState.Id)
-		if err != nil {
-			log.Error(ctx, "Failed to get picks", "draftId", d.draftState.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-
-		log.Debug(ctx, "Checking if we should make another pick available", "numPicks", len(picks))
-		if len(picks) < 64 {
-			log.Debug(ctx, "Making next pick available", "draftId", d.draftState.Id)
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now(), utils.PICK_TIME)
-		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), expirationTime)
-		if err != nil {
-			log.Error(ctx, "Failed to make pick available", "draftPlayerId", msg.Pick.Player, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-	} else {
-		log.Info(ctx, "Draft Complete", "draftId", d.draftState.Id)
-		pickingComplete = true
-	}
-
-	currPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, currentPick.Player)
-	if err != nil {
-		log.Warn(ctx, "Could not get current pick draft player id", "draftPlayerId", msg.Pick.Player, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
-	}
-
-	currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, currentPick.Player)
-	if err != nil {
-		log.Warn(ctx, "Could not get current pick draft player name", "draftPlayerId", msg.Pick.Player, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
-	}
-	currPickName := currPickUser.Username
-
-	draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
-	if err != nil {
-		log.Error(ctx, "Could not get draft webhook", "draftId", d.draftState.Id, "error", err)
-		return Result{
-			Error: err,
-			Value: false,
-		}
-	}
-
-	event := discord.NextPickDiscordEvent{
-		PreviousPickedTeam:    msg.Pick.Pick.String,
-		PreviousPickName:      currPickName,
-		PreviousPickDiscordId: currPickDiscordId,
-		Webhook:               draftWebhook,
-		DraftComplete:         pickingComplete,
-	}
-
-	if len(picks) < 64 {
-		nextPickDiscordId, err := d.discordStore.GetPlayerDiscordId(ctx, nextPickPlayer.Id)
-		if err != nil {
-			log.Warn(ctx, "Could not get next pick draft player id", "draftPlayerId", nextPickPlayer.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-
-		nextPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
-		if err != nil {
-			log.Warn(ctx, "Could not get next pick draft player name", "draftPlayerId", nextPickPlayer.Id, "error", err)
-			return Result{
-				Error: err,
-				Value: false,
-			}
-		}
-		nextPickName := nextPickUser.Username
-
-		expirationTime := utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME)
-		event.NextPickName = nextPickName
-		event.NextPickDiscordId = nextPickDiscordId
-		event.ExpirationTime = expirationTime
-	}
-
-	go func() {
-		if err := d.discordBus.PostPickNotification(event); err != nil {
-			log.Error(ctx, "Failed to post discord webhook", "error", err)
-		}
-	}()
-
-	if pickingComplete {
-		log.Info(ctx, "Update status to TEAMS_PLAYING", "draftId", d.draftState.Id)
-		err := d.PostMessage(ctx, Message{
-			Content: StateTransitionMessage{
-				RequestedState: model.TEAMS_PLAYING,
-			},
-		})
-		if err != nil {
-			log.Error(ctx, "Failed to post state transition message after pick", "draftId", d.draftState.Id, "error", err)
-		}
-	}
-
-	log.Info(ctx, "Pick successful", "draftId", d.draftState.Id, "pickId", msg.Pick.Id, "team", msg.Pick.Pick.String)
-
-	// Notify listeners on every successful pick so live updates work
-	go d.notifyListeners(ctx, picking.PickEvent{
-		Pick:    msg.Pick,
-		Success: true,
-		Err:     nil,
-		DraftId: d.draftState.Id,
+		_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime))
+		return err
 	})
+}
+
+func (d *DraftActor) publishPickOutcome(ctx context.Context, outcome pickOutcome) error {
+	if err := d.reloadDraftState(ctx); err != nil {
+		log.Error(ctx, "Failed to reload draft state", "draftId", d.draftState.Id, "error", err)
+		return err
+	}
+
+	if outcome.sendDiscord {
+		d.sendPickDiscordNotification(ctx, outcome.previousPlayerId, outcome.pickedTeam, outcome.nextPick, outcome.complete, outcome.skipped)
+	}
+
+	logPickId := outcome.logPickId
+	if logPickId == 0 {
+		logPickId = d.draftState.CurrentPick.Id
+	}
+	log.Info(ctx, outcome.logMsg, "draftId", d.draftState.Id, "pickId", logPickId, "team", outcome.pickedTeam)
+
+	d.notifyPickListeners(ctx, outcome.notifyPick)
+	return nil
+}
+
+func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "Pick attempt rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+			Value: false,
+		}
+	}
+
+	if err := d.validatePickInput(ctx, msg); err != nil {
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	previousPickPlayerId := d.draftState.CurrentPick.Player
+	previouslyPickedTeam := msg.Pick.Pick.String
+
+	nextPickPlayer, pickingComplete, err := d.prepareDraftAdvance(ctx)
+	if err != nil {
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
+		return store.MakePick(ctx, msg.Pick)
+	}, nextPickPlayer, pickingComplete)
+	if err != nil {
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
+
+	if err := d.publishPickOutcome(ctx, pickOutcome{
+		previousPlayerId: previousPickPlayerId,
+		pickedTeam:       previouslyPickedTeam,
+		nextPick:         nextPickPlayer,
+		complete:         pickingComplete,
+		skipped:          false,
+		sendDiscord:      true,
+		logMsg:           "Pick successful",
+		logPickId:        msg.Pick.Id,
+		notifyPick:       msg.Pick,
+	}); err != nil {
+		log.Error(ctx, "Failed to publish pick outcome", "draftId", d.draftState.Id, "error", err)
+		return Result{
+			Error: err,
+			Value: false,
+		}
+	}
 
 	return Result{
 		Value: true,
@@ -659,7 +705,7 @@ func (d *DraftActor) handleModifyExpirationTime(ctx context.Context, msg ModifyE
 		}
 	}
 
-	newExpirationTime := utils.GetPickExpirationTime(ctx, d.draftState.CurrentPick.ExpirationTime, msg.Extension)
+	newExpirationTime := d.pickConfig.GetPickExpirationTime(ctx, d.draftState.CurrentPick.ExpirationTime, msg.Extension)
 	log.Debug(ctx, "Setting new pick expiration time", "currentPickTime", d.draftState.CurrentPick.ExpirationTime, "newExpirationTime", newExpirationTime, "pickId", d.draftState.CurrentPick.Id)
 
 	err := d.draftStore.UpdatePickExpirationTime(ctx, d.draftState.CurrentPick.Id, newExpirationTime)
@@ -684,12 +730,13 @@ func (d *DraftActor) handleShutdown(ctx context.Context, msg ShutdownMessage) Re
 }
 
 func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentPickMessage) Result {
-	// TODO: Wrap SkipPick and MakePickAvailable in a database transaction to prevent partial failure.
-	// If SkipPick succeeds but MakePickAvailable fails, the draft will be stuck with a skipped pick and no next pick.
-	// This requires refactoring skipPick() and makePickAvailable() in model/draft.go to accept a DBTX interface
-	// (works with both *sql.DB and *sql.Tx), then adding a new DraftStore method like:
-	//   SkipAndMakeNextPickAvailable(ctx, currentPickId, nextDraftPlayerId, availableTime, expirationTime) (newPickId, error)
-	// which runs both operations inside a single sql.Tx.
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "Skip request rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+		}
+	}
+
 	if msg.CurrentPickId != d.draftState.CurrentPick.Id {
 		log.Warn(ctx, "Stale skip request rejected", "Message PickId", msg.CurrentPickId, "Current PickId", d.draftState.CurrentPick.Id)
 		return Result{
@@ -697,9 +744,18 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 		}
 	}
 
-	pickingComplete := false
+	skippedPlayerId := d.draftState.CurrentPick.Player
 
-	err := d.draftStore.SkipPick(ctx, d.draftState.CurrentPick.Id)
+	nextPickPlayer, pickingComplete, err := d.prepareDraftAdvance(ctx)
+	if err != nil {
+		return Result{
+			Error: err,
+		}
+	}
+
+	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
+		return store.SkipPick(ctx, d.draftState.CurrentPick.Id)
+	}, nextPickPlayer, pickingComplete)
 	if err != nil {
 		log.Error(ctx, "Failed to skip current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
 		return Result{
@@ -707,65 +763,50 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 		}
 	}
 
-	// Only make the next pick available if the draft is not already complete
-	if len(d.draftState.Picks) < 64 {
-		nextPickPlayer := d.getNextPick(ctx)
-		_, err = d.draftStore.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now().UTC(), utils.GetPickExpirationTime(ctx, time.Now().UTC(), utils.PICK_TIME))
-		if err != nil {
-			log.Error(ctx, "Failed to make pick available when skipping current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
-			return Result{
-				Error: err,
-			}
-		}
-	} else {
-		log.Info(ctx, "Draft complete after skipping last pick", "draftId", d.draftState.Id)
-		pickingComplete = true
-	}
-
-	// Reload draft state after skip so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
-		log.Error(ctx, "Failed to reload draft after skip", "draftId", d.draftState.Id, "error", err)
+	if err := d.publishPickOutcome(ctx, pickOutcome{
+		previousPlayerId: skippedPlayerId,
+		pickedTeam:       "",
+		nextPick:         nextPickPlayer,
+		complete:         pickingComplete,
+		skipped:          true,
+		sendDiscord:      !pickingComplete,
+		logMsg:           "Pick skipped",
+		notifyPick:       model.Pick{},
+	}); err != nil {
+		log.Error(ctx, "Failed to publish skip outcome", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
 	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
-
-	if pickingComplete {
-		log.Info(ctx, "Update status to TEAMS_PLAYING", "draftId", d.draftState.Id)
-		err := d.PostMessage(ctx, Message{
-			Content: StateTransitionMessage{
-				RequestedState: model.TEAMS_PLAYING,
-			},
-		})
-		if err != nil {
-			log.Error(ctx, "Failed to post state transition message after skip", "draftId", d.draftState.Id, "error", err)
-		}
-	}
-
-	log.Info(ctx, "Pick skipped", "draftId", d.draftState.Id, "pickId", d.draftState.CurrentPick.Id)
-
-	event := picking.PickEvent{
-		Pick:    model.Pick{},
-		Success: true,
-		Err:     nil,
-		DraftId: d.draftState.Id,
-	}
-
-	go d.notifyListeners(ctx, event)
 
 	return Result{Value: true}
 }
 
+func (d *DraftActor) handleEndDraft(ctx context.Context, msg EndDraftMessage) Result {
+	if d.draftState.Status != model.PICKING {
+		log.Warn(ctx, "End draft request rejected because draft is not picking", "draftId", d.draftState.Id, "status", d.draftState.Status)
+		return Result{
+			Error: errors.New("draft is not currently picking"),
+		}
+	}
+
+	for d.draftState.Status == model.PICKING {
+		result := d.handleSkipCurrentPick(ctx, SkipCurrentPickMessage{CurrentPickId: d.draftState.CurrentPick.Id})
+		if result.Error != nil {
+			log.Error(ctx, "Failed to skip pick while ending draft", "draftId", d.draftState.Id, "error", result.Error)
+			return result
+		}
+		if !result.Value.(bool) {
+			log.Warn(ctx, "Skip returned false while ending draft", "draftId", d.draftState.Id)
+			return Result{Error: errors.New("failed to skip pick while ending draft")}
+		}
+	}
+
+	log.Info(ctx, "Draft ended", "draftId", d.draftState.Id)
+	return Result{Value: true}
+}
+
 func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMessage) Result {
-	// TODO: Wrap DeletePick and ResetPick in a database transaction to prevent partial failure.
-	// If DeletePick succeeds but ResetPick fails, the draft will be stuck with the current pick deleted
-	// and the previous pick not reset. Same pattern as skip: refactor deletePick() and resetPick()
-	// in model/draft.go to accept a DBTX interface, then add an UndoLastPick() transactional method.
-	// Use the database to get the previous pick reliably
 	previousPick, err := d.draftStore.GetPreviousPick(ctx, d.draftState.Id, d.draftState.CurrentPick.Id)
 	if err != nil {
 		log.Error(ctx, "Failed to get previous pick", "draftId", d.draftState.Id, "currentPickId", d.draftState.CurrentPick.Id, "error", err)
@@ -774,20 +815,15 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 		}
 	}
 
-	// Delete the current pick
-	err = d.draftStore.DeletePick(ctx, d.draftState.CurrentPick.Id)
-	if err != nil {
-		log.Error(ctx, "Failed to delete current pick", "pickId", d.draftState.CurrentPick.Id, "error", err)
-		return Result{
-			Error: errors.New("failed to delete current pick"),
+	newExpirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
+
+	err = d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
+		store := d.draftStore.WithTx(tx)
+		if err := store.DeletePick(ctx, d.draftState.CurrentPick.Id); err != nil {
+			return err
 		}
-	}
-
-	// Set the expiration time to 3 hours from now
-	newExpirationTime := time.Now().UTC().Add(3 * time.Hour)
-
-	// Reset the previous pick (null out pick and pickTime, and set new expiration)
-	err = d.draftStore.ResetPick(ctx, previousPick.Id, newExpirationTime)
+		return store.ResetPick(ctx, previousPick.Id, newExpirationTime)
+	})
 	if err != nil {
 		log.Error(ctx, "Failed to reset previous pick", "pickId", previousPick.Id, "error", err)
 		return Result{
@@ -795,17 +831,12 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 		}
 	}
 
-	// Reload draft state after undo so cached model is not stale
-	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
-	if err != nil {
+	if err := d.reloadDraftState(ctx); err != nil {
 		log.Error(ctx, "Failed to reload draft after undo", "draftId", d.draftState.Id, "error", err)
 		return Result{
 			Error: err,
 		}
 	}
-	d.mu.Lock()
-	d.draftState = updatedDraft
-	d.mu.Unlock()
 
 	return Result{}
 }
@@ -814,7 +845,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	draftModel := d.draftState
 	draftModel.DisplayName = msg.Name
 	draftModel.Description = msg.Description
-	draftModel.Interval = msg.Interval
 	draftModel.DiscordWebhook = msg.DiscordWebhook
 
 	err := d.draftStore.UpdateDraft(ctx, &draftModel)
@@ -829,7 +859,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.mu.Lock()
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
-	d.draftState.Interval = msg.Interval
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
 	d.mu.Unlock()
 
@@ -837,10 +866,15 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 }
 
 func (d *DraftActor) handleTransferDraftOwnership(ctx context.Context, msg TransferDraftOwnershipMessage) Result {
-	// TODO: Add store method for transferring ownership when available
-	return Result{
-		Error: errors.New("transfer draft ownership is not yet supported"),
+	err := d.draftStore.TransferOwnership(ctx, d.draftState.Id, msg.UpdatedOwnerId)
+	if err != nil {
+		log.Error(ctx, "Failed to transfer draft ownership", "draftId", d.draftState.Id, "error", err)
+		return Result{Error: err}
 	}
+	d.mu.Lock()
+	d.draftState.Owner.UserUuid = msg.UpdatedOwnerId
+	d.mu.Unlock()
+	return Result{}
 }
 
 func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
@@ -855,45 +889,48 @@ func (d *DraftActor) getPreviousPick(ctx context.Context) (model.Pick, error) {
 	return d.draftState.Picks[len(d.draftState.Picks) - 2], nil
 }
 
-func (d *DraftActor) getNextPick(ctx context.Context) model.DraftPlayer {
-	assert := assert.CreateAssertWithContext("Get Next Pick")
-	assert.AddContext("draftId", d.draftState.Id)
-	assert.AddContext("currentPickId", d.draftState.CurrentPick)
-	assert.RunAssert(ctx, len(d.draftState.Players) > 0, "Draft has no players when finding next pick")
+func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraftPlayerId int, previousPickedTeam string, nextPickPlayer model.DraftPlayer, pickingComplete bool, skipped bool) (discord.NextPickDiscordEvent, error) {
+	if d.discordStore == nil {
+		return discord.NextPickDiscordEvent{}, errors.New("discord store not configured")
+	}
 
-	var nextPlayer model.DraftPlayer
+	draftWebhook, err := d.discordStore.GetDraftWebhook(ctx, d.draftState.Id)
+	if err != nil {
+		return discord.NextPickDiscordEvent{}, err
+	}
 
-	// Only two players is an edge case so we just hard code it
-	if len(d.draftState.Picks) < 2 {
-		for _, player := range d.draftState.Players {
-			if int(player.PlayerOrder.Int16) == len(d.draftState.Picks) {
-				nextPlayer = player
-			}
+	currPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, previousDraftPlayerId)
+	if err != nil {
+		return discord.NextPickDiscordEvent{}, err
+	}
+
+	event := discord.NextPickDiscordEvent{
+		PreviousPickedTeam:    previousPickedTeam,
+		PreviousPickName:      currPickUser.Username,
+		PreviousPickDiscordId: sql.NullString{},
+		Webhook:               draftWebhook,
+		DraftComplete:         pickingComplete,
+		Skipped:               skipped,
+	}
+
+	if !pickingComplete {
+		nextPickDiscordId, err := d.discordStore.GetPlayerPickNotificationId(ctx, nextPickPlayer.Id)
+		if err != nil {
+			return discord.NextPickDiscordEvent{}, err
 		}
-		assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
-		return nextPlayer
-	}
 
-	lastPlayer := GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-1].Player)
-	secondLastPick := GetDraftPlayerFromDraft(ctx, d.draftState, d.draftState.Picks[len(d.draftState.Picks)-2].Player)
-	assert.RunAssert(ctx, lastPlayer.PlayerOrder.Valid, "Got player order which was not set when finding next pick")
-	direction := lastPlayer.PlayerOrder.Int16 - secondLastPick.PlayerOrder.Int16
-	if lastPlayer.User.UserUuid == secondLastPick.User.UserUuid {
-		if int(lastPlayer.PlayerOrder.Int16) == len(d.draftState.Players)-1 {
-			direction = -1
-		} else {
-			direction = 1
+		nextPickUser, err := d.draftStore.GetDraftPlayerUser(ctx, nextPickPlayer.Id)
+		if err != nil {
+			return discord.NextPickDiscordEvent{}, err
 		}
-	}
-	if len(d.draftState.Picks) % len(d.draftState.Players) == 0 {
-		direction = 0
+
+		expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
+		event.NextPickName = nextPickUser.Username
+		event.NextPickDiscordId = nextPickDiscordId
+		event.ExpirationTime = expirationTime
 	}
 
-	nextIndex := lastPlayer.PlayerOrder.Int16 + direction
-	assert.RunAssert(ctx, nextIndex >= 0 && int(nextIndex) < len(d.draftState.Players), "next pick is out of bounds")
-	nextPlayer = d.draftState.Players[nextIndex]
-	assert.RunAssert(ctx, nextPlayer.Id != 0, "Next player has invalid id")
-	return nextPlayer
+	return event, nil
 }
 
 func (d *DraftActor) notifyListeners(ctx context.Context, pickEvent picking.PickEvent) {
@@ -909,19 +946,61 @@ func (d *DraftActor) notifyListeners(ctx context.Context, pickEvent picking.Pick
 	log.Debug(ctx, "Finished notifying pick listeners", "draftId", pickEvent.DraftId)
 }
 
+func (d *DraftActor) reloadDraftState(ctx context.Context) error {
+	updatedDraft, err := d.draftStore.GetDraft(ctx, d.draftState.Id)
+	if err != nil {
+		return err
+	}
+	d.mu.Lock()
+	d.draftState = updatedDraft
+	d.mu.Unlock()
+	return nil
+}
+
+func (d *DraftActor) notifyPickListeners(ctx context.Context, pick model.Pick) {
+	go d.notifyListeners(ctx, picking.PickEvent{
+		Pick:    pick,
+		DraftId: d.draftState.Id,
+	})
+}
+
+func (d *DraftActor) sendPickDiscordNotification(ctx context.Context, skippedPlayerId int, previousPickedTeam string, nextPickPlayer model.DraftPlayer, pickingComplete bool, skipped bool) {
+	if d.discordBus == nil {
+		return
+	}
+	event, err := d.buildNextPickDiscordEvent(ctx, skippedPlayerId, previousPickedTeam, nextPickPlayer, pickingComplete, skipped)
+	if err != nil {
+		log.Warn(ctx, "Failed to build pick notification event", "draftId", d.draftState.Id, "error", err)
+		return
+	}
+	go func() {
+		if err := d.discordBus.PostPickNotification(ctx, event); err != nil {
+			log.Error(ctx, "Failed to post discord webhook", "error", err)
+		}
+	}()
+}
+
 func (d *DraftActor) close() {
 	d.mu.Lock()
 	d.shutdown = true
 	d.mu.Unlock()
 }
 
-func GetDraftPlayerFromDraft(ctx context.Context, draft model.DraftModel, draftPlayerId int) model.DraftPlayer {
-	for _, p := range draft.Players {
-		if p.Id == draftPlayerId {
-			return p
+func (d *DraftActor) IsShutdown() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.shutdown
+}
+
+func (d *DraftActor) GetDraftPlayerIdByUuid(userUuid uuid.UUID) (int, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	for _, player := range d.draftState.Players {
+		if player.User.UserUuid == userUuid {
+			return player.Id, nil
 		}
 	}
-	return model.DraftPlayer{}
+	return 0, fmt.Errorf("player not found in draft")
 }
 
 func (d *DraftActor) GetDraftState() model.DraftModel {

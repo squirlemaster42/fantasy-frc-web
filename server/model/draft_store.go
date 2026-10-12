@@ -4,12 +4,14 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
+	"server/database"
+
+	"uuid"
 )
 
 type DraftStore interface {
 	GetDraft(ctx context.Context, draftId int) (DraftModel, error)
-	GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error)
+	SearchDrafts(ctx context.Context, search DraftSearchQuery) ([]DraftModel, error)
 	GetDraftsByName(ctx context.Context, searchString string) ([]DraftModel, error)
 	CreateDraft(ctx context.Context, draft *DraftModel) (int, error)
 	GetDraftScore(ctx context.Context, draftId int) ([]DraftPlayer, error)
@@ -17,6 +19,8 @@ type DraftStore interface {
 	GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error)
 	GetInvite(ctx context.Context, inviteId int) (DraftInvite, error)
 	GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error)
+	GetNumPlayersInDraft(ctx context.Context, draftId int) (int, error)
+	LockDraft(ctx context.Context, draftId int) error
 	CancelOutstandingInvites(ctx context.Context, draftId int) error
 	DeclineInvite(ctx context.Context, inviteId int) error
 	AcceptInvite(ctx context.Context, inviteId int) (int, uuid.UUID, error)
@@ -41,4 +45,16 @@ type DraftStore interface {
 	GetDraftsInStatus(ctx context.Context, status DraftState) ([]int, error)
 	RandomizePickOrder(ctx context.Context, draftId int) error
 	HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error)
+	CancelInvite(ctx context.Context, inviteId int) error
+	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error
+	GetOutstandingInvitesForDraft(ctx context.Context, draftId int) ([]DraftInvite, error)
+	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
+	TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error
+
+	GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error)
+	GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]DraftNotificationPreference, error)
+	UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error
+
+	RunInTransaction(ctx context.Context, fn func(db database.DBTX) error) error
+	WithTx(tx database.DBTX) DraftStore
 }
