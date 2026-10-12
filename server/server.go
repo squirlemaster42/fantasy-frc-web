@@ -131,6 +131,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
 
 	// Users
+	apiV1Protected.GET("/users/me", apiHandler.GetMe)
 	apiV1Protected.GET("/users/search", apiHandler.SearchUsers)
 
 	// Drafts

@@ -59,6 +59,26 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /users/me:
+    get:
+      operationId: getMe
+      summary: Get the authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /users/search:
     get:
       operationId: searchUsers

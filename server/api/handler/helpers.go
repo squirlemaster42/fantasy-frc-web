@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"server/api"
 	apimodel "server/api/model"
 	"server/api/middleware"
@@ -75,6 +76,28 @@ func mapDraftState(state model.DraftState) apimodel.DraftState {
 		return apimodel.DraftStateComplete
 	}
 	return apimodel.DraftState(state)
+}
+
+// GetMe returns the currently authenticated user.
+func (h *Handler) GetMe(c *echo.Context) error {
+	ctx := c.Request().Context()
+	userUuid, ok := getAuthenticatedUser(c)
+	if !ok {
+		api.Unauthorized(c.Response(), "Authentication required")
+		return nil
+	}
+
+	username, err := h.UserStore.GetUsername(ctx, userUuid)
+	if err != nil {
+		log.Error(ctx, "Failed to get authenticated username", "UserUuid", userUuid, "Error", err)
+		api.InternalError(c.Response())
+		return nil
+	}
+
+	return respondJSON(c, http.StatusOK, apimodel.UserSummary{
+		Uuid:     userUuid.String(),
+		Username: username,
+	})
 }
 
 func mapUser(user model.User) apimodel.UserSummary {
