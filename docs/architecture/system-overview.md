@@ -52,7 +52,7 @@ graph TB
 ## 📋 Core Components
 
 ### Web Server
-- **Framework**: Echo v4
+- **Framework**: Echo v5
 - **Purpose**: HTTP request handling and routing
 - **Features**: Static assets, middleware, WebSocket support
 

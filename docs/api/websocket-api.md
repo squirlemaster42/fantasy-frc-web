@@ -1,6 +1,6 @@
 # WebSocket API
 
-Real-time communication protocol for live draft updates and notifications.
+Real-time communication protocol for live draft updates and notifications
 
 ## 🔌 WebSocket Connection
 
