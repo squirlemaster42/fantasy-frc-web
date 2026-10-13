@@ -1745,7 +1745,13 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 	}
 
 	slices.SortFunc(entries, func(a, b LeaderboardEntry) int {
-		return b.Score - a.Score
+		if b.Score != a.Score {
+			return b.Score - a.Score
+		}
+		if a.DraftId != b.DraftId {
+			return a.DraftId - b.DraftId
+		}
+		return strings.Compare(a.User.UserUuid.String(), b.User.UserUuid.String())
 	})
 
 	total := len(entries)
