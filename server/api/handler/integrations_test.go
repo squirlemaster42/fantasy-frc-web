@@ -87,9 +87,9 @@ func TestCreateIntegration_Success(t *testing.T) {
 		CreatedAt:   time.Now().UTC(),
 	}
 
-	apiKeyStore.On("CreateApiKey", mocklib.Anything, userUuid, "New Integration").Return(key, "secret", nil)
+	apiKeyStore.On("CreateApiKey", mocklib.Anything, userUuid, "New Integration", []string{"drafts:read"}).Return(key, "secret", nil)
 
-	reqBody, _ := json.Marshal(apimodel.CreateIntegrationRequest{DisplayName: "New Integration"})
+	reqBody, _ := json.Marshal(apimodel.CreateIntegrationRequest{DisplayName: "New Integration", Scopes: []string{"drafts:read"}})
 	c := newIntegrationContext(e, userUuid, http.MethodPost, "/api/v1/integrations", reqBody)
 	err := handler.CreateIntegration(c)
 

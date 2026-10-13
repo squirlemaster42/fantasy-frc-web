@@ -43,7 +43,7 @@ func TestApiKeyStore_Integration(t *testing.T) {
 			_, _ = db.ExecContext(ctx, "DELETE FROM Users WHERE UserUuid = $1", userUuid)
 		}()
 
-		key, secret, err := store.CreateApiKey(ctx, userUuid, "Test Integration")
+		key, secret, err := store.CreateApiKey(ctx, userUuid, "Test Integration", nil)
 		require.NoError(t, err)
 		require.NotNil(t, key)
 		require.NotEmpty(t, secret)
@@ -52,11 +52,12 @@ func TestApiKeyStore_Integration(t *testing.T) {
 		assert.False(t, key.Revoked)
 		assert.Equal(t, StringArray{"full_access"}, key.Scopes)
 
-		validatedUuid, err := store.ValidateApiKey(ctx, key.ClientId, secret)
+		validatedUuid, validatedScopes, err := store.ValidateApiKey(ctx, key.ClientId, secret)
 		require.NoError(t, err)
 		assert.Equal(t, userUuid, validatedUuid)
+		assert.Equal(t, []string{"full_access"}, validatedScopes)
 
-		_, err = store.ValidateApiKey(ctx, key.ClientId, "wrong-secret")
+		_, _, err = store.ValidateApiKey(ctx, key.ClientId, "wrong-secret")
 		assert.ErrorIs(t, err, ErrInvalidApiKey)
 
 		keys, err := store.GetApiKeysForUser(ctx, userUuid)
@@ -66,7 +67,7 @@ func TestApiKeyStore_Integration(t *testing.T) {
 		err = store.RevokeApiKey(ctx, key.Id, userUuid)
 		require.NoError(t, err)
 
-		_, err = store.ValidateApiKey(ctx, key.ClientId, secret)
+		_, _, err = store.ValidateApiKey(ctx, key.ClientId, secret)
 		assert.ErrorIs(t, err, ErrInvalidApiKey)
 	})
 }

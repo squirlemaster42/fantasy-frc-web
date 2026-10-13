@@ -15,8 +15,8 @@ type MockApiKeyStore struct {
 	mock.Mock
 }
 
-func (_m *MockApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string) (*model.ApiKey, string, error) {
-	ret := _m.Called(ctx, userUuid, displayName)
+func (_m *MockApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string, scopes []string) (*model.ApiKey, string, error) {
+	ret := _m.Called(ctx, userUuid, displayName, scopes)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateApiKey")
@@ -26,8 +26,8 @@ func (_m *MockApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID,
 	var r1 string
 	var r2 error
 
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*model.ApiKey, string, error)); ok {
-		return rf(ctx, userUuid, displayName)
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []string) (*model.ApiKey, string, error)); ok {
+		return rf(ctx, userUuid, displayName, scopes)
 	}
 
 	if ret.Get(0) != nil {
@@ -39,7 +39,7 @@ func (_m *MockApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID,
 	return r0, r1, r2
 }
 
-func (_m *MockApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, error) {
+func (_m *MockApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, []string, error) {
 	ret := _m.Called(ctx, clientId, clientSecret)
 
 	if len(ret) == 0 {
@@ -47,16 +47,20 @@ func (_m *MockApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, 
 	}
 
 	var r0 uuid.UUID
-	var r1 error
+	var r1 []string
+	var r2 error
 
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, []string, error)); ok {
 		return rf(ctx, clientId, clientSecret)
 	}
 
 	r0 = ret.Get(0).(uuid.UUID)
-	r1 = ret.Error(1)
+	if ret.Get(1) != nil {
+		r1 = ret.Get(1).([]string)
+	}
+	r2 = ret.Error(2)
 
-	return r0, r1
+	return r0, r1, r2
 }
 
 func (_m *MockApiKeyStore) GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]model.ApiKey, error) {

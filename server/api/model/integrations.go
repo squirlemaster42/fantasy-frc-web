@@ -7,13 +7,15 @@ type IntegrationResponse struct {
 	Id          string    `json:"id"`
 	DisplayName string    `json:"display_name"`
 	ClientId    string    `json:"client_id"`
+	Scopes      []string  `json:"scopes"`
 	CreatedAt   time.Time `json:"created_at"`
 	LastUsedAt  time.Time `json:"last_used_at,omitempty"`
 }
 
 // CreateIntegrationRequest is the body for POST /api/v1/integrations.
 type CreateIntegrationRequest struct {
-	DisplayName string `json:"display_name"`
+	DisplayName string   `json:"display_name"`
+	Scopes      []string `json:"scopes"`
 }
 
 // CreateIntegrationResponse returns the new integration credentials.

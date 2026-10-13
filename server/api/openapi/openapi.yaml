@@ -710,7 +710,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT access token obtained from /auth/token
+      description: JWT access token obtained from /auth/token. The JWT includes a `scopes` claim listing granted permissions.
 
   parameters:
     DraftId:
@@ -1074,6 +1074,7 @@ components:
         - id
         - display_name
         - client_id
+        - scopes
         - created_at
       properties:
         id:
@@ -1083,6 +1084,10 @@ components:
           type: string
         client_id:
           type: string
+        scopes:
+          type: array
+          items:
+            type: string
         created_at:
           type: string
           format: date-time
@@ -1097,6 +1102,19 @@ components:
       properties:
         display_name:
           type: string
+        scopes:
+          type: array
+          items:
+            type: string
+            enum:
+              - drafts:read
+              - drafts:write
+              - invites:read
+              - invites:write
+              - integrations:read
+              - integrations:write
+              - admin
+          description: Permissions granted to the integration. Defaults to all scopes if omitted.
 
     CreateIntegrationResponse:
       type: object

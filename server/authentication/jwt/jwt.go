@@ -34,12 +34,13 @@ var (
 
 // Claims represents the JWT payload.
 type Claims struct {
-	Subject   string `json:"sub"`
-	Issuer    string `json:"iss"`
-	Audience  string `json:"aud"`
-	ExpiresAt int64  `json:"exp"`
-	IssuedAt  int64  `json:"iat"`
-	TokenID   string `json:"jti"`
+	Subject   string   `json:"sub"`
+	Issuer    string   `json:"iss"`
+	Audience  string   `json:"aud"`
+	ExpiresAt int64    `json:"exp"`
+	IssuedAt  int64    `json:"iat"`
+	TokenID   string   `json:"jti"`
+	Scopes    []string `json:"scopes,omitempty"`
 }
 
 // header is the fixed JWT header for HS256 tokens.
@@ -49,7 +50,8 @@ type header struct {
 }
 
 // Sign creates a new JWT for the given user that expires after duration.
-func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration) (string, error) {
+// scopes are included in the token claims for machine API access control.
+func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration, scopes []string) (string, error) {
 	if len(signingKey) < minSigningKeyLength {
 		return "", ErrWeakKey
 	}
@@ -73,6 +75,7 @@ func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration) (string
 		ExpiresAt: now.Add(duration).Unix(),
 		IssuedAt:  now.Unix(),
 		TokenID:   jti,
+		Scopes:    scopes,
 	}
 	claimsBytes, err := json.Marshal(claims)
 	if err != nil {
@@ -89,15 +92,15 @@ func Sign(userUuid uuid.UUID, signingKey []byte, duration time.Duration) (string
 	return signingInput + "." + encodedSignature, nil
 }
 
-// Validate parses and validates a JWT, returning the user UUID from the subject claim.
-func Validate(tokenString string, signingKey []byte) (uuid.UUID, error) {
+// Validate parses and validates a JWT, returning the user UUID and scopes from the claims.
+func Validate(tokenString string, signingKey []byte) (uuid.UUID, []string, error) {
 	if len(signingKey) < minSigningKeyLength {
-		return uuid.UUID{}, ErrWeakKey
+		return uuid.UUID{}, nil, ErrWeakKey
 	}
 
 	parts := strings.Split(tokenString, ".")
 	if len(parts) != 3 {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 
 	encodedHeader, encodedClaims, encodedSignature := parts[0], parts[1], parts[2]
@@ -106,49 +109,49 @@ func Validate(tokenString string, signingKey []byte) (uuid.UUID, error) {
 	expectedSignature := hmacSHA256(signingInput, signingKey)
 	decodedSignature, err := base64.RawURLEncoding.DecodeString(encodedSignature)
 	if err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	if len(decodedSignature) != len(expectedSignature) || subtle.ConstantTimeCompare(decodedSignature, expectedSignature) != 1 {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 
 	headerBytes, err := base64.RawURLEncoding.DecodeString(encodedHeader)
 	if err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	var h header
 	if err := json.Unmarshal(headerBytes, &h); err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	if h.Algorithm != Algorithm {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 
 	claimsBytes, err := base64.RawURLEncoding.DecodeString(encodedClaims)
 	if err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	var claims Claims
 	if err := json.Unmarshal(claimsBytes, &claims); err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 
 	if claims.Issuer != Issuer {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	if claims.Audience != Audience {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 	if claims.ExpiresAt < time.Now().UTC().Unix() {
-		return uuid.UUID{}, ErrExpiredToken
+		return uuid.UUID{}, nil, ErrExpiredToken
 	}
 
 	userUuid, err := uuid.Parse(claims.Subject)
 	if err != nil {
-		return uuid.UUID{}, ErrInvalidToken
+		return uuid.UUID{}, nil, ErrInvalidToken
 	}
 
-	return userUuid, nil
+	return userUuid, claims.Scopes, nil
 }
 
 // hmacSHA256 returns the HMAC-SHA256 of input using key.

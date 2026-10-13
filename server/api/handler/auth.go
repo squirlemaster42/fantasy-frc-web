@@ -48,7 +48,7 @@ func (h *AuthHandler) Token(c *echo.Context) error {
 		return nil
 	}
 
-	userUuid, err := h.ApiKeyStore.ValidateApiKey(ctx, req.ClientId, req.ClientSecret)
+	userUuid, scopes, err := h.ApiKeyStore.ValidateApiKey(ctx, req.ClientId, req.ClientSecret)
 	if err != nil {
 		if errors.Is(err, model.ErrInvalidApiKey) {
 			api.InvalidClient(c.Response(), "Invalid client credentials")
@@ -59,7 +59,7 @@ func (h *AuthHandler) Token(c *echo.Context) error {
 		return nil
 	}
 
-	token, err := jwt.Sign(userUuid, h.JwtSigningKey, accessTokenDuration)
+	token, err := jwt.Sign(userUuid, h.JwtSigningKey, accessTokenDuration, scopes)
 	if err != nil {
 		log.Error(ctx, "Failed to sign jwt", "Error", err)
 		api.InternalError(c.Response())

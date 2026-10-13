@@ -28,8 +28,8 @@ type ApiKey struct {
 
 // ApiKeyStore persists and validates API keys.
 type ApiKeyStore interface {
-	CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string) (*ApiKey, string, error)
-	ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, error)
+	CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string, scopes []string) (*ApiKey, string, error)
+	ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, []string, error)
 	GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]ApiKey, error)
 	RevokeApiKey(ctx context.Context, id uuid.UUID, userUuid uuid.UUID) error
 }
@@ -43,9 +43,13 @@ func NewSQLApiKeyStore(db *sql.DB) *SQLApiKeyStore {
 	return &SQLApiKeyStore{db: db}
 }
 
-func (s *SQLApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string) (*ApiKey, string, error) {
+func (s *SQLApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, displayName string, scopes []string) (*ApiKey, string, error) {
 	assert := assert.CreateAssertWithContext("CreateApiKey")
 	assert.AddContext("UserUuid", userUuid)
+
+	if len(scopes) == 0 {
+		scopes = []string{"full_access"}
+	}
 
 	clientId, err := jwt.GenerateClientID()
 	if err != nil {
@@ -62,8 +66,8 @@ func (s *SQLApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, d
 		return nil, "", fmt.Errorf("failed to hash client secret: %w", err)
 	}
 
-	query := `INSERT INTO UserApiKeys (UserUuid, ClientId, ClientSecretHash, DisplayName)
-			  VALUES ($1, $2, $3, $4)
+	query := `INSERT INTO UserApiKeys (UserUuid, ClientId, ClientSecretHash, DisplayName, Scopes)
+			  VALUES ($1, $2, $3, $4, $5)
 			  RETURNING Id, UserUuid, ClientId, DisplayName, Scopes, Revoked, CreatedAt, LastUsedAt;`
 	stmt, err := s.db.PrepareContext(ctx, query)
 	assert.NoError(ctx, err, "failed to prepare statement")
@@ -74,7 +78,7 @@ func (s *SQLApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, d
 	}()
 
 	var key ApiKey
-	err = stmt.QueryRowContext(ctx, userUuid, clientId, string(hashedSecret), displayName).Scan(
+	err = stmt.QueryRowContext(ctx, userUuid, clientId, string(hashedSecret), displayName, StringArray(scopes)).Scan(
 		&key.Id,
 		&key.UserUuid,
 		&key.ClientId,
@@ -91,11 +95,11 @@ func (s *SQLApiKeyStore) CreateApiKey(ctx context.Context, userUuid uuid.UUID, d
 	return &key, clientSecret, nil
 }
 
-func (s *SQLApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, error) {
+func (s *SQLApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, clientSecret string) (uuid.UUID, []string, error) {
 	assert := assert.CreateAssertWithContext("ValidateApiKey")
 	assert.AddContext("ClientId", clientId)
 
-	query := `SELECT UserUuid, ClientSecretHash
+	query := `SELECT UserUuid, ClientSecretHash, Scopes
 			  FROM UserApiKeys
 			  WHERE ClientId = $1 AND Revoked = FALSE;`
 	stmt, err := s.db.PrepareContext(ctx, query)
@@ -108,23 +112,24 @@ func (s *SQLApiKeyStore) ValidateApiKey(ctx context.Context, clientId string, cl
 
 	var userUuid uuid.UUID
 	var secretHash string
-	err = stmt.QueryRowContext(ctx, clientId).Scan(&userUuid, &secretHash)
+	var scopes StringArray
+	err = stmt.QueryRowContext(ctx, clientId).Scan(&userUuid, &secretHash, &scopes)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return uuid.UUID{}, ErrInvalidApiKey
+			return uuid.UUID{}, nil, ErrInvalidApiKey
 		}
-		return uuid.UUID{}, fmt.Errorf("failed to validate api key: %w", err)
+		return uuid.UUID{}, nil, fmt.Errorf("failed to validate api key: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(secretHash), []byte(clientSecret)); err != nil {
-		return uuid.UUID{}, ErrInvalidApiKey
+		return uuid.UUID{}, nil, ErrInvalidApiKey
 	}
 
 	if err := s.updateLastUsedAt(ctx, clientId); err != nil {
 		log.Warn(ctx, "ValidateApiKey: Failed to update last used time", "error", err)
 	}
 
-	return userUuid, nil
+	return userUuid, scopes, nil
 }
 
 func (s *SQLApiKeyStore) GetApiKeysForUser(ctx context.Context, userUuid uuid.UUID) ([]ApiKey, error) {

@@ -27,7 +27,7 @@ func JWTAuth(signingKey []byte) echo.MiddlewareFunc {
 				return nil
 			}
 
-			userUuid, err := jwt.Validate(parts[1], signingKey)
+			userUuid, scopes, err := jwt.Validate(parts[1], signingKey)
 			if err != nil {
 				jwt.LogValidationFailure(c.Request().Context(), err)
 				if errors.Is(err, jwt.ErrExpiredToken) {
@@ -39,6 +39,7 @@ func JWTAuth(signingKey []byte) echo.MiddlewareFunc {
 			}
 
 			c.Set("userUuid", userUuid)
+			c.Set("scopes", scopes)
 			return next(c)
 		}
 	}
@@ -52,4 +53,14 @@ func GetUserUuid(c *echo.Context) (uuid.UUID, bool) {
 	}
 	userUuid, ok := v.(uuid.UUID)
 	return userUuid, ok
+}
+
+// GetScopes extracts the authenticated scopes from the Echo context.
+func GetScopes(c *echo.Context) ([]string, bool) {
+	v := c.Get("scopes")
+	if v == nil {
+		return nil, false
+	}
+	scopes, ok := v.([]string)
+	return scopes, ok
 }

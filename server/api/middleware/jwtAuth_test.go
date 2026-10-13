@@ -15,7 +15,7 @@ import (
 func TestJWTAuth_Success(t *testing.T) {
 	key := []byte("super-secret-key-that-is-32-bytes!")
 	userUuid := uuid.New()
-	token, err := jwt.Sign(userUuid, key, 15*time.Minute)
+	token, err := jwt.Sign(userUuid, key, 15*time.Minute, nil)
 	assert.NoError(t, err)
 
 	e := echo.New()
@@ -78,7 +78,7 @@ func TestJWTAuth_InvalidToken(t *testing.T) {
 func TestJWTAuth_ExpiredToken(t *testing.T) {
 	key := []byte("super-secret-key-that-is-32-bytes!")
 	userUuid := uuid.New()
-	token, err := jwt.Sign(userUuid, key, -1*time.Second)
+	token, err := jwt.Sign(userUuid, key, -1*time.Second, nil)
 	assert.NoError(t, err)
 
 	e := echo.New()
@@ -100,7 +100,7 @@ func TestJWTAuth_ExpiredToken(t *testing.T) {
 func TestJWTAuth_WrongScheme(t *testing.T) {
 	key := []byte("super-secret-key-that-is-32-bytes!")
 	userUuid := uuid.New()
-	token, err := jwt.Sign(userUuid, key, 15*time.Minute)
+	token, err := jwt.Sign(userUuid, key, 15*time.Minute, nil)
 	assert.NoError(t, err)
 
 	e := echo.New()

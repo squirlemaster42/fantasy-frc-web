@@ -54,7 +54,7 @@ func (h *Handler) CreateIntegration(c *echo.Context) error {
 		return nil
 	}
 
-	key, secret, err := h.ApiKeyStore.CreateApiKey(ctx, userUuid, req.DisplayName)
+	key, secret, err := h.ApiKeyStore.CreateApiKey(ctx, userUuid, req.DisplayName, req.Scopes)
 	if err != nil {
 		log.Error(ctx, "Failed to create integration", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
@@ -98,6 +98,7 @@ func mapApiKey(key model.ApiKey) apimodel.IntegrationResponse {
 		Id:          key.Id.String(),
 		DisplayName: key.DisplayName,
 		ClientId:    key.ClientId,
+		Scopes:      key.Scopes,
 		CreatedAt:   key.CreatedAt,
 	}
 	if key.LastUsedAt.Valid {

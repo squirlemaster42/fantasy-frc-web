@@ -31,7 +31,7 @@ func TestToken_Success(t *testing.T) {
 		ClientSecret: "test_client_secret",
 	})
 
-	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "test_client_secret").Return(userUuid, nil)
+	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "test_client_secret").Return(userUuid, []string{"drafts:read"}, nil)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/token", bytes.NewReader(reqBody))
@@ -81,7 +81,7 @@ func TestToken_InvalidCredentials(t *testing.T) {
 		ClientSecret: "wrong_secret",
 	})
 
-	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "wrong_secret").Return(uuid.UUID{}, model.ErrInvalidApiKey)
+	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "wrong_secret").Return(uuid.UUID{}, nil, model.ErrInvalidApiKey)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/token", bytes.NewReader(reqBody))
@@ -123,7 +123,7 @@ func TestToken_StoreError(t *testing.T) {
 		ClientSecret: "test_client_secret",
 	})
 
-	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "test_client_secret").Return(uuid.UUID{}, errors.New("database error"))
+	apiKeyStore.On("ValidateApiKey", mocklib.Anything, "test_client_id", "test_client_secret").Return(uuid.UUID{}, nil, errors.New("database error"))
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/token", bytes.NewReader(reqBody))

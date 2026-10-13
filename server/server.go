@@ -135,35 +135,35 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	apiV1Protected.GET("/users/search", apiHandler.SearchUsers)
 
 	// Drafts
-	apiV1Protected.GET("/drafts", apiHandler.ListDrafts)
-	apiV1Protected.POST("/drafts", apiHandler.CreateDraft)
-	apiV1Protected.GET("/drafts/:id", apiHandler.GetDraft)
-	apiV1Protected.PATCH("/drafts/:id", apiHandler.UpdateDraft)
-	apiV1Protected.POST("/drafts/:id/start", apiHandler.StartDraft)
-	apiV1Protected.GET("/drafts/:id/picks", apiHandler.ListPicks)
-	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick)
-	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip)
-	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore)
+	apiV1Protected.GET("/drafts", apiHandler.ListDrafts, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.POST("/drafts", apiHandler.CreateDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id", apiHandler.GetDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.PATCH("/drafts/:id", apiHandler.UpdateDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.POST("/drafts/:id/start", apiHandler.StartDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id/picks", apiHandler.ListPicks, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
 
 	// Public team score
 	apiV1.GET("/team/score", apiHandler.GetTeamScore)
 
 	// Invites
-	apiV1Protected.GET("/invites", apiHandler.ListInvites)
-	apiV1Protected.POST("/drafts/:id/invites", apiHandler.CreateInvite)
-	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite)
-	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite)
+	apiV1Protected.GET("/invites", apiHandler.ListInvites, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesRead))
+	apiV1Protected.POST("/drafts/:id/invites", apiHandler.CreateInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
+	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
+	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
 
 	// Integrations (API key management)
-	apiV1Protected.GET("/integrations", apiHandler.ListIntegrations)
-	apiV1Protected.POST("/integrations", apiHandler.CreateIntegration)
-	apiV1Protected.POST("/integrations/:id/revoke", apiHandler.RevokeIntegration)
+	apiV1Protected.GET("/integrations", apiHandler.ListIntegrations, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsRead))
+	apiV1Protected.POST("/integrations", apiHandler.CreateIntegration, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsWrite))
+	apiV1Protected.POST("/integrations/:id/revoke", apiHandler.RevokeIntegration, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsWrite))
 
 	// Admin
-	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick)
-	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime)
-	apiV1Protected.POST("/drafts/:id/admin/make-pick", apiHandler.AdminMakePick)
-	apiV1Protected.POST("/drafts/:id/admin/undo-pick", apiHandler.AdminUndoPick)
+	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/make-pick", apiHandler.AdminMakePick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/undo-pick", apiHandler.AdminUndoPick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
 
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())

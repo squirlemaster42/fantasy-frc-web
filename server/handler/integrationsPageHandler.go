@@ -53,7 +53,7 @@ func (h *Handler) HandleCreateIntegration(c *echo.Context) error {
 		return nil
 	}
 
-	key, secret, err := h.Stores.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName)
+	key, secret, err := h.Stores.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName, nil)
 	if err != nil {
 		log.Error(ctx, "Failed to create api key", "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
