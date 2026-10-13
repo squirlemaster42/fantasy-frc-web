@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"uuid"
 	"github.com/labstack/echo/v5"
@@ -16,6 +17,7 @@ import (
 	apimiddleware "server/api/middleware"
 	"server/assets"
 	"server/authentication"
+	"server/authentication/jwt"
 	"server/handler"
 	modelmocks "server/model/mocks"
 )
@@ -28,7 +30,7 @@ func setupTestServerConfig(t *testing.T) ServerConfig {
 		Handler:          handler.Handler{},
 		MetricSecret:     "test-metric-secret",
 		CsrfSecret:       "test-csrf-secret-32-bytes-long!!",
-		JwtSigningKey:    []byte("test-jwt-signing-key-32-bytes!!"),
+		JwtSigningKey:    []byte("test-jwt-signing-key-that-is-32-bytes!"),
 		RedisAddr:        "",
 		RedisPassword:    "",
 		RedisRateLimitDB: 1,
@@ -263,6 +265,9 @@ func TestMachineAPIRoutes(t *testing.T) {
 	apiV1Protected := apiV1.Group("")
 	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
 	apiV1Protected.GET("/users/me", apiHandler.GetMe)
+	apiV1Protected.GET("/drafts", func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	}, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
 
 	t.Run("openapi.yaml is served publicly", func(t *testing.T) {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/openapi.yaml", nil)
@@ -282,5 +287,33 @@ func TestMachineAPIRoutes(t *testing.T) {
 		app.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("scoped route requires matching scope", func(t *testing.T) {
+		userUuid := uuid.New()
+		token, err := jwt.Sign(userUuid, cfg.JwtSigningKey, 15*time.Minute, []string{"drafts:read"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/drafts", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("scoped route rejects missing scope", func(t *testing.T) {
+		userUuid := uuid.New()
+		token, err := jwt.Sign(userUuid, cfg.JwtSigningKey, 15*time.Minute, []string{"users:read"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/drafts", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusForbidden, rec.Code)
 	})
 }
