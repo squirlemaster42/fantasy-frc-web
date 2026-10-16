@@ -116,6 +116,44 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
 
+func TestRateLimiter_RateLimitApiToken_BlocksAfterLimit(t *testing.T) {
+	s := miniredis.RunT(t)
+	defer s.Close()
+
+	limiter := NewRateLimiter(s.Addr(), "", 0)
+	middleware := limiter.RateLimitApiToken()
+
+	e := echo.New()
+
+	// First 10 requests are allowed
+	for range 10 {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/token", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		handler := middleware(func(c *echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+
+		err := handler(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	}
+
+	// Eleventh request is blocked
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/token", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	handler := middleware(func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+}
+
 func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()

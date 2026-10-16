@@ -150,9 +150,12 @@ func UpdateDraft(ctx context.Context, draftActor *DraftActor, draftModel model.D
 	replyChan := make(chan Result)
 	message := Message{
 		Content: UpdateDraftProfileMessage{
-			Name:           draftModel.DisplayName,
-			Description:    draftModel.Description,
-			DiscordWebhook: draftModel.DiscordWebhook,
+			Name:              draftModel.DisplayName,
+			Description:       draftModel.Description,
+			TimingType:        draftModel.TimingType,
+			IncrementTimeSec:  draftModel.IncrementTimeSec,
+			PerPickExpTimeSec: draftModel.PerPickExpTimeSec,
+			DiscordWebhook:    draftModel.DiscordWebhook,
 		},
 		Reply: replyChan,
 	}

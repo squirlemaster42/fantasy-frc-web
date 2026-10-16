@@ -5,15 +5,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
+	apihandler "server/api/handler"
+	apimiddleware "server/api/middleware"
 	"server/assets"
 	"server/authentication"
+	"server/authentication/jwt"
 	"server/handler"
 	modelmocks "server/model/mocks"
 )
@@ -26,6 +30,7 @@ func setupTestServerConfig(t *testing.T) ServerConfig {
 		Handler:          handler.Handler{},
 		MetricSecret:     "test-metric-secret",
 		CsrfSecret:       "test-csrf-secret-32-bytes-long!!",
+		JwtSigningKey:    []byte("test-jwt-signing-key-that-is-32-bytes!"),
 		RedisAddr:        "",
 		RedisPassword:    "",
 		RedisRateLimitDB: 1,
@@ -243,4 +248,72 @@ func TestCacheControlMiddleware(t *testing.T) {
 	err := handler(c)
 	require.NoError(t, err)
 	assert.Contains(t, rec.Header().Get("Cache-Control"), "public, max-age=")
+}
+
+func TestMachineAPIRoutes(t *testing.T) {
+	cfg := setupTestServerConfig(t)
+	app := echo.New()
+	app.HTTPErrorHandler = newHTTPErrorHandler(cfg)
+
+	authHandler := apihandler.NewAuthHandler(cfg.Handler.Stores.ApiKeyStore, cfg.JwtSigningKey)
+	apiHandler := apihandler.NewHandler(cfg.Handler.Stores.DraftStore, cfg.Handler.Stores.UserStore, cfg.Handler.Stores.ApiKeyStore, cfg.Handler.Stores.TeamStore, cfg.Handler.Services.DraftActorMap)
+	apiV1 := app.Group("/api/v1")
+
+	apiV1.GET("/openapi.yaml", apihandler.ServeOpenAPI)
+	apiV1.POST("/auth/token", authHandler.Token)
+
+	apiV1Protected := apiV1.Group("")
+	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
+	apiV1Protected.GET("/users/me", apiHandler.GetMe)
+	apiV1Protected.GET("/drafts", func(c *echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	}, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+
+	t.Run("openapi.yaml is served publicly", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/openapi.yaml", nil)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/yaml", rec.Header().Get("Content-Type"))
+		assert.Contains(t, rec.Body.String(), "openapi: 3.1.0")
+	})
+
+	t.Run("protected route requires bearer token", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/users/me", nil)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("scoped route requires matching scope", func(t *testing.T) {
+		userUuid := uuid.New()
+		token, err := jwt.Sign(userUuid, cfg.JwtSigningKey, 15*time.Minute, []string{"drafts:read"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/drafts", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("scoped route rejects missing scope", func(t *testing.T) {
+		userUuid := uuid.New()
+		token, err := jwt.Sign(userUuid, cfg.JwtSigningKey, 15*time.Minute, []string{"users:read"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/drafts", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+
+		app.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
 }

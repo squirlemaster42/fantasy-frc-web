@@ -128,7 +128,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></a> <a href=\"/u/integrations\" class=\"text-base-content/80 hover:text-primary text-sm font-medium px-2 py-1 hover:bg-base-200 rounded-lg transition-all duration-200\">Integrations</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -183,13 +183,13 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 145, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 148, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></a><div class=\"border-t border-base-300 my-2\"></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></a> <a href=\"/u/integrations\" class=\"flex items-center space-x-3 px-4 py-3 text-base-content/80 hover:text-primary hover:bg-base-200 rounded-lg transition-all duration-200 font-medium\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5\"></path></svg> <span class=\"font-medium\">Integrations</span></a><div class=\"border-t border-base-300 my-2\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -206,7 +206,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var10 templ.SafeURL
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/profile", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 149, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 158, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -241,7 +241,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var13 templ.SafeURL
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/pick", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 155, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 164, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -276,7 +276,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/draftScore", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 161, Col: 95}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 170, Col: 95}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -312,7 +312,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 					var templ_7745c5c3_Var19 templ.SafeURL
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/admin", data.DraftId)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 168, Col: 94}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 177, Col: 94}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {

@@ -27,8 +27,8 @@ const (
 	PICKING          DraftState = "Picking"
 	TEAMS_PLAYING    DraftState = "Teams Playing"
 	COMPLETE         DraftState = "Complete"
-	INCREMENT        TimingType = "Increment"
-	PER_PICK         TimingType = "Per Pick"
+	INCREMENT        TimingType = "increment"
+	PER_PICK         TimingType = "per_pick"
 )
 
 const (
@@ -453,14 +453,24 @@ func createDraft(ctx context.Context, db database.DBTX, draft *DraftModel) (int,
 		return 0, errors.New("draft owner uuid is nil")
 	}
 
-	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, Status) Values ($1, $2, $3, $4) RETURNING Id;`
+	if draft.TimingType == "" {
+		draft.TimingType = PER_PICK
+	}
+	if draft.IncrementTimeSec == 0 {
+		draft.IncrementTimeSec = 60
+	}
+	if draft.PerPickExpTimeSec == 0 {
+		draft.PerPickExpTimeSec = 3600
+	}
+
+	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, Status, TimingType, IncrementTimeSec, PerPickExpTimeSec) Values ($1, $2, $3, $4, $5, $6, $7) RETURNING Id;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return -1, fmt.Errorf("failed to prepare create draft statement: %w", err)
 	}
 	defer database.CloseStatement(ctx, stmt, "CreateDraft")
 	var draftId int
-	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status).Scan(&draftId)
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status, draft.TimingType, draft.IncrementTimeSec, draft.PerPickExpTimeSec).Scan(&draftId)
 	if err != nil {
 		return -1, fmt.Errorf("failed to create draft: %w", err)
 	}
@@ -680,14 +690,14 @@ func getDraft(ctx context.Context, db database.DBTX, draftId int) (DraftModel, e
 
 func updateDraft(ctx context.Context, db database.DBTX, draft *DraftModel) error {
 	log.Debug(ctx, "model.UpdateDraft: starting", "draftId", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3 Where Id = $4;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3, TimingType = $4, IncrementTimeSec = $5, PerPickExpTimeSec = $6 Where Id = $7;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare update draft statement: %w", err)
 	}
 	defer database.CloseStatement(ctx, stmt, "UpdateDraft")
 	log.Debug(ctx, "model.UpdateDraft: executing query", "draftId", draft.Id)
-	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.Id)
+	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.TimingType, draft.IncrementTimeSec, draft.PerPickExpTimeSec, draft.Id)
 	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
 	if err != nil {
 		return fmt.Errorf("failed to update draft: %w", err)
@@ -742,6 +752,27 @@ func acceptInvite(ctx context.Context, db database.DBTX, inviteId int) (int, uui
 
 	log.Info(ctx, "Accepted invite", "inviteId", inviteId, "draftId", draftId, "userUuid", userUuid)
 	return draftId, userUuid, nil
+}
+
+func declineInvite(ctx context.Context, db database.DBTX, inviteId int) error {
+	query := `UPDATE DraftInvites Set Canceled = TRUE Where id = $1 And Accepted = FALSE;`
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare decline invite statement: %w", err)
+	}
+	defer database.CloseStatement(ctx, stmt, "DeclineInvite")
+	result, err := stmt.ExecContext(ctx, inviteId)
+	if err != nil {
+		return fmt.Errorf("failed to decline invite: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check decline result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return errors.New("invite already accepted or does not exist")
+	}
+	return nil
 }
 
 func addPlayerToDraft(ctx context.Context, db database.DBTX, draft int, player uuid.UUID) error {
@@ -1714,7 +1745,13 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 	}
 
 	slices.SortFunc(entries, func(a, b LeaderboardEntry) int {
-		return b.Score - a.Score
+		if b.Score != a.Score {
+			return b.Score - a.Score
+		}
+		if a.DraftId != b.DraftId {
+			return a.DraftId - b.DraftId
+		}
+		return strings.Compare(a.User.UserUuid.String(), b.User.UserUuid.String())
 	})
 
 	total := len(entries)

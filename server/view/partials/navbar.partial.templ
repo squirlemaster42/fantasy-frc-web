@@ -60,6 +60,9 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                                 </div>
                                 <span class="text-base-content/80 hover:text-primary font-medium">{ username }</span>
                             </a>
+                            <a href="/u/integrations" class="text-base-content/80 hover:text-primary text-sm font-medium px-2 py-1 hover:bg-base-200 rounded-lg transition-all duration-200">
+                                Integrations
+                            </a>
                         </div>
                         @HtmxButton(
                             "/u/logout",
@@ -143,6 +146,12 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                             </svg>
                         </div>
                         <span class="font-medium">{ username }</span>
+                    </a>
+                    <a href="/u/integrations" class="flex items-center space-x-3 px-4 py-3 text-base-content/80 hover:text-primary hover:bg-base-200 rounded-lg transition-all duration-200 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                        </svg>
+                        <span class="font-medium">Integrations</span>
                     </a>
                     <div class="border-t border-base-300 my-2"></div>
                     if data.DraftId != 0 {
