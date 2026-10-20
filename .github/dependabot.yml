@@ -4,19 +4,38 @@ updates:
     directory: "/server"
     schedule:
       interval: "weekly"
+    groups:
+      golang-org-x:
+        patterns:
+          - "golang.org/x/*"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "gomod"
     directory: "/draftAgent"
     schedule:
       interval: "weekly"
+    groups:
+      golang-org-x:
+        patterns:
+          - "golang.org/x/*"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "gomod"
     directory: "/draftTester"
     schedule:
       interval: "weekly"
+    groups:
+      golang-org-x:
+        patterns:
+          - "golang.org/x/*"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "gomod"
     directory: "/fuzzer"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "npm"
-    directory: "/client"
-    schedule:
-      interval: "weekly"
+    groups:
+      golang-org-x:
+        patterns:
+          - "golang.org/x/*"
+    open-pull-requests-limit: 10

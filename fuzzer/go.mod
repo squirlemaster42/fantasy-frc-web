@@ -1,6 +1,6 @@
 module fuzzer
 
-go 1.27.0
+go 1.27.2
 
 replace server => ../server/
 
