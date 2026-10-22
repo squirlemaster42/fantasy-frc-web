@@ -84,6 +84,31 @@ func TestUpdateDraft_Integration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, draft.DisplayName, loaded.DisplayName)
 	assert.Equal(t, draft.Description, loaded.Description)
+	assert.Equal(t, PER_PICK, loaded.TimingType)
+}
+
+func TestDraftTimingFields_Integration(t *testing.T) {
+	db := setupTestDB(t)
+	user := createTestUser(t, db)
+	draft := createTestDraft(t, db, user)
+
+	store := NewSQLDraftStore(db)
+	ctx := context.Background()
+
+	draft.TimingType = INCREMENT
+	draft.InitialPickTimeSec = 3600
+	draft.IncrementTimeSec = 900
+	draft.PerPickExpTimeSec = 7200
+
+	err := store.UpdateDraft(ctx, &draft)
+	require.NoError(t, err)
+
+	loaded, err := store.GetDraft(ctx, draft.Id)
+	require.NoError(t, err)
+	assert.Equal(t, INCREMENT, loaded.TimingType)
+	assert.Equal(t, int16(3600), loaded.InitialPickTimeSec)
+	assert.Equal(t, int16(900), loaded.IncrementTimeSec)
+	assert.Equal(t, int16(7200), loaded.PerPickExpTimeSec)
 }
 
 func TestUpdateDraftStatus_Integration(t *testing.T) {

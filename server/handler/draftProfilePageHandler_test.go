@@ -455,3 +455,96 @@ func TestHandleStartDraft_NotStartable(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Draft must have between")
 }
+
+func TestHandleUpdateDraftProfile(t *testing.T) {
+	t.Run("success updates timing fields", func(t *testing.T) {
+		body := "draftName=Updated&description=Updated+desc&timingType=increment&initialPickTimeSec=3600&incrementTimeSec=900&perPickExpTimeSec=7200"
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			body,
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		draftModel := model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.FILLING,
+		}
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(draftModel, nil).Once()
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(draftModel, nil).Once()
+		mockDraftStore.
+			On("UpdateDraft", c.Request().Context(), mock.MatchedBy(func(d *model.DraftModel) bool {
+				return d.Id == 1 &&
+					d.DisplayName == "Updated" &&
+					d.Description == "Updated desc" &&
+					d.TimingType == model.INCREMENT &&
+					d.InitialPickTimeSec == 3600 &&
+					d.IncrementTimeSec == 900 &&
+					d.PerPickExpTimeSec == 7200
+			})).
+			Return(nil).Once()
+
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, "/u/draft/1/profile", rec.Header().Get("HX-Redirect"))
+		mockDraftStore.AssertExpectations(t)
+	})
+
+	t.Run("rejects update when draft not filling", func(t *testing.T) {
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{
+				Id:     1,
+				Owner:  model.User{UserUuid: userUuid},
+				Status: model.PICKING,
+			}, nil).Once()
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft settings can only be changed while the draft is filling")
+	})
+}

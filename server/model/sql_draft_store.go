@@ -187,6 +187,14 @@ func (s *SQLDraftStore) RandomizePickOrder(ctx context.Context, draftId int) err
 	return randomizePickOrder(ctx, s.db, draftId)
 }
 
+func (s *SQLDraftStore) InitializeDraftPlayerClocks(ctx context.Context, draftId int, seconds int16) error {
+	return initializeDraftPlayerClocks(ctx, s.db, draftId, seconds)
+}
+
+func (s *SQLDraftStore) SetDraftPlayerRemainingTime(ctx context.Context, draftPlayerId int, seconds int) error {
+	return setDraftPlayerRemainingTime(ctx, s.db, draftPlayerId, seconds)
+}
+
 func (s *SQLDraftStore) HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error) {
 	return hasBeenPicked(ctx, s.db, draftId, team)
 }

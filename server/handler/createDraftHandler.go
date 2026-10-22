@@ -19,7 +19,8 @@ func (h *Handler) HandleViewCreateDraft(c *echo.Context) error {
 		return err
 	}
 	draftModel := model.DraftModel{
-		Id: -1,
+		Id:     -1,
+		Status: model.FILLING,
 	}
 
 	draftCreateIndex := draftView.DraftProfileIndex(draftModel, true, h.csrfToken(c))
@@ -41,13 +42,28 @@ func (h *Handler) HandleCreateDraftPost(c *echo.Context) error {
 		return err
 	}
 
+	timingType, initialPickTimeSec, incrementTimeSec, perPickExpTimeSec, err := parseDraftTimingForm(c, model.DraftModel{
+		TimingType:         model.PER_PICK,
+		InitialPickTimeSec: 3600,
+		IncrementTimeSec:   900,
+		PerPickExpTimeSec:  10800,
+	})
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft timing values", "userUuid", userUuid, "error", err)
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
 	draftModel := model.DraftModel{
 		Owner: model.User{
 			UserUuid: userUuid,
 		},
-		DisplayName: draftName,
-		Description: description,
-		Status:      model.FILLING,
+		DisplayName:        draftName,
+		Description:        description,
+		Status:             model.FILLING,
+		TimingType:         timingType,
+		InitialPickTimeSec: initialPickTimeSec,
+		IncrementTimeSec:   incrementTimeSec,
+		PerPickExpTimeSec:  perPickExpTimeSec,
 	}
 
 	draftId, err := h.Stores.DraftStore.CreateDraft(c.Request().Context(), &draftModel)

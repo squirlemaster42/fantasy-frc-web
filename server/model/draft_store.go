@@ -43,6 +43,8 @@ type DraftStore interface {
 	ResetPick(ctx context.Context, pickId int, expirationTime time.Time) error
 	GetDraftsInStatus(ctx context.Context, status DraftState) ([]int, error)
 	RandomizePickOrder(ctx context.Context, draftId int) error
+	InitializeDraftPlayerClocks(ctx context.Context, draftId int, seconds int16) error
+	SetDraftPlayerRemainingTime(ctx context.Context, draftPlayerId int, seconds int) error
 	HasBeenPicked(ctx context.Context, draftId int, team string) (bool, error)
 	CancelInvite(ctx context.Context, inviteId int) error
 	UninvitePlayer(ctx context.Context, draftId int, ownerUuid uuid.UUID, inviteId int) error

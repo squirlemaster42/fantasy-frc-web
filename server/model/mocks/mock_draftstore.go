@@ -1083,6 +1083,42 @@ func (_m *MockDraftStore) UpdateUserDraftNotificationPreference(ctx context.Cont
 	return r0
 }
 
+// SetDraftPlayerRemainingTime provides a mock function with given fields: ctx, draftPlayerId, seconds
+func (_m *MockDraftStore) SetDraftPlayerRemainingTime(ctx context.Context, draftPlayerId int, seconds int) error {
+	ret := _m.Called(ctx, draftPlayerId, seconds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetDraftPlayerRemainingTime")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) error); ok {
+		r0 = rf(ctx, draftPlayerId, seconds)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// InitializeDraftPlayerClocks provides a mock function with given fields: ctx, draftId, seconds
+func (_m *MockDraftStore) InitializeDraftPlayerClocks(ctx context.Context, draftId int, seconds int16) error {
+	ret := _m.Called(ctx, draftId, seconds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InitializeDraftPlayerClocks")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, int16) error); ok {
+		r0 = rf(ctx, draftId, seconds)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // WithTx provides a mock function with given fields: tx
 func (_m *MockDraftStore) WithTx(tx database.DBTX) model.DraftStore {
 	ret := _m.Called(tx)

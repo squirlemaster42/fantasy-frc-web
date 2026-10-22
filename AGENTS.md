@@ -266,7 +266,7 @@ The server fails fast on startup if a required variable is missing or if an opti
 
 - `DRAFT_ACTOR_CACHE_SIZE` (int, default `128`): Maximum number of draft actors to keep in memory. When the cache is full, the least-recently-used actor is shut down and evicted.
 
-- `PICK_WINDOWS_CONFIG_FILE` (string, default `../config/pick-windows.json` relative to the `server/` working directory): Path to a JSON file that configures how long each pick lasts and the allowed pick windows per weekday. If the file is missing, built-in defaults are used. If the file is present but malformed, the server fails fast on startup. Example format:
+- `PICK_WINDOWS_CONFIG_FILE` (string, default `../config/pick-windows.json` relative to the `server/` working directory): Path to a JSON file that configures the allowed pick windows per weekday. The `pick_time` field in this file is no longer used for per-pick duration; per-draft timing (per-pick duration or chess-clock initial time/increment) is configured on each draft's profile page. If the file is missing, built-in defaults are used. If the file is present but malformed, the server fails fast on startup. Example format:
   ```json
   {
     "pick_time": "1h",

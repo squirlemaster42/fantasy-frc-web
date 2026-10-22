@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"server/draft"
@@ -83,14 +84,29 @@ func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 		return c.String(http.StatusForbidden, "You do not have permission to update this draft")
 	}
 
+	if draftModel.Status != model.FILLING {
+		log.Warn(c.Request().Context(), "User attempted to update draft timing after draft started", "userUuid", userUuid, "draftId", draftId, "status", draftModel.Status)
+		return c.String(http.StatusBadRequest, "Draft settings can only be changed while the draft is filling")
+	}
+
+	timingType, initialPickTimeSec, incrementTimeSec, perPickExpTimeSec, err := parseDraftTimingForm(c, draftModel)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Invalid draft timing values", "userUuid", userUuid, "draftId", draftId, "error", err)
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
 	draftModel = model.DraftModel{
 		Id: draftId,
 		Owner: model.User{
 			UserUuid: userUuid,
 		},
-		DisplayName:    draftName,
-		Description:    description,
-		DiscordWebhook: discordWebhook,
+		DisplayName:        draftName,
+		Description:        description,
+		DiscordWebhook:     discordWebhook,
+		TimingType:         timingType,
+		InitialPickTimeSec: initialPickTimeSec,
+		IncrementTimeSec:   incrementTimeSec,
+		PerPickExpTimeSec:  perPickExpTimeSec,
 	}
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
@@ -358,4 +374,51 @@ func (h *Handler) HandleUninvitePlayer(c *echo.Context) error {
 	}
 
 	return nil
+}
+
+// parseDraftTimingForm reads and validates the timing-method fields from the
+// draft profile form. It returns the existing draft values when the form fields
+// are missing (e.g. for non-owners the controls are disabled and not submitted).
+func parseDraftTimingForm(c *echo.Context, existing model.DraftModel) (model.TimingType, int16, int16, int16, error) {
+	timingTypeStr := c.FormValue("timingType")
+	if timingTypeStr == "" {
+		return existing.TimingType, existing.InitialPickTimeSec, existing.IncrementTimeSec, existing.PerPickExpTimeSec, nil
+	}
+
+	var timingType model.TimingType
+	switch strings.ToLower(timingTypeStr) {
+	case "per_pick":
+		timingType = model.PER_PICK
+	case "increment":
+		timingType = model.INCREMENT
+	default:
+		return "", 0, 0, 0, errors.New("invalid timing type")
+	}
+
+	parseSeconds := func(name string, existingValue int16) (int16, error) {
+		valueStr := c.FormValue(name)
+		if valueStr == "" {
+			return existingValue, nil
+		}
+		value, err := strconv.ParseInt(valueStr, 10, 16)
+		if err != nil || value <= 0 {
+			return 0, fmt.Errorf("invalid value for %s", name)
+		}
+		return int16(value), nil
+	}
+
+	initialPickTimeSec, err := parseSeconds("initialPickTimeSec", existing.InitialPickTimeSec)
+	if err != nil {
+		return "", 0, 0, 0, err
+	}
+	incrementTimeSec, err := parseSeconds("incrementTimeSec", existing.IncrementTimeSec)
+	if err != nil {
+		return "", 0, 0, 0, err
+	}
+	perPickExpTimeSec, err := parseSeconds("perPickExpTimeSec", existing.PerPickExpTimeSec)
+	if err != nil {
+		return "", 0, 0, 0, err
+	}
+
+	return timingType, initialPickTimeSec, incrementTimeSec, perPickExpTimeSec, nil
 }

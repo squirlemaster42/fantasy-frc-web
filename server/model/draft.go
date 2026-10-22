@@ -27,8 +27,8 @@ const (
 	PICKING          DraftState = "Picking"
 	TEAMS_PLAYING    DraftState = "Teams Playing"
 	COMPLETE         DraftState = "Complete"
-	INCREMENT        TimingType = "Increment"
-	PER_PICK         TimingType = "Per Pick"
+	INCREMENT        TimingType = "increment"
+	PER_PICK         TimingType = "per_pick"
 )
 
 const (
@@ -62,6 +62,7 @@ type DraftModel struct {
 	CurrentPick       Pick
 	Picks             []Pick
 	TimingType        TimingType
+	InitialPickTimeSec int16
 	IncrementTimeSec  int16
 	PerPickExpTimeSec int16
 }
@@ -76,8 +77,26 @@ func (d *DraftModel) String() string {
 		stringBuilder.WriteString(" \n}")
 	}
 
-	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n TimingType %s\n IncrementTimeSec %d\n PerPickExpTimeSec %d\n}",
-		d.Id, d.DisplayName, d.Description, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String(), d.TimingType, d.IncrementTimeSec, d.PerPickExpTimeSec)
+	return fmt.Sprintf("Draft: {\nId: %d\n Displayname: %s\n Description: %s\n Owner: %s\n Status: %s\n Players: %s\n NextPick: %s\n TimingType %s\n InitialPickTimeSec %d\n IncrementTimeSec %d\n PerPickExpTimeSec %d\n}",
+		d.Id, d.DisplayName, d.Description, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String(), d.TimingType, d.InitialPickTimeSec, d.IncrementTimeSec, d.PerPickExpTimeSec)
+}
+
+// PerPickExpirationDuration returns the configured fixed duration for each pick
+// when the draft uses PER_PICK timing.
+func (d *DraftModel) PerPickExpirationDuration() time.Duration {
+	return time.Duration(d.PerPickExpTimeSec) * time.Second
+}
+
+// InitialPickDuration returns the initial chess-clock time for each player
+// when the draft uses INCREMENT timing.
+func (d *DraftModel) InitialPickDuration() time.Duration {
+	return time.Duration(d.InitialPickTimeSec) * time.Second
+}
+
+// IncrementDuration returns the amount of time added to a player's clock
+// after each successful pick when the draft uses INCREMENT timing.
+func (d *DraftModel) IncrementDuration() time.Duration {
+	return time.Duration(d.IncrementTimeSec) * time.Second
 }
 
 type DraftPlayer struct {
@@ -453,14 +472,26 @@ func createDraft(ctx context.Context, db database.DBTX, draft *DraftModel) (int,
 		return 0, errors.New("draft owner uuid is nil")
 	}
 
-	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, Status) Values ($1, $2, $3, $4) RETURNING Id;`
+	query := `INSERT INTO Drafts (DisplayName, OwnerUserUuid, Description, Status, TimingType, InitialPickTimeSec, IncrementTimeSec, PerPickExpTimeSec) Values ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING Id;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return -1, fmt.Errorf("failed to prepare create draft statement: %w", err)
 	}
 	defer database.CloseStatement(ctx, stmt, "CreateDraft")
 	var draftId int
-	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status).Scan(&draftId)
+	if draft.TimingType == "" {
+		draft.TimingType = PER_PICK
+	}
+	if draft.InitialPickTimeSec == 0 {
+		draft.InitialPickTimeSec = 3600
+	}
+	if draft.IncrementTimeSec == 0 {
+		draft.IncrementTimeSec = 900
+	}
+	if draft.PerPickExpTimeSec == 0 {
+		draft.PerPickExpTimeSec = 10800
+	}
+	err = stmt.QueryRowContext(ctx, draft.DisplayName, draft.Owner.UserUuid, draft.Description, draft.Status, draft.TimingType, draft.InitialPickTimeSec, draft.IncrementTimeSec, draft.PerPickExpTimeSec).Scan(&draftId)
 	if err != nil {
 		return -1, fmt.Errorf("failed to create draft: %w", err)
 	}
@@ -502,7 +533,11 @@ func queryDraftRow(ctx context.Context, db database.DBTX, draftId int) (DraftMod
         COALESCE(Description, '') As Description,
         COALESCE(Status, '') As Status,
         OwnerUserUuid,
-		COALESCE(DiscordWebhook, '')
+		COALESCE(DiscordWebhook, ''),
+		COALESCE(TimingType, 'per_pick') As TimingType,
+		COALESCE(InitialPickTimeSec, 3600) As InitialPickTimeSec,
+		COALESCE(IncrementTimeSec, 900) As IncrementTimeSec,
+		COALESCE(PerPickExpTimeSec, 10800) As PerPickExpTimeSec
     From Drafts Where Id = $1;`
 
 	stmt, err := database.Prepare(ctx, db, query)
@@ -521,6 +556,10 @@ func queryDraftRow(ctx context.Context, db database.DBTX, draftId int) (DraftMod
 		&draftModel.Status,
 		&ownerId,
 		&draftModel.DiscordWebhook,
+		&draftModel.TimingType,
+		&draftModel.InitialPickTimeSec,
+		&draftModel.IncrementTimeSec,
+		&draftModel.PerPickExpTimeSec,
 	)
 	log.Debug(ctx, "model.GetDraft: query completed", "draftId", draftId)
 	if err != nil {
@@ -553,7 +592,8 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 	                    BOOL_OR(Status = 'accepted') AS ACCEPTED,
 	                    MAX(PLAYERORDER) AS PLAYERORDER,
 	                    Max(PlayerId) As PlayerId,
-	                    MAX(InviteId) As InviteId
+	                    MAX(InviteId) As InviteId,
+	                    COALESCE(MAX(RemainingPickTimeSec), 0) As RemainingPickTimeSec
                     FROM (
 		                    SELECT
 			                    USERS.UserUuid AS UserUuid,
@@ -561,7 +601,8 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 			                    'accepted' AS Status,
 			                    COALESCE(DRAFTPLAYERS.PLAYERORDER, -1) As PLAYERORDER,
 			                    DraftPlayers.Id As PlayerId,
-			                    -1 As InviteId
+			                    -1 As InviteId,
+			                    COALESCE(DRAFTPLAYERS.RemainingPickTimeSec, 0) As RemainingPickTimeSec
 		                    FROM USERS
 		                    INNER JOIN DRAFTPLAYERS ON DRAFTPLAYERS.UserUuid = USERS.UserUuid
 		                    WHERE DRAFTPLAYERS.DRAFTID = $1
@@ -572,7 +613,8 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 			                    DRAFTINVITES.Status AS Status,
 			                    -1 AS PLAYERORDER,
 			                    -1 As PlayerId,
-			                    DraftInvites.Id As InviteId
+			                    DraftInvites.Id As InviteId,
+			                    0 As RemainingPickTimeSec
 		                    FROM USERS
 		                    INNER JOIN DRAFTINVITES ON DRAFTINVITES.InvitedUserUuid = USERS.UserUuid
 		                    WHERE DRAFTINVITES.DRAFTID = $1 AND DRAFTINVITES.Status != 'canceled'
@@ -604,8 +646,9 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 		var playerOrder sql.NullInt16
 		var playerId int
 		var inviteId int
+		var remainingPickTimeSec int
 
-		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId, &inviteId)
+		err = playerRows.Scan(&userUuid, &username, &accepted, &playerOrder, &playerId, &inviteId, &remainingPickTimeSec)
 
 		if err != nil {
 			return fmt.Errorf("failed to scan draft player: %w", err)
@@ -629,10 +672,11 @@ func loadDraftPlayers(ctx context.Context, db database.DBTX, draftId int, draftM
 				UserUuid: userUuid,
 				Username: username,
 			},
-			PlayerOrder: playerOrder,
-			Pending:     !accepted,
-			InviteId:    inviteId,
-			Picks:       picksByPlayer[playerId],
+			PlayerOrder:          playerOrder,
+			Pending:              !accepted,
+			InviteId:             inviteId,
+			Picks:                picksByPlayer[playerId],
+			RemainingPickTimeSec: remainingPickTimeSec,
 		}
 
 		draftModel.Players = append(draftModel.Players, draftPlayer)
@@ -680,14 +724,14 @@ func getDraft(ctx context.Context, db database.DBTX, draftId int) (DraftModel, e
 
 func updateDraft(ctx context.Context, db database.DBTX, draft *DraftModel) error {
 	log.Debug(ctx, "model.UpdateDraft: starting", "draftId", draft.Id)
-	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3 Where Id = $4;`
+	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3, TimingType = $4, InitialPickTimeSec = $5, IncrementTimeSec = $6, PerPickExpTimeSec = $7 Where Id = $8;`
 	stmt, err := database.Prepare(ctx, db, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare update draft statement: %w", err)
 	}
 	defer database.CloseStatement(ctx, stmt, "UpdateDraft")
 	log.Debug(ctx, "model.UpdateDraft: executing query", "draftId", draft.Id)
-	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.Id)
+	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.TimingType, draft.InitialPickTimeSec, draft.IncrementTimeSec, draft.PerPickExpTimeSec, draft.Id)
 	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
 	if err != nil {
 		return fmt.Errorf("failed to update draft: %w", err)
@@ -754,6 +798,34 @@ func addPlayerToDraft(ctx context.Context, db database.DBTX, draft int, player u
 	_, err = stmt.ExecContext(ctx, draft, player)
 	if err != nil {
 		return fmt.Errorf("failed to add player to draft: %w", err)
+	}
+	return nil
+}
+
+func initializeDraftPlayerClocks(ctx context.Context, db database.DBTX, draftId int, seconds int16) error {
+	query := `Update DraftPlayers Set RemainingPickTimeSec = $1 Where DraftId = $2 And PlayerOrder Is Not Null;`
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare initialize draft player clocks statement: %w", err)
+	}
+	defer database.CloseStatement(ctx, stmt, "InitializeDraftPlayerClocks")
+	_, err = stmt.ExecContext(ctx, seconds, draftId)
+	if err != nil {
+		return fmt.Errorf("failed to initialize draft player clocks: %w", err)
+	}
+	return nil
+}
+
+func setDraftPlayerRemainingTime(ctx context.Context, db database.DBTX, draftPlayerId int, seconds int) error {
+	query := `Update DraftPlayers Set RemainingPickTimeSec = $1 Where Id = $2;`
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare set draft player remaining time statement: %w", err)
+	}
+	defer database.CloseStatement(ctx, stmt, "SetDraftPlayerRemainingTime")
+	_, err = stmt.ExecContext(ctx, seconds, draftPlayerId)
+	if err != nil {
+		return fmt.Errorf("failed to set draft player remaining time: %w", err)
 	}
 	return nil
 }

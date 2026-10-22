@@ -42,10 +42,13 @@ type UndoLastPickMessage struct {
 }
 
 type UpdateDraftProfileMessage struct {
-	Name           string
-	Description    string
-	Interval       int
-	DiscordWebhook string
+	Name               string
+	Description        string
+	DiscordWebhook     string
+	TimingType         model.TimingType
+	InitialPickTimeSec int16
+	IncrementTimeSec   int16
+	PerPickExpTimeSec  int16
 }
 
 type TransferDraftOwnershipMessage struct {
@@ -149,12 +152,25 @@ func (tpt *ToPickingTransition) executeTransition(ctx context.Context, store mod
 	if err := store.RandomizePickOrder(ctx, draft.Id); err != nil {
 		return err
 	}
+
+	if draft.TimingType == model.INCREMENT {
+		if err := store.InitializeDraftPlayerClocks(ctx, draft.Id, draft.InitialPickTimeSec); err != nil {
+			log.Error(ctx, "failed to initialize player clocks", "draftId", draft.Id, "error", err)
+			return err
+		}
+	}
+
 	nextPickPlayer, err := store.NextPick(ctx, draft.Id)
 	if err != nil {
 		log.Error(ctx, "failed to get next pick when transitioning to picking", "draftId", draft.Id, "error", err)
 		return err
 	}
-	if _, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), pickConfig.GetPickExpirationTime(ctx, time.Now(), pickConfig.PickTime)); err != nil {
+
+	expirationDuration := draft.PerPickExpirationDuration()
+	if draft.TimingType == model.INCREMENT {
+		expirationDuration = draft.InitialPickDuration()
+	}
+	if _, err := store.MakePickAvailable(ctx, nextPickPlayer.Id, time.Now(), pickConfig.GetPickExpirationTime(ctx, time.Now(), expirationDuration)); err != nil {
 		log.Error(ctx, "failed to make first pick available", "draftId", draft.Id, "error", err)
 		return err
 	}
@@ -537,6 +553,31 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 	return Result{}
 }
 
+// getNextPickExpirationTime computes when the given player's next pick should
+// expire based on the draft's timing configuration and the player's remaining
+// chess-clock time (when using INCREMENT timing). The result is still run
+// through the global pick-window configuration so that picks respect the
+// configured active hours.
+func (d *DraftActor) getNextPickExpirationTime(ctx context.Context, draftPlayerId int, t time.Time) time.Time {
+	d.mu.RLock()
+	draft := d.draftState
+	d.mu.RUnlock()
+
+	var expirationDuration time.Duration
+	if draft.TimingType == model.INCREMENT {
+		player := model.GetDraftPlayerFromDraft(ctx, draft, draftPlayerId)
+		if player.RemainingPickTimeSec > 0 {
+			expirationDuration = time.Duration(player.RemainingPickTimeSec) * time.Second
+		} else {
+			expirationDuration = draft.InitialPickDuration()
+		}
+	} else {
+		expirationDuration = draft.PerPickExpirationDuration()
+	}
+
+	return d.pickConfig.GetPickExpirationTime(ctx, t, expirationDuration)
+}
+
 func (d *DraftActor) executeTransition(ctx context.Context, store model.DraftStore, requestedState model.DraftState) error {
 	state, stateFound := d.states[d.draftState.Status]
 	if !stateFound {
@@ -603,18 +644,71 @@ func (d *DraftActor) prepareDraftAdvance(ctx context.Context) (model.DraftPlayer
 	return nextPick, false, nil
 }
 
-func (d *DraftActor) commitDraftAdvance(ctx context.Context, action func(model.DraftStore) error, nextPick model.DraftPlayer, complete bool) error {
+func (d *DraftActor) commitDraftAdvance(ctx context.Context, action func(model.DraftStore) error, currentPick model.Pick, nextPick model.DraftPlayer, complete bool, successfulPick bool) error {
 	return d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
 		store := d.draftStore.WithTx(tx)
 		if err := action(store); err != nil {
 			return err
 		}
+
+		if d.draftState.TimingType == model.INCREMENT {
+			if err := d.updatePlayerClockAfterTurn(ctx, store, currentPick, successfulPick); err != nil {
+				return err
+			}
+		}
+
 		if complete {
 			return d.executeTransition(ctx, store, model.TEAMS_PLAYING)
 		}
-		_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime))
+		_, err := store.MakePickAvailable(ctx, nextPick.Id, time.Now().UTC(), d.getNextPickExpirationTime(ctx, nextPick.Id, time.Now().UTC()))
 		return err
 	})
+}
+
+// reverseIncrementForUndo removes the increment that was awarded to a player
+// when a successful pick is undone, restoring their clock closer to its prior
+// state without refunding the elapsed time.
+func (d *DraftActor) reverseIncrementForUndo(ctx context.Context, store model.DraftStore, previousPick model.Pick) error {
+	if !previousPick.PickTime.Valid {
+		return nil
+	}
+
+	player := model.GetDraftPlayerFromDraft(ctx, d.draftState, previousPick.Player)
+	if player.Id == 0 {
+		log.Warn(ctx, "could not find previous pick player to reverse increment", "draftId", d.draftState.Id, "draftPlayerId", previousPick.Player)
+		return nil
+	}
+
+	newRemaining := int(player.RemainingPickTimeSec) - int(d.draftState.IncrementTimeSec)
+	if newRemaining < 0 {
+		newRemaining = 0
+	}
+
+	log.Debug(ctx, "Reversing increment for undo", "draftId", d.draftState.Id, "draftPlayerId", player.Id, "oldRemaining", player.RemainingPickTimeSec, "newRemaining", newRemaining)
+	return store.SetDraftPlayerRemainingTime(ctx, player.Id, newRemaining)
+}
+
+// updatePlayerClockAfterTurn adjusts the current pick player's remaining chess-clock
+// time after their turn ends. On a successful pick they receive the configured
+// increment; on a skip/timeout their remaining time is reduced by the elapsed time.
+func (d *DraftActor) updatePlayerClockAfterTurn(ctx context.Context, store model.DraftStore, currentPick model.Pick, successfulPick bool) error {
+	player := model.GetDraftPlayerFromDraft(ctx, d.draftState, currentPick.Player)
+	if player.Id == 0 {
+		log.Warn(ctx, "could not find current pick player to update clock", "draftId", d.draftState.Id, "draftPlayerId", currentPick.Player)
+		return nil
+	}
+
+	elapsed := time.Now().UTC().Sub(currentPick.AvailableTime)
+	newRemaining := int(player.RemainingPickTimeSec) - int(elapsed.Seconds())
+	if successfulPick {
+		newRemaining += int(d.draftState.IncrementTimeSec)
+	}
+	if newRemaining < 0 {
+		newRemaining = 0
+	}
+
+	log.Debug(ctx, "Updating player chess clock", "draftId", d.draftState.Id, "draftPlayerId", player.Id, "oldRemaining", player.RemainingPickTimeSec, "elapsedSec", int(elapsed.Seconds()), "newRemaining", newRemaining, "successfulPick", successfulPick)
+	return store.SetDraftPlayerRemainingTime(ctx, player.Id, newRemaining)
 }
 
 func (d *DraftActor) publishPickOutcome(ctx context.Context, outcome pickOutcome) error {
@@ -666,7 +760,7 @@ func (d *DraftActor) handlePick(ctx context.Context, msg PickMessage) Result {
 
 	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
 		return store.MakePick(ctx, msg.Pick)
-	}, nextPickPlayer, pickingComplete)
+	}, d.draftState.CurrentPick, nextPickPlayer, pickingComplete, true)
 	if err != nil {
 		return Result{
 			Error: err,
@@ -755,7 +849,7 @@ func (d *DraftActor) handleSkipCurrentPick(ctx context.Context, msg SkipCurrentP
 
 	err = d.commitDraftAdvance(ctx, func(store model.DraftStore) error {
 		return store.SkipPick(ctx, d.draftState.CurrentPick.Id)
-	}, nextPickPlayer, pickingComplete)
+	}, d.draftState.CurrentPick, nextPickPlayer, pickingComplete, false)
 	if err != nil {
 		log.Error(ctx, "Failed to skip current pick", "currentPickId", d.draftState.CurrentPick.Id, "error", err)
 		return Result{
@@ -815,13 +909,20 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 		}
 	}
 
-	newExpirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
+	newExpirationTime := d.getNextPickExpirationTime(ctx, previousPick.Player, time.Now().UTC())
 
 	err = d.draftStore.RunInTransaction(ctx, func(tx database.DBTX) error {
 		store := d.draftStore.WithTx(tx)
 		if err := store.DeletePick(ctx, d.draftState.CurrentPick.Id); err != nil {
 			return err
 		}
+
+		if d.draftState.TimingType == model.INCREMENT {
+			if err := d.reverseIncrementForUndo(ctx, store, previousPick); err != nil {
+				return err
+			}
+		}
+
 		return store.ResetPick(ctx, previousPick.Id, newExpirationTime)
 	})
 	if err != nil {
@@ -846,6 +947,10 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	draftModel.DisplayName = msg.Name
 	draftModel.Description = msg.Description
 	draftModel.DiscordWebhook = msg.DiscordWebhook
+	draftModel.TimingType = msg.TimingType
+	draftModel.InitialPickTimeSec = msg.InitialPickTimeSec
+	draftModel.IncrementTimeSec = msg.IncrementTimeSec
+	draftModel.PerPickExpTimeSec = msg.PerPickExpTimeSec
 
 	err := d.draftStore.UpdateDraft(ctx, &draftModel)
 	if err != nil {
@@ -860,6 +965,10 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
+	d.draftState.TimingType = msg.TimingType
+	d.draftState.InitialPickTimeSec = msg.InitialPickTimeSec
+	d.draftState.IncrementTimeSec = msg.IncrementTimeSec
+	d.draftState.PerPickExpTimeSec = msg.PerPickExpTimeSec
 	d.mu.Unlock()
 
 	return Result{}
@@ -924,7 +1033,7 @@ func (d *DraftActor) buildNextPickDiscordEvent(ctx context.Context, previousDraf
 			return discord.NextPickDiscordEvent{}, err
 		}
 
-		expirationTime := d.pickConfig.GetPickExpirationTime(ctx, time.Now().UTC(), d.pickConfig.PickTime)
+		expirationTime := d.getNextPickExpirationTime(ctx, nextPickPlayer.Id, time.Now().UTC())
 		event.NextPickName = nextPickUser.Username
 		event.NextPickDiscordId = nextPickDiscordId
 		event.ExpirationTime = expirationTime

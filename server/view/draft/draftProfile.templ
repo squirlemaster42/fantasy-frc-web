@@ -125,18 +125,73 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                     <h2 class="text-lg font-bold text-base-content mb-4">Draft Settings</h2>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-medium text-base-content/80 mb-2">Time Between Picks (seconds)</label>
-                            <!--<input
-                                disabled?={!isOwner}
-                                name="interval"
-                                value={fmt.Sprintf("%d", draft.Interval)}
-                                type="range"
-                                min="30"
-                                max="3600"
-                                step="30"
-                                class="w-full h-2 bg-base-300 rounded-lg appearance-none cursor-pointer"
+                            <label class="block text-xs font-medium text-base-content/80 mb-2">Pick Timing Method</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        disabled?={!isOwner || draft.Status != model.FILLING}
+                                        type="radio"
+                                        name="timingType"
+                                        value="per_pick"
+                                        checked?={draft.TimingType == model.PER_PICK || draft.TimingType == ""}
+                                        class="radio radio-primary"
+                                    />
+                                    <span class="text-sm text-base-content">Per Pick</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        disabled?={!isOwner || draft.Status != model.FILLING}
+                                        type="radio"
+                                        name="timingType"
+                                        value="increment"
+                                        checked?={draft.TimingType == model.INCREMENT}
+                                        class="radio radio-primary"
+                                    />
+                                    <span class="text-sm text-base-content">Chess Clock (Increment)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class={ templ.KV("hidden", draft.TimingType != model.PER_PICK && draft.TimingType != "") }>
+                            <label class="block text-xs font-medium text-base-content/80 mb-2">Time Per Pick (seconds)</label>
+                            <input
+                                disabled?={!isOwner || draft.Status != model.FILLING}
+                                name="perPickExpTimeSec"
+                                value={fmt.Sprintf("%d", draft.PerPickExpTimeSec)}
+                                type="number"
+                                min="60"
+                                max="86400"
+                                step="60"
+                                class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-2 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                             />
-                            <div class="text-xs text-base-content/70 mt-1">{ fmt.Sprintf("%d seconds", draft.Interval) }</div>-->
+                            <div class="text-xs text-base-content/70 mt-1">Each pick expires after this amount of time.</div>
+                        </div>
+                        <div class={ templ.KV("hidden", draft.TimingType != model.INCREMENT) }>
+                            <label class="block text-xs font-medium text-base-content/80 mb-2">Initial Time (seconds)</label>
+                            <input
+                                disabled?={!isOwner || draft.Status != model.FILLING}
+                                name="initialPickTimeSec"
+                                value={fmt.Sprintf("%d", draft.InitialPickTimeSec)}
+                                type="number"
+                                min="60"
+                                max="86400"
+                                step="60"
+                                class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-2 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            />
+                            <div class="text-xs text-base-content/70 mt-1">Starting clock for each player.</div>
+                        </div>
+                        <div class={ templ.KV("hidden", draft.TimingType != model.INCREMENT) }>
+                            <label class="block text-xs font-medium text-base-content/80 mb-2">Increment Per Pick (seconds)</label>
+                            <input
+                                disabled?={!isOwner || draft.Status != model.FILLING}
+                                name="incrementTimeSec"
+                                value={fmt.Sprintf("%d", draft.IncrementTimeSec)}
+                                type="number"
+                                min="0"
+                                max="86400"
+                                step="60"
+                                class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-2 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            />
+                            <div class="text-xs text-base-content/70 mt-1">Time added after each successful pick.</div>
                         </div>
                         if isOwner && draft.Id != 0 && draft.Id != -1 {
                             <div>
