@@ -2,6 +2,7 @@ package apihandler
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"server/api"
 	apimodel "server/api/model"
@@ -41,7 +42,7 @@ func (h *Handler) AdminSkipPick(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	skipped := draft.SkipCurrentPick(ctx, draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
@@ -79,7 +80,7 @@ func (h *Handler) AdminExtendTime(c *echo.Context) error {
 	var req apimodel.AdminExtendTimeRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	if req.Duration == 0 {
@@ -91,14 +92,14 @@ func (h *Handler) AdminExtendTime(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	duration := req.Duration.Duration()
 	if err := draft.ModifyCurrentPickExpirationTime(ctx, draftActor, duration); err != nil {
 		log.Warn(ctx, "Failed to extend pick time", "DraftId", draftId, "Duration", duration, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, apimodel.AdminActionResponse{
@@ -133,7 +134,7 @@ func (h *Handler) AdminMakePick(c *echo.Context) error {
 	var req apimodel.AdminMakePickRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	if req.TeamNumber <= 0 {
@@ -145,7 +146,7 @@ func (h *Handler) AdminMakePick(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	currentPick := draft.GetCurrentPick(draftActor)
@@ -165,7 +166,7 @@ func (h *Handler) AdminMakePick(c *echo.Context) error {
 	if err := draft.MakePick(ctx, draftActor, pick); err != nil {
 		log.Warn(ctx, "Failed to make admin pick", "DraftId", draftId, "Team", tbaId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, apimodel.AdminActionResponse{
@@ -201,13 +202,13 @@ func (h *Handler) AdminUndoPick(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if err := draft.UndoLastPick(ctx, draftActor); err != nil {
 		log.Warn(ctx, "Failed to undo pick", "DraftId", draftId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, apimodel.AdminActionResponse{Success: true, Message: "Pick undone"})

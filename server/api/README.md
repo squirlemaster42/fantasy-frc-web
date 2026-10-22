@@ -53,7 +53,19 @@ The following scopes are supported:
 
 The OpenAPI specification is served at `/api/v1/openapi.yaml`.
 
+## Public endpoints
+
+The following endpoints do not require authentication:
+
+- `GET /api/v1/openapi.yaml` — OpenAPI specification
+- `GET /api/v1/team/score?team_number=254` — Team score breakdown
+- `GET /api/v1/leaderboard` — Overall leaderboard (supports `page` and `per_page`)
+
 ## Creating an Integration
+
+Integrations can be created through the web UI at `/u/integrations` or via the API.
+When creating through the web UI, scopes can be selected individually; leaving all
+scopes unchecked creates a key with `full_access`.
 
 ```bash
 curl -X POST https://example.com/api/v1/integrations \

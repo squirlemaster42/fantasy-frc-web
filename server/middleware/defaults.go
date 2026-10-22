@@ -11,7 +11,7 @@ const (
 	defaultRateLimitLoginAttempts   = 5
 	rateLimitRegisterAttemptsEnvKey  = "RATE_LIMIT_REGISTER_ATTEMPTS"
 	defaultRateLimitRegisterAttempts = 3
-	rateLimitApiTokenAttemptsEnvKey  = "RATE_LIMIT_API_TOKEN_ATTEMPTS"
+	rateLimitApiTokenAttemptsEnvKey  = "RATE_LIMIT_API_TOKEN_ATTEMPTS" //nolint:gosec // env var name, not a credential
 	defaultRateLimitApiTokenAttempts = 10
 	rateLimitAuthWindowEnvKey       = "RATE_LIMIT_AUTH_WINDOW"
 	defaultRateLimitAuthWindow      = 15 * time.Minute
@@ -25,7 +25,7 @@ const (
 	// Domain constants that are not operational tuning knobs.
 	rateLimitKeyPrefixLogin    = "rate_limit:login"
 	rateLimitKeyPrefixRegister = "rate_limit:register"
-	rateLimitKeyPrefixApiToken = "rate_limit:api_token"
+	rateLimitKeyPrefixApiToken = "rate_limit:api_token" //nolint:gosec // Redis key prefix, not a credential
 	rateLimitKeyPrefixGeneral  = "rate_limit:general"
 	rateLimitGeneralWindow     = time.Minute
 	redisProtocolVersion       = 2

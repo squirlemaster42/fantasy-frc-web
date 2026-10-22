@@ -2,6 +2,7 @@ package apimodel
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -17,18 +18,22 @@ type DurationString time.Duration
 func (d *DurationString) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal duration string: %w", err)
 	}
 	dur, err := time.ParseDuration(s)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse duration: %w", err)
 	}
 	*d = DurationString(dur)
 	return nil
 }
 
 func (d DurationString) MarshalJSON() ([]byte, error) {
-	return json.Marshal(time.Duration(d).String())
+	b, err := json.Marshal(time.Duration(d).String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal duration: %w", err)
+	}
+	return b, nil
 }
 
 func (d DurationString) Duration() time.Duration {

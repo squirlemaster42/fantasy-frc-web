@@ -1,6 +1,7 @@
 package apihandler
 
 import (
+	"fmt"
 	"net/http"
 	"server/api"
 	apimodel "server/api/model"
@@ -24,7 +25,7 @@ func (h *Handler) ListIntegrations(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to list integrations", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.IntegrationResponse, 0, len(keys))
@@ -47,7 +48,7 @@ func (h *Handler) CreateIntegration(c *echo.Context) error {
 	var req apimodel.CreateIntegrationRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 	if req.DisplayName == "" {
 		api.BadRequest(c.Response(), "display_name is required")
@@ -58,7 +59,7 @@ func (h *Handler) CreateIntegration(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to create integration", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusCreated, apimodel.CreateIntegrationResponse{
@@ -81,13 +82,13 @@ func (h *Handler) RevokeIntegration(c *echo.Context) error {
 	keyId, err := uuid.Parse(idParam)
 	if err != nil {
 		api.BadRequest(c.Response(), "Invalid integration id")
-		return nil
+		return fmt.Errorf("failed to parse integration id: %w", err)
 	}
 
 	if err := h.ApiKeyStore.RevokeApiKey(ctx, keyId, userUuid); err != nil {
 		log.Error(ctx, "Failed to revoke integration", "KeyId", keyId, "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	return c.NoContent(http.StatusNoContent)

@@ -90,3 +90,20 @@ type TeamScoreResponse struct {
 	Scores     map[string]int `json:"scores"`
 	Matches    []MatchScore   `json:"matches"`
 }
+
+// LeaderboardEntryResponse is a single entry in the overall leaderboard.
+type LeaderboardEntryResponse struct {
+	User      UserSummary `json:"user"`
+	Score     int         `json:"score"`
+	DraftId   int         `json:"draft_id"`
+	DraftName string      `json:"draft_name"`
+}
+
+// LeaderboardResponse is returned by GET /api/v1/leaderboard.
+type LeaderboardResponse struct {
+	Entries     []LeaderboardEntryResponse `json:"entries"`
+	CurrentPage int                        `json:"current_page"`
+	TotalPages  int                        `json:"total_pages"`
+	PerPage     int                        `json:"per_page"`
+	Total       int                        `json:"total"`
+}

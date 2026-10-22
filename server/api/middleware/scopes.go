@@ -19,15 +19,3 @@ const (
 	// ScopeAdmin allows administrative draft actions.
 	ScopeAdmin Scope = "admin"
 )
-
-// DefaultScopes returns the scopes assigned to new API keys.
-func DefaultScopes() []Scope {
-	return []Scope{
-		ScopeDraftsRead,
-		ScopeDraftsWrite,
-		ScopeInvitesRead,
-		ScopeInvitesWrite,
-		ScopeIntegrationsRead,
-		ScopeIntegrationsWrite,
-	}
-}

@@ -2,12 +2,14 @@ package apihandler
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"server/api"
 	apimodel "server/api/model"
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/utils"
 	"strconv"
 	"time"
 
@@ -27,7 +29,7 @@ func (h *Handler) ListDrafts(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to list drafts", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.DraftResponse, 0, len(drafts))
@@ -76,7 +78,7 @@ func (h *Handler) CreateDraft(c *echo.Context) error {
 	var req apimodel.CreateDraftRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	if req.DisplayName == "" {
@@ -107,7 +109,7 @@ func (h *Handler) CreateDraft(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to create draft", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	draftModel.Id = draftId
@@ -140,7 +142,7 @@ func (h *Handler) UpdateDraft(c *echo.Context) error {
 	var req apimodel.UpdateDraftRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	update := model.DraftModel{
@@ -186,19 +188,19 @@ func (h *Handler) UpdateDraft(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if err := draft.UpdateDraft(ctx, draftActor, update); err != nil {
 		log.Error(ctx, "Failed to update draft", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, mapDraft(draft.GetDraft(draftActor)))
 }
 
-// StartDraft transitions a draft from FILLING to WAITING_TO_START.
+// StartDraft transitions a draft from FILLING to PICKING.
 func (h *Handler) StartDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, ok := getAuthenticatedUser(c)
@@ -235,20 +237,20 @@ func (h *Handler) StartDraft(c *echo.Context) error {
 	if err := h.DraftStore.CancelOutstandingInvites(ctx, draftId); err != nil {
 		log.Error(ctx, "Failed to cancel outstanding invites", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
-	if err := draft.ExecuteDraftStateTransition(ctx, draftActor, model.WAITING_TO_START); err != nil {
+	if err := draft.ExecuteDraftStateTransition(ctx, draftActor, model.PICKING); err != nil {
 		log.Error(ctx, "Failed to start draft", "DraftId", draftId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, mapDraft(draft.GetDraft(draftActor)))
@@ -281,7 +283,7 @@ func (h *Handler) ListPicks(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to get picks", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.PickResponse, 0, len(picks))
@@ -309,7 +311,7 @@ func (h *Handler) MakePick(c *echo.Context) error {
 	var req apimodel.MakePickRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	if req.TeamNumber <= 0 {
@@ -321,7 +323,7 @@ func (h *Handler) MakePick(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.NotFound(c.Response(), "Draft not found")
-		return nil
+		return err
 	}
 
 	draftState := draftActor.GetDraftState()
@@ -334,7 +336,7 @@ func (h *Handler) MakePick(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft player id", "DraftId", draftId, "UserUuid", userUuid, "Error", err)
 		api.Forbidden(c.Response(), "You are not a member of this draft")
-		return nil
+		return err
 	}
 
 	tbaId := "frc" + strconv.Itoa(req.TeamNumber)
@@ -354,7 +356,7 @@ func (h *Handler) MakePick(c *echo.Context) error {
 	if err := draft.MakePick(ctx, draftActor, pick); err != nil {
 		log.Warn(ctx, "Failed to make pick", "DraftId", draftId, "Team", tbaId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return respondJSON(c, http.StatusOK, mapPick(draft.GetCurrentPick(draftActor)))
@@ -377,20 +379,20 @@ func (h *Handler) ToggleSkip(c *echo.Context) error {
 	var req apimodel.SkipPickRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request body: %w", err)
 	}
 
 	draftPlayerId, err := h.DraftStore.GetDraftPlayerId(ctx, draftId, userUuid)
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft player id", "DraftId", draftId, "UserUuid", userUuid, "Error", err)
 		api.Forbidden(c.Response(), "You are not a member of this draft")
-		return nil
+		return err
 	}
 
 	if err := h.DraftStore.MarkShouldSkipPick(ctx, draftPlayerId, req.Skipping); err != nil {
 		log.Error(ctx, "Failed to mark skip pick", "DraftPlayerId", draftPlayerId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -423,7 +425,7 @@ func (h *Handler) GetDraftScore(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to get draft score", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.DraftPlayerResponse, 0, len(players))
@@ -450,7 +452,7 @@ func (h *Handler) GetTeamScore(c *echo.Context) error {
 	teamNumber, err := strconv.Atoi(teamNumberStr)
 	if err != nil || teamNumber <= 0 {
 		api.BadRequest(c.Response(), "team_number must be a positive integer")
-		return nil
+		return fmt.Errorf("failed to parse team_number: %w", err)
 	}
 
 	tbaId := "frc" + strconv.Itoa(teamNumber)
@@ -458,14 +460,14 @@ func (h *Handler) GetTeamScore(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to get team score", "Team", tbaId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	matches, err := h.TeamStore.GetMatchScores(ctx, tbaId)
 	if err != nil {
 		log.Error(ctx, "Failed to get match scores", "Team", tbaId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	matchResponse := make([]apimodel.MatchScore, 0, len(matches))
@@ -482,6 +484,58 @@ func (h *Handler) GetTeamScore(c *echo.Context) error {
 		TeamNumber: teamNumber,
 		Scores:     scores,
 		Matches:    matchResponse,
+	})
+}
+
+// GetLeaderboard returns the overall leaderboard.
+func (h *Handler) GetLeaderboard(c *echo.Context) error {
+	ctx := c.Request().Context()
+
+	pageStr := c.QueryParam("page")
+	page := 0
+	if pageStr != "" {
+		var err error
+		page, err = strconv.Atoi(pageStr)
+		if err != nil || page < 0 {
+			api.BadRequest(c.Response(), "page must be a non-negative integer")
+			return fmt.Errorf("invalid page: %w", err)
+		}
+	}
+
+	perPage := utils.MustGetEnvInt("LEADERBOARD_PER_PAGE", 25)
+	perPageStr := c.QueryParam("per_page")
+	if perPageStr != "" {
+		var err error
+		perPage, err = strconv.Atoi(perPageStr)
+		if err != nil || perPage < 1 {
+			api.BadRequest(c.Response(), "per_page must be a positive integer")
+			return fmt.Errorf("invalid per_page: %w", err)
+		}
+	}
+
+	leaderboard, err := h.DraftStore.GetOverallLeaderboard(ctx, page, perPage)
+	if err != nil {
+		log.Error(ctx, "Failed to get leaderboard", "Page", page, "PerPage", perPage, "Error", err)
+		api.InternalError(c.Response())
+		return err
+	}
+
+	entries := make([]apimodel.LeaderboardEntryResponse, 0, len(leaderboard.Entries))
+	for _, e := range leaderboard.Entries {
+		entries = append(entries, apimodel.LeaderboardEntryResponse{
+			User:      mapUser(e.User),
+			Score:     e.Score,
+			DraftId:   e.DraftId,
+			DraftName: e.DraftName,
+		})
+	}
+
+	return respondJSON(c, http.StatusOK, apimodel.LeaderboardResponse{
+		Entries:     entries,
+		CurrentPage: leaderboard.CurrentPage,
+		TotalPages:  leaderboard.TotalPages,
+		PerPage:     leaderboard.PerPage,
+		Total:       leaderboard.Total,
 	})
 }
 
@@ -503,7 +557,7 @@ func (h *Handler) SearchUsers(c *echo.Context) error {
 		draftId, err = strconv.Atoi(draftIdStr)
 		if err != nil {
 			api.BadRequest(c.Response(), "Invalid draft_id")
-			return nil
+			return fmt.Errorf("failed to parse draft_id: %w", err)
 		}
 	}
 
@@ -527,7 +581,7 @@ func (h *Handler) SearchUsers(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to search users", "DraftId", draftId, "Search", search, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.UserSummary, 0, len(users))

@@ -3,6 +3,7 @@ package apihandler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"server/api"
 	apimodel "server/api/model"
@@ -36,7 +37,7 @@ func (h *AuthHandler) Token(c *echo.Context) error {
 	var req apimodel.TokenRequest
 	if err := json.NewDecoder(c.Request().Body).Decode(&req); err != nil {
 		api.InvalidGrant(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to decode token request: %w", err)
 	}
 
 	if req.GrantType != "client_credentials" {
@@ -66,9 +67,12 @@ func (h *AuthHandler) Token(c *echo.Context) error {
 		return nil
 	}
 
-	return c.JSON(http.StatusOK, apimodel.TokenResponse{
+	if err := c.JSON(http.StatusOK, apimodel.TokenResponse{
 		AccessToken: token,
 		TokenType:   "Bearer",
 		ExpiresIn:   int(accessTokenDuration.Seconds()),
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to write token response: %w", err)
+	}
+	return nil
 }

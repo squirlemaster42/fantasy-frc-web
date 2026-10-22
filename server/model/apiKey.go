@@ -177,6 +177,10 @@ func (s *SQLApiKeyStore) GetApiKeysForUser(ctx context.Context, userUuid uuid.UU
 		keys = append(keys, key)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate api keys: %w", err)
+	}
+
 	return keys, nil
 }
 
@@ -216,7 +220,7 @@ func (s *SQLApiKeyStore) updateLastUsedAt(ctx context.Context, clientId string) 
 	query := `UPDATE UserApiKeys SET LastUsedAt = now()::timestamptz WHERE ClientId = $1;`
 	stmt, err := s.db.PrepareContext(ctx, query)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare update last used at statement: %w", err)
 	}
 	defer func() {
 		if stmt != nil {
@@ -226,7 +230,10 @@ func (s *SQLApiKeyStore) updateLastUsedAt(ctx context.Context, clientId string) 
 		}
 	}()
 	_, err = stmt.ExecContext(ctx, clientId)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update last used at: %w", err)
+	}
+	return nil
 }
 
 var (

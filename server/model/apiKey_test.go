@@ -30,7 +30,7 @@ func TestApiKeyStore_Integration(t *testing.T) {
 	ctx := context.Background()
 	db, err := database.RegisterDatabaseConnection(ctx, dbUsername, dbPassword, dbIp, dbName)
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	store := NewSQLApiKeyStore(db)
 	userStore := NewSQLUserStore(db)
@@ -58,7 +58,7 @@ func TestApiKeyStore_Integration(t *testing.T) {
 		assert.Equal(t, []string{"full_access"}, validatedScopes)
 
 		_, _, err = store.ValidateApiKey(ctx, key.ClientId, "wrong-secret")
-		assert.ErrorIs(t, err, ErrInvalidApiKey)
+		require.ErrorIs(t, err, ErrInvalidApiKey)
 
 		keys, err := store.GetApiKeysForUser(ctx, userUuid)
 		require.NoError(t, err)
@@ -71,4 +71,3 @@ func TestApiKeyStore_Integration(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidApiKey)
 	})
 }
-

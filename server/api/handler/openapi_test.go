@@ -3,7 +3,6 @@ package apihandler
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v5"
@@ -13,7 +12,7 @@ import (
 
 func TestServeOpenAPI(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/openapi.yaml", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/openapi.yaml", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -21,5 +20,5 @@ func TestServeOpenAPI(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "application/yaml", rec.Header().Get("Content-Type"))
-	assert.True(t, strings.Contains(rec.Body.String(), "openapi: 3.1.0"))
+	assert.Contains(t, rec.Body.String(), "openapi: 3.1.0")
 }

@@ -165,7 +165,7 @@ func hmacSHA256(input string, key []byte) []byte {
 func generateTokenID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read random bytes for token id: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
@@ -174,7 +174,7 @@ func generateTokenID() (string, error) {
 func GenerateSecret() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read random bytes for secret: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
@@ -183,7 +183,7 @@ func GenerateSecret() (string, error) {
 func GenerateClientID() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read random bytes for client id: %w", err)
 	}
 	return "ffrc_" + base64.RawURLEncoding.EncodeToString(b), nil
 }

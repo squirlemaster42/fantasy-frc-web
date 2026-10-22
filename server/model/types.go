@@ -40,7 +40,7 @@ func (a *StringArray) Scan(value any) error {
 // Value implements driver.Valuer for text[].
 func (a StringArray) Value() (driver.Value, error) {
 	if a == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	parts := make([]string, len(a))

@@ -14,11 +14,19 @@ import (
 	"server/types"
 	"server/view"
 	"server/view/partials"
+	"strings"
 	"time"
 )
 
 func formatTime(t time.Time) string {
 	return t.Format("Jan 2, 2006 3:04 PM")
+}
+
+func formatScopes(scopes []string) string {
+	if len(scopes) == 0 {
+		return "full_access"
+	}
+	return strings.Join(scopes, ", ")
 }
 
 func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage string, newSecret string, csrfToken string) templ.Component {
@@ -66,7 +74,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(newSecretClientId(newSecret))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 42, Col: 73}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 50, Col: 73}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -79,7 +87,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(newSecretValue(newSecret))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 46, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 54, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -98,7 +106,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div><label class=\"block text-sm font-medium text-slate-300 mb-2\">Integration Name</label> <input type=\"text\" name=\"displayName\" placeholder=\"e.g., My Draft Bot\" required class=\"w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent\"></div><button type=\"submit\" class=\"w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\" class=\"size-5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"></path></svg> Create Integration</button></form><div class=\"border-t border-slate-600 pt-6\"><h3 class=\"text-lg font-semibold text-slate-100 mb-4\">Existing Integrations</h3>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div><label class=\"block text-sm font-medium text-slate-300 mb-2\">Integration Name</label> <input type=\"text\" name=\"displayName\" placeholder=\"e.g., My Draft Bot\" required class=\"w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent\"></div><div><label class=\"block text-sm font-medium text-slate-300 mb-2\">Scopes</label><p class=\"text-slate-400 text-xs mb-2\">Leave all unchecked to grant full access.</p><div class=\"grid grid-cols-2 gap-2\"><label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"drafts:read\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Read drafts</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"drafts:write\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Write drafts</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"invites:read\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Read invites</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"invites:write\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Write invites</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"integrations:read\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Read integrations</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"integrations:write\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Write integrations</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"admin\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Admin</span></label> <label class=\"flex items-center space-x-2 text-slate-300 text-sm\"><input type=\"checkbox\" name=\"scopes\" value=\"full_access\" class=\"rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500\"> <span>Full access</span></label></div></div><button type=\"submit\" class=\"w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"2\" stroke=\"currentColor\" class=\"size-5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"></path></svg> Create Integration</button></form><div class=\"border-t border-slate-600 pt-6\"><h3 class=\"text-lg font-semibold text-slate-100 mb-4\">Existing Integrations</h3>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -120,7 +128,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(key.DisplayName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 88, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 134, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -133,7 +141,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(key.ClientId)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 89, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 135, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -146,7 +154,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(formatTime(key.CreatedAt))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 91, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 137, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -164,7 +172,7 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(formatTime(key.LastUsedAt.Time))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 93, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 139, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -181,25 +189,38 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</p><p class=\"text-slate-500 text-xs mt-1\">Scopes: ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var8 string
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(formatScopes(key.Scopes))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 146, Col: 46}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if !key.Revoked {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<form method=\"post\" action=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<form method=\"post\" action=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var8 templ.SafeURL
-					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/integrations/%s/revoke", key.Id.String())))
+					var templ_7745c5c3_Var9 templ.SafeURL
+					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/integrations/%s/revoke", key.Id.String())))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 101, Col: 108}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/integrations/integrations.templ`, Line: 150, Col: 108}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -207,22 +228,22 @@ func IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage 
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<button type=\"submit\" class=\"text-red-400 hover:text-red-300 text-sm font-medium px-3 py-1 rounded hover:bg-slate-600 transition-colors\" onclick=\"return confirm('Revoke this integration? This cannot be undone.')\">Revoke</button></form>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button type=\"submit\" class=\"text-red-400 hover:text-red-300 text-sm font-medium px-3 py-1 rounded hover:bg-slate-600 transition-colors\" onclick=\"return confirm('Revoke this integration? This cannot be undone.')\">Revoke</button></form>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div></div></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -246,12 +267,12 @@ func Integrations(page string, fromProtected bool, username string, cmp templ.Co
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var10 == nil {
+			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var10 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var11 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -269,7 +290,7 @@ func Integrations(page string, fromProtected bool, username string, cmp templ.Co
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = view.Index(page, fromProtected, username, types.NewPageData(0, "", false)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = view.Index(page, fromProtected, username, types.NewPageData(0, "", false)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var11), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

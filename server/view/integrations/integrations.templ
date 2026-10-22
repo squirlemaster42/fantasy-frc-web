@@ -6,11 +6,19 @@ import (
 	"server/types"
 	"server/view"
 	"server/view/partials"
+	"strings"
 	"time"
 )
 
 func formatTime(t time.Time) string {
 	return t.Format("Jan 2, 2006 3:04 PM")
+}
+
+func formatScopes(scopes []string) string {
+	if len(scopes) == 0 {
+		return "full_access"
+	}
+	return strings.Join(scopes, ", ")
 }
 
 templ IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage string, newSecret string, csrfToken string) {
@@ -66,6 +74,44 @@ templ IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage
 								class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
 						</div>
+						<div>
+							<label class="block text-sm font-medium text-slate-300 mb-2">Scopes</label>
+							<p class="text-slate-400 text-xs mb-2">Leave all unchecked to grant full access.</p>
+							<div class="grid grid-cols-2 gap-2">
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="drafts:read" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Read drafts</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="drafts:write" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Write drafts</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="invites:read" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Read invites</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="invites:write" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Write invites</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="integrations:read" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Read integrations</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="integrations:write" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Write integrations</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="admin" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Admin</span>
+								</label>
+								<label class="flex items-center space-x-2 text-slate-300 text-sm">
+									<input type="checkbox" name="scopes" value="full_access" class="rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"/>
+									<span>Full access</span>
+								</label>
+							</div>
+						</div>
 						<button
 							type="submit"
 							class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2"
@@ -95,6 +141,9 @@ templ IntegrationsIndex(keys []model.ApiKey, errorMessage string, successMessage
 												if key.Revoked {
 													<span class="text-red-400 ml-2">Revoked</span>
 												}
+											</p>
+											<p class="text-slate-500 text-xs mt-1">
+												Scopes: { formatScopes(key.Scopes) }
 											</p>
 										</div>
 										if !key.Revoked {

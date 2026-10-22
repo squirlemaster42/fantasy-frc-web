@@ -7,11 +7,12 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRequireScopes_AllowsMatchingScope(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/drafts", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/drafts", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("scopes", []string{"drafts:read"})
@@ -22,13 +23,13 @@ func TestRequireScopes_AllowsMatchingScope(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRequireScopes_AllowsFullAccess(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/drafts", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/drafts", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("scopes", []string{"full_access"})
@@ -39,13 +40,13 @@ func TestRequireScopes_AllowsFullAccess(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestRequireScopes_DeniesMissingScope(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/drafts", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/drafts", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("scopes", []string{"drafts:read"})
@@ -56,13 +57,13 @@ func TestRequireScopes_DeniesMissingScope(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
 func TestRequireScopes_DeniesMissingClaim(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/drafts", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/drafts", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -72,6 +73,6 @@ func TestRequireScopes_DeniesMissingClaim(t *testing.T) {
 	})
 
 	err := handler(c)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }

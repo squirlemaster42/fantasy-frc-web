@@ -7,6 +7,7 @@ import (
 	"uuid"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignAndValidate(t *testing.T) {
@@ -14,12 +15,12 @@ func TestSignAndValidate(t *testing.T) {
 	userUuid := uuid.MustParse("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
 
 	token, err := Sign(userUuid, key, 15*time.Minute, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, token)
-	assert.Equal(t, 3, len(strings.Split(token, ".")))
+	assert.Len(t, strings.Split(token, "."), 3)
 
 	validatedUuid, scopes, err := Validate(token, key)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userUuid, validatedUuid)
 	assert.Empty(t, scopes)
 }
@@ -29,7 +30,7 @@ func TestValidateExpiredToken(t *testing.T) {
 	userUuid := uuid.New()
 
 	token, err := Sign(userUuid, key, -1*time.Second, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, _, err = Validate(token, key)
 	assert.ErrorIs(t, err, ErrExpiredToken)
@@ -41,7 +42,7 @@ func TestValidateInvalidSignature(t *testing.T) {
 	userUuid := uuid.New()
 
 	token, err := Sign(userUuid, key, 15*time.Minute, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, _, err = Validate(token, wrongKey)
 	assert.ErrorIs(t, err, ErrInvalidToken)
@@ -51,7 +52,7 @@ func TestValidateMalformedToken(t *testing.T) {
 	key := []byte("super-secret-key-that-is-32-bytes!")
 
 	_, _, err := Validate("not.a.jwt", key)
-	assert.ErrorIs(t, err, ErrInvalidToken)
+	require.ErrorIs(t, err, ErrInvalidToken)
 
 	_, _, err = Validate("only.two.parts", key)
 	assert.ErrorIs(t, err, ErrInvalidToken)
@@ -60,6 +61,7 @@ func TestValidateMalformedToken(t *testing.T) {
 func TestValidateWrongAlgorithm(t *testing.T) {
 	key := []byte("super-secret-key-that-is-32-bytes!")
 	// A token with header {"alg":"none","typ":"JWT"} and empty signature
+	//nolint:gosec
 	token := "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhMGVlYmM5OS05YzBiLTRlZjgtYmI2ZC02YmI5YmQzODBhMTEiLCJpc3MiOiJmYW50YXN5LWZyYyIsImF1ZCI6ImFwaSIsImV4cCI6OTk5OTk5OTk5OSwiaWF0IjoxfQ."
 
 	_, _, err := Validate(token, key)
@@ -87,21 +89,21 @@ func TestSignAndValidateWithScopes(t *testing.T) {
 	scopes := []string{"drafts:read", "drafts:write"}
 
 	token, err := Sign(userUuid, key, 15*time.Minute, scopes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	validatedUuid, validatedScopes, err := Validate(token, key)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userUuid, validatedUuid)
 	assert.Equal(t, scopes, validatedScopes)
 }
 
 func TestGenerateClientIDAndSecret(t *testing.T) {
 	clientId, err := GenerateClientID()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(clientId, "ffrc_"))
 
 	secret, err := GenerateSecret()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, secret)
 	assert.Greater(t, len(secret), 20)
 }

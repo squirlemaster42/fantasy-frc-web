@@ -3,6 +3,7 @@ package apihandler
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"server/api"
 	apimodel "server/api/model"
@@ -28,7 +29,7 @@ func (h *Handler) ListInvites(c *echo.Context) error {
 	if err != nil {
 		log.Error(ctx, "Failed to get invites", "UserUuid", userUuid, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	response := make([]apimodel.InviteResponse, 0, len(invites))
@@ -70,20 +71,20 @@ func (h *Handler) CreateInvite(c *echo.Context) error {
 	var req apimodel.CreateInviteRequest
 	if err := c.Bind(&req); err != nil {
 		api.BadRequest(c.Response(), "Invalid request body")
-		return nil
+		return fmt.Errorf("failed to bind request: %w", err)
 	}
 
 	invitedUserUuid, err := uuid.Parse(req.UserUuid)
 	if err != nil {
 		api.BadRequest(c.Response(), "Invalid user_uuid")
-		return nil
+		return fmt.Errorf("invalid user_uuid: %w", err)
 	}
 
 	draftActor, err := h.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", draftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if err := draft.InvitePlayer(ctx, draftActor, model.DraftInvite{
@@ -92,7 +93,7 @@ func (h *Handler) CreateInvite(c *echo.Context) error {
 	}); err != nil {
 		log.Error(ctx, "Failed to invite player", "DraftId", draftId, "InvitedUserUuid", invitedUserUuid, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -111,18 +112,18 @@ func (h *Handler) AcceptInvite(c *echo.Context) error {
 	inviteId, err := strconv.Atoi(inviteIdStr)
 	if err != nil {
 		api.BadRequest(c.Response(), "Invalid invite ID")
-		return nil
+		return fmt.Errorf("invalid invite id: %w", err)
 	}
 
 	invite, err := h.DraftStore.GetInvite(ctx, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			api.NotFound(c.Response(), "Invite not found")
-			return nil
+			return err
 		}
 		log.Error(ctx, "Failed to get invite", "InviteId", inviteId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if invite.InvitedUserUuid != userUuid {
@@ -134,13 +135,13 @@ func (h *Handler) AcceptInvite(c *echo.Context) error {
 	if err != nil {
 		log.Warn(ctx, "Failed to get draft actor", "DraftId", invite.DraftId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if err := draft.AcceptInvite(ctx, draftActor, inviteId, userUuid); err != nil {
 		log.Error(ctx, "Failed to accept invite", "InviteId", inviteId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -159,18 +160,18 @@ func (h *Handler) DeclineInvite(c *echo.Context) error {
 	inviteId, err := strconv.Atoi(inviteIdStr)
 	if err != nil {
 		api.BadRequest(c.Response(), "Invalid invite ID")
-		return nil
+		return fmt.Errorf("invalid invite id: %w", err)
 	}
 
 	invite, err := h.DraftStore.GetInvite(ctx, inviteId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			api.NotFound(c.Response(), "Invite not found")
-			return nil
+			return err
 		}
 		log.Error(ctx, "Failed to get invite", "InviteId", inviteId, "Error", err)
 		api.InternalError(c.Response())
-		return nil
+		return err
 	}
 
 	if invite.InvitedUserUuid != userUuid {
@@ -181,7 +182,7 @@ func (h *Handler) DeclineInvite(c *echo.Context) error {
 	if err := h.DraftStore.DeclineInvite(ctx, inviteId); err != nil {
 		log.Error(ctx, "Failed to decline invite", "InviteId", inviteId, "Error", err)
 		api.BadRequest(c.Response(), err.Error())
-		return nil
+		return err
 	}
 
 	return c.NoContent(http.StatusNoContent)

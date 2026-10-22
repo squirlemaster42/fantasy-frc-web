@@ -32,11 +32,27 @@ func (h *Handler) HandleViewIntegrations(c *echo.Context) error {
 	return nil
 }
 
+var validIntegrationScopes = []string{
+	"drafts:read",
+	"drafts:write",
+	"invites:read",
+	"invites:write",
+	"integrations:read",
+	"integrations:write",
+	"admin",
+	"full_access",
+}
+
 func (h *Handler) HandleCreateIntegration(c *echo.Context) error {
 	ctx := c.Request().Context()
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err
+	}
+
+	if err := c.Request().ParseForm(); err != nil {
+		log.Error(ctx, "Failed to parse integration form", "UserUuid", userUuid, "Error", err)
+		return c.String(http.StatusBadRequest, "Invalid form")
 	}
 
 	displayName := c.FormValue("displayName")
@@ -53,7 +69,12 @@ func (h *Handler) HandleCreateIntegration(c *echo.Context) error {
 		return nil
 	}
 
-	key, secret, err := h.Stores.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName, nil)
+	scopes := filterIntegrationScopes(c.Request().Form["scopes"])
+	if len(scopes) == 0 {
+		scopes = nil
+	}
+
+	key, secret, err := h.Stores.ApiKeyStore.CreateApiKey(ctx, userUuid, displayName, scopes)
 	if err != nil {
 		log.Error(ctx, "Failed to create api key", "UserUuid", userUuid, "Error", err)
 		return c.String(http.StatusInternalServerError, "An error occurred")
@@ -70,6 +91,27 @@ func (h *Handler) HandleCreateIntegration(c *echo.Context) error {
 		log.Error(ctx, "HandleCreateIntegration failed to render", "Error", err)
 	}
 	return nil
+}
+
+func filterIntegrationScopes(scopes []string) []string {
+	valid := make(map[string]struct{}, len(validIntegrationScopes))
+	for _, s := range validIntegrationScopes {
+		valid[s] = struct{}{}
+	}
+
+	result := make([]string, 0, len(scopes))
+	seen := make(map[string]struct{}, len(scopes))
+	for _, s := range scopes {
+		if _, ok := valid[s]; !ok {
+			continue
+		}
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		result = append(result, s)
+	}
+	return result
 }
 
 func (h *Handler) HandleRevokeIntegration(c *echo.Context) error {

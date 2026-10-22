@@ -231,7 +231,7 @@ paths:
       operationId: startDraft
       summary: Start a draft
       description: |
-        Transitions a draft from FILLING to WAITING_TO_START. Requires exactly
+        Transitions a draft from FILLING to PICKING. Requires exactly
         8 accepted players and owner permission.
       security:
         - bearerAuth: []
@@ -697,6 +697,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TeamScore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      summary: Get the overall leaderboard
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Page number (0-indexed)
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 25
+          description: Entries per page
+      responses:
+        '200':
+          description: Leaderboard page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Leaderboard'
         '400':
           $ref: '#/components/responses/BadRequest'
         '429':
@@ -1175,6 +1206,45 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MatchScore'
+
+    Leaderboard:
+      type: object
+      required:
+        - entries
+        - current_page
+        - total_pages
+        - per_page
+        - total
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+        current_page:
+          type: integer
+        total_pages:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+
+    LeaderboardEntry:
+      type: object
+      required:
+        - user
+        - score
+        - draft_id
+        - draft_name
+      properties:
+        user:
+          $ref: '#/components/schemas/UserSummary'
+        score:
+          type: integer
+        draft_id:
+          type: integer
+        draft_name:
+          type: string
 
     MatchScore:
       type: object

@@ -145,8 +145,9 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
 	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
 
-	// Public team score
+	// Public team score and leaderboard
 	apiV1.GET("/team/score", apiHandler.GetTeamScore)
+	apiV1.GET("/leaderboard", apiHandler.GetLeaderboard)
 
 	// Invites
 	apiV1Protected.GET("/invites", apiHandler.ListInvites, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesRead))
