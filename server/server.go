@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"uuid"
 
 	"github.com/a-h/templ"
 	echootel "github.com/labstack/echo-otel/v5"
@@ -14,6 +13,8 @@ import (
 	echomiddleware "github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	apihandler "server/api/handler"
+	apimiddleware "server/api/middleware"
 	"server/assets"
 	"server/authentication"
 	"server/handler"
@@ -23,6 +24,7 @@ import (
 	"server/otel"
 	"server/types"
 	"server/view/errorpage"
+	"uuid"
 )
 
 type ServerConfig struct {
@@ -31,6 +33,7 @@ type ServerConfig struct {
 	Database         *sql.DB
 	MetricSecret     string
 	CsrfSecret       string
+	JwtSigningKey    []byte
 	RedisAddr        string
 	RedisPassword    string
 	RedisRateLimitDB int
@@ -110,6 +113,59 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	metricAuth := authentication.NewMetricAuth(cfg.MetricSecret)
 	registerSystemRoutes(app, cfg, metricAuth)
 
+	// Machine-to-machine API v1
+	authHandler := apihandler.NewAuthHandler(cfg.Handler.Stores.ApiKeyStore, cfg.JwtSigningKey)
+	apiHandler := apihandler.NewHandler(cfg.Handler.Stores.DraftStore, cfg.Handler.Stores.UserStore, cfg.Handler.Stores.ApiKeyStore, cfg.Handler.Stores.TeamStore, cfg.Handler.Services.DraftActorMap)
+	apiV1 := app.Group("/api/v1")
+
+	// Public API discovery
+	apiV1.GET("/openapi.yaml", apihandler.ServeOpenAPI)
+
+	apiTokenMiddleware := []echo.MiddlewareFunc{}
+	if rateLimiter != nil {
+		apiTokenMiddleware = append(apiTokenMiddleware, rateLimiter.RateLimitApiToken())
+	}
+	apiV1.POST("/auth/token", authHandler.Token, apiTokenMiddleware...)
+
+	apiV1Protected := apiV1.Group("")
+	apiV1Protected.Use(apimiddleware.JWTAuth(cfg.JwtSigningKey))
+
+	// Users
+	apiV1Protected.GET("/users/me", apiHandler.GetMe)
+	apiV1Protected.GET("/users/search", apiHandler.SearchUsers)
+
+	// Drafts
+	apiV1Protected.GET("/drafts", apiHandler.ListDrafts, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.POST("/drafts", apiHandler.CreateDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id", apiHandler.GetDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.PATCH("/drafts/:id", apiHandler.UpdateDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.POST("/drafts/:id/start", apiHandler.StartDraft, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id/picks", apiHandler.ListPicks, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+	apiV1Protected.POST("/drafts/:id/picks", apiHandler.MakePick, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.POST("/drafts/:id/skip", apiHandler.ToggleSkip, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsWrite))
+	apiV1Protected.GET("/drafts/:id/score", apiHandler.GetDraftScore, apimiddleware.RequireScopes(apimiddleware.ScopeDraftsRead))
+
+	// Public team score and leaderboard
+	apiV1.GET("/team/score", apiHandler.GetTeamScore)
+	apiV1.GET("/leaderboard", apiHandler.GetLeaderboard)
+
+	// Invites
+	apiV1Protected.GET("/invites", apiHandler.ListInvites, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesRead))
+	apiV1Protected.POST("/drafts/:id/invites", apiHandler.CreateInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
+	apiV1Protected.POST("/invites/:id/accept", apiHandler.AcceptInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
+	apiV1Protected.POST("/invites/:id/decline", apiHandler.DeclineInvite, apimiddleware.RequireScopes(apimiddleware.ScopeInvitesWrite))
+
+	// Integrations (API key management)
+	apiV1Protected.GET("/integrations", apiHandler.ListIntegrations, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsRead))
+	apiV1Protected.POST("/integrations", apiHandler.CreateIntegration, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsWrite))
+	apiV1Protected.POST("/integrations/:id/revoke", apiHandler.RevokeIntegration, apimiddleware.RequireScopes(apimiddleware.ScopeIntegrationsWrite))
+
+	// Admin
+	apiV1Protected.POST("/drafts/:id/admin/skip-pick", apiHandler.AdminSkipPick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/extend-time", apiHandler.AdminExtendTime, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/make-pick", apiHandler.AdminMakePick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+	apiV1Protected.POST("/drafts/:id/admin/undo-pick", apiHandler.AdminUndoPick, apimiddleware.RequireScopes(apimiddleware.ScopeAdmin))
+
 	protected := app.Group("/u", auth.Authenticate, csrf.CSRF())
 	protected.Use(echomiddleware.Gzip())
 	registerProtectedRoutes(protected, cfg)
@@ -173,6 +229,11 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.POST("/userProfile", cfg.Handler.HandleUpdateUserProfile)
 	protected.POST("/userProfile/password", cfg.Handler.HandleUpdateUserPassword)
 	protected.POST("/userProfile/notifications", cfg.Handler.HandleUpdateUserNotificationPreferences)
+
+	// Integrations (machine API key management UI)
+	protected.GET("/integrations", cfg.Handler.HandleViewIntegrations)
+	protected.POST("/integrations", cfg.Handler.HandleCreateIntegration)
+	protected.POST("/integrations/:id/revoke", cfg.Handler.HandleRevokeIntegration)
 }
 
 func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
@@ -253,4 +314,3 @@ func cacheControlMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
-

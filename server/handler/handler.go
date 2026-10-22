@@ -18,9 +18,10 @@ import (
 )
 
 type StorageGroup struct {
-	DraftStore model.DraftStore
-	UserStore  model.UserStore
-	TeamStore  model.TeamStore
+	DraftStore  model.DraftStore
+	UserStore   model.UserStore
+	ApiKeyStore model.ApiKeyStore
+	TeamStore   model.TeamStore
 }
 
 type ServiceGroup struct {
@@ -42,6 +43,7 @@ type ConfigGroup struct {
 	MaxUsernameLength           int
 	UsernameAllowedSpecialChars string
 	AllowedOrigin               string
+	JwtSigningKey               []byte
 }
 
 type Handler struct {

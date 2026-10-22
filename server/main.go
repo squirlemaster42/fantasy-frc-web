@@ -6,9 +6,11 @@ import (
 	"flag"
 	"io"
 	"net/http"
-	"strconv"
 	"os"
 	"os/signal"
+	"strconv"
+	"syscall"
+
 	"server/assert"
 	"server/authentication"
 	"server/background"
@@ -24,7 +26,6 @@ import (
 	"server/scorer"
 	"server/tbaHandler"
 	"server/utils"
-	"syscall"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -60,6 +61,7 @@ func main() {
 	tbaWebhookSecret := requireEnv(ctx, "TBA_WEBHOOK_SECRET")
 	metricSecret := requireEnv(ctx, "METRIC_SECRET")
 	csrfSecret := requireEnv(ctx, "CSRF_SECRET")
+	jwtSigningKey := requireEnv(ctx, "JWT_SIGNING_KEY")
 
 	allowedOrigin := utils.MustGetEnvString("ALLOWED_ORIGIN", "")
 	redisAddr := utils.MustGetEnvString("REDIS_ADDR", "")
@@ -69,6 +71,10 @@ func main() {
 	serverPortNum := mustGetEnvInt(ctx, "SERVER_PORT", 0)
 	if serverPortNum < 1 || serverPortNum > 65535 {
 		log.Fatal(ctx, "SERVER_PORT must be between 1 and 65535", "value", serverPortNum)
+	}
+
+	if len(jwtSigningKey) < 32 {
+		log.Fatal(ctx, "JWT_SIGNING_KEY must be at least 32 bytes")
 	}
 
 	minPasswordLength := mustGetEnvInt(ctx, "MIN_PASSWORD_LENGTH", 12)
@@ -117,6 +123,7 @@ func main() {
 	discordWebhookBus := discord.NewBus()
 	draftStore := model.NewSQLDraftStore(db)
 	userStore := model.NewSQLUserStore(db)
+	apiKeyStore := model.NewSQLApiKeyStore(db)
 
 	passwordHasher, err := authentication.NewBcryptPasswordHasher(bcryptCost)
 	if err != nil {
@@ -188,9 +195,10 @@ func main() {
 
 	handler := handler.Handler{
 		Stores: handler.StorageGroup{
-			DraftStore: draftStore,
-			UserStore:  userStore,
-			TeamStore:  teamStore,
+			DraftStore:  draftStore,
+			UserStore:   userStore,
+			ApiKeyStore: apiKeyStore,
+			TeamStore:   teamStore,
 		},
 		Services: handler.ServiceGroup{
 			AuthService:       authService,
@@ -208,6 +216,7 @@ func main() {
 			MaxUsernameLength:           maxUsernameLength,
 			UsernameAllowedSpecialChars: usernameAllowedSpecialChars,
 			AllowedOrigin:               allowedOrigin,
+			JwtSigningKey:               []byte(jwtSigningKey),
 		},
 	}
 
@@ -234,6 +243,7 @@ func main() {
 		Database:         db,
 		MetricSecret:     metricSecret,
 		CsrfSecret:       csrfSecret,
+		JwtSigningKey:    []byte(jwtSigningKey),
 		RedisAddr:        redisAddr,
 		RedisPassword:    redisPassword,
 		RedisRateLimitDB: redisRateLimitDB,

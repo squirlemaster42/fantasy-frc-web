@@ -11,6 +11,8 @@ const (
 	defaultRateLimitLoginAttempts   = 5
 	rateLimitRegisterAttemptsEnvKey  = "RATE_LIMIT_REGISTER_ATTEMPTS"
 	defaultRateLimitRegisterAttempts = 3
+	rateLimitApiTokenAttemptsEnvKey  = "RATE_LIMIT_API_TOKEN_ATTEMPTS" //nolint:gosec // env var name, not a credential
+	defaultRateLimitApiTokenAttempts = 10
 	rateLimitAuthWindowEnvKey       = "RATE_LIMIT_AUTH_WINDOW"
 	defaultRateLimitAuthWindow      = 15 * time.Minute
 
@@ -23,6 +25,7 @@ const (
 	// Domain constants that are not operational tuning knobs.
 	rateLimitKeyPrefixLogin    = "rate_limit:login"
 	rateLimitKeyPrefixRegister = "rate_limit:register"
+	rateLimitKeyPrefixApiToken = "rate_limit:api_token" //nolint:gosec // Redis key prefix, not a credential
 	rateLimitKeyPrefixGeneral  = "rate_limit:general"
 	rateLimitGeneralWindow     = time.Minute
 	redisProtocolVersion       = 2
@@ -40,17 +43,19 @@ var (
 )
 
 type middlewareDefaults struct {
-	rateLimitLoginAttempts   int64
+	rateLimitLoginAttempts    int64
 	rateLimitRegisterAttempts int64
-	rateLimitAuthWindow      time.Duration
+	rateLimitApiTokenAttempts int64
+	rateLimitAuthWindow       time.Duration
 	rateLimitRedisPingTimeout time.Duration
-	hstsMaxAgeSeconds        int
+	hstsMaxAgeSeconds         int
 }
 
 func loadDefaults() middlewareDefaults {
 	return middlewareDefaults{
 		rateLimitLoginAttempts:    utils.MustGetEnvInt64(rateLimitLoginAttemptsEnvKey, defaultRateLimitLoginAttempts),
 		rateLimitRegisterAttempts: utils.MustGetEnvInt64(rateLimitRegisterAttemptsEnvKey, defaultRateLimitRegisterAttempts),
+		rateLimitApiTokenAttempts: utils.MustGetEnvInt64(rateLimitApiTokenAttemptsEnvKey, defaultRateLimitApiTokenAttempts),
 		rateLimitAuthWindow:       utils.MustGetEnvDuration(rateLimitAuthWindowEnvKey, defaultRateLimitAuthWindow),
 		rateLimitRedisPingTimeout: utils.MustGetEnvDuration(rateLimitRedisPingTimeoutEnvKey, defaultRateLimitRedisPingTimeout),
 		hstsMaxAgeSeconds:         utils.MustGetEnvInt(hstsMaxAgeSecondsEnvKey, defaultHstsMaxAgeSeconds),
@@ -67,6 +72,9 @@ func RateLimitLoginAttempts() int64 { return getDefaults().rateLimitLoginAttempt
 
 // RateLimitRegisterAttempts returns the max register attempts within the auth window.
 func RateLimitRegisterAttempts() int64 { return getDefaults().rateLimitRegisterAttempts }
+
+// RateLimitApiTokenAttempts returns the max token endpoint attempts within the auth window.
+func RateLimitApiTokenAttempts() int64 { return getDefaults().rateLimitApiTokenAttempts }
 
 // RateLimitAuthWindow returns the sliding window for login/register rate limits.
 func RateLimitAuthWindow() time.Duration { return getDefaults().rateLimitAuthWindow }
