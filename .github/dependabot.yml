@@ -21,6 +21,16 @@ updates:
     open-pull-requests-limit: 10
 
   - package-ecosystem: "gomod"
+    directory: "/draftClient"
+    schedule:
+      interval: "weekly"
+    groups:
+      golang-org-x:
+        patterns:
+          - "golang.org/x/*"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "gomod"
     directory: "/draftTester"
     schedule:
       interval: "weekly"
