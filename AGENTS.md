@@ -94,7 +94,7 @@ See `database/README.md` for full details
 
 ### General Conventions
 
-- **Go Version**: Go 1.27+ (the server module declares `go 1.27.0`)
+- **Go Version**: Go 1.27+ (the server module declares `go 1.27.3`)
 - **Logging**: Use the custom `server/log` package for structured logging with context
 - **Error Handling**: Use custom `assert` package for context-aware error handling. Only to be used for behavior which should theoretically never happen. Other errors should be logged using the logging pattern used throughout the entire project with the appropriate log level.
 - **Testing**: Use `github.com/stretchr/testify/assert` for assertions

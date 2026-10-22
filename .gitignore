@@ -5,4 +5,7 @@ server/go.sum
 server/view/*.txt
 server/assets/css/tailwind.css
 server/server
+draftAgent/draftAgent
+draftTester/draftTester
+fuzzer/fuzzer
 deploy/k8s/secret.yaml

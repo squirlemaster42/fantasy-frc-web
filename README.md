@@ -30,7 +30,7 @@ the entire drafting and scoring process for Fantasy FRC.
 
 ### Install Go
 
-Fantasy FRC is built using Go 1.26+. The server module declares `go 1.27`
+Fantasy FRC is built using Go 1.27+. The server module declares `go 1.27.3`
 
 ### Install Templ
 

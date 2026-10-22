@@ -49,10 +49,10 @@ This is combined with the user's persona prompt and current draft state to creat
 
 ### Prerequisites
 
-- Go 1.26+
+- Go 1.27+
 - Running Fantasy FRC server on `http://localhost:7331`
 - OpenCode CLI installed and available in PATH
-- `frc-worlds-2025.csv` file with valid team numbers (optional, for validation)
+- `frc-worlds-2026.csv` file with valid team numbers (optional, for validation)
 
 ### Running
 
