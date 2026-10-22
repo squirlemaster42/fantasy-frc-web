@@ -117,6 +117,6 @@ kubectl wait --for=condition=complete job/fantasy-frc-migrate -n fantasy-frc
 
 ## Notes
 
-- Migrations are **manually triggered** and run as K8s Jobs, not on application startup.
-- All migrations must have both `-- +goose Up` and `-- +goose Down` sections.
+- Migrations are **manually triggered** and run as K8s Jobs, not on application startup
+- All migrations must have both `-- +goose Up` and `-- +goose Down` sections
 - The baseline migration (`00001`) creates the full schema from scratch. It does not reference historical migration files.
