@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"server/cache"
 	"server/database"
 	"server/discord"
 	"server/log"
@@ -87,6 +88,7 @@ type DraftActor struct {
 	tbaHandler tbaHandler.TBAInterface
 	pickNotifier *picking.PickNotifier
 	pickConfig utils.PickWindowConfig
+	eventTeamCache cache.EventTeamCache
 	states map[model.DraftState]*state
 	shutdown bool
 	mu sync.RWMutex
@@ -112,8 +114,8 @@ func (e *invalidStateTransitionError) Error() string {
 	return fmt.Sprintf("Invalid state transition where current state was %s and requested state was %s", e.currentState, e.requestedState)
 }
 
-func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig) (*DraftActor, error) {
-	actor := &DraftActor {
+func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig, eventTeamCache cache.EventTeamCache) (*DraftActor, error) {
+	actor := &DraftActor{
 		inbox: make(chan Message, DraftActorInboxBuffer()),
 		draftStore: draftStore,
 		tbaHandler: tbaHandler,
@@ -121,6 +123,7 @@ func NewDraftActor(ctx context.Context, draftId int, draftStore model.DraftStore
 		discordBus: discordBus,
 		pickNotifier: pickNotifier,
 		pickConfig: pickConfig,
+		eventTeamCache: eventTeamCache,
 		states: setupStates(ctx, draftStore),
 	}
 
@@ -606,7 +609,7 @@ func (d *DraftActor) validatePickInput(ctx context.Context, msg PickMessage) err
 		return errors.New("attempting to make pick that is not the current pick")
 	}
 
-	validator := NewPickValidator(d.tbaHandler, d.draftStore, d.draftState.Id)
+	validator := NewPickValidator(d.eventTeamCache, d.draftStore, d.draftState.Id)
 	return validator.ValidatePick(ctx, msg.Pick)
 }
 

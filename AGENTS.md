@@ -264,6 +264,14 @@ The server fails fast on startup if a required variable is missing or if an opti
 
 - `REDIS_AVATAR_DB` (int, default `2`): Redis database number for avatar cache data.
 
+- `TBA_PICK_CACHE_TYPE` (string, default `memory`): Backend for the TBA event-team pick validation cache. Valid values are `memory` and `redis`. When set to `redis`, the server stores the set of valid pick teams in Redis; if Redis is unreachable at startup it falls back to an in-memory cache.
+
+- `TBA_PICK_CACHE_REFRESH_INTERVAL` (duration, default `1h`): How often the pick validation cache is refreshed from The Blue Alliance. The cache is also refreshed immediately on startup.
+
+- `TBA_PICK_CACHE_REDIS_DB` (int, default `3`): Redis database number for the pick validation cache when `TBA_PICK_CACHE_TYPE=redis`.
+
+- `TBA_PICK_CACHE_REDIS_KEY_PREFIX` (string, default `tba:pick_validation:`): Key prefix for Redis entries backing the pick validation cache.
+
 - `DRAFT_ACTOR_CACHE_SIZE` (int, default `128`): Maximum number of draft actors to keep in memory. When the cache is full, the least-recently-used actor is shut down and evicted.
 
 - `PICK_WINDOWS_CONFIG_FILE` (string, default `../config/pick-windows.json` relative to the `server/` working directory): Path to a JSON file that configures the allowed pick windows per weekday. The `pick_time` field in this file is no longer used for per-pick duration; per-draft timing (per-pick duration or chess-clock initial time/increment) is configured on each draft's profile page. If the file is missing, built-in defaults are used. If the file is present but malformed, the server fails fast on startup. Example format:

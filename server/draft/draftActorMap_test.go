@@ -17,7 +17,7 @@ func TestDraftActorMap_GetActor_CacheHit(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{Id: 1}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 2)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 2, nil)
 
 	ctx := t.Context()
 	actor1, err := actorMap.GetActor(ctx, 1)
@@ -35,7 +35,7 @@ func TestDraftActorMap_GetActor_EvictsOldest(t *testing.T) {
 	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{Id: 1}, nil).Once()
 	mockStore.On("GetDraft", mock.Anything, 2).Return(model.DraftModel{Id: 2}, nil).Once()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 1)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 1, nil)
 
 	ctx := t.Context()
 	actor1, err := actorMap.GetActor(ctx, 1)
@@ -56,7 +56,7 @@ func TestDraftActorMap_ShutdownActor_RemovesFromCache(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{Id: 1}, nil).Twice()
 
-	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 2)
+	actorMap := NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 2, nil)
 
 	ctx := t.Context()
 	actor1, err := actorMap.GetActor(ctx, 1)

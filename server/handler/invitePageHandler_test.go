@@ -112,7 +112,7 @@ func TestHandleAcceptInvite_TooManyPlayers(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	h := &Handler{
 		Stores: StorageGroup{
 			DraftStore: mockDraftStore,
@@ -151,7 +151,7 @@ func TestHandleAcceptInvite_Success(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	h := &Handler{
 		Stores: StorageGroup{
 			DraftStore: mockDraftStore,
@@ -215,7 +215,7 @@ func TestHandleDeclineInvite_Success(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	h := &Handler{
 		Stores: StorageGroup{
 			DraftStore: mockDraftStore,
@@ -274,7 +274,7 @@ func TestHandleDeclineInvite_WrongUser(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	h := &Handler{
 		Stores: StorageGroup{
 			DraftStore: mockDraftStore,
@@ -319,7 +319,7 @@ func TestHandleDeclineInvite_RevertsToFilling(t *testing.T) {
 	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
 	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	h := &Handler{
 		Stores: StorageGroup{
 			DraftStore: mockDraftStore,

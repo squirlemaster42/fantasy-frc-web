@@ -51,7 +51,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 				Status: model.FILLING,
 			}, nil)
 
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 		h := &Handler{
 			Stores: StorageGroup{
@@ -129,7 +129,7 @@ func TestHandleViewDraftProfile(t *testing.T) {
 			On("GetDraft", c.Request().Context(), 42).
 			Return(model.DraftModel{}, sql.ErrNoRows)
 
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 		h := &Handler{
 			Stores: StorageGroup{
@@ -281,7 +281,7 @@ func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {
 		Players: players,
 	}, nil).Once()
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	draftDaemon := background.NewDraftDaemon(mockDraftStore, draftActorMap)
 
 	h := &Handler{
@@ -348,7 +348,7 @@ func TestHandleStartDraft_DraftLoadError(t *testing.T) {
 		On("GetDraft", c.Request().Context(), 1).
 		Return(model.DraftModel{}, errors.New("draft not found"))
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 	h := &Handler{
 		Stores: StorageGroup{
@@ -394,7 +394,7 @@ func TestHandleStartDraft_NonOwner(t *testing.T) {
 			},
 		}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 	h := &Handler{
 		Stores: StorageGroup{
@@ -438,7 +438,7 @@ func TestHandleStartDraft_NotStartable(t *testing.T) {
 			},
 		}, nil)
 
-	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 	h := &Handler{
 		Stores: StorageGroup{
@@ -495,7 +495,7 @@ func TestHandleUpdateDraftProfile(t *testing.T) {
 			})).
 			Return(nil).Once()
 
-		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 		h := &Handler{
 			Stores: StorageGroup{

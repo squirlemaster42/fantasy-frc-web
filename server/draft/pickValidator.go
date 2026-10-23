@@ -3,32 +3,23 @@ package draft
 import (
 	"context"
 	"errors"
+	"server/cache"
 	"server/log"
 	"server/model"
-	"server/tbaHandler"
-	"server/utils"
 )
 
 type PickValidator struct {
-    handler    tbaHandler.TBAInterface
-    draftStore model.DraftStore
-    draftId    int
-    eventSet   map[string]struct{}
+	cache      cache.EventTeamCache
+	draftStore model.DraftStore
+	draftId    int
 }
 
-func NewPickValidator(handler tbaHandler.TBAInterface, draftStore model.DraftStore, draftId int) PickValidator {
-    validEvents := utils.Events()
-    eventSet := make(map[string]struct{}, len(validEvents))
-    for _, event := range validEvents {
-        eventSet[event] = struct{}{}
-    }
-
-    return PickValidator{
-        handler:    handler,
-        draftStore: draftStore,
-        draftId:    draftId,
-        eventSet:   eventSet,
-    }
+func NewPickValidator(cache cache.EventTeamCache, draftStore model.DraftStore, draftId int) PickValidator {
+	return PickValidator{
+		cache:      cache,
+		draftStore: draftStore,
+		draftId:    draftId,
+	}
 }
 
 func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error {
@@ -49,19 +40,21 @@ func (p *PickValidator) ValidatePick(ctx context.Context, pick model.Pick) error
 		return errors.New("team already picked")
 	}
 
-	events, err := p.handler.MakeEventListReq(ctx, pick.Pick.String)
+	if p.cache == nil {
+		log.Error(ctx, "Pick validation cache is not configured")
+		return errors.New("pick validation cache is not available")
+	}
+
+	valid, err := p.cache.IsTeamAtEvent(ctx, pick.Pick.String)
 	if err != nil {
-		return err
+		log.Warn(ctx, "Failed to validate team against event cache", "team", pick.Pick.String, "error", err)
+		return errors.New("unable to validate team eligibility")
 	}
 
-	log.Debug(ctx, "Checking if team is in a valid event", "teamEvents", events)
-	for _, event := range events {
-		if _, ok := p.eventSet[event]; ok {
-			log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", true)
-			return nil
-		}
+	log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", valid)
+	if !valid {
+		return errors.New("team not at event")
 	}
 
-	log.Debug(ctx, "Checked if team is a valid pick", "team", pick.Pick.String, "picked", picked, "validEvent", false)
-	return errors.New("team not at event")
+	return nil
 }

@@ -2,6 +2,7 @@ package draft
 
 import (
 	"context"
+	"server/cache"
 	"server/discord"
 	"server/log"
 	"server/model"
@@ -26,9 +27,10 @@ type DraftActorMap struct {
 	discordWebhookBus discord.DiscordNotifier
 	pickNotifier      *picking.PickNotifier
 	pickConfig        utils.PickWindowConfig
+	eventTeamCache    cache.EventTeamCache
 }
 
-func NewDraftActorMap(draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordWebhookBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig, cacheSize int) *DraftActorMap {
+func NewDraftActorMap(draftStore model.DraftStore, tbaHandler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordWebhookBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, pickConfig utils.PickWindowConfig, cacheSize int, eventTeamCache cache.EventTeamCache) *DraftActorMap {
 	if cacheSize < 1 {
 		cacheSize = defaultDraftActorCacheSize
 	}
@@ -40,6 +42,7 @@ func NewDraftActorMap(draftStore model.DraftStore, tbaHandler tbaHandler.TBAInte
 		discordWebhookBus: discordWebhookBus,
 		pickNotifier:      pickNotifier,
 		pickConfig:        pickConfig,
+		eventTeamCache:    eventTeamCache,
 	}
 
 	actorMap.actorCache = newLRUCache[int, *DraftActor](cacheSize, actorMap.onEvicted)
@@ -86,7 +89,7 @@ func (d *DraftActorMap) GetActor(ctx context.Context, draftId int) (*DraftActor,
 		return actor, nil
 	}
 
-	newActor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier, d.pickConfig)
+	newActor, err := NewDraftActor(ctx, draftId, d.draftStore, d.tbaHandler, d.discordStore, d.discordWebhookBus, d.pickNotifier, d.pickConfig, d.eventTeamCache)
 	if err != nil {
 		return nil, err
 	}

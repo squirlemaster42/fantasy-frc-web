@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	"server/cache"
 	"server/database"
 	"server/discord"
 	"server/model"
 	"server/model/mocks"
 	"server/picking"
-	"server/swagger"
 	"server/tbaHandler"
 	"server/utils"
 
@@ -50,39 +50,12 @@ func (t *testDiscordStore) GetPlayerPickNotificationId(ctx context.Context, draf
 
 func newTestActorMap(t *testing.T, draftStore model.DraftStore, handler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier) *DraftActorMap {
 	t.Helper()
-	return NewDraftActorMap(draftStore, handler, discordStore, discordBus, pickNotifier, utils.DefaultPickWindowConfig(), 16)
+	return newTestActorMapWithCache(t, draftStore, handler, discordStore, discordBus, pickNotifier, nil)
 }
 
-type testTBAHandler struct {
-	events map[string][]string
-	err    error
-}
-
-func (t *testTBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
-	if t.err != nil {
-		return nil, t.err
-	}
-	return t.events[teamId], nil
-}
-
-func (t *testTBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error) {
-	return swagger.Match{}, nil
-}
-
-func (t *testTBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error) {
-	return nil, nil
-}
-
-func (t *testTBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
-	return nil, nil
-}
-
-func (t *testTBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
-	return nil, nil
-}
-
-func (t *testTBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
-	return "", nil
+func newTestActorMapWithCache(t *testing.T, draftStore model.DraftStore, handler tbaHandler.TBAInterface, discordStore model.DiscordStore, discordBus discord.DiscordNotifier, pickNotifier *picking.PickNotifier, eventTeamCache cache.EventTeamCache) *DraftActorMap {
+	t.Helper()
+	return NewDraftActorMap(draftStore, handler, discordStore, discordBus, pickNotifier, utils.DefaultPickWindowConfig(), 16, eventTeamCache)
 }
 
 func mockRunInTransaction(mockStore *mocks.MockDraftStore) {
@@ -920,7 +893,7 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 	wg.Wait()
 
 	// After all operations, there should be no watchers left
-	assert.Empty(t, notifier.Watchers[draftId], "all watchers should be unregistered")
+	assert.Equal(t, 0, notifier.GetWatcherCount(draftId), "all watchers should be unregistered")
 }
 
 func TestDraftActor_ConcurrentMessages(t *testing.T) {
@@ -933,7 +906,7 @@ func TestDraftActor_ConcurrentMessages(t *testing.T) {
 	}, nil).Once()
 	mockStore.On("TransferOwnership", mock.Anything, draftId, uuid.Nil()).Return(nil).Maybe()
 
-	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig())
+	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), nil)
 	require.NoError(t, err)
 	assert.NotNil(t, actor)
 
@@ -1033,13 +1006,12 @@ func TestDraftActorMap_MakePick(t *testing.T) {
 		Players: players,
 	}, nil).Once()
 
-	handler := &testTBAHandler{
-		events: map[string][]string{
-			teamId: {utils.Events()[0]},
-		},
+	eventTeamCache := &testEventTeamCache{
+		teams:   map[string]struct{}{teamId: {}},
+		isReady: true,
 	}
 
-	actorMap := newTestActorMap(t, mockStore, handler, nil, nil, nil)
+	actorMap := newTestActorMapWithCache(t, mockStore, nil, nil, nil, nil, eventTeamCache)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	require.NoError(t, err)
 
@@ -1090,13 +1062,12 @@ func TestDraftActorMap_MakePick_FinalPickTransitionsToTeamsPlaying(t *testing.T)
 		Players:     players,
 	}, nil).Once()
 
-	handler := &testTBAHandler{
-		events: map[string][]string{
-			teamId: {utils.Events()[0]},
-		},
+	eventTeamCache := &testEventTeamCache{
+		teams:   map[string]struct{}{teamId: {}},
+		isReady: true,
 	}
 
-	actorMap := newTestActorMap(t, mockStore, handler, nil, nil, nil)
+	actorMap := newTestActorMapWithCache(t, mockStore, nil, nil, nil, nil, eventTeamCache)
 	draftActor, err := actorMap.GetActor(t.Context(), draftId)
 	require.NoError(t, err)
 

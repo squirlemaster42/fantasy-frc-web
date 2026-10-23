@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"server/background"
+	"server/cache"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -22,12 +24,12 @@ import (
 )
 
 type Command interface {
-	ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string
+	ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string
 }
 
 type PingCommand struct{}
 
-func (p *PingCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (p *PingCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	if len(argStr) > 0 {
 		return "Ping does not take any inputs"
 	}
@@ -36,7 +38,7 @@ func (p *PingCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.
 
 type PopulateTeamsCommand struct{}
 
-func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	if len(argStr) > 0 {
 		return "PopulateTeams does not take any inputs"
 	}
@@ -75,7 +77,7 @@ func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tb
 
 type ListDraftsCommand struct{}
 
-func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	// Parse command inputs
 	argMap, _ := utils.ParseArgString(argStr)
 	searchString := argMap["s"]
@@ -99,7 +101,7 @@ func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 
 type StartDraftCommand struct{}
 
-func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
 
@@ -141,7 +143,7 @@ func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHa
 
 type ViewWebhookKey struct{}
 
-func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	file, err := os.Open(utils.GetWebhookFilePath())
 	if err != nil {
 		return "Failed to open file: " + err.Error()
@@ -157,7 +159,7 @@ func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandl
 
 type SkipPickCommand struct{}
 
-func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	log.Info(ctx, "Calling skip command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 	draftId, err := strconv.Atoi(argMap["id"])
@@ -182,7 +184,7 @@ func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 
 type ModifyPickTimeCommand struct{}
 
-func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	log.Info(ctx, "Calling modify pick time command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -223,7 +225,7 @@ func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler t
 
 type AdminPickCommand struct{}
 
-func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	log.Info(ctx, "Calling admin pick command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -280,7 +282,7 @@ func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHan
 
 type RenameDraftCommand struct{}
 
-func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	log.Info(ctx, "Calling rename draft command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -325,7 +327,7 @@ func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaH
 
 type UndoPickCommand struct{}
 
-func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, argStr string) string {
+func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
 	log.Info(ctx, "Calling undo pick command", "args", argStr)
 	argMap, _ := utils.ParseArgString(argStr)
 
@@ -352,17 +354,38 @@ func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHand
 	return "Successfully undid pick"
 }
 
+type InvalidatePickCacheCommand struct{}
+
+func (i *InvalidatePickCacheCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
+	if len(argStr) > 0 {
+		return "InvalidatePickCache does not take any inputs"
+	}
+
+	if eventTeamCache == nil {
+		return "Pick validation cache is not configured"
+	}
+
+	log.Info(ctx, "Invalidating pick validation cache")
+	if err := eventTeamCache.InvalidateAndRefresh(ctx); err != nil {
+		log.Error(ctx, "Failed to invalidate pick validation cache", "error", err)
+		return "Failed to invalidate pick validation cache: " + err.Error()
+	}
+
+	return fmt.Sprintf("Pick validation cache invalidated and refreshed (last refresh: %s)", eventTeamCache.LastRefresh().Format(time.RFC3339))
+}
+
 var commands = map[string]Command{
-	"ping":           &PingCommand{},
-	"populateTeams":  &PopulateTeamsCommand{},
-	"listdraft":      &ListDraftsCommand{},
-	"startdraft":     &StartDraftCommand{},
-	"skippick":       &SkipPickCommand{},
-	"viewWebhookKey": &ViewWebhookKey{},
-	"modifypicktime": &ModifyPickTimeCommand{},
-	"adminpick":      &AdminPickCommand{},
-	"renamedraft":    &RenameDraftCommand{},
-	"undopick":       &UndoPickCommand{},
+	"ping":                 &PingCommand{},
+	"populateTeams":        &PopulateTeamsCommand{},
+	"listdraft":            &ListDraftsCommand{},
+	"startdraft":           &StartDraftCommand{},
+	"skippick":             &SkipPickCommand{},
+	"viewWebhookKey":       &ViewWebhookKey{},
+	"modifypicktime":       &ModifyPickTimeCommand{},
+	"adminpick":            &AdminPickCommand{},
+	"renamedraft":          &RenameDraftCommand{},
+	"undopick":             &UndoPickCommand{},
+	"invalidatePickCache":  &InvalidatePickCacheCommand{},
 }
 
 // ---------------- Handler Funcs --------------------------
@@ -414,7 +437,7 @@ func (h *Handler) HandleRunCommand(c *echo.Context) error {
 		return nil
 	}
 
-	result := command.ProcessCommand(c.Request().Context(), h.Services.TBAHandler, h.Stores.DraftStore, h.Stores.UserStore, h.Stores.TeamStore, h.Services.DraftActorMap, h.Services.DraftDaemon, args)
+	result := command.ProcessCommand(c.Request().Context(), h.Services.TBAHandler, h.Stores.DraftStore, h.Stores.UserStore, h.Stores.TeamStore, h.Services.DraftActorMap, h.Services.DraftDaemon, h.Services.EventTeamCache, args)
 
 	response := admin.RenderCommand(username, commandString, result)
 	if err := Render(c, response); err != nil {
@@ -422,4 +445,19 @@ func (h *Handler) HandleRunCommand(c *echo.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (h *Handler) HandleInvalidatePickCache(c *echo.Context) error {
+	if h.Services.EventTeamCache == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Pick validation cache is not configured")
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Invalidating pick validation cache via admin endpoint")
+	if err := h.Services.EventTeamCache.InvalidateAndRefresh(ctx); err != nil {
+		log.Error(ctx, "Failed to invalidate pick validation cache", "error", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to invalidate pick validation cache: "+err.Error())
+	}
+
+	return c.String(http.StatusOK, fmt.Sprintf("Pick validation cache invalidated and refreshed (last refresh: %s)", h.Services.EventTeamCache.LastRefresh().Format(time.RFC3339)))
 }

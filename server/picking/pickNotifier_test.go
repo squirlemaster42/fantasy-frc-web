@@ -20,7 +20,7 @@ func TestPickNotifier_RegisterWatcher(t *testing.T) {
 	assert.NotNil(t, watcher)
 	assert.NotEqual(t, uuid.Nil(), watcher.WatcherId)
 	assert.NotNil(t, watcher.NotifierQueue)
-	assert.Len(t, pn.Watchers[1], 1)
+	assert.Equal(t, 1, pn.GetWatcherCount(1))
 }
 
 func TestPickNotifier_UnregisterWatcher(t *testing.T) {
@@ -32,9 +32,10 @@ func TestPickNotifier_UnregisterWatcher(t *testing.T) {
 
 	pn.UnregisterWatcher(context.Background(), watcher1)
 
-	assert.Len(t, pn.Watchers[1], 1)
-	assert.Equal(t, watcher2.WatcherId, pn.Watchers[1][0].WatcherId)
-	assert.Len(t, pn.Watchers[2], 1)
+	watchers := pn.GetWatchers(1)
+	assert.Len(t, watchers, 1)
+	assert.Equal(t, watcher2.WatcherId, watchers[0].WatcherId)
+	assert.Equal(t, 1, pn.GetWatcherCount(2))
 }
 
 func TestPickNotifier_UnregisterWatcher_RemovesEmptyDraftEntry(t *testing.T) {
@@ -43,8 +44,7 @@ func TestPickNotifier_UnregisterWatcher_RemovesEmptyDraftEntry(t *testing.T) {
 	watcher := pn.RegisterWatcher(1)
 	pn.UnregisterWatcher(context.Background(), watcher)
 
-	_, exists := pn.Watchers[1]
-	assert.False(t, exists)
+	assert.False(t, pn.HasDraftWatchers(1))
 }
 
 func TestPickNotifier_UnregisterWatcher_WatcherNotFound(t *testing.T) {
@@ -56,7 +56,8 @@ func TestPickNotifier_UnregisterWatcher_WatcherNotFound(t *testing.T) {
 
 	pn.UnregisterWatcher(context.Background(), &watcher)
 
-	assert.Empty(t, pn.Watchers)
+	assert.Equal(t, 0, pn.GetWatcherCount(1))
+	assert.False(t, pn.HasDraftWatchers(1))
 }
 
 func TestPickNotifier_ReceivePickEvent(t *testing.T) {

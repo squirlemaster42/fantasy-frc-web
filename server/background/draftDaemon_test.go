@@ -17,7 +17,7 @@ import (
 
 func TestNewDraftDaemon(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
@@ -27,7 +27,7 @@ func TestNewDraftDaemon(t *testing.T) {
 
 func TestDraftDaemon_AddDraft(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	err := daemon.AddDraft(context.Background(), 1)
@@ -40,7 +40,7 @@ func TestDraftDaemon_AddDraft(t *testing.T) {
 
 func TestDraftDaemon_RemoveDraft(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	err := daemon.RemoveDraft(context.Background(), 1)
@@ -56,7 +56,7 @@ func TestDraftDaemon_RemoveDraft(t *testing.T) {
 
 func TestDraftDaemon_StartStop(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	ctx := t.Context()
@@ -84,7 +84,7 @@ func TestDraftDaemon_StartStop_WithDraft(t *testing.T) {
 	// Returning an error lets it log and continue without creating a real actor.
 	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, assert.AnError).Maybe()
 
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	ctx := t.Context()
@@ -106,7 +106,7 @@ func TestDraftDaemon_StartStop_WithDraft(t *testing.T) {
 
 func TestDraftDaemon_Run_RespectsStop(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 
 	ctx := context.Background()
@@ -129,7 +129,7 @@ func TestDraftDaemon_Run_DoesNotDeadlockOnSecondTick(t *testing.T) {
 	// Returning an error lets the daemon log and continue without creating a real actor.
 	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, assert.AnError).Maybe()
 
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
 	daemon := NewDraftDaemon(mockStore, actorMap)
 	daemon.tickInterval = 10 * time.Millisecond
 

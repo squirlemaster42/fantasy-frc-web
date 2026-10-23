@@ -107,7 +107,7 @@ func setupWebsocketTestHandler(t *testing.T, mockStore *mocks.MockDraftStore) (*
 	t.Helper()
 
 	pickNotifier := &picking.PickNotifier{Watchers: make(map[int][]picking.Watcher)}
-	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, pickNotifier, utils.DefaultPickWindowConfig(), 16)
+	actorMap := draft.NewDraftActorMap(mockStore, nil, nil, nil, pickNotifier, utils.DefaultPickWindowConfig(), 16, nil)
 
 	h := &Handler{
 		Config:   ConfigGroup{},
@@ -191,13 +191,13 @@ func TestPickNotifier_RegistersAndUnregistersWatcher(t *testing.T) {
 
 	// Give the handler time to register the watcher
 	time.Sleep(50 * time.Millisecond)
-	assert.Len(t, pickNotifier.Watchers[1], 1)
+	assert.Equal(t, 1, pickNotifier.GetWatcherCount(1))
 
 	// Clean disconnect
 	_ = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	time.Sleep(50 * time.Millisecond)
 
-	assert.Empty(t, pickNotifier.Watchers[1])
+	assert.Equal(t, 0, pickNotifier.GetWatcherCount(1))
 }
 
 func TestPickNotifier_ReceivesNotification(t *testing.T) {

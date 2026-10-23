@@ -178,6 +178,7 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
 	admin.POST("/processCommand", cfg.Handler.HandleRunCommand)
+	admin.POST("/invalidatePickCache", cfg.Handler.HandleInvalidatePickCache)
 }
 
 // newHTTPErrorHandler returns the custom Echo HTTP error handler that renders

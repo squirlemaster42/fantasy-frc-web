@@ -113,3 +113,27 @@ func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
 		}
 	}
 }
+
+// GetWatcherCount returns the number of active watchers for a draft. It is safe
+// to call concurrently with RegisterWatcher and UnregisterWatcher.
+func (pn *PickNotifier) GetWatcherCount(draftId int) int {
+	pn.mu.RLock()
+	defer pn.mu.RUnlock()
+	return len(pn.Watchers[draftId])
+}
+
+// GetWatchers returns a snapshot of the watchers for a draft. It is safe to
+// call concurrently with RegisterWatcher and UnregisterWatcher.
+func (pn *PickNotifier) GetWatchers(draftId int) []Watcher {
+	pn.mu.RLock()
+	defer pn.mu.RUnlock()
+	watchers := make([]Watcher, len(pn.Watchers[draftId]))
+	copy(watchers, pn.Watchers[draftId])
+	return watchers
+}
+
+// HasDraftWatchers reports whether any watchers are registered for a draft. It
+// is safe to call concurrently with RegisterWatcher and UnregisterWatcher.
+func (pn *PickNotifier) HasDraftWatchers(draftId int) bool {
+	return pn.GetWatcherCount(draftId) > 0
+}

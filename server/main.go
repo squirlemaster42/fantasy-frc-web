@@ -144,7 +144,15 @@ func main() {
 		assert.NoError(ctx, err, "Failed to load pick window configuration")
 	}
 
-	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig, draftActorCacheSize)
+	pickCacheConfig := cache.EventTeamCacheConfigFromDefaults()
+	eventTeamCache, err := cache.NewEventTeamCache(ctx, tbaHandler, redisAddr, redisPassword, pickCacheConfig)
+	assert.NoError(ctx, err, "Failed to create event team cache")
+	if err := eventTeamCache.Refresh(ctx); err != nil {
+		log.Warn(ctx, "Initial pick validation cache refresh failed, will retry in background", "error", err)
+	}
+	cache.StartEventTeamCacheRefreshLoop(ctx, eventTeamCache, pickCacheConfig.RefreshInterval)
+
+	draftActorMap := draft.NewDraftActorMap(draftStore, tbaHandler, discordStore, discordWebhookBus, pickNotifier, pickConfig, draftActorCacheSize, eventTeamCache)
 	// Start the draft daemon and add all running drafts to it
 	draftDaemon := background.NewDraftDaemon(draftStore, draftActorMap)
 	err = draftDaemon.Start(ctx)
@@ -199,6 +207,7 @@ func main() {
 			DraftDaemon:       draftDaemon,
 			Scorer:            scorer,
 			AvatarStore:       &avatarStore,
+			EventTeamCache:    eventTeamCache,
 			DiscordWebhookBus: discordWebhookBus,
 		},
 		Config: handler.ConfigGroup{
@@ -281,6 +290,9 @@ func main() {
 	metrics.ShutdownMetrics()
 	if err := cleanupService.Stop(ctx); err != nil {
 		log.Warn(ctx, "Failed to stop cleanup service", "error", err)
+	}
+	if err := cache.CloseEventTeamCache(eventTeamCache); err != nil {
+		log.Warn(ctx, "Failed to close event team cache", "error", err)
 	}
 	database.CloseCachedStatements(shutdownCtx, db)
 	if err := db.Close(); err != nil {

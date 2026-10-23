@@ -30,6 +30,7 @@ type ServiceGroup struct {
 	DraftDaemon       *background.DraftDaemon
 	Scorer            *scorer.Scorer
 	AvatarStore       cache.AvatarStoreInterface
+	EventTeamCache    cache.EventTeamCache
 	DiscordWebhookBus discord.DiscordNotifier
 }
 
