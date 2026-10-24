@@ -1,6 +1,6 @@
 # Ansible Kubernetes Deployment
 
-This directory contains Ansible playbooks for deploying the Fantasy FRC stack on a Kubernetes cluster running Ubuntu 24.04.
+This directory contains Ansible playbooks for deploying the Fantasy FRC stack on a Kubernetes cluster running Ubuntu 24.04
 
 The default inventory is a **single-node control plane** suitable for a home lab. The playbooks also support a **multi-node HA control plane** with worker nodes if you expand the inventory.
 
