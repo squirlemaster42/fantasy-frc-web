@@ -4,7 +4,7 @@ Complete guide for setting up a Fantasy FRC development environment.
 
 ## 🎯 Overview
 
-This guide covers setting up a complete development environment for Fantasy FRC, including database setup, dependencies, and local development workflow.
+This guide covers setting up a complete development environment for Fantasy FRC, including database setup, dependencies, and local development workflow
 
 ## 📋 Prerequisites
 
