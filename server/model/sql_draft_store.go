@@ -211,6 +211,49 @@ func (s *SQLDraftStore) TransferOwnership(ctx context.Context, draftId int, newO
 	return transferOwnership(ctx, s.db, draftId, newOwnerUuid)
 }
 
+func (s *SQLDraftStore) GetPremoves(ctx context.Context, draftPlayerId int) ([]Premove, error) {
+	return getPremoves(ctx, s.db, draftPlayerId)
+}
+
+func (s *SQLDraftStore) GetPremove(ctx context.Context, draftPlayerId int) (Premove, error) {
+	return getPremove(ctx, s.db, draftPlayerId)
+}
+
+func (s *SQLDraftStore) HasPremove(ctx context.Context, draftPlayerId int) (bool, error) {
+	return hasPremove(ctx, s.db, draftPlayerId)
+}
+
+func (s *SQLDraftStore) AddPremove(ctx context.Context, draftPlayerId int, teamTbaId string, pickOrder int) error {
+	return addPremove(ctx, s.db, draftPlayerId, teamTbaId, pickOrder)
+}
+
+func (s *SQLDraftStore) ReplacePremoves(ctx context.Context, draftPlayerId int, teamTbaIds []string) ([]string, error) {
+	var unavailable []string
+	err := s.RunInTransaction(ctx, func(tx database.DBTX) error {
+		var err error
+		unavailable, err = replacePremoves(ctx, tx, draftPlayerId, teamTbaIds)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return unavailable, nil
+}
+
+func (s *SQLDraftStore) MarkPremoveComplete(ctx context.Context, premoveId int) error {
+	return markPremoveComplete(ctx, s.db, premoveId)
+}
+
+func (s *SQLDraftStore) RestorePremoveToTop(ctx context.Context, draftPlayerId int, teamTbaId string) error {
+	if s.isTx {
+		return restorePremoveToTop(ctx, s.db, draftPlayerId, teamTbaId)
+	}
+	err := s.RunInTransaction(ctx, func(tx database.DBTX) error {
+		return restorePremoveToTop(ctx, tx, draftPlayerId, teamTbaId)
+	})
+	return err
+}
+
 func (s *SQLDraftStore) GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error) {
 	return getDraftsForUser(ctx, s.db, userUuid)
 }

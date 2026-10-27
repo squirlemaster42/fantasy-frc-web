@@ -150,6 +150,8 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 	protected.GET("/draft/:id/pick", cfg.Handler.ServePickPage)
 	protected.POST("/draft/:id/makePick", cfg.Handler.HandlerPickRequest)
 	protected.GET("/draft/:id/pickNotifier", cfg.Handler.PickNotifier)
+	protected.GET("/draft/:id/premoves", cfg.Handler.ServePremovePage)
+	protected.POST("/draft/:id/premoves", cfg.Handler.HandleSavePremoves)
 	protected.POST("/draft/:id/invitePlayer", cfg.Handler.InviteDraftPlayer)
 	protected.POST("/draft/:id/uninvitePlayer", cfg.Handler.HandleUninvitePlayer)
 	protected.GET("/team/score", cfg.Handler.HandleTeamScore)

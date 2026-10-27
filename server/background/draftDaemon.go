@@ -2,6 +2,7 @@ package background
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"maps"
 	"server/assert"
@@ -68,10 +69,77 @@ func (d *DraftDaemon) Run(ctx context.Context) {
 		tickCtx, cancel := context.WithTimeout(ctx, DraftDaemonTickTimeout())
 
 		log.Debug(tickCtx, "Starting iteration of the Draft Daemon")
+		d.makeAvailablePremoves(tickCtx)
 		d.checkForPicksToSkip(tickCtx)
 
 		cancel()
 		time.Sleep(d.tickInterval)
+	}
+}
+
+func (d *DraftDaemon) makeAvailablePremoves(ctx context.Context) {
+	d.mu.RLock()
+	runningDraftsCopy := make(map[int]bool, len(d.runningDrafts))
+	maps.Copy(runningDraftsCopy, d.runningDrafts)
+	d.mu.RUnlock()
+
+	// TODO: clean up continues later
+	for draftId, running := range runningDraftsCopy {
+		// if draft isn't active, skip
+		if !running {
+			continue
+		}
+
+		// get draftactor/draftstate for picking purposes and to check for premoves
+		draftActor, err := d.draftActorMap.GetActor(ctx, draftId)
+		if err != nil {
+			log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
+			continue
+		}
+		draftState := draftActor.GetDraftState()
+		currPickingPlayer := draftState.CurrentPick.Player
+
+		// check for available premove
+		hasPremove, err := d.draftStore.HasPremove(ctx, currPickingPlayer)
+		if err != nil {
+			log.Error(ctx, "Failed to check for premove", "draftPlayerId", currPickingPlayer, "error", err)
+			continue
+		}
+
+		if !hasPremove {
+			log.Info(ctx, "No premove for player", "draftPlayerId", currPickingPlayer)
+			continue
+		}
+
+		premove, err := d.draftStore.GetPremove(ctx, currPickingPlayer)
+		if err != nil {
+			log.Error(ctx, "Failed to get premove", "draftPlayerId", currPickingPlayer, "error", err)
+			continue
+		}
+
+		pick := model.Pick{
+			Id:     draftState.CurrentPick.Id,
+			Player: currPickingPlayer,
+			Pick: sql.NullString{
+				Valid:  premove.TeamTbaId != "",
+				String: premove.TeamTbaId,
+			},
+			PickTime: sql.NullTime{
+				Valid: true,
+				Time:  time.Now().UTC(),
+			},
+		}
+
+		err = draft.MakePick(ctx, draftActor, pick)
+		if err != nil {
+			log.Error(ctx, "Failed to make premove pick", "draftActor", draftActor, "pick", pick, "error", err)
+			continue
+		}
+
+		err = d.draftStore.MarkPremoveComplete(ctx, premove.Id)
+		if err != nil {
+			log.Error(ctx, "Failed to mark premove complete", "premoveId", premove.Id, "error", err)
+		}
 	}
 }
 

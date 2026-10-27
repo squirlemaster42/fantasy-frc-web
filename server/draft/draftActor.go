@@ -822,7 +822,15 @@ func (d *DraftActor) handleUndoLastPick(ctx context.Context, msg UndoLastPickMes
 		if err := store.DeletePick(ctx, d.draftState.CurrentPick.Id); err != nil {
 			return err
 		}
-		return store.ResetPick(ctx, previousPick.Id, newExpirationTime)
+		if err := store.ResetPick(ctx, previousPick.Id, newExpirationTime); err != nil {
+			return err
+		}
+		if previousPick.Pick.Valid && previousPick.Pick.String != "" {
+			if err := store.RestorePremoveToTop(ctx, previousPick.Player, previousPick.Pick.String); err != nil {
+				log.Warn(ctx, "Failed to restore premove after undo", "draftId", d.draftState.Id, "pickId", previousPick.Id, "player", previousPick.Player, "team", previousPick.Pick.String, "error", err)
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		log.Error(ctx, "Failed to reset previous pick", "pickId", previousPick.Id, "error", err)

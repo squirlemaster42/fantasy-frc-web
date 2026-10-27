@@ -1,5 +1,15 @@
 package partials
 
+templ ToastTrigger(message string, toastType string) {
+    <div
+        x-data
+        data-toast-message={ message }
+        data-toast-type={ toastType }
+        x-init="$nextTick(() => $dispatch('show-toast', { message: $el.dataset.toastMessage, type: $el.dataset.toastType }))"
+        hidden
+    ></div>
+}
+
 templ ToastContainer() {
     <div
         id="toast-container"

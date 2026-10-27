@@ -93,5 +93,3 @@ func getAttr(n *html.Node, name string) string {
 	}
 	return ""
 }
-
-

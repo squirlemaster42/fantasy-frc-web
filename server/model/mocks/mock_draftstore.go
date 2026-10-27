@@ -75,6 +75,24 @@ func (_m *MockDraftStore) AddPlayerToDraft(ctx context.Context, draftId int, pla
 	return r0
 }
 
+// AddPremove provides a mock function with given fields: ctx, draftPlayerId, teamTbaId, pickOrder
+func (_m *MockDraftStore) AddPremove(ctx context.Context, draftPlayerId int, teamTbaId string, pickOrder int) error {
+	ret := _m.Called(ctx, draftPlayerId, teamTbaId, pickOrder)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddPremove")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, string, int) error); ok {
+		r0 = rf(ctx, draftPlayerId, teamTbaId, pickOrder)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // CancelInvite provides a mock function with given fields: ctx, inviteId
 func (_m *MockDraftStore) CancelInvite(ctx context.Context, inviteId int) error {
 	ret := _m.Called(ctx, inviteId)
@@ -621,6 +639,64 @@ func (_m *MockDraftStore) GetPicks(ctx context.Context, draft int) ([]model.Pick
 	return r0, r1
 }
 
+// GetPremove provides a mock function with given fields: ctx, draftPlayerId
+func (_m *MockDraftStore) GetPremove(ctx context.Context, draftPlayerId int) (model.Premove, error) {
+	ret := _m.Called(ctx, draftPlayerId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPremove")
+	}
+
+	var r0 model.Premove
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (model.Premove, error)); ok {
+		return rf(ctx, draftPlayerId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) model.Premove); ok {
+		r0 = rf(ctx, draftPlayerId)
+	} else {
+		r0 = ret.Get(0).(model.Premove)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftPlayerId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPremoves provides a mock function with given fields: ctx, draftPlayerId
+func (_m *MockDraftStore) GetPremoves(ctx context.Context, draftPlayerId int) ([]model.Premove, error) {
+	ret := _m.Called(ctx, draftPlayerId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPremoves")
+	}
+
+	var r0 []model.Premove
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) ([]model.Premove, error)); ok {
+		return rf(ctx, draftPlayerId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) []model.Premove); ok {
+		r0 = rf(ctx, draftPlayerId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Premove)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftPlayerId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPreviousPick provides a mock function with given fields: ctx, draftId, currentPickId
 func (_m *MockDraftStore) GetPreviousPick(ctx context.Context, draftId int, currentPickId int) (model.Pick, error) {
 	ret := _m.Called(ctx, draftId, currentPickId)
@@ -700,6 +776,34 @@ func (_m *MockDraftStore) HasBeenPicked(ctx context.Context, draftId int, team s
 
 	if rf, ok := ret.Get(1).(func(context.Context, int, string) error); ok {
 		r1 = rf(ctx, draftId, team)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// HasPremove provides a mock function with given fields: ctx, draftPlayerId
+func (_m *MockDraftStore) HasPremove(ctx context.Context, draftPlayerId int) (bool, error) {
+	ret := _m.Called(ctx, draftPlayerId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasPremove")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) (bool, error)); ok {
+		return rf(ctx, draftPlayerId)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int) bool); ok {
+		r0 = rf(ctx, draftPlayerId)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int) error); ok {
+		r1 = rf(ctx, draftPlayerId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -799,6 +903,42 @@ func (_m *MockDraftStore) MakePickAvailable(ctx context.Context, draftPlayerId i
 	return r0, r1
 }
 
+// MarkPremoveComplete provides a mock function with given fields: ctx, premoveId
+func (_m *MockDraftStore) MarkPremoveComplete(ctx context.Context, premoveId int) error {
+	ret := _m.Called(ctx, premoveId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPremoveComplete")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(ctx, premoveId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// RestorePremoveToTop provides a mock function with given fields: ctx, draftPlayerId, teamTbaId
+func (_m *MockDraftStore) RestorePremoveToTop(ctx context.Context, draftPlayerId int, teamTbaId string) error {
+	ret := _m.Called(ctx, draftPlayerId, teamTbaId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RestorePremoveToTop")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, string) error); ok {
+		r0 = rf(ctx, draftPlayerId, teamTbaId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // MarkShouldSkipPick provides a mock function with given fields: ctx, draftPlayerId, shouldSkip
 func (_m *MockDraftStore) MarkShouldSkipPick(ctx context.Context, draftPlayerId int, shouldSkip bool) error {
 	ret := _m.Called(ctx, draftPlayerId, shouldSkip)
@@ -861,6 +1001,36 @@ func (_m *MockDraftStore) RandomizePickOrder(ctx context.Context, draftId int) e
 	}
 
 	return r0
+}
+
+// ReplacePremoves provides a mock function with given fields: ctx, draftPlayerId, teamTbaIds
+func (_m *MockDraftStore) ReplacePremoves(ctx context.Context, draftPlayerId int, teamTbaIds []string) ([]string, error) {
+	ret := _m.Called(ctx, draftPlayerId, teamTbaIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReplacePremoves")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int, []string) ([]string, error)); ok {
+		return rf(ctx, draftPlayerId, teamTbaIds)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int, []string) []string); ok {
+		r0 = rf(ctx, draftPlayerId, teamTbaIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int, []string) error); ok {
+		r1 = rf(ctx, draftPlayerId, teamTbaIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // ResetPick provides a mock function with given fields: ctx, pickId, expirationTime

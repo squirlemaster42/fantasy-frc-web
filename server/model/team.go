@@ -40,6 +40,42 @@ func getTeam(ctx context.Context, db database.DBTX, tbaId string) (*Team, error)
 	return &team, nil
 }
 
+func getTeams(ctx context.Context, db database.DBTX) ([]Team, error) {
+	query := `Select
+		tbaId,
+		COALESCE(name, '') As name,
+		COALESCE(allianceScore, 0) As allianceScore
+	From Teams
+	Order By NULLIF(regexp_replace(tbaId, '\D', '', 'g'), '')::int NULLS LAST, tbaId;`
+
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return nil, err
+	}
+	defer database.CloseStatement(ctx, stmt, "GetTeams")
+
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get teams: %w", err)
+	}
+	defer database.CloseRows(ctx, rows, "GetTeams")
+
+	var teams []Team
+	for rows.Next() {
+		var team Team
+		if err := rows.Scan(&team.TbaId, &team.Name, &team.AllianceScore); err != nil {
+			return nil, fmt.Errorf("failed to scan team: %w", err)
+		}
+		teams = append(teams, team)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate teams: %w", err)
+	}
+
+	return teams, nil
+}
+
 func createTeam(ctx context.Context, db database.DBTX, tbaId string, name string) error {
 	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
 	stmt, err := database.Prepare(ctx, db, query)

@@ -1,0 +1,466 @@
+package draft
+
+import (
+	"fmt"
+	"server/model"
+	"server/types"
+	"server/view"
+	"server/view/partials"
+	"strings"
+)
+
+type PremovePage struct {
+	Draft          model.DraftModel
+	Premoves       []model.Premove
+	MadePremoves   []model.Premove
+	PickedPremoves []model.Premove
+	ValidTeams     []string
+	PickedTeams    []string
+	PendingCount   int
+	SaveUrl        string
+	MaxPremoves    int
+	Saved          bool
+	SaveError      string
+	SaveWarning    string
+}
+
+templ DraftPremoveIndex(pageModel PremovePage, csrfToken string) {
+	<div class="flex flex-col w-full h-full gap-6 p-6 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
+		<div class="w-full max-w-3xl mx-auto flex flex-col gap-6">
+			<div class="text-center">
+				<h2 class="text-2xl font-bold text-base-content mb-2">Draft Premoves</h2>
+				<p class="text-base-content/70">
+					Queue up to { fmt.Sprintf("%d", pageModel.MaxPremoves) } teams. When it is your turn, the team at the top of the list is picked automatically.
+				</p>
+			</div>
+
+			if pageModel.Saved {
+				@partials.ToastTrigger("Premoves saved.", "success")
+			}
+			if pageModel.SaveError != "" {
+				@partials.ToastTrigger(pageModel.SaveError, "error")
+			}
+			if pageModel.SaveWarning != "" {
+				@partials.ToastTrigger(pageModel.SaveWarning, "warning")
+			}
+
+			<form
+				id="premove-form"
+				action={ pageModel.SaveUrl }
+				method="post"
+				data-max-premoves={ fmt.Sprintf("%d", pageModel.MaxPremoves) }
+				data-move-button-class={ premoveMoveButtonClass }
+				data-picked-teams={ strings.Join(pageModel.PickedTeams, ",") }
+				data-valid-teams={ strings.Join(pageModel.ValidTeams, ",") }
+				class="bg-base-200 border border-base-300 rounded-lg p-6 flex flex-col gap-4"
+			>
+				@partials.CSRFInput(csrfToken)
+				<input type="hidden" name="action" id="premove-action" value="save"/>
+
+				<div class="flex flex-col gap-1">
+					<h3 class="text-lg font-semibold text-base-content">Your Queue</h3>
+					<p class="text-sm text-base-content/60">Use the arrows to reorder or the trash button to remove a premove.</p>
+				</div>
+
+				<ul id="premove-list" class="flex flex-col gap-3">
+					for i, premove := range pageModel.Premoves {
+						<li class={ premoveRowClass(false, false) } data-team={ premove.TeamTbaId }>
+							<input type="hidden" name="premoves" value={ premove.TeamTbaId }/>
+							<span class={ premoveLabelClass(false, false) }>
+								{ strings.TrimPrefix(premove.TeamTbaId, "frc") }
+							</span>
+							<div class="flex items-center gap-1">
+								<button
+									type="button"
+									data-premove-action="up"
+									aria-label="Move premove up"
+									disabled?={ i == 0 }
+									class={ premoveMoveButtonClass }
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="size-6">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+									</svg>
+								</button>
+								<button
+									type="button"
+									data-premove-action="down"
+									aria-label="Move premove down"
+									disabled?={ i == pageModel.PendingCount - 1 }
+									class={ premoveMoveButtonClass }
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="size-6">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+									</svg>
+								</button>
+								<button
+									type="button"
+									data-premove-action="remove"
+									aria-label="Remove premove"
+									class="btn btn-ghost btn-sm btn-square text-error"
+								>
+									<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+										<path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+									</svg>
+								</button>
+							</div>
+						</li>
+					}
+				</ul>
+
+				<div id="premove-empty" class="text-center text-base-content/50 border border-dashed border-base-300 rounded-lg py-8" hidden?={ pageModel.PendingCount > 0 }>
+					No premoves queued yet.
+				</div>
+
+				<div class="flex flex-col sm:flex-row gap-3">
+					<div class="flex-1 flex flex-col gap-1">
+						<input
+							id="premove-team-input"
+							type="text"
+							inputmode="numeric"
+							autocomplete="off"
+							placeholder="Team number (e.g. 254)"
+							class="w-full bg-base-100 border border-base-content/30 rounded px-3 py-2 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono"
+						/>
+					</div>
+					<button id="add-premove" type="button" class="btn btn-success text-success-content font-semibold py-3 px-6 rounded-lg">
+						Add Premove
+					</button>
+				</div>
+
+				if len(pageModel.MadePremoves) > 0 || len(pageModel.PickedPremoves) > 0 {
+					<div class="flex flex-col gap-1 border-t border-base-300 pt-4">
+						<h3 class="text-lg font-semibold text-base-content">Made / Already picked</h3>
+						<p class="text-sm text-base-content/60">These teams are no longer in your active queue.</p>
+					</div>
+					<ul id="premove-completed-list" class="flex flex-col gap-3">
+						for _, premove := range pageModel.MadePremoves {
+							<li class={ premoveRowClass(true, false) } data-team={ premove.TeamTbaId }>
+								<span class={ premoveLabelClass(true, false) }>
+									{ strings.TrimPrefix(premove.TeamTbaId, "frc") }
+								</span>
+								<span class="text-xs font-semibold uppercase tracking-wide text-success">Made</span>
+							</li>
+						}
+						for _, premove := range pageModel.PickedPremoves {
+							<li class={ premoveRowClass(false, true) } data-team={ premove.TeamTbaId }>
+								<span class={ premoveLabelClass(false, true) }>
+									{ strings.TrimPrefix(premove.TeamTbaId, "frc") }
+								</span>
+								<span class="text-xs font-semibold uppercase tracking-wide text-success">Already picked</span>
+							</li>
+						}
+					</ul>
+				}
+
+				<div class="flex flex-col sm:flex-row justify-between gap-3 border-t border-base-300 pt-4">
+					<button id="save-premoves" type="submit" class="btn btn-primary font-semibold py-3 px-6 rounded-lg">
+						Save
+					</button>
+					<button id="clear-premoves" type="button" class="btn btn-error btn-outline font-semibold py-3 px-6 rounded-lg">
+						Clear
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<script>
+		(function () {
+		    'use strict';
+
+		    function saveCurrentQueue() {
+		        var form = document.getElementById('premove-form');
+		        if (!form || !form.isConnected) {
+		            return;
+		        }
+		        if (form.dataset.dirty !== '1' || form.dataset.submitting === '1') {
+		            return;
+		        }
+
+		        var params = new URLSearchParams();
+		        var token = form.querySelector('input[name="csrf_token"]');
+		        if (token) {
+		            params.append('csrf_token', token.value);
+		        }
+		        params.append('action', 'save');
+		        params.append('beacon', '1');
+
+		        var list = document.getElementById('premove-list');
+		        if (list) {
+		            list.querySelectorAll('input[name="premoves"]').forEach(function (input) {
+		                params.append('premoves', input.value);
+		            });
+		        }
+
+		        var url = form.getAttribute('action');
+		        form.dataset.dirty = '0';
+
+		        if (navigator.sendBeacon) {
+		            navigator.sendBeacon(url, params);
+		            return;
+		        }
+
+		        fetch(url, {
+		            method: 'POST',
+		            credentials: 'same-origin',
+		            keepalive: true,
+		            body: params
+		        });
+		    }
+
+		    window.__savePremovesOnExit = saveCurrentQueue;
+
+		    if (!window.__premoveExitHooksInstalled) {
+		        window.__premoveExitHooksInstalled = true;
+		        window.addEventListener('pagehide', function () {
+		            if (window.__savePremovesOnExit) {
+		                window.__savePremovesOnExit();
+		            }
+		        });
+		        document.addEventListener('htmx:beforeRequest', function (evt) {
+		            var elt = evt.detail && evt.detail.elt;
+		            if (elt && elt.closest && elt.closest('#premove-form')) {
+		                return;
+		            }
+		            if (window.__savePremovesOnExit) {
+		                window.__savePremovesOnExit();
+		            }
+		        });
+		    }
+
+		    function init() {
+		        var form = document.getElementById('premove-form');
+		        if (!form) {
+		            return;
+		        }
+
+		        var list = document.getElementById('premove-list');
+		        var emptyState = document.getElementById('premove-empty');
+		        var input = document.getElementById('premove-team-input');
+		        var addButton = document.getElementById('add-premove');
+		        var clearButton = document.getElementById('clear-premoves');
+		        var actionField = document.getElementById('premove-action');
+		        if (!list || !input || !addButton || !clearButton || !actionField) {
+		            return;
+		        }
+
+		        var moveButtonClass = form.dataset.moveButtonClass || 'btn btn-sm btn-square';
+
+		        var pickedTeams = new Set(
+		            (form.dataset.pickedTeams || '')
+		                .split(',')
+		                .map(function (team) { return team.trim(); })
+		                .filter(function (team) { return team !== ''; })
+		        );
+		        var validTeams = new Set(
+		            (form.dataset.validTeams || '')
+		                .split(',')
+		                .map(function (team) { return team.trim(); })
+		                .filter(function (team) { return team !== ''; })
+		                .map(function (team) { return team.indexOf('frc') === 0 ? team : 'frc' + team; })
+		        );
+
+		        form.dataset.dirty = '0';
+		        form.dataset.submitting = '0';
+
+		        function items() {
+		            return Array.prototype.slice.call(list.querySelectorAll('.premove-item:not(.premove-made):not(.premove-picked)'));
+		        }
+
+		        function markDirty() {
+		            form.dataset.dirty = '1';
+		        }
+
+		        function showInputError(message) {
+		            if (window.Toast) {
+		                window.Toast.error(message);
+		            }
+		            input.setAttribute('aria-invalid', 'true');
+		            input.focus();
+		        }
+
+		        function clearInputError() {
+		            input.removeAttribute('aria-invalid');
+		        }
+
+		        function updateControls() {
+		            var all = items();
+		            all.forEach(function (item, index) {
+		                var up = item.querySelector('[data-premove-action="up"]');
+		                var down = item.querySelector('[data-premove-action="down"]');
+		                if (up) {
+		                    up.disabled = index === 0;
+		                }
+		                if (down) {
+		                    down.disabled = index === all.length - 1;
+		                }
+		            });
+		            if (emptyState) {
+		                emptyState.hidden = all.length > 0;
+		            }
+		        }
+
+		        function normalizeTeam(raw) {
+		            var value = String(raw || '').trim().toLowerCase();
+		            if (value.indexOf('frc') === 0) {
+		                value = value.substring(3);
+		            }
+		            if (!/^\d+$/.test(value)) {
+		                return '';
+		            }
+		            var number = parseInt(value, 10);
+		            if (!number || number <= 0) {
+		                return '';
+		            }
+		            return 'frc' + number;
+		        }
+
+		        function createItem(team) {
+		            var item = document.createElement('li');
+		            item.className = 'premove-item flex items-center gap-3 border rounded-lg px-4 py-3 bg-base-100 border-base-300';
+		            item.dataset.team = team;
+
+		            var hidden = document.createElement('input');
+		            hidden.type = 'hidden';
+		            hidden.name = 'premoves';
+		            hidden.value = team;
+
+		            var label = document.createElement('span');
+		            label.className = 'font-mono text-lg font-semibold text-base-content flex-1';
+		            label.textContent = team.substring(3);
+
+		            var actions = document.createElement('div');
+		            actions.className = 'flex items-center gap-1';
+		            actions.innerHTML =
+		                '<button type="button" data-premove-action="up" aria-label="Move premove up" class="' + moveButtonClass + '">' +
+		                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" /></svg>' +
+		                '</button>' +
+		                '<button type="button" data-premove-action="down" aria-label="Move premove down" class="' + moveButtonClass + '">' +
+		                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="white" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>' +
+		                '</button>' +
+		                '<button type="button" data-premove-action="remove" aria-label="Remove premove" class="btn btn-ghost btn-sm btn-square text-error">' +
+		                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>' +
+		                '</button>';
+
+		            item.appendChild(hidden);
+		            item.appendChild(label);
+		            item.appendChild(actions);
+		            return item;
+		        }
+
+		        function addFromInput() {
+		            var max = parseInt(form.dataset.maxPremoves, 10) || 8;
+		            var team = normalizeTeam(input.value);
+		            clearInputError();
+		            if (!team) {
+		                showInputError('Enter a valid team number.');
+		                return;
+		            }
+		            if (validTeams.size > 0 && !validTeams.has(team)) {
+		                showInputError('Team ' + team.substring(3) + ' is not available in this draft.');
+		                return;
+		            }
+		            var existing = Array.prototype.find.call(form.querySelectorAll('.premove-item'), function (item) {
+		                return item.dataset.team === team;
+		            });
+		            if (pickedTeams.has(team) || (existing && (existing.classList.contains('premove-made') || existing.classList.contains('premove-picked')))) {
+		                showInputError('Team ' + team.substring(3) + ' has already been selected.');
+		                return;
+		            }
+		            if (existing) {
+		                showInputError('Team ' + team.substring(3) + ' is already in your queue.');
+		                return;
+		            }
+		            if (items().length >= max) {
+		                showInputError('You can queue up to ' + max + ' premoves.');
+		                return;
+		            }
+
+		            var item = createItem(team);
+		            list.appendChild(item);
+		            input.value = '';
+		            clearInputError();
+		            markDirty();
+		            updateControls();
+		            input.focus();
+		        }
+
+		        addButton.addEventListener('click', addFromInput);
+		        input.addEventListener('input', clearInputError);
+		        input.addEventListener('keydown', function (evt) {
+		            if (evt.key === 'Enter') {
+		                evt.preventDefault();
+		                addFromInput();
+		            }
+		        });
+
+		        list.addEventListener('click', function (evt) {
+		            var button = evt.target.closest('[data-premove-action]');
+		            if (!button) {
+		                return;
+		            }
+		            var item = button.closest('.premove-item');
+		            if (!item) {
+		                return;
+		            }
+
+		            var action = button.dataset.premoveAction;
+		            if (action === 'up') {
+		                var previous = item.previousElementSibling;
+		                if (previous) {
+		                    list.insertBefore(item, previous);
+		                    markDirty();
+		                }
+		            } else if (action === 'down') {
+		                var next = item.nextElementSibling;
+		                if (next) {
+		                    list.insertBefore(next, item);
+		                    markDirty();
+		                }
+		            } else if (action === 'remove') {
+		                item.remove();
+		                markDirty();
+		            }
+
+		            updateControls();
+		        });
+
+		        form.addEventListener('submit', function () {
+		            form.dataset.submitting = '1';
+		            form.dataset.dirty = '0';
+		        });
+
+		        clearButton.addEventListener('click', function () {
+		            if (items().length === 0) {
+		                return;
+		            }
+		            if (!window.confirm('Clear all pending premoves?')) {
+		                return;
+		            }
+
+		            items().forEach(function (item) {
+		                item.remove();
+		            });
+		            actionField.value = 'clear';
+		            form.dataset.submitting = '1';
+		            form.dataset.dirty = '0';
+		            updateControls();
+		            form.submit();
+		        });
+
+		        updateControls();
+		    }
+
+		    if (document.readyState === 'loading') {
+		        document.addEventListener('DOMContentLoaded', init);
+		    } else {
+		        init();
+		    }
+		})();
+	</script>
+}
+
+templ DraftPremove(page string, fromProtected bool, username string, cmp templ.Component, pageData types.PageData) {
+	@view.Index(page, fromProtected, username, pageData) {
+		@cmp
+	}
+}

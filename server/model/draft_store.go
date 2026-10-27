@@ -50,6 +50,14 @@ type DraftStore interface {
 	GetOverallLeaderboard(ctx context.Context, page int, perPage int) (LeaderboardPage, error)
 	TransferOwnership(ctx context.Context, draftId int, newOwnerUuid uuid.UUID) error
 
+	GetPremoves(ctx context.Context, draftPlayerId int) ([]Premove, error)
+	GetPremove(ctx context.Context, draftPlayerId int) (Premove, error)
+	AddPremove(ctx context.Context, draftPlayerId int, teamTbaId string, pickOrder int) error
+	ReplacePremoves(ctx context.Context, draftPlayerId int, teamTbaIds []string) ([]string, error)
+	MarkPremoveComplete(ctx context.Context, premoveId int) error
+	RestorePremoveToTop(ctx context.Context, draftPlayerId int, teamTbaId string) error
+	HasPremove(ctx context.Context, draftPlayerId int) (bool, error)
+
 	GetDraftsForUser(ctx context.Context, userUuid uuid.UUID) ([]DraftModel, error)
 	GetUserDraftNotificationPreferences(ctx context.Context, userUuid uuid.UUID) (map[int]DraftNotificationPreference, error)
 	UpdateUserDraftNotificationPreference(ctx context.Context, userUuid uuid.UUID, draftId int, upcomingMatch bool, pickTurn bool) error

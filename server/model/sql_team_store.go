@@ -25,6 +25,10 @@ func (s *SQLTeamStore) GetTeam(ctx context.Context, tbaId string) (*Team, error)
 	return getTeam(ctx, s.db, tbaId)
 }
 
+func (s *SQLTeamStore) GetTeams(ctx context.Context) ([]Team, error) {
+	return getTeams(ctx, s.db)
+}
+
 func (s *SQLTeamStore) CreateTeam(ctx context.Context, tbaId string, name string) error {
 	return createTeam(ctx, s.db, tbaId, name)
 }
