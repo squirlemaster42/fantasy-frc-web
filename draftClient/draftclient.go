@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// User represents a Fantasy FRC user account that can make HTTP requests.
+// User represents a Fantasy FRC user account that can make HTTP requests
 type User struct {
 	Username string
 	Password string
@@ -28,7 +28,7 @@ type User struct {
 	IsOwner  bool
 }
 
-// Draft represents a Fantasy FRC draft.
+// Draft represents a Fantasy FRC draft
 type Draft struct {
 	Id int
 }
