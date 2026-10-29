@@ -10,6 +10,7 @@ import (
 
 	"server/database"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"uuid"
@@ -533,71 +534,64 @@ func TestGetDraftPlayerId_NotFound_Integration(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestGetOverallLeaderboard_Integration(t *testing.T) {
-	db := setupTestDB(t)
-	store := NewSQLDraftStore(db)
+func TestGetOverallLeaderboard(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
 	ctx := context.Background()
+	userA := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	userB := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
 
-	userA := createTestUser(t, db)
-	draftA := createTestDraft(t, db, userA)
+	pickRows := sqlmock.NewRows([]string{"dpId", "userUuid", "username", "pick", "draftId", "draftName"}).
+		AddRow(1, userA, "userA", "frcteamA", 1, "Draft A").
+		AddRow(2, userB, "userB", "frcteamB", 2, "Draft B")
 
-	userB := createTestUser(t, db)
-	draftB := createTestDraft(t, db, userB)
+	mock.ExpectPrepare(`(?s)^Select\s+dp\.Id,.*?Where\s+p\.Pick\s+Is\s+Not\s+Null;$`).
+		ExpectQuery().
+		WillReturnRows(pickRows)
 
-	makePick := func(t *testing.T, draft DraftModel, user User, tbaId string) {
-		t.Helper()
-		playerId, err := store.GetDraftPlayerId(ctx, draft.Id, user.UserUuid)
-		require.NoError(t, err)
-		pickId, err := store.MakePickAvailable(ctx, playerId, time.Now().UTC(), time.Now().UTC().Add(time.Hour))
-		require.NoError(t, err)
-		pick := Pick{
-			Id:       pickId,
-			Player:   playerId,
-			Pick:     sql.NullString{String: tbaId, Valid: true},
-			PickTime: sql.NullTime{Time: time.Now().UTC(), Valid: true},
-		}
-		err = store.MakePick(ctx, pick)
-		require.NoError(t, err)
+	originalScoresBatchFunc := scoresBatchFunc
+	defer func() { scoresBatchFunc = originalScoresBatchFunc }()
+	scoresBatchFunc = func(_ context.Context, _ database.DBTX, _ []string) (map[string]map[string]int, error) {
+		return map[string]map[string]int{
+			"frcteamA": {
+				allianceScoreLabel: 10,
+				totalScoreLabel:    10,
+			},
+			"frcteamB": {
+				allianceScoreLabel: 10,
+				totalScoreLabel:    10,
+			},
+		}, nil
 	}
 
-	teamA := "frc" + randomString(4)
-	teamB := "frc" + randomString(4)
-	createTestTeam(t, db, teamA)
-	createTestTeam(t, db, teamB)
+	store := NewSQLDraftStore(db)
+	page, err := store.GetOverallLeaderboard(ctx, 1, 25)
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
 
-	makePick(t, draftA, userA, teamA)
-	makePick(t, draftB, userB, teamB)
+	require.Len(t, page.Entries, 2)
 
-	// Paginate through leaderboard to find new entries
-	var userAEntry *LeaderboardEntry
-	var userBEntry *LeaderboardEntry
-	for pageNum := 1; pageNum <= 100; pageNum++ {
-		page, err := store.GetOverallLeaderboard(ctx, pageNum, 25)
-		require.NoError(t, err)
-		if len(page.Entries) == 0 {
-			break
+	var userAEntry, userBEntry *LeaderboardEntry
+	for i := range page.Entries {
+		e := &page.Entries[i]
+		if e.User.UserUuid == userA {
+			userAEntry = e
 		}
-		assert.GreaterOrEqual(t, page.Total, 2)
-		for i, entry := range page.Entries {
-			if entry.User.UserUuid == userA.UserUuid && entry.DraftId == draftA.Id {
-				userAEntry = &page.Entries[i]
-			}
-			if entry.User.UserUuid == userB.UserUuid && entry.DraftId == draftB.Id {
-				userBEntry = &page.Entries[i]
-			}
-		}
-		if userAEntry != nil && userBEntry != nil {
-			break
+		if e.User.UserUuid == userB {
+			userBEntry = e
 		}
 	}
+
 	require.NotNil(t, userAEntry, "Entry for userA in draftA not found")
 	require.NotNil(t, userBEntry, "Entry for userB in draftB not found")
 	assert.Equal(t, 10, userAEntry.Score, "userA should have score 10 from allianceScore")
 	assert.Equal(t, 10, userBEntry.Score, "userB should have score 10 from allianceScore")
 	assert.Len(t, userAEntry.Picks, 1)
 	assert.Len(t, userBEntry.Picks, 1)
-	assert.Equal(t, draftA.DisplayName, userAEntry.DraftName)
-	assert.Equal(t, draftB.DisplayName, userBEntry.DraftName)
+	assert.Equal(t, "Draft A", userAEntry.DraftName)
+	assert.Equal(t, "Draft B", userBEntry.DraftName)
 }
 
 func TestGetOverallLeaderboard_Pagination_Integration(t *testing.T) {

@@ -1,394 +1,57 @@
 package handler
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v5"
 
-	"server/background"
-	"server/cache"
-	"server/draft"
 	"server/log"
-	"server/model"
-	"server/tbaHandler"
-	"server/utils"
 	"server/view/admin"
 )
 
-type Command interface {
-	ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string
+// adminService returns a new AdminService backed by the handler's dependencies.
+func (h *Handler) adminService() *AdminService {
+	return &AdminService{
+		TBAHandler:     h.Services.TBAHandler,
+		DraftStore:     h.Stores.DraftStore,
+		TeamStore:      h.Stores.TeamStore,
+		DraftActorMap:  h.Services.DraftActorMap,
+		DraftDaemon:    h.Services.DraftDaemon,
+		EventTeamCache: h.Services.EventTeamCache,
+	}
 }
 
-type PingCommand struct{}
+// renderAdminResponse renders the result of an admin operation. It returns JSON
+// when the request Accept header prefers application/json, otherwise it renders
+// the AdminResult HTML partial.
+func (h *Handler) renderAdminResponse(c *echo.Context, operation string, message string, err error) error {
+	ctx := c.Request().Context()
 
-func (p *PingCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	if len(argStr) > 0 {
-		return "Ping does not take any inputs"
-	}
-	return "Pong"
-}
-
-type PopulateTeamsCommand struct{}
-
-func (p *PopulateTeamsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	if len(argStr) > 0 {
-		return "PopulateTeams does not take any inputs"
+	if err != nil {
+		message = err.Error()
 	}
 
-	log.Info(ctx, "Populating Teams")
-	count := 0
-
-	for _, event := range utils.Events() {
-		log.Debug(ctx, "Creating teams for event", "event", event)
-		teams, err := tbaHandler.MakeTeamsAtEventRequest(ctx, event)
-		if err != nil {
-			log.Error(ctx, "Failed to get teams for event", "event", event, "error", err)
-			continue
+	if strings.Contains(c.Request().Header.Get("Accept"), "application/json") {
+		if jsonErr := c.JSON(http.StatusOK, map[string]any{
+			"success": err == nil,
+			"message": message,
+		}); jsonErr != nil {
+			return fmt.Errorf("failed to encode admin response: %w", jsonErr)
 		}
-		for _, t := range teams {
-			log.Debug(ctx, "Checking if team is needed", "team", t.Key, "event", event)
-			team, err := teamStore.GetTeam(ctx, t.Key)
-			if err != nil {
-				log.Error(ctx, "Failed to get team", "team", t.Key, "error", err)
-				continue
-			}
-			if team == nil {
-				log.Debug(ctx, "Creating team", "team", t.Key, "event", event)
-				if err := teamStore.CreateTeam(ctx, t.Key, ""); err != nil {
-					log.Error(ctx, "Failed to create team", "team", t.Key, "error", err)
-					continue
-				}
-				count++
-			}
-		}
+		return nil
 	}
 
-	log.Info(ctx, "Finished populating teams", "count", count)
-	return fmt.Sprintf("Successfully populated %d teams", count)
+	response := admin.AdminResult(operation, message, err != nil)
+	if renderErr := Render(c, response); renderErr != nil {
+		log.Error(ctx, "Failed to render admin result", "operation", operation, "error", renderErr)
+		return renderErr
+	}
+	return nil
 }
-
-type ListDraftsCommand struct{}
-
-func (l *ListDraftsCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	// Parse command inputs
-	argMap, _ := utils.ParseArgString(argStr)
-	searchString := argMap["s"]
-
-	drafts, err := draftStore.GetDraftsByName(ctx, searchString)
-	if err != nil {
-		return "Failed to list drafts: " + err.Error()
-	}
-
-	var sb strings.Builder
-
-	sb.WriteString("Id    |  Name\n")
-	sb.WriteString("-------------\n")
-
-	for _, draft := range drafts {
-		fmt.Fprintf(&sb, "%4d  | %s\n", draft.Id, draft.DisplayName)
-	}
-
-	return sb.String()
-}
-
-type StartDraftCommand struct{}
-
-func (s *StartDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	argMap, _ := utils.ParseArgString(argStr)
-	draftId, err := strconv.Atoi(argMap["id"])
-
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		return "Draft Id Does Not Match A Valid Draft"
-	}
-	draftState := draftActor.GetDraftState()
-
-	if !model.CanStartDraft(draftState) {
-		return fmt.Sprintf("Draft must have between %d and %d accepted players to start", model.MinDraftPlayers, model.MaxDraftPlayers)
-	}
-
-	if err := draftStore.CancelOutstandingInvites(ctx, draftId); err != nil {
-		log.Error(ctx, "Failed to cancel outstanding invites", "draftId", draftId, "error", err)
-		return "Failed to cancel outstanding invites"
-	}
-
-	err = draft.ExecuteDraftStateTransition(ctx, draftActor, model.PICKING)
-	if err != nil {
-		log.Error(ctx, "Failed to execute draft state transition", "draftId", draftId, "error", err)
-		return err.Error()
-	}
-
-	if draftDaemon != nil {
-		if err := draftDaemon.AddDraft(ctx, draftId); err != nil {
-			log.Warn(ctx, "Failed to add draft to daemon", "draftId", draftId, "error", err)
-		}
-	}
-
-	return "Draft Started"
-}
-
-type ViewWebhookKey struct{}
-
-func (s *ViewWebhookKey) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	file, err := os.Open(utils.GetWebhookFilePath())
-	if err != nil {
-		return "Failed to open file: " + err.Error()
-	}
-	defer func() { _ = file.Close() }()
-	body, err := io.ReadAll(file)
-	if err != nil {
-		return "Failed to read file: " + err.Error()
-	}
-
-	return string(body)
-}
-
-type SkipPickCommand struct{}
-
-func (s *SkipPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	log.Info(ctx, "Calling skip command", "args", argStr)
-	argMap, _ := utils.ParseArgString(argStr)
-	draftId, err := strconv.Atoi(argMap["id"])
-
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		return "Draft Id Does Not Match A Valid Draft"
-	}
-
-	skipped := draft.SkipCurrentPick(ctx, draftActor, draftId, draftActor.GetDraftState().CurrentPick.Id)
-	if skipped {
-		return "Player was skipped"
-	}
-
-	return "Did not get confirmation of skip. Verify draft state"
-}
-
-type ModifyPickTimeCommand struct{}
-
-func (m *ModifyPickTimeCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	log.Info(ctx, "Calling modify pick time command", "args", argStr)
-	argMap, _ := utils.ParseArgString(argStr)
-
-	draftIdStr, ok := argMap["id"]
-	if !ok {
-		return "Missing required argument: -id=<draftId>"
-	}
-
-	draftId, err := strconv.Atoi(draftIdStr)
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-	durationStr, ok := argMap["time"]
-	if !ok {
-		return "Missing required argument: -time=<duration>"
-	}
-
-	duration, err := time.ParseDuration(durationStr)
-	if err != nil {
-		return "Invalid duration format. Use format like: 45m, 1h30m, 2h15m30s"
-	}
-
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		return "Draft Id Does Not Match A Valid Draft"
-	}
-
-	err = draft.ModifyCurrentPickExpirationTime(ctx, draftActor, duration)
-	if err != nil {
-		log.Warn(ctx, "Update draft pick expiration time failed", "draftId", draftId, "duration", duration, "error", err)
-		return err.Error()
-	}
-
-	return "Successfully updated pick expiration time"
-}
-
-type AdminPickCommand struct{}
-
-func (a *AdminPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	log.Info(ctx, "Calling admin pick command", "args", argStr)
-	argMap, _ := utils.ParseArgString(argStr)
-
-	draftIdStr, ok := argMap["id"]
-	if !ok {
-		return "Missing required argument: -id=<draftId>"
-	}
-
-	draftId, err := strconv.Atoi(draftIdStr)
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-	teamStr, ok := argMap["team"]
-	if !ok {
-		return "Missing required argument: -team=<teamNumber>"
-	}
-
-	// Format team ID (e.g., "254" -> "frc254")
-	tbaId := teamPrefix + teamStr
-
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
-		return err.Error()
-	}
-	draftState := draftActor.GetDraftState()
-
-	if draftState.CurrentPick.Id == 0 {
-		return "No current pick found for this draft"
-	}
-
-	pickStruct := model.Pick{
-		Id:     draftState.CurrentPick.Id,
-		Player: draftState.CurrentPick.Player,
-		Pick: sql.NullString{
-			Valid:  true,
-			String: tbaId,
-		},
-		PickTime: sql.NullTime{
-			Valid: true,
-			Time:  time.Now().UTC(),
-		},
-	}
-
-	err = draft.MakePick(ctx, draftActor, pickStruct)
-	if err != nil {
-		log.Warn(ctx, "Could Not Make Pick", "currentPickId", draftState.CurrentPick.Id, "pick", tbaId, "error", err)
-		return err.Error()
-	}
-
-	return fmt.Sprintf("Successfully picked team %s", teamStr)
-}
-
-type RenameDraftCommand struct{}
-
-func (r *RenameDraftCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	log.Info(ctx, "Calling rename draft command", "args", argStr)
-	argMap, _ := utils.ParseArgString(argStr)
-
-	draftIdStr, ok := argMap["id"]
-	if !ok {
-		return "Missing required argument: -id=<draftId>"
-	}
-
-	draftId, err := strconv.Atoi(draftIdStr)
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-	newName, ok := argMap["name"]
-	if !ok {
-		return "Missing required argument: -name=<newName>"
-	}
-
-	if newName == "" {
-		return "Draft name cannot be empty"
-	}
-
-	// Fetch the draft
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		return "Draft Id Does Not Match A Valid Draft"
-	}
-	draftModel := draft.GetDraft(draftActor)
-
-	oldName := draftModel.DisplayName
-	draftModel.DisplayName = newName
-
-	// Update the draft
-	err = draft.UpdateDraft(ctx, draftActor, draftModel)
-	if err != nil {
-		log.Error(ctx, "Failed to update draft name", "draftId", draftId, "error", err)
-		return "Failed to update draft name"
-	}
-
-	return fmt.Sprintf("Successfully renamed draft from '%s' to '%s'", oldName, newName)
-}
-
-type UndoPickCommand struct{}
-
-func (u *UndoPickCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	log.Info(ctx, "Calling undo pick command", "args", argStr)
-	argMap, _ := utils.ParseArgString(argStr)
-
-	draftIdStr, ok := argMap["id"]
-	if !ok {
-		return "Missing required argument: -id=<draftId>"
-	}
-
-	draftId, err := strconv.Atoi(draftIdStr)
-	if err != nil {
-		return "Draft Id Could Not Be Converted To An Int"
-	}
-
-	draftActor, err := draftActorMap.GetActor(ctx, draftId)
-	if err != nil {
-		return "Draft Id Does Not Match A Valid Draft"
-	}
-
-	err = draft.UndoLastPick(ctx, draftActor)
-	if err != nil {
-		return err.Error()
-	}
-
-	return "Successfully undid pick"
-}
-
-type InvalidatePickCacheCommand struct{}
-
-func (i *InvalidatePickCacheCommand) ProcessCommand(ctx context.Context, tbaHandler tbaHandler.TBAInterface, draftStore model.DraftStore, userStore model.UserStore, teamStore model.TeamStore, draftActorMap *draft.DraftActorMap, draftDaemon *background.DraftDaemon, eventTeamCache cache.EventTeamCache, argStr string) string {
-	if len(argStr) > 0 {
-		return "InvalidatePickCache does not take any inputs"
-	}
-
-	if eventTeamCache == nil {
-		return "Pick validation cache is not configured"
-	}
-
-	log.Info(ctx, "Invalidating pick validation cache")
-	if err := eventTeamCache.InvalidateAndRefresh(ctx); err != nil {
-		log.Error(ctx, "Failed to invalidate pick validation cache", "error", err)
-		return "Failed to invalidate pick validation cache: " + err.Error()
-	}
-
-	return fmt.Sprintf("Pick validation cache invalidated and refreshed (last refresh: %s)", eventTeamCache.LastRefresh().Format(time.RFC3339))
-}
-
-var commands = map[string]Command{
-	"ping":                 &PingCommand{},
-	"populateTeams":        &PopulateTeamsCommand{},
-	"listdraft":            &ListDraftsCommand{},
-	"startdraft":           &StartDraftCommand{},
-	"skippick":             &SkipPickCommand{},
-	"viewWebhookKey":       &ViewWebhookKey{},
-	"modifypicktime":       &ModifyPickTimeCommand{},
-	"adminpick":            &AdminPickCommand{},
-	"renamedraft":          &RenameDraftCommand{},
-	"undopick":             &UndoPickCommand{},
-	"invalidatePickCache":  &InvalidatePickCacheCommand{},
-}
-
-// ---------------- Handler Funcs --------------------------
 
 func (h *Handler) HandleAdminConsoleGet(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to render admin console")
@@ -407,57 +70,191 @@ func (h *Handler) HandleAdminConsoleGet(c *echo.Context) error {
 	return nil
 }
 
-func (h *Handler) HandleRunCommand(c *echo.Context) error {
-	_, username, err := h.requireUser(c)
+func (h *Handler) HandleAdminPing(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
 	if err != nil {
 		return err
 	}
 
-	commandString := c.FormValue("command")
-	cmd, args, _ := strings.Cut(commandString, " ")
-	// This is to handle the case where we have no params
-	log.Info(c.Request().Context(), "Running command", "command", cmd, "args", args)
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin ping", "userUuid", userUuid)
 
-	if len(cmd) < 1 {
-		noCommandResponse := admin.RenderCommand(username, commandString, "")
-		if err := Render(c, noCommandResponse); err != nil {
-			log.Error(c.Request().Context(), "Failed to render empty command response", "error", err)
-			return err
-		}
-		return nil
-	}
-
-	command, ok := commands[cmd]
-	if !ok {
-		response := admin.RenderCommand(username, commandString, "Invalid command")
-		if err := Render(c, response); err != nil {
-			log.Error(c.Request().Context(), "Failed to render invalid command response", "error", err)
-			return err
-		}
-		return nil
-	}
-
-	result := command.ProcessCommand(c.Request().Context(), h.Services.TBAHandler, h.Stores.DraftStore, h.Stores.UserStore, h.Stores.TeamStore, h.Services.DraftActorMap, h.Services.DraftDaemon, h.Services.EventTeamCache, args)
-
-	response := admin.RenderCommand(username, commandString, result)
-	if err := Render(c, response); err != nil {
-		log.Error(c.Request().Context(), "Failed to render command response", "error", err)
-		return err
-	}
-	return nil
+	msg, svcErr := h.adminService().Ping(ctx)
+	return h.renderAdminResponse(c, "Ping", msg, svcErr)
 }
 
-func (h *Handler) HandleInvalidatePickCache(c *echo.Context) error {
-	if h.Services.EventTeamCache == nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Pick validation cache is not configured")
+func (h *Handler) HandleAdminPopulateTeams(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
 	}
 
 	ctx := c.Request().Context()
-	log.Info(ctx, "Invalidating pick validation cache via admin endpoint")
-	if err := h.Services.EventTeamCache.InvalidateAndRefresh(ctx); err != nil {
-		log.Error(ctx, "Failed to invalidate pick validation cache", "error", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to invalidate pick validation cache: "+err.Error())
+	log.Info(ctx, "Admin populate teams", "userUuid", userUuid)
+
+	msg, svcErr := h.adminService().PopulateTeams(ctx)
+	return h.renderAdminResponse(c, "Populate Teams", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminListDrafts(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
 	}
 
-	return c.String(http.StatusOK, fmt.Sprintf("Pick validation cache invalidated and refreshed (last refresh: %s)", h.Services.EventTeamCache.LastRefresh().Format(time.RFC3339)))
+	search := c.FormValue("search")
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin list drafts", "userUuid", userUuid, "search", search)
+
+	msg, svcErr := h.adminService().ListDrafts(ctx, search)
+	return h.renderAdminResponse(c, "List Drafts", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminStartDraft(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Start Draft", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin start draft", "userUuid", userUuid, "draftId", draftId)
+
+	msg, svcErr := h.adminService().StartDraft(ctx, draftId)
+	return h.renderAdminResponse(c, "Start Draft", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminSkipPickGlobal(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Skip Pick", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin skip pick", "userUuid", userUuid, "draftId", draftId)
+
+	msg, svcErr := h.adminService().SkipPick(ctx, draftId)
+	return h.renderAdminResponse(c, "Skip Pick", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminUndoPickGlobal(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Undo Pick", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin undo pick", "userUuid", userUuid, "draftId", draftId)
+
+	msg, svcErr := h.adminService().UndoPick(ctx, draftId)
+	return h.renderAdminResponse(c, "Undo Pick", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminModifyPickTime(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Modify Pick Time", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	delta, err := time.ParseDuration(c.FormValue("time"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Modify Pick Time", "", fmt.Errorf("invalid duration format. Use formats like 45m, 1h30m, 2h15m30s"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin modify pick time", "userUuid", userUuid, "draftId", draftId, "delta", delta)
+
+	msg, svcErr := h.adminService().ModifyPickTime(ctx, draftId, delta)
+	return h.renderAdminResponse(c, "Modify Pick Time", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminAdminPick(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Admin Pick", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	teamNumber := c.FormValue("team")
+	if teamNumber == "" {
+		return h.renderAdminResponse(c, "Admin Pick", "", fmt.Errorf("team number is required"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin make pick", "userUuid", userUuid, "draftId", draftId, "team", teamNumber)
+
+	msg, svcErr := h.adminService().AdminPick(ctx, draftId, teamNumber)
+	return h.renderAdminResponse(c, "Admin Pick", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminRenameDraft(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	draftId, err := strconv.Atoi(c.FormValue("id"))
+	if err != nil {
+		return h.renderAdminResponse(c, "Rename Draft", "", fmt.Errorf("draft ID must be a number"))
+	}
+
+	newName := strings.TrimSpace(c.FormValue("name"))
+	if newName == "" {
+		return h.renderAdminResponse(c, "Rename Draft", "", fmt.Errorf("draft name cannot be empty"))
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin rename draft", "userUuid", userUuid, "draftId", draftId, "newName", newName)
+
+	msg, svcErr := h.adminService().RenameDraft(ctx, draftId, newName)
+	return h.renderAdminResponse(c, "Rename Draft", msg, svcErr)
+}
+
+func (h *Handler) HandleAdminViewWebhookKey(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin view webhook key", "userUuid", userUuid)
+
+	msg, svcErr := h.adminService().ViewWebhookKey(ctx)
+	return h.renderAdminResponse(c, "View Webhook Key", msg, svcErr)
+}
+
+func (h *Handler) HandleInvalidatePickCache(c *echo.Context) error {
+	userUuid, _, err := h.requireUser(c)
+	if err != nil {
+		return err
+	}
+
+	ctx := c.Request().Context()
+	log.Info(ctx, "Admin invalidate pick cache", "userUuid", userUuid)
+
+	msg, svcErr := h.adminService().InvalidatePickCache(ctx)
+	return h.renderAdminResponse(c, "Invalidate Pick Cache", msg, svcErr)
 }

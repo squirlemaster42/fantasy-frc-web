@@ -177,7 +177,16 @@ func registerProtectedRoutes(protected *echo.Group, cfg ServerConfig) {
 
 func registerAdminRoutes(admin *echo.Group, cfg ServerConfig) {
 	admin.GET("/console", cfg.Handler.HandleAdminConsoleGet)
-	admin.POST("/processCommand", cfg.Handler.HandleRunCommand)
+	admin.POST("/ping", cfg.Handler.HandleAdminPing)
+	admin.POST("/populateTeams", cfg.Handler.HandleAdminPopulateTeams)
+	admin.POST("/listDrafts", cfg.Handler.HandleAdminListDrafts)
+	admin.POST("/startDraft", cfg.Handler.HandleAdminStartDraft)
+	admin.POST("/skipPick", cfg.Handler.HandleAdminSkipPickGlobal)
+	admin.POST("/undoPick", cfg.Handler.HandleAdminUndoPickGlobal)
+	admin.POST("/modifyPickTime", cfg.Handler.HandleAdminModifyPickTime)
+	admin.POST("/adminPick", cfg.Handler.HandleAdminAdminPick)
+	admin.POST("/renameDraft", cfg.Handler.HandleAdminRenameDraft)
+	admin.POST("/viewWebhookKey", cfg.Handler.HandleAdminViewWebhookKey)
 	admin.POST("/invalidatePickCache", cfg.Handler.HandleInvalidatePickCache)
 }
 

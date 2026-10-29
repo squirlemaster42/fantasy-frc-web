@@ -1,25 +1,169 @@
 package admin
 
 import "server/view"
-import "fmt"
+import "server/view/partials"
 import "server/types"
 
 templ AdminConsoleIndex(username string, csrfToken string) {
-<div class="w-full h-full p-4">
-    <div class="terminal p-6 rounded-lg shadow-lg h-full overflow-auto">
-        <div id="output" class="space-y-2 mb-4" aria-live="polite" aria-atomic="false">
-                <!-- Previous command outputs will be appended here -->
+<div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
+    <div class="max-w-7xl mx-auto w-full space-y-6">
+        <div>
+            <h1 class="text-2xl font-bold text-base-content">Admin Console</h1>
+            <p class="text-base-content/70 mt-1">Run administrative operations and review the results below.</p>
         </div>
-        <div class="flex items-center">
-            <span class="text-success">{fmt.Sprintf("%s@webapp~$", username)}</span>
-            <input type="text" id="commandInput" name="command" class="input-line ml-2" placeholder="Type a command..."
-                aria-label="Command input"
-                hx-on::after-request="document.getElementById('commandInput').value = ''"
-                hx-post="/u/admin/processCommand" hx-target="#output" hx-swap="beforeend"
-                hx-vals={fmt.Sprintf(`{"csrf_token": "%s"}`, csrfToken)}/>
+
+        <!-- Output log -->
+        <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+            <div class="card-body p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-base-content">Operation Output</h2>
+                    <button type="button" class="btn btn-ghost btn-sm text-base-content/70"
+                        onclick="document.getElementById('output').innerHTML = ''">
+                        Clear
+                    </button>
+                </div>
+                <div id="output" class="bg-base-300 h-64 p-4 rounded-lg overflow-y-auto space-y-3"
+                    aria-live="polite" aria-atomic="false">
+                    <!-- Operation output will be appended here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Operation grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            @commandCard("Ping", "Check that the admin console is responding.") {
+                @partials.HtmxButton("/u/admin/ping", "#output", "beforeend", "", false, "btn btn-success w-full", "", "", "", csrfToken) {
+                    Ping Server
+                }
+            }
+
+            @commandCard("Populate Teams", "Fetch and create team records for all configured events.") {
+                @partials.HtmxButton("/u/admin/populateTeams", "#output", "beforeend", "", false, "btn btn-primary w-full", "", "", "", csrfToken) {
+                    Populate Teams
+                }
+            }
+
+            @commandCard("Invalidate Pick Cache", "Refresh the TBA pick validation cache.") {
+                @partials.HtmxButton("/u/admin/invalidatePickCache", "#output", "beforeend", "", false, "btn btn-info w-full", "", "", "", csrfToken) {
+                    Invalidate Cache
+                }
+            }
+
+            @commandCard("View Webhook Key", "Display the current TBA webhook verification key.") {
+                @partials.HtmxButton("/u/admin/viewWebhookKey", "#output", "beforeend", "", false, "btn btn-ghost w-full", "", "", "", csrfToken) {
+                    Show Key
+                }
+            }
+
+            @commandCard("List Drafts", "Search and list drafts by name.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/listDrafts"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="text" name="search" class="app-input" placeholder="Search (optional)"/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-info w-full">List Drafts</button>
+                </form>
+            }
+
+            @commandCard("Start Draft", "Transition a draft to the Picking status.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/startDraft"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-primary w-full">Start Draft</button>
+                </form>
+            }
+
+            @commandCard("Skip Pick", "Skip the current pick for a draft.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/skipPick"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-confirm="Are you sure you want to skip the current pick?"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-warning w-full">Skip Pick</button>
+                </form>
+            }
+
+            @commandCard("Undo Pick", "Revert the most recent pick in a draft.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/undoPick"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-confirm="Are you sure you want to undo the last pick?"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-error w-full">Undo Pick</button>
+                </form>
+            }
+
+            @commandCard("Modify Pick Time", "Extend or shorten the current pick timer.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/modifyPickTime"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <input type="text" name="time" class="app-input" placeholder="Duration (e.g. 45m, 1h30m)" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-primary w-full">Update Time</button>
+                </form>
+            }
+
+            @commandCard("Admin Pick", "Make a pick on behalf of the current player.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/adminPick"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <input type="number" name="team" class="app-input" placeholder="Team number" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-success w-full">Make Pick</button>
+                </form>
+            }
+
+            @commandCard("Rename Draft", "Change the display name of a draft.") {
+                <form class="space-y-3"
+                    hx-post="/u/admin/renameDraft"
+                    hx-target="#output"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset()">
+                    @partials.CSRFInput(csrfToken)
+                    <input type="number" name="id" class="app-input" placeholder="Draft ID" required/>
+                    <input type="text" name="name" class="app-input" placeholder="New draft name" required/>
+                    <button type="submit" hx-disabled-elt="this" class="btn btn-primary w-full">Rename Draft</button>
+                </form>
+            }
         </div>
     </div>
 </div>
+<script>
+    document.body.addEventListener('htmx:afterRequest', function () {
+        const output = document.getElementById('output');
+        if (output) {
+            output.scrollTop = output.scrollHeight;
+        }
+    });
+</script>
+}
+
+templ commandCard(title string, description string) {
+    <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+        <div class="card-body p-6">
+            <h2 class="text-lg font-bold text-base-content">{title}</h2>
+            <p class="text-base-content/70 text-sm mb-4">{description}</p>
+            { children... }
+        </div>
+    </div>
 }
 
 templ AdminConsole(page string, fromProtected bool, username string, cmp templ.Component) {
@@ -28,14 +172,26 @@ templ AdminConsole(page string, fromProtected bool, username string, cmp templ.C
     }
 }
 
-templ RenderCommand(username string, command string, response string) {
-    <p>
-        <span class="text-success">{fmt.Sprintf("%s@webapp~$", username)}</span>
-        <span class="text-base-content">{command}</span>
-    </p>
-    if len(response) > 0 {
-        <p>
-            <span style="white-space: pre-line;" class="text-base-content">{response}</span>
-        </p>
+templ AdminResult(operation string, message string, isError bool) {
+    if isError {
+        <div class="p-4 rounded-xl bg-error/20 text-error flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0 mt-0.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+            <div class="flex-1 min-w-0">
+                <div class="font-semibold">{operation}</div>
+                <div class="text-sm whitespace-pre-line opacity-90">{message}</div>
+            </div>
+        </div>
+    } else {
+        <div class="p-4 rounded-xl bg-success/20 text-success flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 shrink-0 mt-0.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <div class="flex-1 min-w-0">
+                <div class="font-semibold">{operation}</div>
+                <div class="text-sm whitespace-pre-line opacity-90">{message}</div>
+            </div>
+        </div>
     }
 }

@@ -1686,6 +1686,11 @@ type LeaderboardPage struct {
 	Total       int
 }
 
+// scoresBatchFunc is the implementation used by getOverallLeaderboard to fetch
+// team scores. It is a variable so tests can stub it out when using sqlmock,
+// because sqlmock does not support PostgreSQL array arguments such as ANY($1).
+var scoresBatchFunc = getScoresBatch
+
 func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perPage int) (LeaderboardPage, error) {
 	query := `Select
 		dp.Id,
@@ -1750,7 +1755,7 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 		teamTbaIds = append(teamTbaIds, tbaId)
 	}
 
-	teamScores, err := getScoresBatch(ctx, db, teamTbaIds)
+	teamScores, err := scoresBatchFunc(ctx, db, teamTbaIds)
 	if err != nil {
 		return LeaderboardPage{}, fmt.Errorf("failed to get scores for leaderboard: %w", err)
 	}
