@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// User represents a Fantasy FRC user account that can make HTTP requests.
+// User represents a Fantasy FRC user account that can make HTTP requests
 type User struct {
 	Username string
 	Password string
@@ -28,35 +28,35 @@ type User struct {
 	IsOwner  bool
 }
 
-// Draft represents a Fantasy FRC draft.
+// Draft represents a Fantasy FRC draft
 type Draft struct {
 	Id int
 }
 
-// FantasyClient provides HTTP helpers for interacting with a Fantasy FRC server.
+// FantasyClient provides HTTP helpers for interacting with a Fantasy FRC server
 type FantasyClient struct {
 	BaseURL string
 }
 
-// New creates a FantasyClient for the given base URL.
+// New creates a FantasyClient for the given base URL
 func New(baseURL string) *FantasyClient {
 	return &FantasyClient{BaseURL: baseURL}
 }
 
-// LoadUserConfig reads the raw JSON at the given path.
+// LoadUserConfig reads the raw JSON at the given path
 func (fc *FantasyClient) LoadUserConfig(path string) (string, error) {
 	file, err := os.ReadFile(path)
 	return string(file), err
 }
 
-// ParseUsers parses a JSON array of users.
+// ParseUsers parses a JSON array of users
 func (fc *FantasyClient) ParseUsers(userJSON string) ([]*User, error) {
 	var users []*User
 	err := json.Unmarshal([]byte(userJSON), &users)
 	return users, err
 }
 
-// CreateUser creates a new User with an empty cookie jar.
+// CreateUser creates a new User with an empty cookie jar
 func (fc *FantasyClient) CreateUser(username, password string) *User {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -72,11 +72,11 @@ func (fc *FantasyClient) CreateUser(username, password string) *User {
 }
 
 // Login authenticates the user, verifies a session cookie was set, and primes
-// the authenticated CSRF token by visiting a protected route.
+// the authenticated CSRF token by visiting a protected route
 func (fc *FantasyClient) Login(user *User) {
 	slog.Info("Making login request", "User", user.Username)
 
-	// 1. GET the login page to receive the csrf_cookie.
+	// 1. GET the login page to receive the csrf_cookie
 	resp, err := user.Client.Get(fc.BaseURL + "/login")
 	if err != nil {
 		slog.Error("Failed to get login page", "Username", user.Username, "Error", err)
@@ -85,13 +85,13 @@ func (fc *FantasyClient) Login(user *User) {
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 
-	// 2. Extract the csrf_cookie value from the jar.
+	// 2. Extract the csrf_cookie value from the jar
 	csrfToken, ok := fc.getCookieValue(&user.Client, fc.BaseURL+"/login", "csrf_cookie")
 	if !ok {
 		panic("no csrf_cookie received from login page")
 	}
 
-	// 3. POST login with username, password, and csrf_token.
+	// 3. POST login with username, password, and csrf_token
 	form := url.Values{}
 	form.Add("username", user.Username)
 	form.Add("password", user.Password)
@@ -120,7 +120,7 @@ func (fc *FantasyClient) Login(user *User) {
 	}
 	resp.Body.Close()
 
-	// 5. Prime the authenticated CSRF token by making a GET to a protected route.
+	// 5. Prime the authenticated CSRF token by making a GET to a protected route
 	resp, err = user.Client.Get(fc.BaseURL + "/u/home")
 	if err != nil {
 		slog.Error("Failed to get home page", "Username", user.Username, "Error", err)
@@ -132,7 +132,7 @@ func (fc *FantasyClient) Login(user *User) {
 	slog.Info("Login request made", "User", user.Username, "Status", resp.StatusCode)
 }
 
-// CreateDraft creates a new draft and returns it.
+// CreateDraft creates a new draft and returns it
 func (fc *FantasyClient) CreateDraft(user *User) Draft {
 	slog.Info("Making request to make draft", "User", user.Username)
 
@@ -179,7 +179,7 @@ func (fc *FantasyClient) CreateDraft(user *User) Draft {
 	}
 }
 
-// GetPlayerUUID searches for a player by username and returns their UUID.
+// GetPlayerUUID searches for a player by username and returns their UUID
 func (fc *FantasyClient) GetPlayerUUID(owner *User, draftId int, username string) uuid.UUID {
 	csrfToken, ok := fc.getCookieValue(&owner.Client, fc.BaseURL+"/u/home", "csrf_token")
 	if !ok {
@@ -235,7 +235,7 @@ func (fc *FantasyClient) GetPlayerUUID(owner *User, draftId int, username string
 }
 
 // extractUserUuid parses HTML and returns the value of the first element with
-// name="userUuid".
+// name="userUuid"
 func (fc *FantasyClient) extractUserUuid(htmlContent string) (string, bool) {
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {
@@ -269,7 +269,7 @@ func (fc *FantasyClient) extractUserUuid(htmlContent string) (string, bool) {
 	return values[0], true
 }
 
-// InvitePlayersToDraft invites all users except the owner to the draft.
+// InvitePlayersToDraft invites all users except the owner to the draft
 func (fc *FantasyClient) InvitePlayersToDraft(owner *User, users []*User, draft Draft) {
 	for _, user := range users {
 		if user.Username == owner.Username {
@@ -306,7 +306,7 @@ func (fc *FantasyClient) InvitePlayersToDraft(owner *User, users []*User, draft 
 	}
 }
 
-// AcceptInvite accepts the first pending draft invite for the user.
+// AcceptInvite accepts the first pending draft invite for the user
 func (fc *FantasyClient) AcceptInvite(user *User) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/u/viewInvites", fc.BaseURL), nil)
 	if err != nil {
@@ -415,7 +415,7 @@ func (fc *FantasyClient) getInviteId(body string) (int, bool) {
 	return id, true
 }
 
-// StartDraft transitions the draft to picking.
+// StartDraft transitions the draft to picking
 func (fc *FantasyClient) StartDraft(user *User, draftId int) {
 	slog.Info("Start Draft", "Draft Id", draftId, "User", user.Username)
 
@@ -443,7 +443,7 @@ func (fc *FantasyClient) StartDraft(user *User, draftId int) {
 }
 
 // WaitUntilDraftState polls the draft status until it matches the requested
-// status or the timeout is reached.
+// status or the timeout is reached
 func (fc *FantasyClient) WaitUntilDraftState(user *User, draftId int, requestedStatus string, timeout time.Duration) {
 	waitTime := 30 * time.Second
 	timeoutTime := time.Now().Add(timeout)
@@ -459,7 +459,7 @@ func (fc *FantasyClient) WaitUntilDraftState(user *User, draftId int, requestedS
 	}
 }
 
-// GetCurrentDraftStatus returns the current status string for the draft.
+// GetCurrentDraftStatus returns the current status string for the draft
 func (fc *FantasyClient) GetCurrentDraftStatus(user *User, draftId int) string {
 	profilePage := fc.getDraftIdPage(user, draftId)
 	return fc.parseDraftStatus(profilePage)
@@ -500,7 +500,7 @@ func (fc *FantasyClient) parseDraftStatus(profilePage string) string {
 	return status
 }
 
-// IsPickingPlayer returns true if it is the user's turn to pick.
+// IsPickingPlayer returns true if it is the user's turn to pick
 func (fc *FantasyClient) IsPickingPlayer(user *User, draftId int) bool {
 	slog.Info("Getting picking player", "Draft Id", draftId, "User", user.Username)
 
@@ -527,7 +527,7 @@ func (fc *FantasyClient) IsPickingPlayer(user *User, draftId int) bool {
 }
 
 // MakePickRequest attempts to pick the given team. It returns (true, "") on
-// success and (false, errorMessage) when the server rejects the pick.
+// success and (false, errorMessage) when the server rejects the pick
 func (fc *FantasyClient) MakePickRequest(draftId int, user *User, team int) (bool, string) {
 	slog.Info("Make Pick", "Draft Id", draftId, "User", user.Username, "Team", team)
 
@@ -577,7 +577,7 @@ func (fc *FantasyClient) MakePickRequest(draftId int, user *User, team int) (boo
 	return true, ""
 }
 
-// LoadValidTeams reads a newline-delimited file of integer team numbers.
+// LoadValidTeams reads a newline-delimited file of integer team numbers
 func (fc *FantasyClient) LoadValidTeams(path string) []int {
 	file, err := os.Open(path)
 	if err != nil {
@@ -598,7 +598,7 @@ func (fc *FantasyClient) LoadValidTeams(path string) []int {
 }
 
 // CreateRandomString returns a random lowercase string of length between
-// minLen and maxLen.
+// minLen and maxLen
 func (fc *FantasyClient) CreateRandomString(minLen int, maxLen int) string {
 	alphabet := "abcdefghijklmnopqrstuvwxyz"
 	length := rand.IntN(maxLen-minLen) + minLen
