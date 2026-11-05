@@ -2,7 +2,7 @@
 module.exports = {
   content: [
     "./view/**/*.templ",
-    "./view/*.templ"
+    "./view/*.templ",
   ],
   safelist: [],
   theme: {
