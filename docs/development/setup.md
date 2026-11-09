@@ -9,7 +9,7 @@ This guide covers setting up a complete development environment for Fantasy FRC,
 ## 📋 Prerequisites
 
 ### Required Software
-- **Go**: Version 1.26+ (the server module declares `go 1.26.5`)
+- **Go**: Version 1.27+ (the server module declares `go 1.27`)
 - **PostgreSQL**: Version 16+
 - **Redis**: Version 7+ (required for avatars and rate limiting)
 - **Templ**: Template engine for Go
