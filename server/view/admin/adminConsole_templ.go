@@ -33,7 +33,7 @@ func AdminConsoleIndex(username string, csrfToken string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30\"><div class=\"max-w-7xl mx-auto w-full space-y-6\"><div><h1 class=\"text-2xl font-bold text-base-content\">Admin Console</h1><p class=\"text-base-content/70 mt-1\">Run administrative operations and review the results below.</p></div><!-- Output log --><div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><div class=\"flex items-center justify-between mb-4\"><h2 class=\"text-lg font-bold text-base-content\">Operation Output</h2><button type=\"button\" class=\"btn btn-ghost btn-sm text-base-content/70\" onclick=\"document.getElementById('output').innerHTML = ''\">Clear</button></div><div id=\"output\" class=\"bg-base-300 h-64 p-4 rounded-lg overflow-y-auto space-y-3\" aria-live=\"polite\" aria-atomic=\"false\"><!-- Operation output will be appended here --></div></div></div><!-- Operation grid --><div class=\"grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30\"><div class=\"max-w-7xl mx-auto w-full space-y-6\"><div><h1 class=\"text-2xl font-bold text-base-content\">Admin Console</h1><p class=\"text-base-content/70 mt-1\">Run administrative operations and review the results below.</p></div><!-- Output log --><div class=\"card app-card\"><div class=\"card-body p-6\"><div class=\"flex items-center justify-between mb-4\"><h2 class=\"text-lg font-bold text-base-content\">Operation Output</h2><button type=\"button\" class=\"btn btn-ghost btn-sm text-base-content/70\" onclick=\"document.getElementById('output').innerHTML = ''\">Clear</button></div><div id=\"output\" class=\"bg-base-300 h-64 p-4 rounded-lg overflow-y-auto space-y-3\" aria-live=\"polite\" aria-atomic=\"false\"><!-- Operation output will be appended here --></div></div></div><!-- Operation grid --><div class=\"grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -67,7 +67,10 @@ func AdminConsoleIndex(username string, csrfToken string) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = partials.HtmxButton("/u/admin/ping", "#output", "beforeend", "", false, "btn btn-success w-full", "", "", "", csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: "/u/admin/ping", Target: "#output", Swap: "beforeend",
+				Classes: "btn btn-success w-full", CsrfToken: csrfToken,
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -107,7 +110,10 @@ func AdminConsoleIndex(username string, csrfToken string) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = partials.HtmxButton("/u/admin/populateTeams", "#output", "beforeend", "", false, "btn btn-primary w-full", "", "", "", csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: "/u/admin/populateTeams", Target: "#output", Swap: "beforeend",
+				Classes: "btn btn-primary w-full", CsrfToken: csrfToken,
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -147,7 +153,10 @@ func AdminConsoleIndex(username string, csrfToken string) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = partials.HtmxButton("/u/admin/invalidatePickCache", "#output", "beforeend", "", false, "btn btn-info w-full", "", "", "", csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: "/u/admin/invalidatePickCache", Target: "#output", Swap: "beforeend",
+				Classes: "btn btn-info w-full", CsrfToken: csrfToken,
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -187,7 +196,10 @@ func AdminConsoleIndex(username string, csrfToken string) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = partials.HtmxButton("/u/admin/viewWebhookKey", "#output", "beforeend", "", false, "btn btn-ghost w-full", "", "", "", csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: "/u/admin/viewWebhookKey", Target: "#output", Swap: "beforeend",
+				Classes: "btn btn-ghost w-full", CsrfToken: csrfToken,
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -436,14 +448,14 @@ func commandCard(title string, description string) templ.Component {
 			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 162, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 174, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -456,7 +468,7 @@ func commandCard(title string, description string) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 163, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 175, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -554,7 +566,7 @@ func AdminResult(operation string, message string, isError bool) templ.Component
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(operation)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 182, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 194, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -567,7 +579,7 @@ func AdminResult(operation string, message string, isError bool) templ.Component
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 183, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 195, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -585,7 +597,7 @@ func AdminResult(operation string, message string, isError bool) templ.Component
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(operation)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 192, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 204, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -598,7 +610,7 @@ func AdminResult(operation string, message string, isError bool) templ.Component
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 193, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/admin/adminConsole.templ`, Line: 205, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {

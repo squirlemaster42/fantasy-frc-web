@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"fmt"
-	"net/http"
+	"strconv"
+
 	"server/log"
 	"server/model"
 	"server/types"
@@ -25,11 +25,7 @@ func (h *Handler) HandleViewCreateDraft(c *echo.Context) error {
 
 	draftCreateIndex := draftView.DraftProfileIndex(draftModel, true, h.csrfToken(c))
 	draftCreate := draftView.DraftProfile(" | Create Draft", true, username, draftCreateIndex, types.NewPageData(-1, "", true))
-	if err := Render(c, draftCreate); err != nil {
-		log.Error(c.Request().Context(), "Handle View Draft Create Failed To Render", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, draftCreate, "Handle View Draft Create Failed To Render")
 }
 
 func (h *Handler) HandleCreateDraftPost(c *echo.Context) error {
@@ -49,8 +45,7 @@ func (h *Handler) HandleCreateDraftPost(c *echo.Context) error {
 		PerPickExpTimeSec:  10800,
 	})
 	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft timing values", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusBadRequest, err.Error())
+		return BadRequest(c, "Invalid draft timing values", err.Error(), "userUuid", userUuid, "error", err)
 	}
 
 	draftModel := model.DraftModel{
@@ -68,10 +63,8 @@ func (h *Handler) HandleCreateDraftPost(c *echo.Context) error {
 
 	draftId, err := h.Stores.DraftStore.CreateDraft(c.Request().Context(), &draftModel)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to create draft", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to create draft")
+		return InternalServerError(c, "Failed to create draft", err)
 	}
 	log.Info(c.Request().Context(), "Draft created", "draftId", draftId, "username", username)
-	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
-	return nil
+	return HXRedirect(c, "/u/draft/"+strconv.Itoa(draftId)+"/profile")
 }

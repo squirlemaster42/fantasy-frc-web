@@ -10,10 +10,10 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, 2, d.cleanupSessionLeewayHours)
-	assert.Equal(t, 60, d.cleanupIntervalMinutes)
-	assert.Equal(t, 1*time.Minute, d.draftDaemonTickInterval)
-	assert.Equal(t, 55*time.Second, d.draftDaemonTickTimeout)
+	assert.Equal(t, 2, d.CleanupSessionLeewayHours)
+	assert.Equal(t, 60, d.CleanupIntervalMinutes)
+	assert.Equal(t, 1*time.Minute, d.DraftDaemonTickInterval)
+	assert.Equal(t, 55*time.Second, d.DraftDaemonTickTimeout)
 }
 
 func TestLoadDefaults_Override(t *testing.T) {
@@ -24,8 +24,8 @@ func TestLoadDefaults_Override(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, 4, d.cleanupSessionLeewayHours)
-	assert.Equal(t, 30, d.cleanupIntervalMinutes)
-	assert.Equal(t, 2*time.Minute, d.draftDaemonTickInterval)
-	assert.Equal(t, 30*time.Second, d.draftDaemonTickTimeout)
+	assert.Equal(t, 4, d.CleanupSessionLeewayHours)
+	assert.Equal(t, 30, d.CleanupIntervalMinutes)
+	assert.Equal(t, 2*time.Minute, d.DraftDaemonTickInterval)
+	assert.Equal(t, 30*time.Second, d.DraftDaemonTickTimeout)
 }

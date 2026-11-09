@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"server/authentication"
 	"server/log"
 	"server/view"
@@ -34,10 +33,5 @@ func (h *Handler) getAuthenticatedUser(c *echo.Context) (uuid.UUID, string, bool
 func (h *Handler) HandleViewLanding(c *echo.Context) error {
 	_, username, fromProtected := h.getAuthenticatedUser(c)
 	landing := view.Landing(fromProtected, username)
-	err := Render(c, landing)
-	if err != nil {
-		log.Error(c.Request().Context(), "Handle View Landing Failed To Render", "error", err)
-		return c.String(http.StatusInternalServerError, "Unable to render page")
-	}
-	return nil
+	return RenderOrLog(c, landing, "Handle View Landing Failed To Render")
 }

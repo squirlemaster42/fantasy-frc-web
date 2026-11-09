@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"server/database"
 	"server/log"
-	"server/utils"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,22 +34,19 @@ var (
 	)
 )
 
-var (
-	queryThresholdMs = utils.GetEnvInt("DB_QUERY_THRESHOLD_MS", 50)
-	pollInterval     = utils.GetEnvDuration("DB_QUERY_POLL_INTERVAL", 30*time.Second)
-	maxQueries       = utils.GetEnvInt("DB_QUERY_MAX_COUNT", 50)
-)
-
 func InitDBQueryStats(ctx context.Context, db *sql.DB) {
 	prometheus.MustRegister(dbQueryMeanTime, dbQueryCalls, dbQueryRows)
 
-	log.Info(ctx, "Starting DB query stats collector", "threshold_ms", queryThresholdMs, "interval", pollInterval, "max_queries", maxQueries)
+	log.Info(ctx, "Starting DB query stats collector",
+		"threshold_ms", DBQueryThresholdMs(),
+		"interval", DBQueryPollInterval(),
+		"max_queries", DBQueryMaxCount())
 
 	go collectQueryStats(ctx, db)
 }
 
 func collectQueryStats(ctx context.Context, db *sql.DB) {
-	ticker := time.NewTicker(pollInterval)
+	ticker := time.NewTicker(DBQueryPollInterval())
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -72,7 +68,7 @@ func collectQueryStatsIteration(ctx context.Context, db *sql.DB) {
 		LIMIT $2
 	`
 
-	rows, err := db.QueryContext(ctx, query, float64(queryThresholdMs)/1000.0, maxQueries)
+	rows, err := db.QueryContext(ctx, query, float64(DBQueryThresholdMs())/1000.0, DBQueryMaxCount())
 	if err != nil {
 		log.Error(ctx, "Failed to query pg_stat_statements", "error", err)
 		return

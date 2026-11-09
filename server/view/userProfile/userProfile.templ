@@ -45,7 +45,7 @@ templ UserProfileIndex(data ProfileData) {
 }
 
 templ AccountCard(data ProfileData) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="account-card">
+	<div class="card app-card" id="account-card">
 		<div class="card-body p-6 md:p-8">
 			<div class="flex items-center gap-3 mb-6">
 				<div class="p-2 bg-primary/20 rounded-lg">
@@ -121,7 +121,7 @@ templ AccountCard(data ProfileData) {
 }
 
 templ NotificationsCard(data ProfileData) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="notifications-card">
+	<div class="card app-card" id="notifications-card">
 		<div class="card-body p-6 md:p-8">
 			<div class="flex items-center gap-3 mb-6">
 				<div class="p-2 bg-info/20 rounded-lg">
@@ -253,7 +253,7 @@ templ draftNotificationRow(draft model.DraftModel, pref model.DraftNotificationP
 }
 
 templ PasswordCard(data ProfileData) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300" id="password-card">
+	<div class="card app-card" id="password-card">
 		<div class="card-body p-6 md:p-8">
 			<div class="flex items-center gap-3 mb-6">
 				<div class="p-2 bg-success/20 rounded-lg">
@@ -302,7 +302,7 @@ templ PasswordCard(data ProfileData) {
 					<div>
 						<label class="block text-sm font-medium text-base-content/80 mb-2">New Password</label>
 						<input
-							class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							class="app-input"
 							type="password"
 							name="newPassword"
 							placeholder="Enter new password"
@@ -312,7 +312,7 @@ templ PasswordCard(data ProfileData) {
 					<div>
 						<label class="block text-sm font-medium text-base-content/80 mb-2">Confirm New Password</label>
 						<input
-							class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+							class="app-input"
 							type="password"
 							name="confirmNewPassword"
 							placeholder="Confirm new password"

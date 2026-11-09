@@ -24,31 +24,25 @@ func (t *Team) String() string {
 
 func getTeam(ctx context.Context, db database.DBTX, tbaId string) (*Team, error) {
 	query := `Select tbaId, name, COALESCE(allianceScore, 0) As allianceScore From Teams Where tbaId = $1;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return nil, err
-	}
-	defer database.CloseStatement(ctx, stmt, "GetTeam")
-	team := Team{}
-	err = stmt.QueryRowContext(ctx, tbaId).Scan(&team.TbaId, &team.Name, &team.AllianceScore)
+	team, err := database.QueryRow(ctx, db, query, func(row *sql.Row) (Team, error) {
+		var t Team
+		if err := row.Scan(&t.TbaId, &t.Name, &t.AllianceScore); err != nil {
+			return t, fmt.Errorf("failed to get team: %w", err)
+		}
+		return t, nil
+	}, tbaId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil //nolint:nilnil // not found is represented as nil team with nil error
 		}
-		return nil, fmt.Errorf("failed to get team: %w", err)
+		return nil, err
 	}
 	return &team, nil
 }
 
 func createTeam(ctx context.Context, db database.DBTX, tbaId string, name string) error {
 	query := `INSERT INTO Teams (tbaId, name) Values ($1, $2);`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return err
-	}
-	defer database.CloseStatement(ctx, stmt, "CreateTeam")
-	_, err = stmt.ExecContext(ctx, tbaId, name)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, tbaId, name); err != nil {
 		return fmt.Errorf("failed to create team: %w", err)
 	}
 	return nil
@@ -56,13 +50,7 @@ func createTeam(ctx context.Context, db database.DBTX, tbaId string, name string
 
 func updateTeamAllianceScore(ctx context.Context, db database.DBTX, tbaId string, allianceScore int) error {
 	query := `Update Teams Set allianceScore = $1 where tbaId = $2;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return err
-	}
-	defer database.CloseStatement(ctx, stmt, "UpdateTeamAllianceScore")
-	_, err = stmt.ExecContext(ctx, allianceScore, tbaId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, allianceScore, tbaId); err != nil {
 		return fmt.Errorf("failed to execute updateTeamAllianceScore: %w", err)
 	}
 	return nil
@@ -89,30 +77,15 @@ func getMatchScores(ctx context.Context, db database.DBTX, tbaId string) ([]Matc
 		Where mt.Team_TbaId = $1
 		Order By mt.Match_tbaId`
 
-	stmt, err := database.Prepare(ctx, db, query)
+	matches, err := database.QueryRows(ctx, db, query, func(rows *sql.Rows) (MatchTeamScore, error) {
+		var match MatchTeamScore
+		if err := rows.Scan(&match.MatchTbaId, &match.Alliance, &match.Score, &match.IsDqed); err != nil {
+			return match, fmt.Errorf("failed to scan match scores: %w", err)
+		}
+		return match, nil
+	}, tbaId)
 	if err != nil {
 		return nil, err
-	}
-	defer database.CloseStatement(ctx, stmt, "GetMatchScores")
-
-	rows, err := stmt.QueryContext(ctx, tbaId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get match scores for team: %w", err)
-	}
-	defer database.CloseRows(ctx, rows, "GetMatchScores")
-
-	var matches []MatchTeamScore
-	for rows.Next() {
-		var match MatchTeamScore
-		err := rows.Scan(&match.MatchTbaId, &match.Alliance, &match.Score, &match.IsDqed)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan match scores: %w", err)
-		}
-		matches = append(matches, match)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating matches scores: %w", err)
 	}
 
 	sort.Slice(matches, func(i, j int) bool {
@@ -163,37 +136,33 @@ func getScoresBatch(ctx context.Context, db database.DBTX, tbaIds []string) (map
 	Group By t.TbaId, t.AllianceScore
 	Order By t.TbaId`
 
-	stmt, err := database.Prepare(ctx, db, query)
+	rows, err := database.QueryRows(ctx, db, query, func(rows *sql.Rows) (struct {
+		tbaId                                    string
+		allianceScore, qualScore, playoffScore int
+		einsteinScore, totalScore                int
+	}, error) {
+		var row struct {
+			tbaId                                    string
+			allianceScore, qualScore, playoffScore int
+			einsteinScore, totalScore                int
+		}
+		if err := rows.Scan(&row.tbaId, &row.allianceScore, &row.qualScore, &row.playoffScore, &row.einsteinScore, &row.totalScore); err != nil {
+			return row, fmt.Errorf("failed to scan scores batch: %w", err)
+		}
+		return row, nil
+	}, tbaIds)
 	if err != nil {
 		return nil, err
 	}
-	defer database.CloseStatement(ctx, stmt, "GetScoresBatch")
 
-	rows, err := stmt.QueryContext(ctx, tbaIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get scores batch: %w", err)
-	}
-	defer database.CloseRows(ctx, rows, "GetScoresBatch")
-
-	for rows.Next() {
-		var tbaId string
-		var allianceScore, qualScore, playoffScore, einsteinScore, totalScore int
-		err = rows.Scan(&tbaId, &allianceScore, &qualScore, &playoffScore, &einsteinScore, &totalScore)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan scores batch: %w", err)
+	for _, row := range rows {
+		scoresByTeam[row.tbaId] = map[string]int{
+			allianceScoreLabel: row.allianceScore,
+			qualScoreLabel:     row.qualScore,
+			playoffScoreLabel:  row.playoffScore,
+			einsteinScoreLabel: row.einsteinScore,
+			totalScoreLabel:    row.totalScore,
 		}
-
-		scoresByTeam[tbaId] = map[string]int{
-			allianceScoreLabel: allianceScore,
-			qualScoreLabel:     qualScore,
-			playoffScoreLabel:  playoffScore,
-			einsteinScoreLabel: einsteinScore,
-			totalScoreLabel:    totalScore,
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating scores batch: %w", err)
 	}
 
 	return scoresByTeam, nil

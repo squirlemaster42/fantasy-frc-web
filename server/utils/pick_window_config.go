@@ -51,12 +51,9 @@ type pickWindowConfigJSON struct {
 // specified by PICK_WINDOWS_CONFIG_FILE, or from the default path. If the file
 // is not present, the default configuration is returned.
 func LoadPickWindowConfigFromEnv() (PickWindowConfig, error) {
-	configFile := os.Getenv("PICK_WINDOWS_CONFIG_FILE")
-	if configFile == "" {
-		configFile = defaultPickWindowsConfigFile
-	}
+	configFile := MustGetEnvString("PICK_WINDOWS_CONFIG_FILE", defaultPickWindowsConfigFile)
 
-	if _, err := os.Stat(filepath.Clean(configFile)); os.IsNotExist(err) { //nolint:gosec // config path comes from trusted env var
+	if _, err := os.Stat(filepath.Clean(configFile)); os.IsNotExist(err) {
 		log.Info(context.Background(), "Pick windows config file not found, using defaults", "path", configFile)
 		return DefaultPickWindowConfig(), nil
 	}
@@ -66,7 +63,7 @@ func LoadPickWindowConfigFromEnv() (PickWindowConfig, error) {
 
 // LoadPickWindowConfigFromFile reads and validates a PickWindowConfig from a JSON file.
 func LoadPickWindowConfigFromFile(path string) (PickWindowConfig, error) {
-	data, err := os.ReadFile(filepath.Clean(path)) //nolint:gosec // config path comes from trusted env var
+	data, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return PickWindowConfig{}, fmt.Errorf("failed to read pick windows config file %s: %w", path, err)
 	}

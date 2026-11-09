@@ -150,18 +150,13 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = HtmxButton(
-				"/u/logout",
-				"body",
-				"transition:true",
-				"Are you sure you want to log out?",
-				false,
-				"hidden md:flex btn btn-ghost btn-error items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium",
-				"",
-				"",
-				"",
-				"",
-			).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = HtmxButton(HtmxButtonOptions{
+				URL:        "/u/logout",
+				Target:     "body",
+				Swap:       "transition:true",
+				ConfirmMsg: "Are you sure you want to log out?",
+				Classes:    "hidden md:flex btn btn-ghost btn-error items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium",
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -183,7 +178,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(username)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 145, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 140, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -206,7 +201,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var10 templ.SafeURL
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/profile", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 149, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 144, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -241,7 +236,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var13 templ.SafeURL
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/pick", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 155, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 150, Col: 89}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -276,7 +271,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/draftScore", data.DraftId)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 161, Col: 95}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 156, Col: 95}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -312,7 +307,7 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 					var templ_7745c5c3_Var19 templ.SafeURL
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/u/draft/%d/admin", data.DraftId)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 168, Col: 94}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/partials/navbar.partial.templ`, Line: 163, Col: 94}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -426,18 +421,13 @@ func Navbar(fromProtected bool, username string, page string, data types.PageDat
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = HtmxButton(
-				"/u/logout",
-				"body",
-				"transition:true",
-				"Are you sure you want to log out?",
-				false,
-				"flex items-center gap-3 w-full btn btn-ghost btn-error px-4 py-3 rounded-lg transition-all duration-200 font-medium",
-				"",
-				"",
-				"",
-				"",
-			).Render(templ.WithChildren(ctx, templ_7745c5c3_Var27), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = HtmxButton(HtmxButtonOptions{
+				URL:        "/u/logout",
+				Target:     "body",
+				Swap:       "transition:true",
+				ConfirmMsg: "Are you sure you want to log out?",
+				Classes:    "flex items-center gap-3 w-full btn btn-ghost btn-error px-4 py-3 rounded-lg transition-all duration-200 font-medium",
+			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var27), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

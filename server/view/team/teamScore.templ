@@ -90,7 +90,7 @@ templ TeamPick(page string, fromProtected bool, username string, cmp templ.Compo
 }
 
 templ TeamScoreReport(teamNumber string, scores map[string]int, qualificationMatches []model.MatchTeamScore, avatarColor string) {
-    <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300 hover:shadow-xl transition-all duration-300">
+    <div class="card app-card app-card-hover">
         <div class="card-body p-6">
             <!-- Team Header -->
             <div class="flex items-center gap-3 mb-4">

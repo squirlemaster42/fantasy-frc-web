@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"server/log"
+	"server/redisutil"
 	"strconv"
 	"time"
 
@@ -20,12 +21,7 @@ func NewRateLimiter(addr, password string, db int) *RateLimiter {
 	if addr == "" {
 		return &RateLimiter{}
 	}
-		rdb := redis.NewClient(&redis.Options{
-			Addr:     addr,
-			Password: password,
-			DB:       db,
-			Protocol: redisProtocolVersion,
-		})
+		rdb := redisutil.NewClient(addr, password, db)
 	ctx, cancel := context.WithTimeout(context.Background(), RateLimitRedisPingTimeout())
 	defer cancel()
 	_, err := rdb.Ping(ctx).Result()

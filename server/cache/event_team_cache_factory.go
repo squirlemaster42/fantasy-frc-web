@@ -3,9 +3,8 @@ package cache
 import (
 	"context"
 	"fmt"
+	"server/redisutil"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 
 	"server/log"
 	"server/tbaHandler"
@@ -17,12 +16,7 @@ import (
 func NewEventTeamCache(ctx context.Context, handler tbaHandler.TBAInterface, redisAddr string, redisPassword string, config EventTeamCacheConfig) (EventTeamCache, error) {
 	switch config.Type {
 	case "redis":
-		client := redis.NewClient(&redis.Options{
-			Addr:     redisAddr,
-			Password: redisPassword,
-			DB:       config.RedisDB,
-			Protocol: redisProtocolVersion,
-		})
+		client := redisutil.NewClient(redisAddr, redisPassword, config.RedisDB)
 		_, err := client.Ping(ctx).Result()
 		if err != nil {
 			log.Warn(ctx, "Redis pick validation cache unavailable, falling back to memory cache", "error", err, "redisAddr", redisAddr, "redisDB", config.RedisDB)

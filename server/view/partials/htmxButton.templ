@@ -2,30 +2,44 @@ package partials
 
 import "fmt"
 
-templ HtmxButton(url string, target string, swap string, confirmMsg string, disabled bool, classes string, loadingText string, btnName string, btnValue string, csrfToken string) {
+// HtmxButtonOptions configures an HTMX-enabled button.
+type HtmxButtonOptions struct {
+	URL         string
+	Target      string
+	Swap        string
+	ConfirmMsg  string
+	Disabled    bool
+	Classes     string
+	LoadingText string
+	Name        string
+	Value       string
+	CsrfToken   string
+}
+
+templ HtmxButton(opts HtmxButtonOptions) {
     <button
-        hx-post={url}
-        if target != "" {
-            hx-target={target}
+        hx-post={opts.URL}
+        if opts.Target != "" {
+            hx-target={opts.Target}
         }
-        if swap != "" {
-            hx-swap={swap}
+        if opts.Swap != "" {
+            hx-swap={opts.Swap}
         }
-        if confirmMsg != "" {
-            hx-confirm={confirmMsg}
+        if opts.ConfirmMsg != "" {
+            hx-confirm={opts.ConfirmMsg}
         }
-        if btnName != "" {
-            name={btnName}
+        if opts.Name != "" {
+            name={opts.Name}
         }
-        if btnValue != "" {
-            value={btnValue}
+        if opts.Value != "" {
+            value={opts.Value}
         }
-        if csrfToken != "" {
-            hx-vals={fmt.Sprintf(`{"csrf_token": "%s"}`, csrfToken)}
+        if opts.CsrfToken != "" {
+            hx-vals={fmt.Sprintf(`{"csrf_token": "%s"}`, opts.CsrfToken)}
         }
-        disabled?={disabled}
+        disabled?={opts.Disabled}
         hx-disabled-elt="this"
-        class={classes}
+        class={opts.Classes}
         hx-on::before-request="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.add('hidden');if(l)l.classList.remove('hidden')"
         hx-on::after-request="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.remove('hidden');if(l)l.classList.add('hidden')"
         hx-on::response-error="const c=this.querySelector('.htmx-btn-content'),l=this.querySelector('.htmx-btn-loading');if(c)c.classList.remove('hidden');if(l)l.classList.add('hidden')"
@@ -38,8 +52,8 @@ templ HtmxButton(url string, target string, swap string, confirmMsg string, disa
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            if loadingText != "" {
-                <span>{ loadingText }</span>
+            if opts.LoadingText != "" {
+                <span>{ opts.LoadingText }</span>
             }
         </span>
     </button>

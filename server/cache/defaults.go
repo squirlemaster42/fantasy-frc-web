@@ -1,16 +1,10 @@
 package cache
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	avatarCacheTTLEnvKey = "AVATAR_CACHE_TTL"
-	defaultAvatarCacheTTL = 28 * 24 * time.Hour
-
-	redisProtocolVersion = 2
+	"server/config"
 )
 
 var (
@@ -19,13 +13,13 @@ var (
 )
 
 type cacheDefaults struct {
-	avatarCacheTTL time.Duration
+	AvatarCacheTTL time.Duration `env:"AVATAR_CACHE_TTL" default:"672h"`
 }
 
 func loadDefaults() cacheDefaults {
-	return cacheDefaults{
-		avatarCacheTTL: utils.MustGetEnvDuration(avatarCacheTTLEnvKey, defaultAvatarCacheTTL),
-	}
+	var d cacheDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *cacheDefaults {
@@ -34,4 +28,4 @@ func getDefaults() *cacheDefaults {
 }
 
 // AvatarCacheTTL returns how long avatars are cached in Redis.
-func AvatarCacheTTL() time.Duration { return getDefaults().avatarCacheTTL }
+func AvatarCacheTTL() time.Duration { return getDefaults().AvatarCacheTTL }

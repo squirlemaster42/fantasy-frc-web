@@ -1,17 +1,13 @@
 package authentication
 
 import (
-	"server/utils"
 	"sync"
+
+	"server/config"
 )
 
-const (
-	sessionTokenBytesEnvKey = "SESSION_TOKEN_BYTES"
-	defaultSessionTokenBytes = 16
-
-	// SessionCookieName is the name of the session token cookie.
-	SessionCookieName = "sessionToken"
-)
+// SessionCookieName is the name of the session token cookie.
+const SessionCookieName = "sessionToken"
 
 var (
 	defaultsOnce sync.Once
@@ -19,13 +15,13 @@ var (
 )
 
 type authDefaults struct {
-	sessionTokenBytes int
+	SessionTokenBytes int `env:"SESSION_TOKEN_BYTES" default:"16"`
 }
 
 func loadDefaults() authDefaults {
-	return authDefaults{
-		sessionTokenBytes: utils.MustGetEnvInt(sessionTokenBytesEnvKey, defaultSessionTokenBytes),
-	}
+	var d authDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *authDefaults {
@@ -34,4 +30,4 @@ func getDefaults() *authDefaults {
 }
 
 // SessionTokenBytes returns the number of random bytes used to generate a session token.
-func SessionTokenBytes() int { return getDefaults().sessionTokenBytes }
+func SessionTokenBytes() int { return getDefaults().SessionTokenBytes }

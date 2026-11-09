@@ -3,7 +3,6 @@ package handler
 import (
 	"database/sql"
 	"fmt"
-	"net/http"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -16,11 +15,7 @@ import (
 )
 
 func renderAdminMessage(c *echo.Context, message string, success bool) error {
-	if err := Render(c, draftView.AdminMessage(message, success)); err != nil {
-		log.Error(c.Request().Context(), "Failed to render admin message", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, draftView.AdminMessage(message, success), "Failed to render admin message")
 }
 
 // HandleDraftAdminGet renders the draft admin page for the draft owner.
@@ -32,59 +27,36 @@ func (h *Handler) HandleDraftAdminGet(c *echo.Context) error {
 		return err
 	}
 
-	draftId, err := strconv.Atoi(c.Param("id"))
+	draftId, err := h.parseDraftId(c)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse draft id", "draftIdString", c.Param("id"), "error", err)
-		return c.String(http.StatusBadRequest, "Invalid draft ID")
+		return BadRequest(c, "Failed to parse draft id", "Invalid draft ID", "error", err)
 	}
 
 	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		log.Warn(c.Request().Context(), "User attempted to visit admin for invalid draft", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return c.Redirect(http.StatusSeeOther, "/u/home")
+		return Redirect(c, "/u/home")
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
 		log.Warn(c.Request().Context(), "Non-owner attempted to access draft admin", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return c.String(http.StatusForbidden, "You do not have permission to access this page")
+		return Forbidden(c, "Non-owner accessed draft admin", "You do not have permission to access this page")
 	}
-
-	isOwner := true
 
 	adminIndex := draftView.DraftAdminIndex(draftModel, h.csrfToken(c))
-	draftAdmin := draftView.DraftAdmin("Draft Admin", true, username, adminIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
-	if err := Render(c, draftAdmin); err != nil {
-		log.Error(c.Request().Context(), "Failed to render draft admin page", "draftId", draftId, "error", err)
-		return err
-	}
-	return nil
+	draftAdmin := draftView.DraftAdmin("Draft Admin", true, username, adminIndex, types.NewPageData(draftId, draftModel.DisplayName, true))
+	return RenderOrLog(c, draftAdmin, "Failed to render draft admin page", "draftId", draftId)
 }
 
 // HandleAdminEndDraft ends the draft by skipping all remaining picks (owner only).
 func (h *Handler) HandleAdminEndDraft(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to end draft")
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		return err
+	_, draftModel, ok := h.requireDraftOwnerAdmin(c)
+	if !ok {
+		return nil
 	}
-
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
-		return renderAdminMessage(c, "Invalid draft ID", false)
-	}
-
-	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Draft not found for end draft", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return renderAdminMessage(c, "Draft not found", false)
-	}
-
-	if draftModel.Owner.UserUuid != userUuid {
-		log.Warn(c.Request().Context(), "Non-owner attempted to end draft", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return renderAdminMessage(c, "Permission denied", false)
-	}
+	draftId := draftModel.Id
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
@@ -111,27 +83,11 @@ func (h *Handler) HandleAdminEndDraft(c *echo.Context) error {
 func (h *Handler) HandleAdminSkipPick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to skip pick")
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		return err
+	_, draftModel, ok := h.requireDraftOwnerAdmin(c)
+	if !ok {
+		return nil
 	}
-
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
-		return renderAdminMessage(c, "Invalid draft ID", false)
-	}
-
-	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Draft not found for skip pick", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return renderAdminMessage(c, "Draft not found", false)
-	}
-
-	if draftModel.Owner.UserUuid != userUuid {
-		log.Warn(c.Request().Context(), "Non-owner attempted to skip pick", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return renderAdminMessage(c, "Permission denied", false)
-	}
+	draftId := draftModel.Id
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
@@ -152,27 +108,11 @@ func (h *Handler) HandleAdminSkipPick(c *echo.Context) error {
 func (h *Handler) HandleAdminExtendTime(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to extend pick time")
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		return err
+	userUuid, draftModel, ok := h.requireDraftOwnerAdmin(c)
+	if !ok {
+		return nil
 	}
-
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
-		return renderAdminMessage(c, "Invalid draft ID", false)
-	}
-
-	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Draft not found for extend time", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return renderAdminMessage(c, "Draft not found", false)
-	}
-
-	if draftModel.Owner.UserUuid != userUuid {
-		log.Warn(c.Request().Context(), "Non-owner attempted to extend pick time", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return renderAdminMessage(c, "Permission denied", false)
-	}
+	draftId := draftModel.Id
 
 	durationStr := c.QueryParam("duration")
 	if durationStr == "" {
@@ -190,7 +130,7 @@ func (h *Handler) HandleAdminExtendTime(c *echo.Context) error {
 		return renderAdminMessage(c, "Invalid duration format. Use format like: 30m, 1h, 2h30m", false)
 	}
 	if duration <= 0 {
-		return Render(c, draftView.AdminMessage("Duration must be positive", false))
+		return renderAdminMessage(c, "Duration must be positive", false)
 	}
 
 	log.Info(c.Request().Context(), "Extending pick", "extensionTime", duration)
@@ -213,27 +153,11 @@ func (h *Handler) HandleAdminExtendTime(c *echo.Context) error {
 func (h *Handler) HandleAdminMakePick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to make admin pick")
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		return err
+	userUuid, draftModel, ok := h.requireDraftOwnerAdmin(c)
+	if !ok {
+		return nil
 	}
-
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
-		return renderAdminMessage(c, "Invalid draft ID", false)
-	}
-
-	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Draft not found for admin make pick", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return renderAdminMessage(c, "Draft not found", false)
-	}
-
-	if draftModel.Owner.UserUuid != userUuid {
-		log.Warn(c.Request().Context(), "Non-owner attempted admin make pick", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return renderAdminMessage(c, "Permission denied", false)
-	}
+	draftId := draftModel.Id
 
 	teamStr := c.FormValue("teamNumber")
 	if teamStr == "" {
@@ -241,7 +165,7 @@ func (h *Handler) HandleAdminMakePick(c *echo.Context) error {
 		return renderAdminMessage(c, "Team number is required", false)
 	}
 	if _, err := strconv.Atoi(teamStr); err != nil {
-		return Render(c, draftView.AdminMessage("Team number must be numeric", false))
+		return renderAdminMessage(c, "Team number must be numeric", false)
 	}
 
 	tbaId := teamPrefix + teamStr
@@ -278,27 +202,11 @@ func (h *Handler) HandleAdminMakePick(c *echo.Context) error {
 func (h *Handler) HandleAdminUndoPick(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to undo pick")
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		return err
+	_, draftModel, ok := h.requireDraftOwnerAdmin(c)
+	if !ok {
+		return nil
 	}
-
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft id", "draftIdString", c.Param("id"), "error", err)
-		return renderAdminMessage(c, "Invalid draft ID", false)
-	}
-
-	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
-	if err != nil {
-		log.Warn(c.Request().Context(), "Draft not found for undo pick", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return renderAdminMessage(c, "Draft not found", false)
-	}
-
-	if draftModel.Owner.UserUuid != userUuid {
-		log.Warn(c.Request().Context(), "Non-owner attempted to undo pick", "userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
-		return renderAdminMessage(c, "Permission denied", false)
-	}
+	draftId := draftModel.Id
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {

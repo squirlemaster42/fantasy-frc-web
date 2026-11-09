@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"uuid"
 
-	"github.com/a-h/templ"
 	echootel "github.com/labstack/echo-otel/v5"
 	"github.com/labstack/echo/v5"
 	echomiddleware "github.com/labstack/echo/v5/middleware"
@@ -230,23 +229,51 @@ func newHTTPErrorHandler(cfg ServerConfig) echo.HTTPErrorHandler {
 		}
 
 		// Select appropriate error page template
-		var page templ.Component
-		switch code {
-		case http.StatusNotFound:
-			page = errorpage.NotFound404("Page Not Found", fromProtected, username, pageData)
-		case http.StatusForbidden:
-			page = errorpage.Forbidden403("Access Denied", fromProtected, username, pageData)
-		case http.StatusInternalServerError:
-			page = errorpage.ServerError500("Server Error", fromProtected, username, pageData)
-		default:
-			// For other status codes, fall back to a generic error page
-			page = errorpage.ServerError500("Error", fromProtected, username, pageData)
-		}
+		errData := errorDataForStatus(code)
+		page := errorpage.ErrorPage(errData.PageTitle, fromProtected, username, pageData, errData)
 
 		// Render the templ component; if rendering itself fails, fall back to plain text
 		if renderErr := handler.RenderError(c, code, page); renderErr != nil {
 			log.Error(c.Request().Context(), "Failed to render error page", "error", renderErr)
 			_ = c.String(code, http.StatusText(code))
+		}
+	}
+}
+
+func errorDataForStatus(code int) errorpage.ErrorData {
+	switch code {
+	case http.StatusNotFound:
+		return errorpage.ErrorData{
+			Code:       http.StatusNotFound,
+			PageTitle:  "Page Not Found",
+			Title:      "Page not found",
+			Message:    "This page doesn't exist. It may have been moved, renamed, or never existed in the first place.",
+			BadgeClass: "bg-info text-info-content",
+		}
+	case http.StatusForbidden:
+		return errorpage.ErrorData{
+			Code:       http.StatusForbidden,
+			PageTitle:  "Access Denied",
+			Title:      "Access denied",
+			Message:    "You don't have permission to access this page. If you believe this is a mistake, please contact support.",
+			BadgeClass: "bg-warning text-warning-content",
+		}
+	case http.StatusInternalServerError:
+		return errorpage.ErrorData{
+			Code:       http.StatusInternalServerError,
+			PageTitle:  "Server Error",
+			Title:      "Server error",
+			Message:    "Something went wrong on our end. Please try again later or contact support if the problem persists.",
+			BadgeClass: "bg-error text-error-content",
+		}
+	default:
+		// Non-standard status codes fall back to a generic 500-style page.
+		return errorpage.ErrorData{
+			Code:       http.StatusInternalServerError,
+			PageTitle:  "Error",
+			Title:      "Server error",
+			Message:    "Something went wrong. Please try again later or contact support if the problem persists.",
+			BadgeClass: "bg-error text-error-content",
 		}
 	}
 }

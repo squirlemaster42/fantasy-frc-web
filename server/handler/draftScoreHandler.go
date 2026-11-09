@@ -4,14 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
-	"server/log"
 	"server/model"
 	"server/types"
 	"server/view/draft"
 	"server/view/team"
 	"slices"
-	"strconv"
 
 	"github.com/labstack/echo/v5"
 )
@@ -22,28 +19,24 @@ func (h *Handler) HandleDraftScore(c *echo.Context) error {
 		return err
 	}
 
-	draftId, err := strconv.Atoi(c.Param("id"))
+	draftId, err := h.parseDraftId(c)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to convert draft id to int", "draftIdString", c.Param("id"), "error", err)
-		return c.String(http.StatusBadRequest, "Draft id was not an int")
+		return BadRequest(c, "Failed to convert draft id to int", "Draft id was not an int", "error", err)
 	}
 
 	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
-			return c.String(http.StatusNotFound, fmt.Sprintf("Failed to load draft id %d", draftId))
+			return NotFound(c, "Draft not found", fmt.Sprintf("Failed to load draft id %d", draftId))
 		}
-		log.Error(c.Request().Context(), "Failed to get draft by id", "draftId", draftId, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get draft by id", err, "draftId", draftId)
 	}
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
 
 	userDraftScore, err := h.Stores.DraftStore.GetDraftScore(c.Request().Context(), draftId)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get draft score", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get draft score", err)
 	}
 
 	slices.SortFunc(userDraftScore, func(a, b model.DraftPlayer) int {
@@ -60,11 +53,7 @@ func (h *Handler) HandleDraftScore(c *echo.Context) error {
 
 	draftIndex := draft.DraftScoreIndex(userDraftScore, draftId, draftModel.Status, avatarColors)
 	draftView := draft.DraftScore("Draft Scores", true, username, draftIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
-	if err := Render(c, draftView); err != nil {
-		log.Error(c.Request().Context(), "Failed to render draft score page", "draftId", draftId, "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, draftView, "Failed to render draft score page", "draftId", draftId)
 }
 
 func (h *Handler) HandleDraftTeamScore(c *echo.Context) error {
@@ -73,20 +62,17 @@ func (h *Handler) HandleDraftTeamScore(c *echo.Context) error {
 		return err
 	}
 
-	draftId, err := strconv.Atoi(c.Param("id"))
+	draftId, err := h.parseDraftId(c)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to convert draft id to int", "draftIdString", c.Param("id"), "error", err)
-		return c.String(http.StatusBadRequest, "Draft id was not an int")
+		return BadRequest(c, "Failed to convert draft id to int", "Draft id was not an int", "error", err)
 	}
 
 	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Warn(c.Request().Context(), "Draft not found", "draftId", draftId)
-			return c.String(http.StatusNotFound, fmt.Sprintf("Failed to load draft id %d", draftId))
+			return NotFound(c, "Draft not found", fmt.Sprintf("Failed to load draft id %d", draftId))
 		}
-		log.Error(c.Request().Context(), "Failed to get draft by id", "draftId", draftId, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get draft by id", err, "draftId", draftId)
 	}
 
 	isOwner := draftModel.Owner.UserUuid == userUuid
@@ -95,24 +81,18 @@ func (h *Handler) HandleDraftTeamScore(c *echo.Context) error {
 
 	scores, err := h.Stores.TeamStore.GetScore(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get team score", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get team score", err, "teamNumber", teamNumber)
 	}
 
 	// Get qualification matches
 	qualificationMatches, err := h.Stores.TeamStore.GetMatchScores(c.Request().Context(), teamPrefix+teamNumber)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to get match scores", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get match scores", err, "teamNumber", teamNumber)
 	}
 
 	avatarColor := avatarColorForTeam(c.Request().Context(), h.Services.AvatarStore, teamNumber)
 
 	teamScoreReport := team.TeamScoreReport(teamNumber, scores, qualificationMatches, avatarColor)
-	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
-	if err := Render(c, draftTeamScore); err != nil {
-		log.Error(c.Request().Context(), "Failed to render draft team score page", "draftId", draftId, "teamNumber", teamNumber, "error", err)
-		return err
-	}
-	return nil
+	draftTeamScore := draft.DraftTeamScore(" | Score Breakdown", true, username, teamScoreReport, types.NewPageData(draftModel.Id, draftModel.DisplayName, isOwner))
+	return RenderOrLog(c, draftTeamScore, "Failed to render draft team score page", "draftId", draftModel.Id, "teamNumber", teamNumber)
 }

@@ -55,7 +55,7 @@ func DraftAdminIndex(draft model.DraftModel, csrfToken string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if draft.Status == model.PICKING {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Current Pick</h2><div class=\"flex items-center gap-4 mb-4\"><div class=\"w-12 h-12 bg-primary rounded-full flex items-center justify-center\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-6 text-primary-content\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z\"></path></svg></div><div><div class=\"text-base-content font-semibold\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Current Pick</h2><div class=\"flex items-center gap-4 mb-4\"><div class=\"w-12 h-12 bg-primary rounded-full flex items-center justify-center\"><svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke-width=\"1.5\" stroke=\"currentColor\" class=\"size-6 text-primary-content\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z\"></path></svg></div><div><div class=\"text-base-content font-semibold\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -124,7 +124,7 @@ func QuickActionsCard(draft model.DraftModel, csrfToken string) templ.Component 
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Quick Actions</h2><div class=\"grid grid-cols-2 gap-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Quick Actions</h2><div class=\"grid grid-cols-2 gap-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,18 +146,13 @@ func QuickActionsCard(draft model.DraftModel, csrfToken string) templ.Component 
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"",
-			false,
-			"flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:       fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id),
+			Target:    "#adminMessage",
+			Swap:      "innerHTML",
+			Classes:   "flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
+			CsrfToken: csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -179,18 +174,14 @@ func QuickActionsCard(draft model.DraftModel, csrfToken string) templ.Component 
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"Are you sure you want to undo the last pick?",
-			false,
-			"flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:        fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id),
+			Target:     "#adminMessage",
+			Swap:       "innerHTML",
+			ConfirmMsg: "Are you sure you want to undo the last pick?",
+			Classes:    "flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
+			CsrfToken:  csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -223,7 +214,7 @@ func EndDraftCard(draft model.DraftModel, csrfToken string) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">End Draft</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">End Draft</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -245,18 +236,14 @@ func EndDraftCard(draft model.DraftModel, csrfToken string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/endDraft", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"Are you sure you want to end the draft? All remaining picks will be skipped.",
-			false,
-			"w-full flex items-center justify-center gap-2 p-4 bg-error/20 hover:bg-error/30 text-error rounded-xl transition-all duration-200",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:        fmt.Sprintf("/u/draft/%d/admin/endDraft", draft.Id),
+			Target:     "#adminMessage",
+			Swap:       "innerHTML",
+			ConfirmMsg: "Are you sure you want to end the draft? All remaining picks will be skipped.",
+			Classes:    "w-full flex items-center justify-center gap-2 p-4 bg-error/20 hover:bg-error/30 text-error rounded-xl transition-all duration-200",
+			CsrfToken:  csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -289,7 +276,7 @@ func ExtendTimeCard(draft model.DraftModel, csrfToken string) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Extend Pick Time</h2><div class=\"space-y-4\"><div class=\"flex flex-wrap gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Extend Pick Time</h2><div class=\"space-y-4\"><div class=\"flex flex-wrap gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -311,18 +298,13 @@ func ExtendTimeCard(draft model.DraftModel, csrfToken string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"",
-			false,
-			"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:       fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id),
+			Target:    "#adminMessage",
+			Swap:      "innerHTML",
+			Classes:   "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+			CsrfToken: csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -344,18 +326,13 @@ func ExtendTimeCard(draft model.DraftModel, csrfToken string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"",
-			false,
-			"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var11), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:       fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id),
+			Target:    "#adminMessage",
+			Swap:      "innerHTML",
+			Classes:   "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+			CsrfToken: csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var11), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -377,18 +354,13 @@ func ExtendTimeCard(draft model.DraftModel, csrfToken string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(
-			fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id),
-			"#adminMessage",
-			"innerHTML",
-			"",
-			false,
-			"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-			"",
-			"",
-			"",
-			csrfToken,
-		).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:       fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id),
+			Target:    "#adminMessage",
+			Swap:      "innerHTML",
+			Classes:   "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+			CsrfToken: csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -399,7 +371,7 @@ func ExtendTimeCard(draft model.DraftModel, csrfToken string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/u/draft/%d/admin/extendTime", draft.Id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 186, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 158, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
@@ -442,14 +414,14 @@ func AdminPickCard(draft model.DraftModel, csrfToken string) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Make Pick For Current Player</h2><form hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Make Pick For Current Player</h2><form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/u/draft/%d/admin/makePick", draft.Id))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 225, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 197, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 		if templ_7745c5c3_Err != nil {
@@ -500,7 +472,7 @@ func AdminMessage(message string, isSuccess bool) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 267, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 239, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -518,7 +490,7 @@ func AdminMessage(message string, isSuccess bool) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 274, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftAdmin.templ`, Line: 246, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {

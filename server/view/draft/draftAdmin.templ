@@ -19,7 +19,7 @@ templ DraftAdminIndex(draft model.DraftModel, csrfToken string) {
 			</div>
 
 			if draft.Status == model.PICKING {
-				<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+				<div class="card app-card">
 					<div class="card-body p-6">
 						<h2 class="text-lg font-bold text-base-content mb-4">Current Pick</h2>
 						<div class="flex items-center gap-4 mb-4">
@@ -61,22 +61,17 @@ templ DraftAdminIndex(draft model.DraftModel, csrfToken string) {
 }
 
 templ QuickActionsCard(draft model.DraftModel, csrfToken string) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+	<div class="card app-card">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-base-content mb-4">Quick Actions</h2>
 			<div class="grid grid-cols-2 gap-4">
-			@partials.HtmxButton(
-				fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id),
-				"#adminMessage",
-				"innerHTML",
-				"",
-				false,
-				"flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
-				"",
-				"",
-				"",
-				csrfToken,
-			) {
+			@partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: fmt.Sprintf("/u/draft/%d/admin/skipPick", draft.Id),
+				Target: "#adminMessage",
+				Swap: "innerHTML",
+				Classes: "flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
+				CsrfToken: csrfToken,
+			}) {
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-warning">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061A1.125 1.125 0 0 1 3 16.811V8.69ZM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 0 1 0 1.954l-7.108 4.061a1.125 1.125 0 0 1-1.683-.977V8.69Z" />
 				</svg>
@@ -84,18 +79,14 @@ templ QuickActionsCard(draft model.DraftModel, csrfToken string) {
 				<span class="text-base-content/70 text-xs">Skip current player</span>
 			}
 
-			@partials.HtmxButton(
-				fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id),
-				"#adminMessage",
-				"innerHTML",
-				"Are you sure you want to undo the last pick?",
-				false,
-				"flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
-				"",
-				"",
-				"",
-				csrfToken,
-			) {
+			@partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: fmt.Sprintf("/u/draft/%d/admin/undoPick", draft.Id),
+				Target: "#adminMessage",
+				Swap: "innerHTML",
+				ConfirmMsg: "Are you sure you want to undo the last pick?",
+				Classes: "flex flex-col items-center gap-2 p-4 bg-base-300 hover:bg-base-300/80 rounded-xl transition-all duration-200",
+				CsrfToken: csrfToken,
+			}) {
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8 text-error">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
 				</svg>
@@ -108,21 +99,17 @@ templ QuickActionsCard(draft model.DraftModel, csrfToken string) {
 }
 
 templ EndDraftCard(draft model.DraftModel, csrfToken string) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+	<div class="card app-card">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-base-content mb-4">End Draft</h2>
-			@partials.HtmxButton(
-				fmt.Sprintf("/u/draft/%d/admin/endDraft", draft.Id),
-				"#adminMessage",
-				"innerHTML",
-				"Are you sure you want to end the draft? All remaining picks will be skipped.",
-				false,
-				"w-full flex items-center justify-center gap-2 p-4 bg-error/20 hover:bg-error/30 text-error rounded-xl transition-all duration-200",
-				"",
-				"",
-				"",
-				csrfToken,
-			) {
+			@partials.HtmxButton(partials.HtmxButtonOptions{
+				URL: fmt.Sprintf("/u/draft/%d/admin/endDraft", draft.Id),
+				Target: "#adminMessage",
+				Swap: "innerHTML",
+				ConfirmMsg: "Are you sure you want to end the draft? All remaining picks will be skipped.",
+				Classes: "w-full flex items-center justify-center gap-2 p-4 bg-error/20 hover:bg-error/30 text-error rounded-xl transition-all duration-200",
+				CsrfToken: csrfToken,
+			}) {
 				<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.977l11.25 6.462a1.125 1.125 0 0 1 0 1.954l-11.25 6.462a1.125 1.125 0 0 1-1.667-.977V5.653Z" />
 				</svg>
@@ -134,51 +121,36 @@ templ EndDraftCard(draft model.DraftModel, csrfToken string) {
 }
 
 templ ExtendTimeCard(draft model.DraftModel, csrfToken string) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+	<div class="card app-card">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-base-content mb-4">Extend Pick Time</h2>
 			<div class="space-y-4">
 				<div class="flex flex-wrap gap-2">
-				@partials.HtmxButton(
-					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id),
-					"#adminMessage",
-					"innerHTML",
-					"",
-					false,
-					"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-					"",
-					"",
-					"",
-					csrfToken,
-				) {
+				@partials.HtmxButton(partials.HtmxButtonOptions{
+					URL: fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=30m", draft.Id),
+					Target: "#adminMessage",
+					Swap: "innerHTML",
+					Classes: "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+					CsrfToken: csrfToken,
+				}) {
 					+30 min
 				}
-				@partials.HtmxButton(
-					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id),
-					"#adminMessage",
-					"innerHTML",
-					"",
-					false,
-					"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-					"",
-					"",
-					"",
-					csrfToken,
-				) {
+				@partials.HtmxButton(partials.HtmxButtonOptions{
+					URL: fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=1h", draft.Id),
+					Target: "#adminMessage",
+					Swap: "innerHTML",
+					Classes: "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+					CsrfToken: csrfToken,
+				}) {
 					+1 hour
 				}
-				@partials.HtmxButton(
-					fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id),
-					"#adminMessage",
-					"innerHTML",
-					"",
-					false,
-					"px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
-					"",
-					"",
-					"",
-					csrfToken,
-				) {
+				@partials.HtmxButton(partials.HtmxButtonOptions{
+					URL: fmt.Sprintf("/u/draft/%d/admin/extendTime?duration=2h", draft.Id),
+					Target: "#adminMessage",
+					Swap: "innerHTML",
+					Classes: "px-4 py-2 bg-base-300 hover:bg-base-300/80 text-base-content rounded-lg transition-all duration-200 font-medium",
+					CsrfToken: csrfToken,
+				}) {
 					+2 hours
 				}
 				</div>
@@ -218,7 +190,7 @@ templ ExtendTimeCard(draft model.DraftModel, csrfToken string) {
 }
 
 templ AdminPickCard(draft model.DraftModel, csrfToken string) {
-	<div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+	<div class="card app-card">
 		<div class="card-body p-6">
 			<h2 class="text-lg font-bold text-base-content mb-4">Make Pick For Current Player</h2>
 			<form

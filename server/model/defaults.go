@@ -1,14 +1,12 @@
 package model
 
 import (
-	"server/utils"
 	"sync"
+
+	"server/config"
 )
 
 const (
-	sessionExpirationDaysEnvKey = "SESSION_EXPIRATION_DAYS"
-	defaultSessionExpirationDays = 10
-
 	// Score category labels returned in leaderboard/score maps.
 	allianceScoreLabel = "Alliance Score"
 	qualScoreLabel     = "Qual Score"
@@ -23,13 +21,13 @@ var (
 )
 
 type modelDefaults struct {
-	sessionExpirationDays int
+	SessionExpirationDays int `env:"SESSION_EXPIRATION_DAYS" default:"10"`
 }
 
 func loadDefaults() modelDefaults {
-	return modelDefaults{
-		sessionExpirationDays: utils.MustGetEnvInt(sessionExpirationDaysEnvKey, defaultSessionExpirationDays),
-	}
+	var d modelDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *modelDefaults {
@@ -38,4 +36,4 @@ func getDefaults() *modelDefaults {
 }
 
 // SessionExpirationDays returns the number of days until a session token expires.
-func SessionExpirationDays() int { return getDefaults().sessionExpirationDays }
+func SessionExpirationDays() int { return getDefaults().SessionExpirationDays }

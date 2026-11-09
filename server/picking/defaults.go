@@ -1,17 +1,10 @@
 package picking
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	pickNotifierQueueBufferEnvKey = "PICK_NOTIFIER_QUEUE_BUFFER"
-	defaultPickNotifierQueueBuffer = 10
-
-	pickNotifierSendTimeoutEnvKey = "PICK_NOTIFIER_SEND_TIMEOUT"
-	defaultPickNotifierSendTimeout = 5 * time.Second
+	"server/config"
 )
 
 var (
@@ -20,15 +13,14 @@ var (
 )
 
 type pickingDefaults struct {
-	queueBuffer int
-	sendTimeout time.Duration
+	QueueBuffer int           `env:"PICK_NOTIFIER_QUEUE_BUFFER" default:"10"`
+	SendTimeout time.Duration `env:"PICK_NOTIFIER_SEND_TIMEOUT" default:"5s"`
 }
 
 func loadDefaults() pickingDefaults {
-	return pickingDefaults{
-		queueBuffer: utils.MustGetEnvInt(pickNotifierQueueBufferEnvKey, defaultPickNotifierQueueBuffer),
-		sendTimeout: utils.MustGetEnvDuration(pickNotifierSendTimeoutEnvKey, defaultPickNotifierSendTimeout),
-	}
+	var d pickingDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *pickingDefaults {
@@ -37,7 +29,7 @@ func getDefaults() *pickingDefaults {
 }
 
 // PickNotifierQueueBuffer returns the per-watcher notification channel capacity.
-func PickNotifierQueueBuffer() int { return getDefaults().queueBuffer }
+func PickNotifierQueueBuffer() int { return getDefaults().QueueBuffer }
 
 // PickNotifierSendTimeout returns how long the notifier waits to send to a watcher.
-func PickNotifierSendTimeout() time.Duration { return getDefaults().sendTimeout }
+func PickNotifierSendTimeout() time.Duration { return getDefaults().SendTimeout }

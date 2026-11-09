@@ -5,21 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"server/utils"
-)
-
-const (
-	tbaPickCacheTypeEnvKey             = "TBA_PICK_CACHE_TYPE"
-	defaultTbaPickCacheType              = "memory"
-
-	tbaPickCacheRefreshIntervalEnvKey  = "TBA_PICK_CACHE_REFRESH_INTERVAL"
-	defaultTbaPickCacheRefreshInterval = time.Hour
-
-	tbaPickCacheRedisDBEnvKey          = "TBA_PICK_CACHE_REDIS_DB"
-	defaultTbaPickCacheRedisDB         = 3
-
-	tbaPickCacheRedisKeyPrefixEnvKey   = "TBA_PICK_CACHE_REDIS_KEY_PREFIX"
-	defaultTbaPickCacheRedisKeyPrefix  = "tba:pick_validation:"
+	"server/config"
 )
 
 var (
@@ -28,19 +14,16 @@ var (
 )
 
 type eventTeamCacheDefaults struct {
-	cacheType       string
-	refreshInterval time.Duration
-	redisDB         int
-	redisKeyPrefix  string
+	CacheType       string        `env:"TBA_PICK_CACHE_TYPE" default:"memory"`
+	RefreshInterval time.Duration `env:"TBA_PICK_CACHE_REFRESH_INTERVAL" default:"1h"`
+	RedisDB         int           `env:"TBA_PICK_CACHE_REDIS_DB" default:"3"`
+	RedisKeyPrefix  string        `env:"TBA_PICK_CACHE_REDIS_KEY_PREFIX" default:"tba:pick_validation:"`
 }
 
 func loadEventTeamCacheDefaults() eventTeamCacheDefaults {
-	return eventTeamCacheDefaults{
-		cacheType:       utils.MustGetEnvString(tbaPickCacheTypeEnvKey, defaultTbaPickCacheType),
-		refreshInterval: utils.MustGetEnvDuration(tbaPickCacheRefreshIntervalEnvKey, defaultTbaPickCacheRefreshInterval),
-		redisDB:         utils.MustGetEnvInt(tbaPickCacheRedisDBEnvKey, defaultTbaPickCacheRedisDB),
-		redisKeyPrefix:  utils.MustGetEnvString(tbaPickCacheRedisKeyPrefixEnvKey, defaultTbaPickCacheRedisKeyPrefix),
-	}
+	var d eventTeamCacheDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getEventTeamCacheDefaults() *eventTeamCacheDefaults {
@@ -62,10 +45,10 @@ type EventTeamCacheConfig struct {
 func EventTeamCacheConfigFromDefaults() EventTeamCacheConfig {
 	d := getEventTeamCacheDefaults()
 	return EventTeamCacheConfig{
-		Type:            strings.ToLower(d.cacheType),
-		RefreshInterval: d.refreshInterval,
-		RedisDB:         d.redisDB,
-		RedisKeyPrefix:  d.redisKeyPrefix,
+		Type:            strings.ToLower(d.CacheType),
+		RefreshInterval: d.RefreshInterval,
+		RedisDB:         d.RedisDB,
+		RedisKeyPrefix:  d.RedisKeyPrefix,
 	}
 }
 
@@ -73,5 +56,5 @@ func EventTeamCacheConfigFromDefaults() EventTeamCacheConfig {
 // cache. It is intentionally longer than the refresh interval so a failed
 // refresh does not immediately expire valid data.
 func PickCacheTTL() time.Duration {
-	return getEventTeamCacheDefaults().refreshInterval * 2
+	return getEventTeamCacheDefaults().RefreshInterval * 2
 }

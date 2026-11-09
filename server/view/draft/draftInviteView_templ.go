@@ -117,18 +117,11 @@ func DraftInviteIndex(invites []model.DraftInvite, hasError bool, errorMessage s
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = partials.HtmxButton(
-					"/u/acceptInvite",
-					"#pendingTable",
-					"outerHTML",
-					"",
-					false,
-					"btn btn-success px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2",
-					"",
-					"inviteId",
-					fmt.Sprintf("%d", invite.Id),
-					csrfToken,
-				).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+					URL: "/u/acceptInvite", Target: "#pendingTable", Swap: "outerHTML",
+					Classes: "btn btn-success px-6 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex-1 flex items-center justify-center gap-2",
+					Name:    "inviteId", Value: fmt.Sprintf("%d", invite.Id), CsrfToken: csrfToken,
+				}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -150,18 +143,11 @@ func DraftInviteIndex(invites []model.DraftInvite, hasError bool, errorMessage s
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = partials.HtmxButton(
-					"/u/declineInvite",
-					"#pendingTable",
-					"outerHTML",
-					"",
-					false,
-					"btn btn-error px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2",
-					"",
-					"inviteId",
-					fmt.Sprintf("%d", invite.Id),
-					csrfToken,
-				).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+					URL: "/u/declineInvite", Target: "#pendingTable", Swap: "outerHTML",
+					Classes: "btn btn-error px-4 py-2 rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg font-semibold flex items-center gap-2",
+					Name:    "inviteId", Value: fmt.Sprintf("%d", invite.Id), CsrfToken: csrfToken,
+				}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

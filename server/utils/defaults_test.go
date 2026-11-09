@@ -9,9 +9,8 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, []string{"arc", "cur", "dal", "gal", "hop", "joh", "mil", "new", "cmptx"}, d.eventCodes)
-	assert.Equal(t, "America/New_York", d.timezone)
-	assert.Equal(t, "./webhookSecret.txt", d.webhookSecretFile)
+	assert.Equal(t, []string{"arc", "cur", "dal", "gal", "hop", "joh", "mil", "new", "cmptx"}, d.EventCodes)
+	assert.Equal(t, "./webhookSecret.txt", d.WebhookSecretFile)
 }
 
 func TestLoadDefaults_EventCodesOverride(t *testing.T) {
@@ -19,7 +18,7 @@ func TestLoadDefaults_EventCodesOverride(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, []string{"foo", "bar"}, d.eventCodes)
+	assert.Equal(t, []string{"foo", "bar"}, d.EventCodes)
 }
 
 func TestLoadDefaults_WebhookSecretFileOverride(t *testing.T) {
@@ -27,5 +26,5 @@ func TestLoadDefaults_WebhookSecretFileOverride(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, "/tmp/secret.txt", d.webhookSecretFile)
+	assert.Equal(t, "/tmp/secret.txt", d.WebhookSecretFile)
 }

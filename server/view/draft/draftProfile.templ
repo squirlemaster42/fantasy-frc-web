@@ -21,7 +21,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
         @partials.CSRFInput(csrfToken)
         <!-- Draft Header Section -->
         <div class="w-full lg:w-2/3 flex-shrink-0">
-            <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300 mb-6">
+            <div class="card app-card mb-6">
                 <div class="card-body p-6">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div class="flex-1">
@@ -46,14 +46,14 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                             disabled?={!isOwner}
                             name="description"
                             placeholder="Enter draft description..."
-                            class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                            class="app-input resize-none"
                             rows="4"
                         >{draft.Description}</textarea>
                     </div>
                 </div>
             </div>
             <!-- Players Section -->
-            <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+            <div class="card app-card">
                 <div class="card-body p-6">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-2xl font-bold text-base-content">Players ({ fmt.Sprintf("%d", len(draft.Players)) })</h2>
@@ -81,7 +81,16 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                                         <h3 class="font-semibold text-base-content mb-2">{player.User.Username}</h3>
                                         <div class="text-xs text-base-content/70 font-medium mb-2">Pending Invitation</div>
                                         if isOwner && player.InviteId > 0 {
-                                            @partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draft.Id), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken) {
+                                            @partials.HtmxButton(partials.HtmxButtonOptions{
+                                                URL: fmt.Sprintf("/u/draft/%d/uninvitePlayer", draft.Id),
+                                                Target: "#inviteTable",
+                                                Swap: "outerHTML",
+                                                ConfirmMsg: "Uninvite this player?",
+                                                Classes: "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5",
+                                                Name: "inviteId",
+                                                Value: fmt.Sprintf("%d", player.InviteId),
+                                                CsrfToken: csrfToken,
+                                            }) {
                                                 Uninvite
                                             }
                                         } else if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
@@ -120,7 +129,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
         <!-- Sidebar Section -->
         <div class="w-full lg:w-1/3 space-y-6 flex-shrink-0">
             <!-- Settings Card -->
-            <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+            <div class="card app-card">
                 <div class="card-body p-4">
                     <h2 class="text-lg font-bold text-base-content mb-4">Draft Settings</h2>
                     <div class="space-y-4">
@@ -221,7 +230,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                 </div>
             </div>
             <!-- Invite Players Card -->
-            <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+            <div class="card app-card">
                 <div class="card-body p-6">
                     <h2 class="text-xl font-bold text-base-content mb-4">Invite Players</h2>
                     if !isOwner {
@@ -258,7 +267,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                             <div>
                                 <label class="block text-sm font-medium text-base-content/80 mb-2">Search Users</label>
                                 <input
-                                    class="w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    class="app-input"
                                     type="search"
                                     name="search"
                                     autocomplete="off"
@@ -278,7 +287,7 @@ templ DraftProfileIndex (draft model.DraftModel, isOwner bool, csrfToken string)
                 </div>
             </div>
             if draft.Id != 0 && draft.Id != -1 {
-                <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+                <div class="card app-card">
                     <div class="card-body p-6">
                         @StartDraftButton(fmt.Sprintf("/u/draft/%d/startDraft", draft.Id), "", isOwner, csrfToken)
                     </div>
@@ -292,7 +301,13 @@ templ StartDraftButton(submitUrl string, err string, isOwner bool, csrfToken str
     if err != "" {
         <span class="text-error">{err}</span>
     }
-    @partials.HtmxButton(submitUrl, "", "", "Are you sure? Starting the draft cannot be undone.", !isOwner, "w-full btn btn-success font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2", "", "", "", csrfToken) {
+    @partials.HtmxButton(partials.HtmxButtonOptions{
+        URL: submitUrl,
+        ConfirmMsg: "Are you sure? Starting the draft cannot be undone.",
+        Disabled: !isOwner,
+        Classes: "w-full btn btn-success font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+        CsrfToken: csrfToken,
+    }) {
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
         </svg>
@@ -320,7 +335,16 @@ templ PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfTok
                         <h3 class="font-semibold text-base-content mb-2">{player.User.Username}</h3>
                         <div class="text-xs text-base-content/70 font-medium mb-2">Pending Invitation</div>
                         if isOwner && player.InviteId > 0 {
-                            @partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken) {
+                            @partials.HtmxButton(partials.HtmxButtonOptions{
+                                URL: fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId),
+                                Target: "#inviteTable",
+                                Swap: "outerHTML",
+                                ConfirmMsg: "Uninvite this player?",
+                                Classes: "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5",
+                                Name: "inviteId",
+                                Value: fmt.Sprintf("%d", player.InviteId),
+                                CsrfToken: csrfToken,
+                            }) {
                                 Uninvite
                             }
                         } else if (player.PlayerOrder.Valid && player.PlayerOrder.Int16 != -1) {
@@ -368,18 +392,16 @@ templ PlayerSearchResults(users []model.User, draftId int, isOwner bool, csrfTok
                         </div>
                         <span class="font-medium text-base-content">{ user.Username }</span>
                     </div>
-                    @partials.HtmxButton(
-                        fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
-                        "#inviteTable",
-                        "outerHTML",
-                        "",
-                        !isOwner,
-                        "btn btn-primary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
-                        "",
-                        "userUuid",
-                        fmt.Sprintf("%s", user.UserUuid),
-                        csrfToken,
-                    ) {
+                    @partials.HtmxButton(partials.HtmxButtonOptions{
+                        URL: fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
+                        Target: "#inviteTable",
+                        Swap: "outerHTML",
+                        Disabled: !isOwner,
+                        Classes: "btn btn-primary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
+                        Name: "userUuid",
+                        Value: fmt.Sprintf("%s", user.UserUuid),
+                        CsrfToken: csrfToken,
+                    }) {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
                         </svg>

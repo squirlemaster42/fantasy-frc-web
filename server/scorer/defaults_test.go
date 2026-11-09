@@ -9,15 +9,15 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, 3, d.qualWinPoints)
-	assert.Equal(t, 1, d.energizedBonusPoints)
-	assert.Equal(t, 1, d.superchargedBonusPoints)
-	assert.Equal(t, 2, d.traversalBonusPoints)
-	assert.Equal(t, 18, d.playoffFinalsPoints)
-	assert.Equal(t, 15, d.playoffUpperBracketPoints)
-	assert.Equal(t, 9, d.playoffLowerBracketPoints)
-	assert.Equal(t, 2, d.einsteinMultiplier)
-	assert.Equal(t, 2, d.alliancePickMultiplier)
+	assert.Equal(t, 3, d.QualWinPoints)
+	assert.Equal(t, 1, d.EnergizedBonusPoints)
+	assert.Equal(t, 1, d.SuperchargedBonusPoints)
+	assert.Equal(t, 2, d.TraversalBonusPoints)
+	assert.Equal(t, 18, d.PlayoffFinalsPoints)
+	assert.Equal(t, 15, d.PlayoffUpperBracketPoints)
+	assert.Equal(t, 9, d.PlayoffLowerBracketPoints)
+	assert.Equal(t, 2, d.EinsteinMultiplier)
+	assert.Equal(t, 2, d.AlliancePickMultiplier)
 }
 
 func TestLoadDefaults_Override(t *testing.T) {
@@ -33,13 +33,13 @@ func TestLoadDefaults_Override(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, 5, d.qualWinPoints)
-	assert.Equal(t, 2, d.energizedBonusPoints)
-	assert.Equal(t, 3, d.superchargedBonusPoints)
-	assert.Equal(t, 4, d.traversalBonusPoints)
-	assert.Equal(t, 20, d.playoffFinalsPoints)
-	assert.Equal(t, 16, d.playoffUpperBracketPoints)
-	assert.Equal(t, 10, d.playoffLowerBracketPoints)
-	assert.Equal(t, 3, d.einsteinMultiplier)
-	assert.Equal(t, 4, d.alliancePickMultiplier)
+	assert.Equal(t, 5, d.QualWinPoints)
+	assert.Equal(t, 2, d.EnergizedBonusPoints)
+	assert.Equal(t, 3, d.SuperchargedBonusPoints)
+	assert.Equal(t, 4, d.TraversalBonusPoints)
+	assert.Equal(t, 20, d.PlayoffFinalsPoints)
+	assert.Equal(t, 16, d.PlayoffUpperBracketPoints)
+	assert.Equal(t, 10, d.PlayoffLowerBracketPoints)
+	assert.Equal(t, 3, d.EinsteinMultiplier)
+	assert.Equal(t, 4, d.AlliancePickMultiplier)
 }

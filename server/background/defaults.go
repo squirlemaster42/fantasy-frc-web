@@ -1,23 +1,10 @@
 package background
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	cleanupSessionLeewayHoursEnvKey = "SESSION_CLEANUP_LEEWAY_HOURS"
-	defaultCleanupSessionLeewayHours = 2
-
-	cleanupIntervalMinutesEnvKey = "CLEANUP_INTERVAL_MINUTES"
-	defaultCleanupIntervalMinutes = 60
-
-	draftDaemonTickIntervalEnvKey = "DRAFT_DAEMON_TICK_INTERVAL"
-	defaultDraftDaemonTickInterval = 1 * time.Minute
-
-	draftDaemonTickTimeoutEnvKey = "DRAFT_DAEMON_TICK_TIMEOUT"
-	defaultDraftDaemonTickTimeout = 55 * time.Second
+	"server/config"
 )
 
 var (
@@ -26,19 +13,16 @@ var (
 )
 
 type backgroundDefaults struct {
-	cleanupSessionLeewayHours int
-	cleanupIntervalMinutes    int
-	draftDaemonTickInterval   time.Duration
-	draftDaemonTickTimeout    time.Duration
+	CleanupSessionLeewayHours int           `env:"SESSION_CLEANUP_LEEWAY_HOURS" default:"2"`
+	CleanupIntervalMinutes    int           `env:"CLEANUP_INTERVAL_MINUTES" default:"60"`
+	DraftDaemonTickInterval   time.Duration `env:"DRAFT_DAEMON_TICK_INTERVAL" default:"1m"`
+	DraftDaemonTickTimeout    time.Duration `env:"DRAFT_DAEMON_TICK_TIMEOUT" default:"55s"`
 }
 
 func loadDefaults() backgroundDefaults {
-	return backgroundDefaults{
-		cleanupSessionLeewayHours: utils.MustGetEnvInt(cleanupSessionLeewayHoursEnvKey, defaultCleanupSessionLeewayHours),
-		cleanupIntervalMinutes:    utils.MustGetEnvInt(cleanupIntervalMinutesEnvKey, defaultCleanupIntervalMinutes),
-		draftDaemonTickInterval:   utils.MustGetEnvDuration(draftDaemonTickIntervalEnvKey, defaultDraftDaemonTickInterval),
-		draftDaemonTickTimeout:    utils.MustGetEnvDuration(draftDaemonTickTimeoutEnvKey, defaultDraftDaemonTickTimeout),
-	}
+	var d backgroundDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *backgroundDefaults {
@@ -48,13 +32,13 @@ func getDefaults() *backgroundDefaults {
 
 // CleanupSessionLeewayHours returns how far before expiration the cleanup
 // service deletes sessions.
-func CleanupSessionLeewayHours() int { return getDefaults().cleanupSessionLeewayHours }
+func CleanupSessionLeewayHours() int { return getDefaults().CleanupSessionLeewayHours }
 
 // CleanupIntervalMinutes returns the delay between cleanup service runs.
-func CleanupIntervalMinutes() int { return getDefaults().cleanupIntervalMinutes }
+func CleanupIntervalMinutes() int { return getDefaults().CleanupIntervalMinutes }
 
 // DraftDaemonTickInterval returns how often the draft daemon wakes up.
-func DraftDaemonTickInterval() time.Duration { return getDefaults().draftDaemonTickInterval }
+func DraftDaemonTickInterval() time.Duration { return getDefaults().DraftDaemonTickInterval }
 
 // DraftDaemonTickTimeout returns the per-tick context timeout for the draft daemon.
-func DraftDaemonTickTimeout() time.Duration { return getDefaults().draftDaemonTickTimeout }
+func DraftDaemonTickTimeout() time.Duration { return getDefaults().DraftDaemonTickTimeout }

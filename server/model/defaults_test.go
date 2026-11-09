@@ -9,7 +9,7 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, 10, d.sessionExpirationDays)
+	assert.Equal(t, 10, d.SessionExpirationDays)
 }
 
 func TestLoadDefaults_Override(t *testing.T) {
@@ -17,5 +17,5 @@ func TestLoadDefaults_Override(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, 30, d.sessionExpirationDays)
+	assert.Equal(t, 30, d.SessionExpirationDays)
 }

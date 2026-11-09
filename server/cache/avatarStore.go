@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"server/redisutil"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
@@ -34,12 +35,7 @@ type AvatarStore struct {
 }
 
 func NewAvatarStore(ctx context.Context, tbaHander tbaHandler.TBAInterface, redisAddr string, redisPassword string, redisDB int) (AvatarStore, error) {
-		rdb := redis.NewClient(&redis.Options{
-			Addr:     redisAddr,
-			Password: redisPassword,
-			DB:       redisDB,
-			Protocol: redisProtocolVersion,
-		})
+		rdb := redisutil.NewClient(redisAddr, redisPassword, redisDB)
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		log.Error(ctx, "AvatarStore: Redis unavailable, avatar caching disabled", "error", err)

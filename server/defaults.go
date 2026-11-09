@@ -1,23 +1,13 @@
 package main
 
 import (
-	"server/utils"
 	"sync"
 	"time"
+
+	"server/config"
 )
 
-const (
-	staticAssetMaxAgeSecondsEnvKey = "STATIC_ASSET_MAX_AGE_SECONDS"
-	defaultStaticAssetMaxAgeSeconds = 2592000 // 30 days
-
-	serverShutdownTimeoutEnvKey = "SERVER_SHUTDOWN_TIMEOUT"
-	defaultServerShutdownTimeout = 10 * time.Second
-
-	serverReadHeaderTimeoutEnvKey = "SERVER_READ_HEADER_TIMEOUT"
-	defaultServerReadHeaderTimeout = 60 * time.Second
-
-	otelServiceName = "fantasy-frc-web"
-)
+const otelServiceName = "fantasy-frc-web"
 
 var (
 	defaultsOnce sync.Once
@@ -25,17 +15,15 @@ var (
 )
 
 type mainDefaults struct {
-	staticAssetMaxAgeSeconds int
-	serverShutdownTimeout    time.Duration
-	serverReadHeaderTimeout  time.Duration
+	StaticAssetMaxAgeSeconds int           `env:"STATIC_ASSET_MAX_AGE_SECONDS" default:"2592000"`
+	ServerShutdownTimeout    time.Duration `env:"SERVER_SHUTDOWN_TIMEOUT" default:"10s"`
+	ServerReadHeaderTimeout  time.Duration `env:"SERVER_READ_HEADER_TIMEOUT" default:"60s"`
 }
 
 func loadDefaults() mainDefaults {
-	return mainDefaults{
-		staticAssetMaxAgeSeconds: utils.MustGetEnvInt(staticAssetMaxAgeSecondsEnvKey, defaultStaticAssetMaxAgeSeconds),
-		serverShutdownTimeout:    utils.MustGetEnvDuration(serverShutdownTimeoutEnvKey, defaultServerShutdownTimeout),
-		serverReadHeaderTimeout:  utils.MustGetEnvDuration(serverReadHeaderTimeoutEnvKey, defaultServerReadHeaderTimeout),
-	}
+	var d mainDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *mainDefaults {
@@ -44,10 +32,10 @@ func getDefaults() *mainDefaults {
 }
 
 // StaticAssetMaxAgeSeconds returns the Cache-Control max-age for static assets.
-func StaticAssetMaxAgeSeconds() int { return getDefaults().staticAssetMaxAgeSeconds }
+func StaticAssetMaxAgeSeconds() int { return getDefaults().StaticAssetMaxAgeSeconds }
 
 // ServerShutdownTimeout returns the graceful shutdown timeout.
-func ServerShutdownTimeout() time.Duration { return getDefaults().serverShutdownTimeout }
+func ServerShutdownTimeout() time.Duration { return getDefaults().ServerShutdownTimeout }
 
 // ServerReadHeaderTimeout returns the HTTP server read header timeout.
-func ServerReadHeaderTimeout() time.Duration { return getDefaults().serverReadHeaderTimeout }
+func ServerReadHeaderTimeout() time.Duration { return getDefaults().ServerReadHeaderTimeout }

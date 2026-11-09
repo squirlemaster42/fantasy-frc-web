@@ -1,17 +1,10 @@
 package draft
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	draftActorInboxBufferEnvKey = "DRAFT_ACTOR_INBOX_BUFFER"
-	defaultDraftActorInboxBuffer = 100
-
-	draftActorRequestTimeoutEnvKey = "DRAFT_ACTOR_REQUEST_TIMEOUT"
-	defaultDraftActorRequestTimeout = 5 * time.Second
+	"server/config"
 )
 
 var (
@@ -20,15 +13,14 @@ var (
 )
 
 type draftDefaults struct {
-	inboxBuffer    int
-	requestTimeout time.Duration
+	InboxBuffer    int           `env:"DRAFT_ACTOR_INBOX_BUFFER" default:"100"`
+	RequestTimeout time.Duration `env:"DRAFT_ACTOR_REQUEST_TIMEOUT" default:"5s"`
 }
 
 func loadDefaults() draftDefaults {
-	return draftDefaults{
-		inboxBuffer:    utils.MustGetEnvInt(draftActorInboxBufferEnvKey, defaultDraftActorInboxBuffer),
-		requestTimeout: utils.MustGetEnvDuration(draftActorRequestTimeoutEnvKey, defaultDraftActorRequestTimeout),
-	}
+	var d draftDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *draftDefaults {
@@ -37,8 +29,8 @@ func getDefaults() *draftDefaults {
 }
 
 // DraftActorInboxBuffer returns the capacity of each draft actor's inbox channel.
-func DraftActorInboxBuffer() int { return getDefaults().inboxBuffer }
+func DraftActorInboxBuffer() int { return getDefaults().InboxBuffer }
 
 // DraftActorRequestTimeout returns how long callers wait when posting to or
 // receiving a reply from a draft actor.
-func DraftActorRequestTimeout() time.Duration { return getDefaults().requestTimeout }
+func DraftActorRequestTimeout() time.Duration { return getDefaults().RequestTimeout }

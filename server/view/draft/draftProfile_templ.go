@@ -59,7 +59,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Draft Header Section --><div class=\"w-full lg:w-2/3 flex-shrink-0\"><div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300 mb-6\"><div class=\"card-body p-6\"><div class=\"flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4\"><div class=\"flex-1\"><input")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<!-- Draft Header Section --><div class=\"w-full lg:w-2/3 flex-shrink-0\"><div class=\"card app-card mb-6\"><div class=\"card-body p-6\"><div class=\"flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4\"><div class=\"flex-1\"><input")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -105,7 +105,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " name=\"description\" placeholder=\"Enter draft description...\" class=\"w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none\" rows=\"4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " name=\"description\" placeholder=\"Enter draft description...\" class=\"app-input resize-none\" rows=\"4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -118,7 +118,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</textarea></div></div></div><!-- Players Section --><div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><div class=\"flex items-center justify-between mb-6\"><h2 class=\"text-2xl font-bold text-base-content\">Players (")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</textarea></div></div></div><!-- Players Section --><div class=\"card app-card\"><div class=\"card-body p-6\"><div class=\"flex items-center justify-between mb-6\"><h2 class=\"text-2xl font-bold text-base-content\">Players (")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -173,7 +173,16 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draft.Id), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+						URL:        fmt.Sprintf("/u/draft/%d/uninvitePlayer", draft.Id),
+						Target:     "#inviteTable",
+						Swap:       "outerHTML",
+						ConfirmMsg: "Uninvite this player?",
+						Classes:    "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5",
+						Name:       "inviteId",
+						Value:      fmt.Sprintf("%d", player.InviteId),
+						CsrfToken:  csrfToken,
+					}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -185,7 +194,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", player.PlayerOrder.Int16))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 88, Col: 192}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 97, Col: 192}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -214,7 +223,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(player.User.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 106, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 115, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -232,7 +241,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 					var templ_7745c5c3_Var11 string
 					templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", player.PlayerOrder.Int16))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 110, Col: 192}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 119, Col: 192}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 					if templ_7745c5c3_Err != nil {
@@ -249,7 +258,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div></div></div><!-- Sidebar Section --><div class=\"w-full lg:w-1/3 space-y-6 flex-shrink-0\"><!-- Settings Card --><div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-4\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Draft Settings</h2><div class=\"space-y-4\"><div><label class=\"block text-xs font-medium text-base-content/80 mb-2\">Pick Timing Method</label><div class=\"space-y-2\"><label class=\"flex items-center gap-2 cursor-pointer\"><input")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div></div></div></div><!-- Sidebar Section --><div class=\"w-full lg:w-1/3 space-y-6 flex-shrink-0\"><!-- Settings Card --><div class=\"card app-card\"><div class=\"card-body p-4\"><h2 class=\"text-lg font-bold text-base-content mb-4\">Draft Settings</h2><div class=\"space-y-4\"><div><label class=\"block text-xs font-medium text-base-content/80 mb-2\">Pick Timing Method</label><div class=\"space-y-2\"><label class=\"flex items-center gap-2 cursor-pointer\"><input")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -328,7 +337,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", draft.PerPickExpTimeSec))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 159, Col: 81}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 168, Col: 81}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
@@ -373,7 +382,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", draft.InitialPickTimeSec))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 173, Col: 82}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 182, Col: 82}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
@@ -418,7 +427,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d", draft.IncrementTimeSec))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 187, Col: 80}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 196, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -446,7 +455,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(draft.DiscordWebhook)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 203, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 212, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 			if templ_7745c5c3_Err != nil {
@@ -467,7 +476,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " type=\"submit\" class=\"w-full btn btn-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm\">Save Changes</button></div></div></div><!-- Invite Players Card --><div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\"><h2 class=\"text-xl font-bold text-base-content mb-4\">Invite Players</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " type=\"submit\" class=\"w-full btn btn-primary font-semibold py-2 px-4 rounded-lg transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed text-sm\">Save Changes</button></div></div></div><!-- Invite Players Card --><div class=\"card app-card\"><div class=\"card-body p-6\"><h2 class=\"text-xl font-bold text-base-content mb-4\">Invite Players</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -487,7 +496,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"space-y-4\"><div><label class=\"block text-sm font-medium text-base-content/80 mb-2\">Search Users</label> <input class=\"w-full bg-base-300 border border-base-300 rounded-lg px-4 py-3 text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent\" type=\"search\" name=\"search\" autocomplete=\"off\" placeholder=\"Search users to invite...\" hx-post=\"/u/searchPlayers\" hx-trigger=\"input changed delay:500ms, keyup[key=='Enter'], load\" hx-target=\"#searchResults\" hx-indicator=\".htmx-indicator\" hx-swap=\"innerHTML\"></div><div id=\"searchResults\" class=\"min-h-[200px]\"><!-- Search results will appear here --></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"space-y-4\"><div><label class=\"block text-sm font-medium text-base-content/80 mb-2\">Search Users</label> <input class=\"app-input\" type=\"search\" name=\"search\" autocomplete=\"off\" placeholder=\"Search users to invite...\" hx-post=\"/u/searchPlayers\" hx-trigger=\"input changed delay:500ms, keyup[key=='Enter'], load\" hx-target=\"#searchResults\" hx-indicator=\".htmx-indicator\" hx-swap=\"innerHTML\"></div><div id=\"searchResults\" class=\"min-h-[200px]\"><!-- Search results will appear here --></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -497,7 +506,7 @@ func DraftProfileIndex(draft model.DraftModel, isOwner bool, csrfToken string) t
 			return templ_7745c5c3_Err
 		}
 		if draft.Id != 0 && draft.Id != -1 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300\"><div class=\"card-body p-6\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<div class=\"card app-card\"><div class=\"card-body p-6\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -547,7 +556,7 @@ func StartDraftButton(submitUrl string, err string, isOwner bool, csrfToken stri
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(err)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 293, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 302, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -576,7 +585,13 @@ func StartDraftButton(submitUrl string, err string, isOwner bool, csrfToken stri
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = partials.HtmxButton(submitUrl, "", "", "Are you sure? Starting the draft cannot be undone.", !isOwner, "w-full btn btn-success font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2", "", "", "", csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var24), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+			URL:        submitUrl,
+			ConfirmMsg: "Are you sure? Starting the draft cannot be undone.",
+			Disabled:   !isOwner,
+			Classes:    "w-full btn btn-success font-semibold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2",
+			CsrfToken:  csrfToken,
+		}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var24), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -665,7 +680,7 @@ func PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToke
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(player.User.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 320, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 335, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -694,7 +709,16 @@ func PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToke
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = partials.HtmxButton(fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId), "#inviteTable", "outerHTML", "Uninvite this player?", false, "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5", "", "inviteId", fmt.Sprintf("%d", player.InviteId), csrfToken).Render(templ.WithChildren(ctx, templ_7745c5c3_Var29), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+						URL:        fmt.Sprintf("/u/draft/%d/uninvitePlayer", draftId),
+						Target:     "#inviteTable",
+						Swap:       "outerHTML",
+						ConfirmMsg: "Uninvite this player?",
+						Classes:    "mx-auto bg-red-600 hover:bg-red-500 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5",
+						Name:       "inviteId",
+						Value:      fmt.Sprintf("%d", player.InviteId),
+						CsrfToken:  csrfToken,
+					}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var29), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -706,7 +730,7 @@ func PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToke
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", player.PlayerOrder.Int16))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 327, Col: 176}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 351, Col: 176}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -729,7 +753,7 @@ func PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToke
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(player.User.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 339, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 363, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 				if templ_7745c5c3_Err != nil {
@@ -747,7 +771,7 @@ func PlayerList(players []model.DraftPlayer, draftId int, isOwner bool, csrfToke
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", player.PlayerOrder.Int16))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 342, Col: 176}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 366, Col: 176}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -811,7 +835,7 @@ func PlayerSearchResults(users []model.User, draftId int, isOwner bool, csrfToke
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(user.Username)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 369, Col: 83}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `view/draft/draftProfile.templ`, Line: 393, Col: 83}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -839,18 +863,16 @@ func PlayerSearchResults(users []model.User, draftId int, isOwner bool, csrfToke
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = partials.HtmxButton(
-					fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
-					"#inviteTable",
-					"outerHTML",
-					"",
-					!isOwner,
-					"btn btn-primary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
-					"",
-					"userUuid",
-					fmt.Sprintf("%s", user.UserUuid),
-					csrfToken,
-				).Render(templ.WithChildren(ctx, templ_7745c5c3_Var35), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = partials.HtmxButton(partials.HtmxButtonOptions{
+					URL:       fmt.Sprintf("/u/draft/%d/invitePlayer", draftId),
+					Target:    "#inviteTable",
+					Swap:      "outerHTML",
+					Disabled:  !isOwner,
+					Classes:   "btn btn-primary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2",
+					Name:      "userUuid",
+					Value:     fmt.Sprintf("%s", user.UserUuid),
+					CsrfToken: csrfToken,
+				}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var35), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

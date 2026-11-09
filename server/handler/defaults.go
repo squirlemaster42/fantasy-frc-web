@@ -1,41 +1,15 @@
 package handler
 
 import (
-	"server/utils"
 	"sync"
 	"time"
+
+	"server/config"
 )
 
 const (
-	leaderboardPerPageEnvKey = "LEADERBOARD_PER_PAGE"
-	defaultLeaderboardPerPage = 25
-
-	wsReadBufferSizeEnvKey = "WS_READ_BUFFER_SIZE"
-	defaultWsReadBufferSize = 1024
-
-	wsWriteBufferSizeEnvKey = "WS_WRITE_BUFFER_SIZE"
-	defaultWsWriteBufferSize = 1024
-
-	wsReadTimeoutEnvKey = "WS_READ_TIMEOUT"
-	defaultWsReadTimeout = 120 * time.Second
-
-	wsPingIntervalEnvKey = "WS_PING_INTERVAL"
-	defaultWsPingInterval = 30 * time.Second
-
-	wsWriteTimeoutEnvKey = "WS_WRITE_TIMEOUT"
-	defaultWsWriteTimeout = 10 * time.Second
-
-	tbaWebhookMaxBodyBytesEnvKey = "TBA_WEBHOOK_MAX_BODY_BYTES"
-	defaultTbaWebhookMaxBodyBytes = 1 << 20 // 1 MB
-
-	tbaUpcomingMatchTeamCountEnvKey = "TBA_UPCOMING_MATCH_TEAM_COUNT"
-	defaultTbaUpcomingMatchTeamCount = 6
-
-	avatarHttpCacheMaxAgeSecondsEnvKey = "AVATAR_HTTP_CACHE_MAX_AGE_SECONDS"
-	defaultAvatarHttpCacheMaxAgeSeconds = 604800 // 7 days
-
 	// Domain constants.
-	teamPrefix          = "frc"
+	teamPrefix           = "frc"
 	htmxCurrentUrlHeader = "Hx-Current-Url"
 	webhookSecretFileMode = 0600
 )
@@ -46,29 +20,21 @@ var (
 )
 
 type handlerDefaults struct {
-	leaderboardPerPage         int
-	wsReadBufferSize           int
-	wsWriteBufferSize          int
-	wsReadTimeout              time.Duration
-	wsPingInterval             time.Duration
-	wsWriteTimeout             time.Duration
-	tbaWebhookMaxBodyBytes     int64
-	tbaUpcomingMatchTeamCount  int
-	avatarHttpCacheMaxAgeSeconds int
+	LeaderboardPerPage            int           `env:"LEADERBOARD_PER_PAGE" default:"25"`
+	WsReadBufferSize              int           `env:"WS_READ_BUFFER_SIZE" default:"1024"`
+	WsWriteBufferSize             int           `env:"WS_WRITE_BUFFER_SIZE" default:"1024"`
+	WsReadTimeout                 time.Duration `env:"WS_READ_TIMEOUT" default:"120s"`
+	WsPingInterval                time.Duration `env:"WS_PING_INTERVAL" default:"30s"`
+	WsWriteTimeout                time.Duration `env:"WS_WRITE_TIMEOUT" default:"10s"`
+	TbaWebhookMaxBodyBytes        int64         `env:"TBA_WEBHOOK_MAX_BODY_BYTES" default:"1048576"`
+	TbaUpcomingMatchTeamCount     int           `env:"TBA_UPCOMING_MATCH_TEAM_COUNT" default:"6"`
+	AvatarHttpCacheMaxAgeSeconds  int           `env:"AVATAR_HTTP_CACHE_MAX_AGE_SECONDS" default:"604800"`
 }
 
 func loadDefaults() handlerDefaults {
-	return handlerDefaults{
-		leaderboardPerPage:         utils.MustGetEnvInt(leaderboardPerPageEnvKey, defaultLeaderboardPerPage),
-		wsReadBufferSize:           utils.MustGetEnvInt(wsReadBufferSizeEnvKey, defaultWsReadBufferSize),
-		wsWriteBufferSize:          utils.MustGetEnvInt(wsWriteBufferSizeEnvKey, defaultWsWriteBufferSize),
-		wsReadTimeout:              utils.MustGetEnvDuration(wsReadTimeoutEnvKey, defaultWsReadTimeout),
-		wsPingInterval:             utils.MustGetEnvDuration(wsPingIntervalEnvKey, defaultWsPingInterval),
-		wsWriteTimeout:             utils.MustGetEnvDuration(wsWriteTimeoutEnvKey, defaultWsWriteTimeout),
-		tbaWebhookMaxBodyBytes:     utils.MustGetEnvInt64(tbaWebhookMaxBodyBytesEnvKey, defaultTbaWebhookMaxBodyBytes),
-		tbaUpcomingMatchTeamCount:  utils.MustGetEnvInt(tbaUpcomingMatchTeamCountEnvKey, defaultTbaUpcomingMatchTeamCount),
-		avatarHttpCacheMaxAgeSeconds: utils.MustGetEnvInt(avatarHttpCacheMaxAgeSecondsEnvKey, defaultAvatarHttpCacheMaxAgeSeconds),
-	}
+	var d handlerDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *handlerDefaults {
@@ -76,12 +42,12 @@ func getDefaults() *handlerDefaults {
 	return &defaults
 }
 
-func LeaderboardPerPage() int                { return getDefaults().leaderboardPerPage }
-func WsReadBufferSize() int                  { return getDefaults().wsReadBufferSize }
-func WsWriteBufferSize() int                 { return getDefaults().wsWriteBufferSize }
-func WsReadTimeout() time.Duration           { return getDefaults().wsReadTimeout }
-func WsPingInterval() time.Duration          { return getDefaults().wsPingInterval }
-func WsWriteTimeout() time.Duration          { return getDefaults().wsWriteTimeout }
-func TbaWebhookMaxBodyBytes() int64          { return getDefaults().tbaWebhookMaxBodyBytes }
-func TbaUpcomingMatchTeamCount() int         { return getDefaults().tbaUpcomingMatchTeamCount }
-func AvatarHttpCacheMaxAgeSeconds() int      { return getDefaults().avatarHttpCacheMaxAgeSeconds }
+func LeaderboardPerPage() int                { return getDefaults().LeaderboardPerPage }
+func WsReadBufferSize() int                  { return getDefaults().WsReadBufferSize }
+func WsWriteBufferSize() int                 { return getDefaults().WsWriteBufferSize }
+func WsReadTimeout() time.Duration           { return getDefaults().WsReadTimeout }
+func WsPingInterval() time.Duration          { return getDefaults().WsPingInterval }
+func WsWriteTimeout() time.Duration          { return getDefaults().WsWriteTimeout }
+func TbaWebhookMaxBodyBytes() int64          { return getDefaults().TbaWebhookMaxBodyBytes }
+func TbaUpcomingMatchTeamCount() int         { return getDefaults().TbaUpcomingMatchTeamCount }
+func AvatarHttpCacheMaxAgeSeconds() int      { return getDefaults().AvatarHttpCacheMaxAgeSeconds }

@@ -511,15 +511,7 @@ func createDraft(ctx context.Context, db database.DBTX, draft *DraftModel) (int,
 
 func updateDraftStatus(ctx context.Context, db database.DBTX, draftId int, status DraftState) error {
 	query := `Update Drafts Set Status = $1 Where Id = $2;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare update draft status statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "UpdateDraftStatus")
-
-	_, err = stmt.ExecContext(ctx, status, draftId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, status, draftId); err != nil {
 		log.Error(ctx, "Failed to update draft status", "draftId", draftId, "statusCode", status, "error", err)
 		return fmt.Errorf("failed to update draft status: %w", err)
 	}
@@ -725,17 +717,11 @@ func getDraft(ctx context.Context, db database.DBTX, draftId int) (DraftModel, e
 func updateDraft(ctx context.Context, db database.DBTX, draft *DraftModel) error {
 	log.Debug(ctx, "model.UpdateDraft: starting", "draftId", draft.Id)
 	query := `Update Drafts Set DisplayName = $1, Description = $2, DiscordWebhook = $3, TimingType = $4, InitialPickTimeSec = $5, IncrementTimeSec = $6, PerPickExpTimeSec = $7 Where Id = $8;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare update draft statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "UpdateDraft")
 	log.Debug(ctx, "model.UpdateDraft: executing query", "draftId", draft.Id)
-	_, err = stmt.ExecContext(ctx, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.TimingType, draft.InitialPickTimeSec, draft.IncrementTimeSec, draft.PerPickExpTimeSec, draft.Id)
-	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, draft.DisplayName, draft.Description, draft.DiscordWebhook, draft.TimingType, draft.InitialPickTimeSec, draft.IncrementTimeSec, draft.PerPickExpTimeSec, draft.Id); err != nil {
 		return fmt.Errorf("failed to update draft: %w", err)
 	}
+	log.Debug(ctx, "model.UpdateDraft: query completed", "draftId", draft.Id)
 	log.Info(ctx, "Updated draft", "draftId", draft.Id)
 	return nil
 }
@@ -743,14 +729,7 @@ func updateDraft(ctx context.Context, db database.DBTX, draft *DraftModel) error
 func invitePlayer(ctx context.Context, db database.DBTX, draft int, invitingUserUuid uuid.UUID, invitedUserUuid uuid.UUID) (int, error) {
 	query := `INSERT INTO DraftInvites (draftId, invitingUserUuid, invitedUserUuid,
     sentTime, Status) Values ($1, $2, $3, $4, $5) RETURNING Id;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return -1, fmt.Errorf("failed to prepare invite player statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "InvitePlayer")
-
-	var inviteId int
-	err = stmt.QueryRowContext(ctx, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), "pending").Scan(&inviteId)
+	inviteId, err := database.QueryRowValue[int](ctx, db, query, draft, invitingUserUuid, invitedUserUuid, time.Now().UTC(), "pending")
 	if err != nil {
 		return -1, fmt.Errorf("failed to invite player: %w", err)
 	}
@@ -761,42 +740,35 @@ func invitePlayer(ctx context.Context, db database.DBTX, draft int, invitingUser
 // Returns draftId, UserUuid, error
 func acceptInvite(ctx context.Context, db database.DBTX, inviteId int) (int, uuid.UUID, error) {
 	query := `UPDATE DraftInvites Set Status = 'accepted', acceptedTime = $1 where id = $2;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to prepare accept invite statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "AcceptInvite")
-	_, err = stmt.ExecContext(ctx, time.Now().UTC(), inviteId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, time.Now().UTC(), inviteId); err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to accept invite: %w", err)
 	}
 
 	query = `Select DraftId, InvitedUserUuid From DraftInvites Where Id = $1;`
-	stmt, err = database.Prepare(ctx, db, query)
+	result, err := database.QueryRow(ctx, db, query, func(row *sql.Row) (struct {
+		draftId int
+		userUuid uuid.UUID
+	}, error) {
+		var r struct {
+			draftId int
+			userUuid uuid.UUID
+		}
+		if err := row.Scan(&r.draftId, &r.userUuid); err != nil {
+			return r, fmt.Errorf("failed to get invite details: %w", err)
+		}
+		return r, nil
+	}, inviteId)
 	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to prepare select invite statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "AcceptInvite")
-	var draftId int
-	var userUuid uuid.UUID
-	err = stmt.QueryRowContext(ctx, inviteId).Scan(&draftId, &userUuid)
-	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to get invite details: %w", err)
+		return 0, uuid.UUID{}, err
 	}
 
-	log.Info(ctx, "Accepted invite", "inviteId", inviteId, "draftId", draftId, "userUuid", userUuid)
-	return draftId, userUuid, nil
+	log.Info(ctx, "Accepted invite", "inviteId", inviteId, "draftId", result.draftId, "userUuid", result.userUuid)
+	return result.draftId, result.userUuid, nil
 }
 
 func addPlayerToDraft(ctx context.Context, db database.DBTX, draft int, player uuid.UUID) error {
 	query := `INSERT INTO DraftPlayers (draftId, UserUuid) Values ($1, $2);`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare add player statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "AddPlayerToDraft")
-	_, err = stmt.ExecContext(ctx, draft, player)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, draft, player); err != nil {
 		return fmt.Errorf("failed to add player to draft: %w", err)
 	}
 	return nil
@@ -804,13 +776,7 @@ func addPlayerToDraft(ctx context.Context, db database.DBTX, draft int, player u
 
 func initializeDraftPlayerClocks(ctx context.Context, db database.DBTX, draftId int, seconds int16) error {
 	query := `Update DraftPlayers Set RemainingPickTimeSec = $1 Where DraftId = $2 And PlayerOrder Is Not Null;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare initialize draft player clocks statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "InitializeDraftPlayerClocks")
-	_, err = stmt.ExecContext(ctx, seconds, draftId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, seconds, draftId); err != nil {
 		return fmt.Errorf("failed to initialize draft player clocks: %w", err)
 	}
 	return nil
@@ -818,13 +784,7 @@ func initializeDraftPlayerClocks(ctx context.Context, db database.DBTX, draftId 
 
 func setDraftPlayerRemainingTime(ctx context.Context, db database.DBTX, draftPlayerId int, seconds int) error {
 	query := `Update DraftPlayers Set RemainingPickTimeSec = $1 Where Id = $2;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare set draft player remaining time statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "SetDraftPlayerRemainingTime")
-	_, err = stmt.ExecContext(ctx, seconds, draftPlayerId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, seconds, draftPlayerId); err != nil {
 		return fmt.Errorf("failed to set draft player remaining time: %w", err)
 	}
 	return nil
@@ -832,19 +792,9 @@ func setDraftPlayerRemainingTime(ctx context.Context, db database.DBTX, draftPla
 
 func cancelOutstandingInvites(ctx context.Context, db database.DBTX, draftId int) error {
 	query := `Update DraftInvites Set Status = 'canceled' Where DraftId = $1 and Status = 'pending';`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare cancel outstanding invites statement: %w", err)
-	}
-
-	defer database.CloseStatement(ctx, stmt, "CancelOutstandingInvites")
-
-	_, err = stmt.ExecContext(ctx, draftId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, draftId); err != nil {
 		return fmt.Errorf("failed to cancel invites for draft %d: %w", draftId, err)
 	}
-
 	return nil
 }
 
@@ -860,23 +810,14 @@ func getInvite(ctx context.Context, db database.DBTX, inviteId int) (DraftInvite
         Inner Join Users u On di.InvitingUserUuid = u.UserUuid
         Where di.Id = $1
         And di.Status != 'canceled';`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return DraftInvite{}, fmt.Errorf("failed to get invite: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetInvite")
-	invite := DraftInvite{}
-	err = stmt.QueryRowContext(ctx, inviteId).Scan(
-		&invite.Id,
-		&invite.InvitingPlayerName,
-		&invite.InvitedUserUuid,
-		&invite.DraftName,
-		&invite.DraftId)
-	if err != nil {
-		log.Error(ctx, "GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
-		return DraftInvite{}, fmt.Errorf("failed to get invite: %w", err)
-	}
-	return invite, nil
+	return database.QueryRow(ctx, db, query, func(row *sql.Row) (DraftInvite, error) {
+		var invite DraftInvite
+		if err := row.Scan(&invite.Id, &invite.InvitingPlayerName, &invite.InvitedUserUuid, &invite.DraftName, &invite.DraftId); err != nil {
+			log.Error(ctx, "GetInvite: Failed to query invite", "error", err, "inviteId", inviteId)
+			return invite, fmt.Errorf("failed to get invite: %w", err)
+		}
+		return invite, nil
+	}, inviteId)
 }
 
 func getInvites(ctx context.Context, db database.DBTX, userUuid uuid.UUID) ([]DraftInvite, error) {
@@ -922,19 +863,9 @@ func getInvites(ctx context.Context, db database.DBTX, userUuid uuid.UUID) ([]Dr
 
 func cancelInvite(ctx context.Context, db database.DBTX, inviteId int) error {
 	query := `Update DraftInvites Set Status = 'canceled' Where Id = $1;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare cancel invite statement: %w", err)
-	}
-
-	defer database.CloseStatement(ctx, stmt, "CancelInvite")
-
-	_, err = stmt.ExecContext(ctx, inviteId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, inviteId); err != nil {
 		return fmt.Errorf("failed to cancel invite %d: %w", inviteId, err)
 	}
-
 	return nil
 }
 
@@ -1060,20 +991,10 @@ func getPicks(ctx context.Context, db database.DBTX, draftId int) ([]Pick, error
 
 func getDraftPlayerId(ctx context.Context, db database.DBTX, draftId int, userUuid uuid.UUID) (int, error) {
 	query := `Select Id From DraftPlayers Where draftId = $1 And userUuid = $2`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return -1, fmt.Errorf("failed to get draft player id: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetDraftPlayerId")
-
-	var draftPlayerId int
-	err = stmt.QueryRowContext(ctx, draftId, userUuid).Scan(&draftPlayerId)
-
+	draftPlayerId, err := database.QueryRowValue[int](ctx, db, query, draftId, userUuid)
 	if err != nil {
 		return -1, errors.Join(fmt.Errorf("failed to get draft player for user %s in draft %d", userUuid.String(), draftId), err)
 	}
-
 	return draftPlayerId, nil
 }
 
@@ -1084,52 +1005,28 @@ func getDraftPlayerUser(ctx context.Context, db database.DBTX, draftPlayerId int
     From DraftPlayers dp
     Inner Join Users u On dp.UserUuid = u.UserUuid
     Where dp.Id = $1;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return User{}, fmt.Errorf("failed to get draft player user: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetDraftPlayerUser")
-
-	var user User
-	err = stmt.QueryRowContext(ctx, draftPlayerId).Scan(&user.UserUuid, &user.Username)
-	if err != nil {
-		return User{}, fmt.Errorf("failed to get draft player user: %w", err)
-	}
-
-	return user, nil
+	return database.QueryRow(ctx, db, query, func(row *sql.Row) (User, error) {
+		var user User
+		if err := row.Scan(&user.UserUuid, &user.Username); err != nil {
+			return user, fmt.Errorf("failed to get draft player user: %w", err)
+		}
+		return user, nil
+	}, draftPlayerId)
 }
 
 func makePickAvailable(ctx context.Context, db database.DBTX, draftPlayerId int, availableTime time.Time, expirationTime time.Time) (int, error) {
 	query := `Insert Into Picks (Player, AvailableTime, ExpirationTime) Values ($1, $2, $3) Returning Id;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return 0, fmt.Errorf("failed to prepare make pick available statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "MakePickAvailable")
-
-	var pickId int
-	err = stmt.QueryRowContext(ctx, draftPlayerId, availableTime, expirationTime).Scan(&pickId)
-
+	pickId, err := database.QueryRowValue[int](ctx, db, query, draftPlayerId, availableTime, expirationTime)
 	if err != nil {
 		log.Error(ctx, "Failed to make pick available", "draftPlayerId", draftPlayerId, "error", err)
 		return 0, fmt.Errorf("failed to make pick available: %w", err)
 	}
-
 	return pickId, nil
 }
 
 func makePick(ctx context.Context, db database.DBTX, pick Pick) error {
 	query := `Update Picks Set pick = $1, pickTime = $2 Where Id = $3 Returning Id;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare make pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "MakePick")
-	var updatedId int
-	err = stmt.QueryRowContext(ctx, pick.Pick, pick.PickTime, pick.Id).Scan(&updatedId)
+	updatedId, err := database.QueryRowValue[int](ctx, db, query, pick.Pick, pick.PickTime, pick.Id)
 	if err != nil {
 		log.Error(ctx, "Failed to make pick", "error", err)
 		return fmt.Errorf("failed to make pick: %w", err)
@@ -1149,13 +1046,7 @@ func hasBeenPicked(ctx context.Context, db database.DBTX, draftId int, team stri
     Inner Join DraftPlayers On DraftPlayers.id = Picks.player
     Where DraftPlayers.draftId = $1
     And Picks.pick = $2;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return false, fmt.Errorf("failed to has been picked: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "HasBeenPicked")
-	var numPicked int
-	err = stmt.QueryRowContext(ctx, draftId, team).Scan(&numPicked)
+	numPicked, err := database.QueryRowValue[int](ctx, db, query, draftId, team)
 	if err != nil {
 		log.Error(ctx, "Failed to query for picks", "draftId", draftId, "team", team, "error", err)
 		return false, fmt.Errorf("failed to has been picked: %w", err)
@@ -1239,13 +1130,7 @@ func getNumPlayersInInvitedDraft(ctx context.Context, db database.DBTX, inviteId
             Inner Join Drafts d On d.Id = ci.DraftId
             Inner Join DraftPlayers dp On dp.DraftId = d.Id
             Where ci.Id = $1;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return 0, fmt.Errorf("failed to prepare get num players statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetNumPlayersInInvitedDraft")
-	var numPlayers int
-	err = stmt.QueryRowContext(ctx, inviteId).Scan(&numPlayers)
+	numPlayers, err := database.QueryRowValue[int](ctx, db, query, inviteId)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query for num players: %w", err)
 	}
@@ -1254,13 +1139,7 @@ func getNumPlayersInInvitedDraft(ctx context.Context, db database.DBTX, inviteId
 
 func lockDraft(ctx context.Context, db database.DBTX, draftId int) error {
 	query := `SELECT Id FROM Drafts WHERE Id = $1 FOR UPDATE;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare lock draft statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "LockDraft")
-	_, err = stmt.ExecContext(ctx, draftId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, draftId); err != nil {
 		return fmt.Errorf("failed to lock draft: %w", err)
 	}
 	return nil
@@ -1268,13 +1147,7 @@ func lockDraft(ctx context.Context, db database.DBTX, draftId int) error {
 
 func getNumPlayersInDraft(ctx context.Context, db database.DBTX, draftId int) (int, error) {
 	query := `Select Count(*) From DraftPlayers Where draftId = $1;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return 0, fmt.Errorf("failed to prepare get num players in draft statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetNumPlayersInDraft")
-	var numPlayers int
-	err = stmt.QueryRowContext(ctx, draftId).Scan(&numPlayers)
+	numPlayers, err := database.QueryRowValue[int](ctx, db, query, draftId)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query for num players in draft: %w", err)
 	}
@@ -1360,32 +1233,16 @@ func shouldSkipPick(ctx context.Context, db database.DBTX, draftPlayer int) (boo
         COALESCE(skipPicks, false) As skipPicks
     From DraftPlayers dp
     Where dp.Id = $1;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return false, fmt.Errorf("failed to prepare should skip pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "ShouldSkipPick")
-	var shouldSkip bool
-	err = stmt.QueryRowContext(ctx, draftPlayer).Scan(&shouldSkip)
-
+	shouldSkip, err := database.QueryRowValue[bool](ctx, db, query, draftPlayer)
 	if err != nil {
 		return false, fmt.Errorf("failed to query if player should be skipped: %w", err)
 	}
-
 	return shouldSkip, nil
 }
 
 func markShouldSkipPick(ctx context.Context, db database.DBTX, draftPlayer int, shouldSkip bool) error {
 	query := `Update DraftPlayers Set skipPicks = $2 Where Id = $1;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare mark should skip pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "MarkShouldSkipPick")
-	_, err = stmt.ExecContext(ctx, draftPlayer, shouldSkip)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, draftPlayer, shouldSkip); err != nil {
 		return fmt.Errorf("failed to mark should skip pick: %w", err)
 	}
 	return nil
@@ -1408,41 +1265,19 @@ func getCurrentPick(ctx context.Context, db database.DBTX, draftId int) (Pick, e
                 Inner Join DraftPlayers dp On p.Player = dp.Id
                 Where dp.DraftId = $1
             ) m On m.Id = p.Id;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return Pick{}, fmt.Errorf("failed to get current pick: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetCurrentPick")
-	var pick Pick
-	err = stmt.QueryRowContext(ctx, draftId).Scan(
-		&pick.Id,
-		&pick.Player,
-		&pick.Pick,
-		&pick.PickTime,
-		&pick.Skipped,
-		&pick.AvailableTime,
-		&pick.ExpirationTime,
-	)
-
-	if err != nil {
-		log.Warn(ctx, "No current pick found", "draftId", draftId, "error", err.Error())
-		return Pick{}, fmt.Errorf("failed to get current pick: %w", err)
-	}
-
-	return pick, nil
+	return database.QueryRow(ctx, db, query, func(row *sql.Row) (Pick, error) {
+		var pick Pick
+		if err := row.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.Skipped, &pick.AvailableTime, &pick.ExpirationTime); err != nil {
+			log.Warn(ctx, "No current pick found", "draftId", draftId, "error", err.Error())
+			return pick, fmt.Errorf("failed to get current pick: %w", err)
+		}
+		return pick, nil
+	}, draftId)
 }
 
 func skipPick(ctx context.Context, db database.DBTX, pickId int) error {
 	query := `Update Picks Set Skipped = true Where Id = $1`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare skip pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "SkipPick")
-	_, err = stmt.ExecContext(ctx, pickId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, pickId); err != nil {
 		log.Error(ctx, "Failed to skip pick", "pickId", pickId, "error", err)
 		return fmt.Errorf("failed to skip pick: %w", err)
 	}
@@ -1451,14 +1286,7 @@ func skipPick(ctx context.Context, db database.DBTX, pickId int) error {
 
 func updatePickExpirationTime(ctx context.Context, db database.DBTX, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set ExpirationTime = $1 Where Id = $2;`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare update pick expiration time statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "UpdatePickExpirationTime")
-	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, expirationTime, pickId); err != nil {
 		return fmt.Errorf("failed to update pick expiration time: %w", err)
 	}
 	return nil
@@ -1478,40 +1306,18 @@ func getPreviousPick(ctx context.Context, db database.DBTX, draftId int, current
             Where dp.DraftId = $1 And p.Id < $2
             Order By p.Id Desc
             Limit 1`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return Pick{}, fmt.Errorf("failed to get previous pick: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetPreviousPick")
-	var pick Pick
-	err = stmt.QueryRowContext(ctx, draftId, currentPickId).Scan(
-		&pick.Id,
-		&pick.Player,
-		&pick.Pick,
-		&pick.PickTime,
-		&pick.Skipped,
-		&pick.AvailableTime,
-		&pick.ExpirationTime,
-	)
-
-	if err != nil {
-		return Pick{}, fmt.Errorf("failed to get previous pick: %w", err)
-	}
-
-	return pick, nil
+	return database.QueryRow(ctx, db, query, func(row *sql.Row) (Pick, error) {
+		var pick Pick
+		if err := row.Scan(&pick.Id, &pick.Player, &pick.Pick, &pick.PickTime, &pick.Skipped, &pick.AvailableTime, &pick.ExpirationTime); err != nil {
+			return pick, fmt.Errorf("failed to get previous pick: %w", err)
+		}
+		return pick, nil
+	}, draftId, currentPickId)
 }
 
 func deletePick(ctx context.Context, db database.DBTX, pickId int) error {
 	query := `Delete From Picks Where Id = $1`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare delete pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "DeletePick")
-	_, err = stmt.ExecContext(ctx, pickId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, pickId); err != nil {
 		return fmt.Errorf("failed to delete pick: %w", err)
 	}
 	return nil
@@ -1519,14 +1325,7 @@ func deletePick(ctx context.Context, db database.DBTX, pickId int) error {
 
 func resetPick(ctx context.Context, db database.DBTX, pickId int, expirationTime time.Time) error {
 	query := `Update Picks Set Pick = Null, PickTime = Null, Skipped = false, ExpirationTime = $1 Where Id = $2`
-
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare reset pick statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "ResetPick")
-	_, err = stmt.ExecContext(ctx, expirationTime, pickId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, expirationTime, pickId); err != nil {
 		return fmt.Errorf("failed to reset pick: %w", err)
 	}
 	return nil
@@ -1820,13 +1619,7 @@ func getOverallLeaderboard(ctx context.Context, db database.DBTX, page int, perP
 
 func transferOwnership(ctx context.Context, db database.DBTX, draftId int, newOwnerUuid uuid.UUID) error {
 	query := `Update Drafts Set OwnerUserUuid = $1 Where Id = $2;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare transfer ownership statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "TransferOwnership")
-	_, err = stmt.ExecContext(ctx, newOwnerUuid, draftId)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, newOwnerUuid, draftId); err != nil {
 		log.Error(ctx, "Failed to transfer draft ownership", "draftId", draftId, "newOwnerUuid", newOwnerUuid, "error", err)
 		return fmt.Errorf("failed to transfer draft ownership: %w", err)
 	}

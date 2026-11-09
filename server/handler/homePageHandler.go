@@ -28,18 +28,13 @@ func (h *Handler) HandleViewHome(c *echo.Context) error {
 		PageNum:         0,
 	})
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err, "Search", search)
-		return c.String(http.StatusInternalServerError, "Failed to load drafts")
+		return InternalServerError(c, "Failed to load drafts for user", err, "Search", search)
 	}
 	log.Debug(c.Request().Context(), "Loaded drafts for user", "username", username, "Search", search)
 
 	homeIndex := view.HomeIndex(drafts, userUuid)
 	home := view.Home("Draft Overview", true, username, homeIndex)
-	if err := Render(c, home); err != nil {
-		log.Error(c.Request().Context(), "Handle View Home Failed To Render", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, home, "Handle View Home Failed To Render", "Search", search)
 }
 
 func (h *Handler) HandleViewDraftList(c *echo.Context) error {
@@ -66,8 +61,7 @@ func (h *Handler) HandleViewDraftList(c *echo.Context) error {
 		PageNum:         page,
 	})
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to load drafts for user", "error", err, "Page Number", page, "Search", search)
-		return c.String(http.StatusInternalServerError, "Failed to load drafts")
+		return InternalServerError(c, "Failed to load drafts for user", err, "Page Number", page, "Search", search)
 	}
 	log.Debug(c.Request().Context(), "Loaded drafts for user", "username", username, "Page Number", page, "Search", search)
 
@@ -81,10 +75,5 @@ func (h *Handler) HandleViewDraftList(c *echo.Context) error {
 	} else {
 		draftList = view.DraftList(drafts, userUuid, page, search)
 	}
-	if err := Render(c, draftList); err != nil {
-		log.Error(c.Request().Context(), "Handle View Draft List Failed To Render", "error", err, "Page Number", page, "Search", search)
-		return err
-	}
-
-	return nil
+	return RenderOrLog(c, draftList, "Handle View Draft List Failed To Render", "Page Number", page, "Search", search)
 }

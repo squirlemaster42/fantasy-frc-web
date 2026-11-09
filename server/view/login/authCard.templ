@@ -1,0 +1,27 @@
+package login
+
+// AuthCard wraps the shared card layout used by the login and registration
+// pages. Callers provide the header, form content, and footer link details.
+templ AuthCard(title string, subtitle string, footerText string, footerLink string, footerLinkText string) {
+	<div class="bg-base-100 flex items-center justify-center p-4 min-h-screen">
+		<div class="max-w-md w-full">
+			<div class="card bg-base-200 shadow-2xl rounded-2xl border border-base-300">
+				<div class="card-body p-8">
+					<div class="text-center mb-8">
+						<h1 class="text-2xl font-bold text-base-content mb-2">{ title }</h1>
+						<p class="text-base-content/70 text-sm">{ subtitle }</p>
+					</div>
+					{ children... }
+					<div class="mt-8 pt-6 border-t border-base-300 text-center">
+						<p class="text-base-content/70 text-sm">
+							{ footerText }
+							<a href={ templ.URL(footerLink) } class="text-primary hover:text-primary/80 font-medium transition-colors duration-200">
+								{ footerLinkText }
+							</a>
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}

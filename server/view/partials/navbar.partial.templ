@@ -61,18 +61,13 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
                                 <span class="text-base-content/80 hover:text-primary font-medium">{ username }</span>
                             </a>
                         </div>
-                        @HtmxButton(
-                            "/u/logout",
-                            "body",
-                            "transition:true",
-                            "Are you sure you want to log out?",
-                            false,
-                            "hidden md:flex btn btn-ghost btn-error items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium",
-                            "",
-                            "",
-                            "",
-                            "",
-                        ) {
+                        @HtmxButton(HtmxButtonOptions{
+                            URL: "/u/logout",
+                            Target: "body",
+                            Swap: "transition:true",
+                            ConfirmMsg: "Are you sure you want to log out?",
+                            Classes: "hidden md:flex btn btn-ghost btn-error items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium",
+                        }) {
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                             </svg>
@@ -193,18 +188,13 @@ templ Navbar(fromProtected bool, username string, page string, data types.PageDa
 						</a>
                     }
                     <div class="border-t border-base-300 my-2"></div>
-                    @HtmxButton(
-                        "/u/logout",
-                        "body",
-                        "transition:true",
-                        "Are you sure you want to log out?",
-                        false,
-                        "flex items-center gap-3 w-full btn btn-ghost btn-error px-4 py-3 rounded-lg transition-all duration-200 font-medium",
-                        "",
-                        "",
-                        "",
-                        "",
-                    ) {
+                    @HtmxButton(HtmxButtonOptions{
+                        URL: "/u/logout",
+                        Target: "body",
+                        Swap: "transition:true",
+                        ConfirmMsg: "Are you sure you want to log out?",
+                        Classes: "flex items-center gap-3 w-full btn btn-ghost btn-error px-4 py-3 rounded-lg transition-all duration-200 font-medium",
+                    }) {
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
                         </svg>

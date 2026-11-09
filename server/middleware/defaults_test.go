@@ -10,11 +10,11 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, int64(5), d.rateLimitLoginAttempts)
-	assert.Equal(t, int64(3), d.rateLimitRegisterAttempts)
-	assert.Equal(t, 15*time.Minute, d.rateLimitAuthWindow)
-	assert.Equal(t, 2*time.Second, d.rateLimitRedisPingTimeout)
-	assert.Equal(t, 63072000, d.hstsMaxAgeSeconds)
+	assert.Equal(t, int64(5), d.RateLimitLoginAttempts)
+	assert.Equal(t, int64(3), d.RateLimitRegisterAttempts)
+	assert.Equal(t, 15*time.Minute, d.RateLimitAuthWindow)
+	assert.Equal(t, 2*time.Second, d.RateLimitRedisPingTimeout)
+	assert.Equal(t, 63072000, d.HstsMaxAgeSeconds)
 }
 
 func TestLoadDefaults_Override(t *testing.T) {
@@ -26,9 +26,9 @@ func TestLoadDefaults_Override(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, int64(10), d.rateLimitLoginAttempts)
-	assert.Equal(t, int64(6), d.rateLimitRegisterAttempts)
-	assert.Equal(t, 30*time.Minute, d.rateLimitAuthWindow)
-	assert.Equal(t, 5*time.Second, d.rateLimitRedisPingTimeout)
-	assert.Equal(t, 86400, d.hstsMaxAgeSeconds)
+	assert.Equal(t, int64(10), d.RateLimitLoginAttempts)
+	assert.Equal(t, int64(6), d.RateLimitRegisterAttempts)
+	assert.Equal(t, 30*time.Minute, d.RateLimitAuthWindow)
+	assert.Equal(t, 5*time.Second, d.RateLimitRedisPingTimeout)
+	assert.Equal(t, 86400, d.HstsMaxAgeSeconds)
 }

@@ -31,18 +31,9 @@ func renderInviteTable(h *Handler, c *echo.Context, hasError bool, errorMessage 
 	inviteIndex := draftView.DraftInviteIndex(invites, hasError, errorMessage, h.csrfToken(c))
 	if includeWrapper {
 		inviteView := draftView.DraftInvite("Draft Invites", true, username, inviteIndex)
-		if err := Render(c, inviteView); err != nil {
-			log.Error(c.Request().Context(), "Failed to render invite page", "error", err)
-			return err
-		}
-	} else {
-		if err := Render(c, inviteIndex); err != nil {
-			log.Error(c.Request().Context(), "Failed to render invite index", "error", err)
-			return err
-		}
+		return RenderOrLog(c, inviteView, "Failed to render invite page")
 	}
-
-	return nil
+	return RenderOrLog(c, inviteIndex, "Failed to render invite index")
 }
 
 func (h *Handler) HandleAcceptInvite(c *echo.Context) error {

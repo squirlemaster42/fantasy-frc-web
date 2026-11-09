@@ -2,7 +2,10 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+
 	"server/authentication"
 	"server/background"
 	"server/cache"
@@ -54,6 +57,52 @@ type Handler struct {
 func (h *Handler) csrfToken(c *echo.Context) string {
 	tok, _ := c.Get("csrfToken").(string)
 	return tok
+}
+
+// parseDraftId extracts the draft id from the :id route parameter. It returns
+// an error if the parameter is missing or not an integer; callers should write
+// the appropriate HTTP response and return.
+func (h *Handler) parseDraftId(c *echo.Context) (int, error) {
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid draft id %q: %w", draftIdStr, err)
+	}
+	return draftId, nil
+}
+
+// requireDraftOwnerAdmin validates the authenticated user owns the draft and
+// renders an admin status message on any failure. The returned bool is true on
+// success; callers should return nil when it is false.
+func (h *Handler) requireDraftOwnerAdmin(c *echo.Context) (uuid.UUID, model.DraftModel, bool) {
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return uuid.UUID{}, model.DraftModel{}, false
+	}
+
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Failed to parse draft id", "draftIdString", draftIdStr, "error", err)
+		_ = renderAdminMessage(c, "Invalid draft ID", false)
+		return uuid.UUID{}, model.DraftModel{}, false
+	}
+
+	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
+	if err != nil {
+		log.Warn(c.Request().Context(), "Draft not found", "userUuid", userUuid, "draftId", draftId, "error", err)
+		_ = renderAdminMessage(c, "Draft not found", false)
+		return uuid.UUID{}, model.DraftModel{}, false
+	}
+
+	if draftModel.Owner.UserUuid != userUuid {
+		log.Warn(c.Request().Context(), "Non-owner attempted admin action",
+			"userUuid", userUuid, "draftId", draftId, "ownerUuid", draftModel.Owner.UserUuid)
+		_ = renderAdminMessage(c, "Permission denied", false)
+		return uuid.UUID{}, model.DraftModel{}, false
+	}
+
+	return userUuid, draftModel, true
 }
 
 // errLoginRequired is returned by requireUser/requireUserUuid after writing a

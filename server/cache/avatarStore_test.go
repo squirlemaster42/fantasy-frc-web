@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"server/redisutil"
 	"server/swagger"
 	"server/tbaHandler"
 )
@@ -204,10 +205,7 @@ func TestAvatarStore_GetAvatar_CacheMissSetFailureReturnsAvatar(t *testing.T) {
 		avatar: base64.StdEncoding.EncodeToString(expectedAvatar),
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     s.Addr(),
-		Protocol: redisProtocolVersion,
-	})
+	rdb := redisutil.NewClient(s.Addr(), "", 0)
 	rdb.AddHook(&setFailureHook{})
 	defer func() { _ = rdb.Close() }()
 

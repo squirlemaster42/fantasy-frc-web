@@ -16,8 +16,7 @@ import (
 func (h *Handler) HandleViewLogin(c *echo.Context) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to generate CSRF cookie", err)
 	}
 	loginIndex := login.LoginIndex(false, "", h.Config.MinPasswordLength, csrfToken)
 	loginPage := login.Login("Sign In", false, loginIndex)
@@ -38,8 +37,7 @@ func (h *Handler) setSessionCookie(c *echo.Context, sessionToken string) {
 
 func (h *Handler) setSessionAndRedirect(c *echo.Context, userUuid uuid.UUID, sessionToken string) error {
 	h.setSessionCookie(c, sessionToken)
-	c.Response().Header().Set("HX-Redirect", "/u/home")
-	return nil
+	return HXRedirect(c, "/u/home")
 }
 
 func (h *Handler) HandleLoginPost(c *echo.Context) error {
@@ -65,8 +63,7 @@ func (h *Handler) HandleLoginPost(c *echo.Context) error {
 			log.Warn(c.Request().Context(), "Invalid login attempt for user", "username", username)
 			return h.renderLoginWithError(c, "You have entered an invalid username or password")
 		}
-		log.Error(c.Request().Context(), "Failed to validate login", "error", err)
-		return c.String(http.StatusInternalServerError, "Failed to validate login")
+		return InternalServerError(c, "Failed to validate login", err, "username", username)
 	}
 
 	return h.setSessionAndRedirect(c, userUuid, sessionToken)
@@ -93,15 +90,13 @@ func (h *Handler) HandleLogoutPost(c *echo.Context) error {
 	cookie.Path = "/"
 	cookie.MaxAge = -1
 	c.SetCookie(cookie)
-	c.Response().Header().Set("HX-Redirect", "/login")
-	return nil
+	return HXRedirect(c, "/login")
 }
 
 func (h *Handler) renderRegisterWithError(c *echo.Context, message string) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to generate CSRF cookie", err)
 	}
 	register := login.RegisterIndex(false, message, h.Config.MinPasswordLength, csrfToken)
 	return Render(c, register)
@@ -110,8 +105,7 @@ func (h *Handler) renderRegisterWithError(c *echo.Context, message string) error
 func (h *Handler) renderLoginWithError(c *echo.Context, message string) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to generate CSRF cookie", err)
 	}
 	loginPage := login.LoginIndex(false, message, h.Config.MinPasswordLength, csrfToken)
 	return Render(c, loginPage)
@@ -120,8 +114,7 @@ func (h *Handler) renderLoginWithError(c *echo.Context, message string) error {
 func (h *Handler) HandleViewRegister(c *echo.Context) error {
 	csrfToken, err := middleware.GenerateCSRFCookie(c)
 	if err != nil {
-		log.Error(c.Request().Context(), "Failed to generate CSRF cookie", "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to generate CSRF cookie", err)
 	}
 	registerIndex := login.RegisterIndex(false, "", h.Config.MinPasswordLength, csrfToken)
 	registerPage := login.Register("Create Account", false, registerIndex)
@@ -148,8 +141,7 @@ func (h *Handler) HandlerRegisterPost(c *echo.Context) error {
 			log.Warn(c.Request().Context(), "Registration validation failed", "username", username)
 			return h.renderRegisterWithError(c, err.Error())
 		default:
-			log.Error(c.Request().Context(), "Failed to register user", "error", err)
-			return c.String(http.StatusInternalServerError, "Failed to create account")
+			return InternalServerError(c, "Failed to register user", err, "username", username)
 		}
 	}
 

@@ -1,20 +1,10 @@
 package tbaHandler
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	tbaAllianceMaxRetriesEnvKey = "TBA_ALLIANCE_MAX_RETRIES"
-	defaultTbaAllianceMaxRetries = 5
-
-	tbaAllianceBackoffBaseEnvKey = "TBA_ALLIANCE_BACKOFF_BASE"
-	defaultTbaAllianceBackoffBase = 1 * time.Second
-
-	tbaRequestTimeoutEnvKey = "TBA_REQUEST_TIMEOUT"
-	defaultTbaRequestTimeout = 30 * time.Second
+	"server/config"
 )
 
 var (
@@ -23,17 +13,15 @@ var (
 )
 
 type tbaDefaults struct {
-	allianceMaxRetries  int
-	allianceBackoffBase time.Duration
-	requestTimeout      time.Duration
+	AllianceMaxRetries  int           `env:"TBA_ALLIANCE_MAX_RETRIES" default:"5"`
+	AllianceBackoffBase time.Duration `env:"TBA_ALLIANCE_BACKOFF_BASE" default:"1s"`
+	RequestTimeout      time.Duration `env:"TBA_REQUEST_TIMEOUT" default:"30s"`
 }
 
 func loadDefaults() tbaDefaults {
-	return tbaDefaults{
-		allianceMaxRetries:  utils.MustGetEnvInt(tbaAllianceMaxRetriesEnvKey, defaultTbaAllianceMaxRetries),
-		allianceBackoffBase: utils.MustGetEnvDuration(tbaAllianceBackoffBaseEnvKey, defaultTbaAllianceBackoffBase),
-		requestTimeout:      utils.MustGetEnvDuration(tbaRequestTimeoutEnvKey, defaultTbaRequestTimeout),
-	}
+	var d tbaDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *tbaDefaults {
@@ -42,10 +30,10 @@ func getDefaults() *tbaDefaults {
 }
 
 // TbaAllianceMaxRetries returns the number of empty-alliance retries.
-func TbaAllianceMaxRetries() int { return getDefaults().allianceMaxRetries }
+func TbaAllianceMaxRetries() int { return getDefaults().AllianceMaxRetries }
 
 // TbaAllianceBackoffBase returns the base duration for exponential backoff.
-func TbaAllianceBackoffBase() time.Duration { return getDefaults().allianceBackoffBase }
+func TbaAllianceBackoffBase() time.Duration { return getDefaults().AllianceBackoffBase }
 
 // TbaRequestTimeout returns the timeout for outbound TBA API requests.
-func TbaRequestTimeout() time.Duration { return getDefaults().requestTimeout }
+func TbaRequestTimeout() time.Duration { return getDefaults().RequestTimeout }

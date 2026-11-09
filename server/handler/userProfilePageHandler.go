@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"server/authentication"
@@ -27,14 +26,12 @@ func (h *Handler) HandleViewUserProfile(c *echo.Context) error {
 
 	discordId, err := h.Stores.UserStore.GetDiscordId(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to get discord id", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get discord id", err, "userUuid", userUuid)
 	}
 
 	drafts, preferences, err := h.loadUserNotificationSettings(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to load user notification settings", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to load user notification settings", err, "userUuid", userUuid)
 	}
 
 	userProfileIndex := userprofile.UserProfileIndex(
@@ -48,11 +45,7 @@ func (h *Handler) HandleViewUserProfile(c *echo.Context) error {
 		},
 	)
 	userProfile := userprofile.UserProfile("User Profile", true, username, userProfileIndex)
-	if err := Render(c, userProfile); err != nil {
-		log.Error(ctx, "Handle View User Profile Failed To Render", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, userProfile, "Handle View User Profile Failed To Render")
 }
 
 func (h *Handler) HandleUpdateUserProfile(c *echo.Context) error {
@@ -66,8 +59,7 @@ func (h *Handler) HandleUpdateUserProfile(c *echo.Context) error {
 
 	drafts, preferences, err := h.loadUserNotificationSettings(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to load user notification settings", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to load user notification settings", err, "userUuid", userUuid)
 	}
 
 	// Validate Discord ID if one was provided.
@@ -78,8 +70,7 @@ func (h *Handler) HandleUpdateUserProfile(c *echo.Context) error {
 	}
 
 	if err := h.Stores.UserStore.UpdateDiscordId(ctx, userUuid, discordId); err != nil {
-		log.Error(ctx, "Failed to update discord id", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to update discord id", err, "userUuid", userUuid)
 	}
 
 	log.Debug(ctx, "Updated discord id for user", "username", username)
@@ -99,14 +90,12 @@ func (h *Handler) HandleUpdateUserPassword(c *echo.Context) error {
 
 	discordId, err := h.Stores.UserStore.GetDiscordId(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to get discord id", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get discord id", err, "userUuid", userUuid)
 	}
 
 	drafts, preferences, err := h.loadUserNotificationSettings(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to load user notification settings", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to load user notification settings", err, "userUuid", userUuid)
 	}
 
 	renderPasswordCard := func(message, messageType string) error {
@@ -133,8 +122,7 @@ func (h *Handler) HandleUpdateUserPassword(c *echo.Context) error {
 		case authentication.IsValidationError(err):
 			return renderPasswordCard(err.Error(), "error")
 		default:
-			log.Error(ctx, "Failed to change password", "username", username, "error", err)
-			return renderPasswordCard("An error occurred. Please try again.", "error")
+			return InternalServerError(c, "Failed to change password", err, "username", username)
 		}
 	}
 
@@ -152,14 +140,12 @@ func (h *Handler) HandleUpdateUserNotificationPreferences(c *echo.Context) error
 
 	drafts, preferences, err := h.loadUserNotificationSettings(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to load user notification settings", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to load user notification settings", err, "userUuid", userUuid)
 	}
 
 	discordId, err := h.Stores.UserStore.GetDiscordId(ctx, userUuid)
 	if err != nil {
-		log.Error(ctx, "Failed to get discord id", "userUuid", userUuid, "error", err)
-		return c.String(http.StatusInternalServerError, "An error occurred")
+		return InternalServerError(c, "Failed to get discord id", err, "userUuid", userUuid)
 	}
 
 	renderNotificationsCard := func(message, messageType string) error {
@@ -221,31 +207,23 @@ func (h *Handler) renderAccountCard(c *echo.Context, ctx context.Context, userna
 			AccountMessageType: messageType,
 		},
 	)
-	if err := Render(c, card); err != nil {
-		log.Error(ctx, "Render account card failed", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, card, "Render account card failed")
 }
 
 func (h *Handler) renderPasswordCard(c *echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
 	card := userprofile.PasswordCard(
 		userprofile.ProfileData{
-			Username:           username,
-			DiscordId:          discordId,
-			Drafts:             drafts,
-			Preferences:        preferences,
-			MinPasswordLength:  h.Config.MinPasswordLength,
-			CsrfToken:          h.csrfToken(c),
-			PasswordMessage:    message,
+			Username:            username,
+			DiscordId:           discordId,
+			Drafts:              drafts,
+			Preferences:         preferences,
+			MinPasswordLength:   h.Config.MinPasswordLength,
+			CsrfToken:           h.csrfToken(c),
+			PasswordMessage:     message,
 			PasswordMessageType: messageType,
 		},
 	)
-	if err := Render(c, card); err != nil {
-		log.Error(ctx, "Render password card failed", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, card, "Render password card failed")
 }
 
 func (h *Handler) renderNotificationsCard(c *echo.Context, ctx context.Context, username string, discordId string, drafts []model.DraftModel, preferences map[int]model.DraftNotificationPreference, message string, messageType string) error {
@@ -261,9 +239,5 @@ func (h *Handler) renderNotificationsCard(c *echo.Context, ctx context.Context, 
 			NotificationMessageType: messageType,
 		},
 	)
-	if err := Render(c, card); err != nil {
-		log.Error(ctx, "Render notifications card failed", "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, card, "Render notifications card failed")
 }

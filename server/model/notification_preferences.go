@@ -2,8 +2,8 @@ package model
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-
 	"server/database"
 
 	"uuid"
@@ -31,33 +31,13 @@ func getDraftsForUser(ctx context.Context, db database.DBTX, userUuid uuid.UUID)
 		ORDER BY d.Id DESC
 	`
 
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare get drafts for user statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetDraftsForUser")
-
-	rows, err := stmt.QueryContext(ctx, userUuid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get drafts for user: %w", err)
-	}
-	defer database.CloseRows(ctx, rows, "GetDraftsForUser")
-
-	var drafts []DraftModel
-	for rows.Next() {
+	return database.QueryRows(ctx, db, query, func(rows *sql.Rows) (DraftModel, error) {
 		var draft DraftModel
-		err = rows.Scan(&draft.Id, &draft.DisplayName, &draft.Status)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan draft for user: %w", err)
+		if err := rows.Scan(&draft.Id, &draft.DisplayName, &draft.Status); err != nil {
+			return draft, fmt.Errorf("failed to scan draft for user: %w", err)
 		}
-		drafts = append(drafts, draft)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating drafts for user: %w", err)
-	}
-
-	return drafts, nil
+		return draft, nil
+	}, userUuid)
 }
 
 // getUserDraftNotificationPreferences returns all notification preferences for a user, keyed by DraftId.
@@ -68,33 +48,22 @@ func getUserDraftNotificationPreferences(ctx context.Context, db database.DBTX, 
 		WHERE UserUuid = $1
 	`
 
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare get user notification preferences statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "GetUserDraftNotificationPreferences")
-
-	rows, err := stmt.QueryContext(ctx, userUuid)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user notification preferences: %w", err)
-	}
-	defer database.CloseRows(ctx, rows, "GetUserDraftNotificationPreferences")
-
-	preferences := make(map[int]DraftNotificationPreference)
-	for rows.Next() {
+	prefs, err := database.QueryRows(ctx, db, query, func(rows *sql.Rows) (DraftNotificationPreference, error) {
 		var pref DraftNotificationPreference
 		pref.UserUuid = userUuid
-		err = rows.Scan(&pref.DraftId, &pref.UpcomingMatch, &pref.PickTurn)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan user notification preference: %w", err)
+		if err := rows.Scan(&pref.DraftId, &pref.UpcomingMatch, &pref.PickTurn); err != nil {
+			return pref, fmt.Errorf("failed to scan user notification preference: %w", err)
 		}
+		return pref, nil
+	}, userUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	preferences := make(map[int]DraftNotificationPreference, len(prefs))
+	for _, pref := range prefs {
 		preferences[pref.DraftId] = pref
 	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating user notification preferences: %w", err)
-	}
-
 	return preferences, nil
 }
 
@@ -107,16 +76,8 @@ func updateUserDraftNotificationPreference(ctx context.Context, db database.DBTX
 		DO UPDATE SET UpcomingMatch = EXCLUDED.UpcomingMatch, PickTurn = EXCLUDED.PickTurn
 	`
 
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare update user notification preference statement: %w", err)
-	}
-	defer database.CloseStatement(ctx, stmt, "UpdateUserDraftNotificationPreference")
-
-	_, err = stmt.ExecContext(ctx, userUuid, draftId, upcomingMatch, pickTurn)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, userUuid, draftId, upcomingMatch, pickTurn); err != nil {
 		return fmt.Errorf("failed to update user notification preference: %w", err)
 	}
-
 	return nil
 }

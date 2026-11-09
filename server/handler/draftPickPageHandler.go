@@ -134,18 +134,9 @@ func (h *Handler) renderPickPage(c *echo.Context, draftId int, userUuid uuid.UUI
 	pickPageIndex := draftView.DraftPickIndex(pickPageModel, h.csrfToken(c))
 	if includeWrapper {
 		pickPageView := draftView.DraftPick("Draft Picks", true, username, pickPageIndex, types.NewPageData(draftId, draftActor.GetDraftState().DisplayName, isOwner))
-		if err := Render(c, pickPageView); err != nil {
-			log.Error(c.Request().Context(), "Failed to render pick page", "draftId", draftId, "error", err)
-			return err
-		}
-		return nil
-	} else {
-		if err := Render(c, pickPageIndex); err != nil {
-			log.Error(c.Request().Context(), "Failed to render pick page index", "draftId", draftId, "error", err)
-			return err
-		}
-		return nil
+		return RenderOrLog(c, pickPageView, "Failed to render pick page", "draftId", draftId)
 	}
+	return RenderOrLog(c, pickPageIndex, "Failed to render pick page index", "draftId", draftId)
 }
 
 func (h *Handler) newUpgrader() *websocket.Upgrader {

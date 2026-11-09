@@ -10,9 +10,9 @@ import (
 func TestLoadDefaults_DefaultValues(t *testing.T) {
 	d := loadDefaults()
 
-	assert.Equal(t, 90, d.maxOpenConns)
-	assert.Equal(t, 25, d.maxIdleConns)
-	assert.Equal(t, 30*time.Minute, d.connMaxLifetime)
+	assert.Equal(t, 90, d.MaxOpenConns)
+	assert.Equal(t, 25, d.MaxIdleConns)
+	assert.Equal(t, 30*time.Minute, d.ConnMaxLifetime)
 }
 
 func TestLoadDefaults_Override(t *testing.T) {
@@ -22,7 +22,7 @@ func TestLoadDefaults_Override(t *testing.T) {
 
 	d := loadDefaults()
 
-	assert.Equal(t, 10, d.maxOpenConns)
-	assert.Equal(t, 5, d.maxIdleConns)
-	assert.Equal(t, 5*time.Minute, d.connMaxLifetime)
+	assert.Equal(t, 10, d.MaxOpenConns)
+	assert.Equal(t, 5, d.MaxIdleConns)
+	assert.Equal(t, 5*time.Minute, d.ConnMaxLifetime)
 }

@@ -3,16 +3,12 @@ package utils
 import (
 	"strings"
 	"sync"
+
+	"server/config"
 )
 
 const (
-	tbaEventCodesEnvKey = "TBA_EVENT_CODES"
-	defaultTbaEventCodes = "arc,cur,dal,gal,hop,joh,mil,new,cmptx"
-
 	defaultTimezone = "America/New_York"
-
-	tbaWebhookSecretFileEnvKey = "TBA_WEBHOOK_SECRET_FILE" //nolint:gosec // environment variable key name, not a credential
-	defaultTbaWebhookSecretFile = "./webhookSecret.txt" //nolint:gosec // default file path, not a credential
 
 	// Sentinel values for URL helpers.
 	CreateDraftId = -1
@@ -39,18 +35,15 @@ var (
 )
 
 type utilsDefaults struct {
-	eventCodes         []string
-	timezone           string
-	webhookSecretFile  string
+	EventCodes        []string `env:"TBA_EVENT_CODES" default:"arc,cur,dal,gal,hop,joh,mil,new,cmptx"`
+	WebhookSecretFile string   `env:"TBA_WEBHOOK_SECRET_FILE" default:"./webhookSecret.txt"`
 }
 
 func loadDefaults() utilsDefaults {
-	codes := MustGetEnvString(tbaEventCodesEnvKey, defaultTbaEventCodes)
-	return utilsDefaults{
-		eventCodes:        strings.Split(codes, ","),
-		timezone:          defaultTimezone,
-		webhookSecretFile: MustGetEnvString(tbaWebhookSecretFileEnvKey, defaultTbaWebhookSecretFile),
-	}
+	var d utilsDefaults
+	config.MustLoad(&d)
+	d.EventCodes = trimStrings(d.EventCodes)
+	return d
 }
 
 func getDefaults() *utilsDefaults {
@@ -59,9 +52,16 @@ func getDefaults() *utilsDefaults {
 }
 
 // Timezone returns the canonical IANA timezone used for scheduling and display.
-func Timezone() string { return getDefaults().timezone }
+func Timezone() string { return defaultTimezone }
 
 // WebhookSecretFile returns the path to the TBA webhook verification file.
-func WebhookSecretFile() string { return getDefaults().webhookSecretFile }
+func WebhookSecretFile() string { return getDefaults().WebhookSecretFile }
 
-func eventCodes() []string { return getDefaults().eventCodes }
+func eventCodes() []string { return getDefaults().EventCodes }
+
+func trimStrings(s []string) []string {
+	for i := range s {
+		s[i] = strings.TrimSpace(s[i])
+	}
+	return s
+}

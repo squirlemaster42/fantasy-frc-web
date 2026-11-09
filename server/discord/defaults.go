@@ -1,20 +1,10 @@
 package discord
 
 import (
-	"server/utils"
 	"sync"
 	"time"
-)
 
-const (
-	discordWebhookTimeoutEnvKey = "DISCORD_WEBHOOK_TIMEOUT"
-	defaultDiscordWebhookTimeout = 15 * time.Second
-
-	discordPreMatchQueueBufferEnvKey = "DISCORD_PREMATCH_QUEUE_BUFFER"
-	defaultDiscordPreMatchQueueBuffer = 100
-
-	discordMinIdLengthEnvKey = "DISCORD_MIN_ID_LENGTH"
-	defaultDiscordMinIdLength = 17
+	"server/config"
 )
 
 var (
@@ -23,17 +13,15 @@ var (
 )
 
 type discordDefaults struct {
-	webhookTimeout     time.Duration
-	preMatchQueueBuffer int
-	minIdLength        int
+	WebhookTimeout      time.Duration `env:"DISCORD_WEBHOOK_TIMEOUT" default:"15s"`
+	PreMatchQueueBuffer int           `env:"DISCORD_PREMATCH_QUEUE_BUFFER" default:"100"`
+	MinIdLength         int           `env:"DISCORD_MIN_ID_LENGTH" default:"17"`
 }
 
 func loadDefaults() discordDefaults {
-	return discordDefaults{
-		webhookTimeout:      utils.MustGetEnvDuration(discordWebhookTimeoutEnvKey, defaultDiscordWebhookTimeout),
-		preMatchQueueBuffer: utils.MustGetEnvInt(discordPreMatchQueueBufferEnvKey, defaultDiscordPreMatchQueueBuffer),
-		minIdLength:         utils.MustGetEnvInt(discordMinIdLengthEnvKey, defaultDiscordMinIdLength),
-	}
+	var d discordDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *discordDefaults {
@@ -42,10 +30,10 @@ func getDefaults() *discordDefaults {
 }
 
 // DiscordWebhookTimeout returns the HTTP client timeout for Discord webhook calls.
-func DiscordWebhookTimeout() time.Duration { return getDefaults().webhookTimeout }
+func DiscordWebhookTimeout() time.Duration { return getDefaults().WebhookTimeout }
 
 // DiscordPreMatchQueueBuffer returns the capacity of the pre-match notification channel.
-func DiscordPreMatchQueueBuffer() int { return getDefaults().preMatchQueueBuffer }
+func DiscordPreMatchQueueBuffer() int { return getDefaults().PreMatchQueueBuffer }
 
 // DiscordMinIdLength returns the minimum valid Discord snowflake length.
-func DiscordMinIdLength() int { return getDefaults().minIdLength }
+func DiscordMinIdLength() int { return getDefaults().MinIdLength }

@@ -13,7 +13,7 @@ templ AdminConsoleIndex(username string, csrfToken string) {
         </div>
 
         <!-- Output log -->
-        <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+        <div class="card app-card">
             <div class="card-body p-6">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-bold text-base-content">Operation Output</h2>
@@ -32,25 +32,37 @@ templ AdminConsoleIndex(username string, csrfToken string) {
         <!-- Operation grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             @commandCard("Ping", "Check that the admin console is responding.") {
-                @partials.HtmxButton("/u/admin/ping", "#output", "beforeend", "", false, "btn btn-success w-full", "", "", "", csrfToken) {
+                @partials.HtmxButton(partials.HtmxButtonOptions{
+                    URL: "/u/admin/ping", Target: "#output", Swap: "beforeend",
+                    Classes: "btn btn-success w-full", CsrfToken: csrfToken,
+                }) {
                     Ping Server
                 }
             }
 
             @commandCard("Populate Teams", "Fetch and create team records for all configured events.") {
-                @partials.HtmxButton("/u/admin/populateTeams", "#output", "beforeend", "", false, "btn btn-primary w-full", "", "", "", csrfToken) {
+                @partials.HtmxButton(partials.HtmxButtonOptions{
+                    URL: "/u/admin/populateTeams", Target: "#output", Swap: "beforeend",
+                    Classes: "btn btn-primary w-full", CsrfToken: csrfToken,
+                }) {
                     Populate Teams
                 }
             }
 
             @commandCard("Invalidate Pick Cache", "Refresh the TBA pick validation cache.") {
-                @partials.HtmxButton("/u/admin/invalidatePickCache", "#output", "beforeend", "", false, "btn btn-info w-full", "", "", "", csrfToken) {
+                @partials.HtmxButton(partials.HtmxButtonOptions{
+                    URL: "/u/admin/invalidatePickCache", Target: "#output", Swap: "beforeend",
+                    Classes: "btn btn-info w-full", CsrfToken: csrfToken,
+                }) {
                     Invalidate Cache
                 }
             }
 
             @commandCard("View Webhook Key", "Display the current TBA webhook verification key.") {
-                @partials.HtmxButton("/u/admin/viewWebhookKey", "#output", "beforeend", "", false, "btn btn-ghost w-full", "", "", "", csrfToken) {
+                @partials.HtmxButton(partials.HtmxButtonOptions{
+                    URL: "/u/admin/viewWebhookKey", Target: "#output", Swap: "beforeend",
+                    Classes: "btn btn-ghost w-full", CsrfToken: csrfToken,
+                }) {
                     Show Key
                 }
             }
@@ -157,7 +169,7 @@ templ AdminConsoleIndex(username string, csrfToken string) {
 }
 
 templ commandCard(title string, description string) {
-    <div class="card bg-base-200 shadow-lg rounded-2xl border border-base-300">
+    <div class="card app-card">
         <div class="card-body p-6">
             <h2 class="text-lg font-bold text-base-content">{title}</h2>
             <p class="text-base-content/70 text-sm mb-4">{description}</p>

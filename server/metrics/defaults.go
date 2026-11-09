@@ -1,18 +1,13 @@
 package metrics
 
 import (
-	"server/utils"
 	"sync"
 	"time"
+
+	"server/config"
 )
 
 const (
-	activeUserCollectorTickIntervalEnvKey = "METRICS_ACTIVE_USER_TICK_INTERVAL"
-	defaultActiveUserCollectorTickInterval = 10 * time.Second
-
-	metricsQueryIdMaxLengthEnvKey = "METRICS_QUERY_ID_MAX_LENGTH"
-	defaultMetricsQueryIdMaxLength = 100
-
 	// Active-user window sizes.
 	activeUserWindow1m  = 1 * time.Minute
 	activeUserWindow5m  = 5 * time.Minute
@@ -35,15 +30,17 @@ var (
 )
 
 type metricsDefaults struct {
-	activeUserTickInterval time.Duration
-	queryIdMaxLength       int
+	ActiveUserTickInterval time.Duration `env:"METRICS_ACTIVE_USER_TICK_INTERVAL" default:"10s"`
+	QueryIdMaxLength       int           `env:"METRICS_QUERY_ID_MAX_LENGTH" default:"100"`
+	QueryThresholdMs       int           `env:"DB_QUERY_THRESHOLD_MS" default:"50"`
+	QueryPollInterval      time.Duration `env:"DB_QUERY_POLL_INTERVAL" default:"30s"`
+	QueryMaxCount          int           `env:"DB_QUERY_MAX_COUNT" default:"50"`
 }
 
 func loadDefaults() metricsDefaults {
-	return metricsDefaults{
-		activeUserTickInterval: utils.MustGetEnvDuration(activeUserCollectorTickIntervalEnvKey, defaultActiveUserCollectorTickInterval),
-		queryIdMaxLength:       utils.MustGetEnvInt(metricsQueryIdMaxLengthEnvKey, defaultMetricsQueryIdMaxLength),
-	}
+	var d metricsDefaults
+	config.MustLoad(&d)
+	return d
 }
 
 func getDefaults() *metricsDefaults {
@@ -52,7 +49,16 @@ func getDefaults() *metricsDefaults {
 }
 
 // ActiveUserCollectorTickInterval returns how often active-user gauges are updated.
-func ActiveUserCollectorTickInterval() time.Duration { return getDefaults().activeUserTickInterval }
+func ActiveUserCollectorTickInterval() time.Duration { return getDefaults().ActiveUserTickInterval }
 
 // MetricsQueryIdMaxLength returns the maximum length of a query ID label before truncation.
-func MetricsQueryIdMaxLength() int { return getDefaults().queryIdMaxLength }
+func MetricsQueryIdMaxLength() int { return getDefaults().QueryIdMaxLength }
+
+// DBQueryThresholdMs returns the minimum mean query time for stats collection.
+func DBQueryThresholdMs() int { return getDefaults().QueryThresholdMs }
+
+// DBQueryPollInterval returns how often database query stats are collected.
+func DBQueryPollInterval() time.Duration { return getDefaults().QueryPollInterval }
+
+// DBQueryMaxCount returns the maximum number of queries returned by the stats collector.
+func DBQueryMaxCount() int { return getDefaults().QueryMaxCount }

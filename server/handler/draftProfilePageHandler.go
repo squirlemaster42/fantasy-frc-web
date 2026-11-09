@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,17 +27,16 @@ func (h *Handler) HandleViewDraftProfile(c *echo.Context) error {
 		return err
 	}
 
-	draftId, err := strconv.Atoi(c.Param("id"))
+	draftId, err := h.parseDraftId(c)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Failed to parse draft id", "draftIdString", c.Param("id"), "error", err)
-		return c.String(http.StatusBadRequest, "Invalid draft ID")
+		return BadRequest(c, "Failed to parse draft id", "Invalid draft ID", "error", err)
 	}
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(c.Request().Context(), draftId)
 	if err != nil {
 		// We want to redirect back to the home screen
 		log.Debug(c.Request().Context(), "User attempted to visit incorrect draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return c.Redirect(http.StatusSeeOther, "/u/home")
+		return Redirect(c, "/u/home")
 	}
 	draftModel := draft.GetDraft(draftActor)
 
@@ -44,36 +44,29 @@ func (h *Handler) HandleViewDraftProfile(c *echo.Context) error {
 
 	draftIndex := draftView.DraftProfileIndex(draftModel, isOwner, h.csrfToken(c))
 	draftView := draftView.DraftProfile("Draft Profile", true, username, draftIndex, types.NewPageData(draftId, draftModel.DisplayName, isOwner))
-	if err := Render(c, draftView); err != nil {
-		log.Error(c.Request().Context(), "Handle View Draft Profile Failed To Render", "draftId", draftId, "error", err)
-		return err
-	}
-	return nil
+	return RenderOrLog(c, draftView, "Handle View Draft Profile Failed To Render", "draftId", draftId)
 }
 
 // HandleUpdateDraftProfile updates the draft profile fields (name, description, interval, times, webhook).
 func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	log.Debug(c.Request().Context(), "Got request to update a draft")
 
-	draftId, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		log.Warn(c.Request().Context(), "Could not parse draftId from params", "error", err)
-		return c.String(http.StatusBadRequest, "Invalid draft ID")
-	}
-
-	draftName := c.FormValue("draftName")
-	description := c.FormValue("description")
-	discordWebhook := c.FormValue("discordWebhook")
-
 	userUuid, err := h.requireUserUuid(c)
 	if err != nil {
 		return err
 	}
 
+	draftId, err := h.parseDraftId(c)
+	if err != nil {
+		return BadRequest(c, "Failed to parse draft id", "Invalid draft ID", "error", err)
+	}
+
 	draftModel, err := h.Stores.DraftStore.GetDraft(c.Request().Context(), draftId)
 	if err != nil {
-		log.Warn(c.Request().Context(), "User attempted to write to invalid draft id", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return c.String(http.StatusBadRequest, "Invalid draft ID")
+		if errors.Is(err, sql.ErrNoRows) {
+			return BadRequest(c, "User attempted to write to invalid draft id", "Invalid draft ID", "userUuid", userUuid, "draftId", draftId)
+		}
+		return InternalServerError(c, "Failed to get draft", err, "draftId", draftId)
 	}
 
 	if draftModel.Owner.UserUuid != userUuid {
@@ -81,18 +74,21 @@ func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 		// so for now we just won't tell them what is wrong
 		// because it is probably malicious
 		log.Warn(c.Request().Context(), "User tried to update draft but was not the owner", "userUuid", userUuid, "draftId", draftId, "ownerId", draftModel.Owner.UserUuid)
-		return c.String(http.StatusForbidden, "You do not have permission to update this draft")
+		return Forbidden(c, "User tried to update draft but was not the owner", "You do not have permission to update this draft")
 	}
 
 	if draftModel.Status != model.FILLING {
 		log.Warn(c.Request().Context(), "User attempted to update draft timing after draft started", "userUuid", userUuid, "draftId", draftId, "status", draftModel.Status)
-		return c.String(http.StatusBadRequest, "Draft settings can only be changed while the draft is filling")
+		return BadRequest(c, "User attempted to update draft timing after draft started", "Draft settings can only be changed while the draft is filling", "userUuid", userUuid, "draftId", draftId, "status", draftModel.Status)
 	}
+
+	draftName := c.FormValue("draftName")
+	description := c.FormValue("description")
+	discordWebhook := c.FormValue("discordWebhook")
 
 	timingType, initialPickTimeSec, incrementTimeSec, perPickExpTimeSec, err := parseDraftTimingForm(c, draftModel)
 	if err != nil {
-		log.Warn(c.Request().Context(), "Invalid draft timing values", "userUuid", userUuid, "draftId", draftId, "error", err)
-		return c.String(http.StatusBadRequest, err.Error())
+		return BadRequest(c, "Invalid draft timing values", err.Error(), "userUuid", userUuid, "draftId", draftId, "error", err)
 	}
 
 	draftModel = model.DraftModel{
@@ -122,8 +118,7 @@ func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	}
 
 	log.Debug(c.Request().Context(), "Draft updated, reloading page", "draftId", draftId)
-	c.Response().Header().Set("HX-Redirect", fmt.Sprintf("/u/draft/%d/profile", draftId))
-	return nil
+	return HXRedirect(c, "/u/draft/"+strconv.Itoa(draftId)+"/profile")
 }
 
 // SearchPlayers searches for users to invite to a draft and returns the results as HTML.

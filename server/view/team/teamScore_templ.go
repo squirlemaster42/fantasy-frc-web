@@ -119,7 +119,7 @@ func TeamScoreReport(teamNumber string, scores map[string]int, qualificationMatc
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"card bg-base-200 shadow-lg rounded-2xl border border-base-300 hover:shadow-xl transition-all duration-300\"><div class=\"card-body p-6\"><!-- Team Header --><div class=\"flex items-center gap-3 mb-4\"><div class=\"w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden\" style=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"card app-card app-card-hover\"><div class=\"card-body p-6\"><!-- Team Header --><div class=\"flex items-center gap-3 mb-4\"><div class=\"w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden\" style=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

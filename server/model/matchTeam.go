@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"server/database"
 )
@@ -19,7 +18,7 @@ func (m *MatchTeam) String() string {
 		m.TeamTbaId, m.MatchTbaId, m.Alliance, m.IsDqed)
 }
 
-func associateTeam(ctx context.Context, db *sql.DB, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
+func associateTeam(ctx context.Context, db database.DBTX, matchTbaId string, teamTbaId string, alliance string, isDqed bool) error {
 	team, err := getTeam(ctx, db, teamTbaId)
 	if err != nil {
 		return fmt.Errorf("failed to get team: %w", err)
@@ -32,13 +31,7 @@ func associateTeam(ctx context.Context, db *sql.DB, matchTbaId string, teamTbaId
 
 	query := `INSERT INTO Matches_Teams (team_tbaId, match_tbaId, alliance, isDqed) Values ($1, $2, $3, $4)
         On Conflict (team_tbaId, match_tbaId) Do Update Set alliance = excluded.alliance, isDqed = excluded.isDqed;`
-	stmt, err := database.Prepare(ctx, db, query)
-	if err != nil {
-		return err
-	}
-	defer database.CloseStatement(ctx, stmt, "AssociateTeam")
-	_, err = stmt.ExecContext(ctx, teamTbaId, matchTbaId, alliance, isDqed)
-	if err != nil {
+	if _, err := database.Exec(ctx, db, query, teamTbaId, matchTbaId, alliance, isDqed); err != nil {
 		return fmt.Errorf("failed to associate team: %w", err)
 	}
 	return nil
