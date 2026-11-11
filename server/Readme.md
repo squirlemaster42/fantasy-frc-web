@@ -16,7 +16,7 @@ For detailed development guidelines, build commands, and code style, see the pro
    cp .env.example .env  # or manually create .env with required variables
    ```
 
-   Required variables: `DB_PASSWORD`, `DB_USERNAME`, `DB_IP`, `DB_NAME`, `SERVER_PORT`, `TBA_TOKEN`, `TBA_WEBHOOK_SECRET`, `METRIC_SECRET`, `CSRF_SECRET`.
+   Required variables: `DB_PASSWORD`, `DB_USERNAME`, `DB_IP`, `DB_NAME`, `SERVER_PORT`, `TBA_TOKEN`, `TBA_WEBHOOK_SECRET`, `METRIC_SECRET`, `CSRF_SECRET`
 
 3. **Run database migrations:**
    ```bash
@@ -24,7 +24,7 @@ For detailed development guidelines, build commands, and code style, see the pro
    make up
    ```
 
-   Migrations are managed with [goose](https://github.com/pressly/goose). See [`../database/README.md`](../database/README.md) for all migration commands.
+   Migrations are managed with [goose](https://github.com/pressly/goose). See [`../database/README.md`](../database/README.md) for all migration commands
 
 ## Development
 
@@ -33,7 +33,7 @@ For detailed development guidelines, build commands, and code style, see the pro
 make run-verbose
 ```
 
-This starts the [templ proxy](https://templ.guide/commands-and-tools/proxy/) on `http://127.0.0.1:7331` for hot-reloaded UI updates, plus the Go server on `SERVER_PORT`.
+This starts the [templ proxy](https://templ.guide/commands-and-tools/proxy/) on `http://127.0.0.1:7331` for hot-reloaded UI updates, plus the Go server on `SERVER_PORT`
 
 **Watch CSS only:**
 ```bash
@@ -105,10 +105,10 @@ docker build -t fantasyfrc .
 docker run --env-file <env-file> --add-host=host.docker.internal:host-gateway -p <external-port>:<server-port> fantasyfrc
 ```
 
-The internal listening port is controlled by `SERVER_PORT` in your env file, not by the `EXPOSE` directive.
+The internal listening port is controlled by `SERVER_PORT` in your env file, not by the `EXPOSE` directive
 
 ## Notes
 
-- Tailwind CSS CLI is automatically downloaded if not present.
-- Production build creates a static binary with embedded assets.
-- Tests create test accounts. To use these you need to set `MIN_PASSWORD_LENGTH` shorter in your env file.
+- Tailwind CSS CLI is automatically downloaded if not present
+- Production build creates a static binary with embedded assets
+- Tests create test accounts. To use these you need to set `MIN_PASSWORD_LENGTH` shorter in your env file
