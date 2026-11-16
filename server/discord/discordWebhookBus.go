@@ -5,9 +5,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"server/log"
 	"strconv"
 	"strings"
@@ -176,6 +178,35 @@ func IsValidId(s string) bool {
 	}
 	_, err := strconv.ParseUint(s, 10, 64)
 	return err == nil
+}
+
+// ValidateWebhookURL reports whether rawURL is a Discord webhook URL.
+// It rejects non-https schemes, non-Discord hosts, and paths that do not begin
+// with the webhook endpoint prefix. This prevents SSRF via user-supplied URLs.
+func ValidateWebhookURL(rawURL string) error {
+	if rawURL == "" {
+		return nil
+	}
+
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return errors.New("invalid webhook URL")
+	}
+
+	if u.Scheme != "https" {
+		return errors.New("webhook URL must use HTTPS")
+	}
+
+	host := strings.ToLower(u.Hostname())
+	if host != "discord.com" && host != "discordapp.com" {
+		return errors.New("webhook URL must point to Discord")
+	}
+
+	if !strings.HasPrefix(u.Path, "/api/webhooks/") {
+		return errors.New("webhook URL must be a Discord webhook path")
+	}
+
+	return nil
 }
 
 func buildInProgressWebhook(event NextPickDiscordEvent, previousIdentifier string, nextIdentifier string, previousPickedTeam string) DiscordWebhook {

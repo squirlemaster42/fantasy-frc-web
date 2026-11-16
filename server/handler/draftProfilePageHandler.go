@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"server/discord"
 	"server/draft"
 	"server/log"
 	"server/model"
@@ -85,6 +86,11 @@ func (h *Handler) HandleUpdateDraftProfile(c *echo.Context) error {
 	draftName := c.FormValue("draftName")
 	description := c.FormValue("description")
 	discordWebhook := c.FormValue("discordWebhook")
+
+	if err := discord.ValidateWebhookURL(discordWebhook); err != nil {
+		log.Warn(c.Request().Context(), "Invalid Discord webhook URL", "userUuid", userUuid, "draftId", draftId, "error", err)
+		return BadRequest(c, "Invalid Discord webhook URL", err.Error(), "userUuid", userUuid, "draftId", draftId)
+	}
 
 	timingType, initialPickTimeSec, incrementTimeSec, perPickExpTimeSec, err := parseDraftTimingForm(c, draftModel)
 	if err != nil {

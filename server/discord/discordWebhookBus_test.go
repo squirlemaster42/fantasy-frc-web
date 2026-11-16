@@ -13,6 +13,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateWebhookURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{"valid discord.com webhook", "https://discord.com/api/webhooks/1234567890123456789/abc-def", false},
+		{"valid discordapp.com webhook", "https://discordapp.com/api/webhooks/1234567890123456789/abc-def", false},
+		{"empty URL allowed", "", false},
+		{"http scheme rejected", "http://discord.com/api/webhooks/123/abc", true},
+		{"non-discord host rejected", "https://evil.com/api/webhooks/123/abc", true},
+		{"subdomain prefix rejected", "https://discord.com.evil.com/api/webhooks/123/abc", true},
+		{"wrong path rejected", "https://discord.com/api/other/123/abc", true},
+		{"root path rejected", "https://discord.com/", true},
+		{"ftp scheme rejected", "ftp://discord.com/api/webhooks/123/abc", true},
+		{"IP address rejected", "https://169.254.169.254/api/webhooks/123/abc", true},
+		{"localhost rejected", "https://localhost/api/webhooks/123/abc", true},
+		{"garbage URL rejected", "not-a-url", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWebhookURL(tt.url)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestNewBus(t *testing.T) {
 	bus := NewBus()
 	defer bus.Stop()

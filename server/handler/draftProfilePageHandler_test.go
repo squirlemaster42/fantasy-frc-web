@@ -547,4 +547,39 @@ func TestHandleUpdateDraftProfile(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Draft settings can only be changed while the draft is filling")
 	})
+
+	t.Run("rejects invalid Discord webhook URL", func(t *testing.T) {
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated&discordWebhook=https://evil.com/webhook",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{
+				Id:     1,
+				Owner:  model.User{UserUuid: userUuid},
+				Status: model.FILLING,
+			}, nil).Once()
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Discord")
+	})
 }
