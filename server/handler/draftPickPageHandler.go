@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"server/draft"
 	"server/log"
 	"server/model"
+	"server/picking"
 	"server/types"
 	draftView "server/view/draft"
 	"strconv"
-	"strings"
 	"time"
 
 	"uuid"
@@ -143,27 +144,68 @@ func (h *Handler) newUpgrader() *websocket.Upgrader {
 	return &websocket.Upgrader{
 		ReadBufferSize:  WsReadBufferSize(),
 		WriteBufferSize: WsWriteBufferSize(),
-		CheckOrigin: func(r *http.Request) bool {
-			origin := r.Header.Get("Origin")
-			if h.Config.AllowedOrigin != "" {
-				return origin == h.Config.AllowedOrigin
-			}
-			// No explicit origin configured: allow same-origin and localhost for local dev
-			if origin == "" {
-				return true
-			}
-			host := r.Host
-			return strings.HasPrefix(origin, "http://"+host) ||
-				strings.HasPrefix(origin, "https://"+host) ||
-				strings.HasPrefix(origin, "http://localhost:") ||
-				strings.HasPrefix(origin, "https://localhost:")
-		},
+		CheckOrigin:     h.checkWebsocketOrigin,
 	}
+}
+
+// checkWebsocketOrigin validates the Origin header on WebSocket upgrade requests.
+// When ALLOWED_ORIGIN is configured, only an exact match is accepted. Otherwise it
+// falls back to same-origin verification plus localhost for local development.
+// The origin is parsed and compared by host (including port) to prevent subdomain
+// prefix bypasses such as http://example.com.evil.com matching example.com.
+func (h *Handler) checkWebsocketOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if h.Config.AllowedOrigin != "" {
+		return origin == h.Config.AllowedOrigin
+	}
+
+	// No explicit origin configured: allow same-origin and localhost for local dev.
+	if origin == "" {
+		return true
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+
+	if originURL.Scheme != "http" && originURL.Scheme != "https" {
+		return false
+	}
+
+	// Exact host:port match prevents subdomain/hostname-prefix attacks.
+	if originURL.Host == r.Host {
+		return true
+	}
+
+	// Localhost fallback for local development (any port).
+	return originURL.Hostname() == "localhost"
 }
 
 // PickNotifier upgrades the HTTP connection to a WebSocket and streams live pick updates.
 func (h *Handler) PickNotifier(c *echo.Context) error {
 	ctx := c.Request().Context()
+
+	userUuid, err := h.requireUserUuid(c)
+	if err != nil {
+		return err
+	}
+
+	draftIdStr := c.Param("id")
+	draftId, err := strconv.Atoi(draftIdStr)
+	if err != nil {
+		log.Error(ctx, "Failed to parse draft id string", "draftIdString", draftIdStr, "error", err)
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	_, err = h.Stores.DraftStore.GetDraftPlayerId(ctx, draftId, userUuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.NoContent(http.StatusForbidden)
+		}
+		log.Error(ctx, "Failed to verify draft membership", "draftId", draftId, "userUuid", userUuid, "error", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
 
 	upgrader := h.newUpgrader()
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -172,26 +214,18 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 		return c.NoContent(http.StatusBadRequest)
 	}
 
-	draftIdStr := c.Param("id")
-	draftId, err := strconv.Atoi(draftIdStr)
-	if err != nil {
-		log.Error(ctx, "Failed to parse draft id string", "draftIdString", draftIdStr, "error", err)
-		_ = conn.Close()
-		return c.NoContent(http.StatusBadRequest)
-	}
-
 	draftActor, err := h.Services.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {
 		log.Error(ctx, "Failed to get draft actor", "draftId", draftId, "error", err)
 		_ = conn.Close()
-		return c.NoContent(http.StatusNotFound)
+		return nil
 	}
 
 	watcher := draft.RegisterWatcher(ctx, h.Services.DraftActorMap, draftId)
 	if watcher == nil {
 		log.Error(ctx, "Failed to register watcher for draft", "draftId", draftId)
 		_ = conn.Close()
-		return c.NoContent(http.StatusInternalServerError)
+		return nil
 	}
 
 	done := make(chan struct{})
@@ -215,12 +249,6 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 		}
 	}()
 
-	userUuid, err := h.requireUserUuid(c)
-	if err != nil {
-		_ = conn.Close()
-		return err
-	}
-
 	ticker := time.NewTicker(WsPingInterval())
 	defer func() {
 		ticker.Stop()
@@ -241,9 +269,22 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 			}
 			if err = conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(WsWriteTimeout())); err != nil {
 				log.Error(ctx, "Failed to write ping message", "draftId", draftId, "error", err)
-				return fmt.Errorf("failed to write websocket control message: %w", err)
-		}
-		case <-watcher.NotifierQueue:
+				return nil
+			}
+		case notification := <-watcher.NotifierQueue:
+			if notification.Type == picking.DraftStateChangedNotificationType {
+				if notification.Status != model.PICKING {
+					log.Debug(ctx, "Draft no longer in picking state, closing pick notifier", "draftId", draftId, "status", notification.Status)
+					return nil
+				}
+				continue
+			}
+			if notification.Type != picking.PickNotificationType {
+				// This watcher is shared across all draft update types; ignore
+				// notifications meant for other handlers (e.g. score updates).
+				continue
+			}
+
 			log.Debug(ctx, "Received pick event notification, re-rendering picks", "draftId", draftId)
 			draftModel := draft.GetDraft(draftActor)
 
@@ -260,8 +301,8 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 			err = conn.WriteMessage(websocket.TextMessage, []byte(html))
 			if err != nil {
 				log.Warn(ctx, "Failed to send message to websocket", "draftId", draftId, "error", err)
-				return fmt.Errorf("failed to write websocket message: %w", err)
-		}
+				return nil
+			}
 		}
 	}
 }
