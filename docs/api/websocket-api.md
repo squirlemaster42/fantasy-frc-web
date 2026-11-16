@@ -14,8 +14,20 @@ In production:
 wss://your-domain.com/u/draft/:id/pickNotifier
 ```
 
+### Score Updates
+```
+ws://localhost:3000/u/draft/:id/scoreNotifier
+```
+
+In production:
+```
+wss://your-domain.com/u/draft/:id/scoreNotifier
+```
+
 ### Authentication
 WebSocket connections inherit authentication from the HTTP session that establishes them. A valid `sessionToken` cookie must be present when initiating the WebSocket upgrade request.
+
+In addition, the authenticated user must be a participant (or owner) of the draft. Connection attempts for drafts the user is not part of are rejected with a `403 Forbidden` response before the WebSocket upgrade completes.
 
 ### Connection Flow
 ```mermaid
@@ -86,24 +98,50 @@ The client does not need to send messages. The connection is primarily server-pu
 | Message Queue | 10 events | Buffered channel for pick events |
 | Send Timeout | 5 seconds | Maximum time to queue an event |
 
-### Pick Event Structure
+### Message Type Scheme
 
-The server does not send JSON pick events. Instead, the pick notifier sends an untyped signal on each watcher's channel:
+Internally, the shared draft notifier uses a typed message so the same watcher infrastructure can fan out different kinds of updates:
 
 ```go
+type NotificationType string
+
+const (
+    PickNotificationType              NotificationType = "pick"
+    ScoreNotificationType             NotificationType = "score"
+    DraftStateChangedNotificationType NotificationType = "draft_state_changed"
+)
+
+type Notification struct {
+    Type    NotificationType
+    DraftId int
+    Status  model.DraftState
+}
+
 type Watcher struct {
-    NotifierQueue chan bool
+    NotifierQueue chan Notification
 }
 ```
 
-When the handler receives a signal on `NotifierQueue`, it re-queries the draft actor and pushes a freshly rendered HTML fragment to the client.
+Each handler listens for the notification types it cares about and ignores the rest. For example, the score notifier only re-renders when it receives `ScoreNotificationType`.
 
-### Event Triggers
+### Pick Event Triggers
 
-A WebSocket message is sent to all connected clients when:
+A WebSocket message is sent to all connected pick clients when:
 - A player successfully makes a pick
 - A pick is skipped (manually or automatically)
 - The draft state changes during picking
+
+Pick notifier connections are closed when the draft leaves the `PICKING` state.
+
+### Score Event Triggers
+
+A WebSocket message is sent to all connected score clients when:
+- A match score is updated by the scorer
+- Alliance selection scores are updated by the scorer
+
+Score notifications are batched per scoring iteration: all affected drafts are looked up once and notified once.
+
+Score notifier connections are closed when the draft leaves the `TEAMS_PLAYING` state.
 
 ### HTMX Integration
 
@@ -112,6 +150,14 @@ The frontend uses HTMX's WebSocket extension (`hx-ext="ws"`) to handle connectio
 ```html
 <div hx-ext="ws" ws-connect="/u/draft/123/pickNotifier">
   <!-- Content automatically updates when messages arrive -->
+</div>
+```
+
+The score page uses the same extension on the score container:
+
+```html
+<div id="draftScoresContainer" hx-ext="ws" ws-connect="/u/draft/123/scoreNotifier">
+  <!-- Score content automatically updates when messages arrive -->
 </div>
 ```
 
@@ -127,6 +173,8 @@ HTMX automatically swaps the DOM when WebSocket messages are received.
 | Write Timeout | Connection closed, listener removed |
 | Send Timeout | Event dropped, connection remains |
 | Draft Not Found | Warning logged, message skipped |
+| Not a Draft Participant | `403 Forbidden` returned before upgrade |
+| Draft Leaves Valid State | Connection closed gracefully |
 
 ### Client Disconnection
 
@@ -147,6 +195,8 @@ The system tracks active WebSocket listeners via Prometheus metrics (see `server
 - No client-initiated actions: All commands go through HTTP endpoints
 - No broadcast to specific users: All draft participants receive the same updates
 - No reconnection logic: Client must reconnect manually if connection drops
+- Pick notifier only accepts connections for drafts the user participates in and closes when the draft leaves `PICKING`
+- Score notifier only accepts connections for drafts the user participates in and closes when the draft leaves `TEAMS_PLAYING`
 
 ## 🔗 Related Documentation
 

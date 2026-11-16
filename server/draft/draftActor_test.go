@@ -714,7 +714,7 @@ func TestPickNotifier_ReceivePickEvent_SkipsSlowWatchers(t *testing.T) {
 	// Fill watcher2's buffer so it also times out
 	for range 10 {
 		select {
-		case watcher2.NotifierQueue <- true:
+		case watcher2.NotifierQueue <- picking.Notification{Type: picking.PickNotificationType, DraftId: draftId}:
 		default:
 		}
 	}

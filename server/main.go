@@ -185,7 +185,7 @@ func main() {
 		}
 	}
 
-	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore)
+	scorer := scorer.NewScorer(tbaHandler, matchStore, matchTeamStore, teamStore, draftStore, pickNotifier)
 	var waitScorer <-chan struct{}
 	if !*skipScoring {
 		log.Info(ctx, "Started Scorer")

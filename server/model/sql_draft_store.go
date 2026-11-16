@@ -62,6 +62,10 @@ func (s *SQLDraftStore) GetDraftPickRows(ctx context.Context, teamKeys []string)
 	return getDraftPickRows(ctx, s.DB, teamKeys)
 }
 
+func (s *SQLDraftStore) GetDraftIdsForTeams(ctx context.Context, teamKeys []string) ([]int, error) {
+	return getDraftIdsForTeams(ctx, s.DB, teamKeys)
+}
+
 func (s *SQLDraftStore) SearchDrafts(ctx context.Context, search DraftSearchQuery) ([]DraftModel, error) {
 	return searchDrafts(ctx, s.DB, search)
 }

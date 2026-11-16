@@ -1370,6 +1370,53 @@ func getDraftsInStatus(ctx context.Context, db database.DBTX, status DraftState)
 	return drafts, errors.Join(errs...)
 }
 
+// getDraftIdsForTeams returns the distinct draft IDs that have picked any of
+// the provided team keys. Only drafts in the TEAMS_PLAYING state are returned,
+// since those are the only drafts with active score notifiers.
+func getDraftIdsForTeams(ctx context.Context, db database.DBTX, teamKeys []string) ([]int, error) {
+	if len(teamKeys) == 0 {
+		return []int{}, nil
+	}
+
+	query := `
+        SELECT DISTINCT d.id
+        FROM Drafts d
+        JOIN DraftPlayers dp ON d.id = dp.draftid
+        JOIN Picks p ON dp.id = p.player
+        WHERE p.pick = ANY($1)
+          AND d.status = $2;`
+
+	stmt, err := database.Prepare(ctx, db, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare getDraftIdsForTeams: %w", err)
+	}
+	defer database.CloseStatement(ctx, stmt, "GetDraftIdsForTeams")
+
+	rows, err := stmt.QueryContext(ctx, teamKeys, TEAMS_PLAYING)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query getDraftIdsForTeams: %w", err)
+	}
+	defer database.CloseRows(ctx, rows, "GetDraftIdsForTeams")
+
+	var errs []error
+	var draftIds []int
+	for rows.Next() {
+		var draftId int
+		if err := rows.Scan(&draftId); err != nil {
+			log.Error(ctx, "Failed to scan draft id for teams", "error", err)
+			errs = append(errs, err)
+			continue
+		}
+		draftIds = append(draftIds, draftId)
+	}
+
+	if err := rows.Err(); err != nil {
+		errs = append(errs, err)
+	}
+
+	return draftIds, errors.Join(errs...)
+}
+
 func getDraftScore(ctx context.Context, db database.DBTX, draftId int) ([]DraftPlayer, error) {
 	if draftId == 0 {
 		return nil, fmt.Errorf("draft id must be greater than zero")

@@ -243,6 +243,36 @@ func (_m *MockDraftStore) GetDraftPickRows(ctx context.Context, teamKeys []strin
 	return r0, r1
 }
 
+// GetDraftIdsForTeams provides a mock function with given fields: ctx, teamKeys
+func (_m *MockDraftStore) GetDraftIdsForTeams(ctx context.Context, teamKeys []string) ([]int, error) {
+	ret := _m.Called(ctx, teamKeys)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDraftIdsForTeams")
+	}
+
+	var r0 []int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]int, error)); ok {
+		return rf(ctx, teamKeys)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []int); ok {
+		r0 = rf(ctx, teamKeys)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, teamKeys)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDraftPlayerId provides a mock function with given fields: ctx, draftId, userUuid
 func (_m *MockDraftStore) GetDraftPlayerId(ctx context.Context, draftId int, userUuid uuid.UUID) (int, error) {
 	ret := _m.Called(ctx, draftId, userUuid)

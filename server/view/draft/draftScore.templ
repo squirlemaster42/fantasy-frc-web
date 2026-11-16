@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int, draftStatus model.DraftState, avatarColors map[string]string) {
+templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int, draftStatus model.DraftState, avatarColors map[string]string, scoreNotifierUrl string) {
     <div class="flex flex-col w-full h-full gap-6 p-6 pb-20 overflow-y-auto scrollbar-thin scrollbar-track-base-200 scrollbar-thumb-base-300 hover:scrollbar-thumb-base-content/30">
         <h2 class="text-2xl font-bold text-base-content text-center flex-shrink-0">Draft Scores</h2>
         if draftStatus != model.TEAMS_PLAYING {
@@ -18,11 +18,21 @@ templ DraftScoreIndex(userDraftScore []model.DraftPlayer, draftId int, draftStat
                 </div>
             </div>
         } else {
-            <div class="flex flex-col gap-4 max-w-4xl mx-auto w-full" id="draftScoresContainer">
-            for index, player := range userDraftScore {
-                @DraftScoreReport(player, index+1, draftId, avatarColors)
-            }
+            <div hx-ext="ws" ws-connect={scoreNotifierUrl}>
+                @DraftScoreTable(userDraftScore, draftId, avatarColors)
             </div>
+        }
+    </div>
+}
+
+// DraftScoreTable renders the score table container that is swapped by the
+// score notifier WebSocket. It must keep the same id="draftScoresContainer" so
+// HTMX can perform the out-of-band swap without destroying the ws-connect
+// wrapper.
+templ DraftScoreTable(userDraftScore []model.DraftPlayer, draftId int, avatarColors map[string]string) {
+    <div class="flex flex-col gap-4 max-w-4xl mx-auto w-full" id="draftScoresContainer">
+        for index, player := range userDraftScore {
+            @DraftScoreReport(player, index+1, draftId, avatarColors)
         }
     </div>
 }

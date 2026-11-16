@@ -16,6 +16,7 @@ type DraftStore interface {
 	CreateDraft(ctx context.Context, draft *DraftModel) (int, error)
 	GetDraftScore(ctx context.Context, draftId int) ([]DraftPlayer, error)
 	GetDraftPickRows(ctx context.Context, teamKeys []string) ([]DraftPickRow, error)
+	GetDraftIdsForTeams(ctx context.Context, teamKeys []string) ([]int, error)
 	GetInvites(ctx context.Context, userUuid uuid.UUID) ([]DraftInvite, error)
 	GetInvite(ctx context.Context, inviteId int) (DraftInvite, error)
 	GetNumPlayersInInvitedDraft(ctx context.Context, inviteId int) (int, error)

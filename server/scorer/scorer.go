@@ -5,6 +5,7 @@ import (
 	"errors"
 	"server/log"
 	"server/model"
+	"server/picking"
 	"server/swagger"
 	"server/tbaHandler"
 	"server/utils"
@@ -18,16 +19,20 @@ type Scorer struct {
 	matchStore       model.MatchStore
 	matchTeamStore   model.MatchTeamStore
 	teamStore        model.TeamStore
+	draftStore       model.DraftStore
+	notifier         *picking.PickNotifier
 	scoringIteration int
 	queue            *MatchQueue
 }
 
-func NewScorer(tbaHandler tbaHandler.TBAInterface, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore) *Scorer {
+func NewScorer(tbaHandler tbaHandler.TBAInterface, matchStore model.MatchStore, matchTeamStore model.MatchTeamStore, teamStore model.TeamStore, draftStore model.DraftStore, notifier *picking.PickNotifier) *Scorer {
 	return &Scorer{
 		tbaHandler:       tbaHandler,
 		matchStore:       matchStore,
 		matchTeamStore:   matchTeamStore,
 		teamStore:        teamStore,
+		draftStore:       draftStore,
+		notifier:         notifier,
 		scoringIteration: 0,
 		queue:            NewMatchQueue(),
 	}
@@ -277,6 +282,12 @@ func (s *Scorer) updateMatchInDB(ctx context.Context, dbMatch model.Match) error
 	for _, team := range dbMatch.RedAlliance {
 		errs = append(errs, s.matchTeamStore.AssociateTeam(ctx, dbMatch.TbaId, team, "Red", isDqed(team, dbMatch.DqedTeams)))
 	}
+
+	affectedTeams := make([]string, 0, len(dbMatch.RedAlliance)+len(dbMatch.BlueAlliance))
+	affectedTeams = append(affectedTeams, dbMatch.RedAlliance...)
+	affectedTeams = append(affectedTeams, dbMatch.BlueAlliance...)
+	s.notifyScoreWatchersForTeams(ctx, affectedTeams)
+
 	return errors.Join(errs...)
 }
 
@@ -374,6 +385,8 @@ func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
 		return
 	}
 	log.Debug(ctx, "Made alliance selection request", "allianceLength", len(alliances))
+
+	affectedTeams := make(map[string]struct{})
 	for _, alliance := range alliances {
 		scores := s.GetAllianceSelectionScore(ctx, alliance)
 		for team, score := range scores {
@@ -381,7 +394,39 @@ func (s *Scorer) ScoreAllianceSelection(ctx context.Context, event string) {
 			err := s.teamStore.UpdateTeamAllianceScore(ctx, team, score)
 			if err != nil {
 				log.Error(ctx, "Failed to update alliance selection scores", "event", event, "team", team, "error", err)
+			} else {
+				affectedTeams[team] = struct{}{}
 			}
 		}
 	}
+
+	s.notifyScoreWatchersForTeams(ctx, keysFromSet(affectedTeams))
+}
+
+// notifyScoreWatchersForTeams looks up the drafts that picked any of the
+// affected teams and sends a score notification to each draft's watchers. The
+// lookup is filtered to TEAMS_PLAYING drafts so we do not waste work on drafts
+// that cannot have active score notifiers.
+func (s *Scorer) notifyScoreWatchersForTeams(ctx context.Context, teamKeys []string) {
+	if s.notifier == nil || s.draftStore == nil || len(teamKeys) == 0 {
+		return
+	}
+
+	draftIds, err := s.draftStore.GetDraftIdsForTeams(ctx, teamKeys)
+	if err != nil {
+		log.Error(ctx, "Failed to get draft ids for teams", "teams", teamKeys, "error", err)
+		return
+	}
+
+	for _, draftId := range draftIds {
+		s.notifier.ReceiveScoreEvent(ctx, draftId)
+	}
+}
+
+func keysFromSet(m map[string]struct{}) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
 }

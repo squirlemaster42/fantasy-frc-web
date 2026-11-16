@@ -261,7 +261,7 @@ GROUP BY DisplayName
 
 ### Real-Time Updates
 
-Score changes are not pushed over WebSocket. Clients refresh draft score pages to see updated standings. Draft pick updates use the WebSocket pick notifier; see [WebSocket API](../api/websocket-api.md).
+Score changes are pushed live to connected clients via the WebSocket score notifier (`/u/draft/:id/scoreNotifier`). The scorer batches notifications per scoring iteration: after match scores or alliance selection scores are persisted, it looks up the drafts that picked the affected teams and sends one score notification per draft. Draft pick updates use the WebSocket pick notifier; see [WebSocket API](../api/websocket-api.md).
 
 ---
 

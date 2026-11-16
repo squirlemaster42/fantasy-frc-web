@@ -4,6 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"server/model"
+	"server/model/mocks"
+	"server/picking"
 	"server/swagger"
 	"server/tbaHandler"
 	"testing"
@@ -11,6 +14,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func getTbaTok(t *testing.T) string {
@@ -34,7 +39,7 @@ func TestSortMatchOrder(t *testing.T) {
 		"2024cur_qm52",
 	}
 
-	s := NewScorer(nil, nil, nil, nil)
+	s := NewScorer(nil, nil, nil, nil, nil, nil)
 	sorted := s.sortMatchesByPlayOrder(t.Context(), unsorted)
 
 	standard := []string{
@@ -58,7 +63,7 @@ func TestSortMatchOrder(t *testing.T) {
 func TestScoreMatches(t *testing.T) {
 	// We should not need a tba handler or database
 	tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
-	scorer := NewScorer(tbaHandler, nil, nil, nil)
+	scorer := NewScorer(tbaHandler, nil, nil, nil, nil, nil)
 	match, _ := tbaHandler.MakeMatchReq(t.Context(), "2026casnv_qm1")
 	scoredMatch, _ := scorer.scoreMatch(t.Context(), match, true)
 	assert.True(t, scoredMatch.Played)
@@ -138,29 +143,42 @@ func TestScoreMatches(t *testing.T) {
 	assert.Equal(t, 18, scoredMatch.BlueScore)
 }
 
-type mockTBAHandler struct{}
+type mockTBAHandler struct {
+	eventMatchKeys       []string
+	matchByKey           map[string]swagger.Match
+	eventTeams           []swagger.Team
+	eliminationAlliances []swagger.EliminationAlliance
+}
 
 func (m *mockTBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) {
 	return nil, nil
 }
 func (m *mockTBAHandler) MakeMatchReq(ctx context.Context, matchId string) (swagger.Match, error) {
+	if m.matchByKey != nil {
+		if match, ok := m.matchByKey[matchId]; ok {
+			return match, nil
+		}
+	}
 	return swagger.Match{}, nil
 }
 func (m *mockTBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eventId string) ([]string, error) {
-	return nil, nil
+	return m.eventMatchKeys, nil
+}
+func (m *mockTBAHandler) MakeEventTeamsRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
+	return m.eventTeams, nil
 }
 func (m *mockTBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
-	return nil, nil
+	return m.eventTeams, nil
 }
 func (m *mockTBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
-	return nil, nil
+	return m.eliminationAlliances, nil
 }
 func (m *mockTBAHandler) MakeTeamAvatarRequest(ctx context.Context, teamId string) (string, error) {
 	return "", nil
 }
 
 func TestScorer_RunScorer_WaitReturnsAfterCancel(t *testing.T) {
-	scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil)
+	scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil, nil, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := scorer.RunScorer(ctx)
@@ -223,7 +241,7 @@ func newSyntheticScoreBreakdown(red, blue *swagger.MatchScoreBreakdown2026Allian
 }
 
 func TestScoreMatchSynthetic(t *testing.T) {
-	scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil)
+	scorer := NewScorer(&mockTBAHandler{}, nil, nil, nil, nil, nil)
 	ctx := t.Context()
 
 	t.Run("unplayed match rescore false returns not scored", func(t *testing.T) {
@@ -351,7 +369,7 @@ func TestScoreMatchSynthetic(t *testing.T) {
 func TestGetAllianceSelectionScores(t *testing.T) {
 	tbaHandler := tbaHandler.NewHandler(getTbaTok(t), nil)
 	alliances, _ := tbaHandler.MakeEliminationAllianceRequest(t.Context(), "2025mawor")
-	scorer := NewScorer(tbaHandler, nil, nil, nil)
+	scorer := NewScorer(tbaHandler, nil, nil, nil, nil, nil)
 	allianceOneScores := scorer.GetAllianceSelectionScore(t.Context(), alliances[0])
 	assert.Equal(t, 32*2, allianceOneScores["frc190"])
 	assert.Equal(t, 31*2, allianceOneScores["frc1768"])
@@ -384,4 +402,130 @@ func TestGetAllianceSelectionScores(t *testing.T) {
 	assert.Equal(t, 18*2, allianceEightScores["frc7153"])
 	assert.Equal(t, 17*2, allianceEightScores["frc5422"])
 	assert.Equal(t, 16*2, allianceEightScores["frc9644"])
+}
+
+func TestScorer_notifyScoreWatchersForTeams(t *testing.T) {
+	ctx := t.Context()
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftIdsForTeams", ctx, []string{"frc254", "frc1678"}).Return([]int{1, 2}, nil)
+
+	notifier := &picking.PickNotifier{Watchers: make(map[int][]picking.Watcher)}
+	watcher1 := notifier.RegisterWatcher(1)
+	watcher2 := notifier.RegisterWatcher(2)
+
+	s := NewScorer(nil, nil, nil, nil, mockDraftStore, notifier)
+	s.notifyScoreWatchersForTeams(ctx, []string{"frc254", "frc1678"})
+
+	for _, watcher := range []*picking.Watcher{watcher1, watcher2} {
+		select {
+		case notification := <-watcher.NotifierQueue:
+			assert.Equal(t, picking.ScoreNotificationType, notification.Type)
+		case <-time.After(time.Second):
+			t.Fatal("expected watcher to receive score notification")
+		}
+	}
+
+	mockDraftStore.AssertExpectations(t)
+}
+
+func TestScorer_notifyScoreWatchersForTeams_NoNotifier(t *testing.T) {
+	ctx := t.Context()
+
+	s := NewScorer(nil, nil, nil, nil, nil, nil)
+	// Should not panic when dependencies are nil
+	s.notifyScoreWatchersForTeams(ctx, []string{"frc254"})
+}
+
+func TestScorer_notifyScoreWatchersForTeams_NoTeams(t *testing.T) {
+	ctx := t.Context()
+
+	notifier := &picking.PickNotifier{Watchers: make(map[int][]picking.Watcher)}
+	s := NewScorer(nil, nil, nil, nil, nil, notifier)
+
+	// Should not query the draft store when there are no affected teams
+	s.notifyScoreWatchersForTeams(ctx, []string{})
+}
+
+func TestScorer_ScoreAllianceSelection_NotifiesWatchers(t *testing.T) {
+	ctx := t.Context()
+
+	tbaHandler := &mockTBAHandler{
+		eliminationAlliances: []swagger.EliminationAlliance{
+			{Name: "Alliance 1", Picks: []string{"frc254", "frc1678", "frc118"}},
+			{Name: "Alliance 2", Picks: []string{"frc254", "frc1114", "frc2056"}},
+		},
+	}
+
+	mockTeamStore := mocks.NewMockTeamStore(t)
+	mockTeamStore.On("UpdateTeamAllianceScore", ctx, mock.Anything, mock.Anything).Return(nil)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftIdsForTeams", ctx, mock.Anything).Return([]int{1}, nil)
+
+	notifier := &picking.PickNotifier{Watchers: make(map[int][]picking.Watcher)}
+	watcher := notifier.RegisterWatcher(1)
+
+	s := NewScorer(tbaHandler, nil, nil, mockTeamStore, mockDraftStore, notifier)
+	s.ScoreAllianceSelection(ctx, "2025mawor")
+
+	select {
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, picking.ScoreNotificationType, notification.Type)
+		assert.Equal(t, 1, notification.DraftId)
+	case <-time.After(time.Second):
+		t.Fatal("expected watcher to receive score notification")
+	}
+
+	// Exactly one notification should be sent per draft, even though frc254
+	// appears in both alliances.
+	select {
+	case <-watcher.NotifierQueue:
+		t.Fatal("expected only one score notification per draft")
+	case <-time.After(100 * time.Millisecond):
+		// success
+	}
+
+	mockDraftStore.AssertExpectations(t)
+	mockTeamStore.AssertExpectations(t)
+}
+
+func TestScorer_updateMatchInDB_NotifiesWatchers(t *testing.T) {
+	ctx := t.Context()
+
+	mockMatchStore := mocks.NewMockMatchStore(t)
+	mockMatchStore.On("UpdateScore", ctx, "2026casnv_qm1", 3, 5).Return(nil)
+
+	mockMatchTeamStore := mocks.NewMockMatchTeamStore(t)
+	mockMatchTeamStore.On("AssociateTeam", ctx, "2026casnv_qm1", "frc254", "Red", false).Return(nil)
+	mockMatchTeamStore.On("AssociateTeam", ctx, "2026casnv_qm1", "frc1678", "Blue", false).Return(nil)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftIdsForTeams", ctx, []string{"frc254", "frc1678"}).Return([]int{7}, nil)
+
+	notifier := &picking.PickNotifier{Watchers: make(map[int][]picking.Watcher)}
+	watcher := notifier.RegisterWatcher(7)
+
+	s := NewScorer(nil, mockMatchStore, mockMatchTeamStore, nil, mockDraftStore, notifier)
+	err := s.updateMatchInDB(ctx, model.Match{
+		TbaId:        "2026casnv_qm1",
+		RedScore:     3,
+		BlueScore:    5,
+		RedAlliance:  []string{"frc254"},
+		BlueAlliance: []string{"frc1678"},
+		DqedTeams:    []string{},
+	})
+	require.NoError(t, err)
+
+	select {
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, picking.ScoreNotificationType, notification.Type)
+		assert.Equal(t, 7, notification.DraftId)
+	case <-time.After(time.Second):
+		t.Fatal("expected watcher to receive score notification")
+	}
+
+	mockMatchStore.AssertExpectations(t)
+	mockMatchTeamStore.AssertExpectations(t)
+	mockDraftStore.AssertExpectations(t)
 }

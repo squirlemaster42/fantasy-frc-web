@@ -16,16 +16,28 @@ type PickEvent struct {
 	DraftId int
 }
 
-// We need to store a set of connected clients
-// and what draft they are looking at
-// When a pick is made on a given draft we need
-// to notify all of the clients watching
-// that draft
+// NotificationType identifies the kind of update a watcher should react to.
+type NotificationType string
 
-// We are going to provide a block of html that will be the current state of the
-// draft. We will need to disable the text input for anyone who is not making
-// the current pick.
+const (
+	PickNotificationType              NotificationType = "pick"
+	ScoreNotificationType             NotificationType = "score"
+	DraftStateChangedNotificationType NotificationType = "draft_state_changed"
+)
 
+// Notification is the message sent to a watcher's queue. It replaces the
+// previous untyped bool signal so the same notifier can fan out different
+// kinds of draft updates (picks, scores, etc.).
+type Notification struct {
+	Type    NotificationType
+	DraftId int
+	Status  model.DraftState
+}
+
+// PickNotifier manages per-draft WebSocket watchers. Despite the name, it
+// handles notifications for all live draft updates, including pick events and
+// score events. Each connected client receives a typed Notification and the
+// handler decides which HTML fragment to render and push.
 type PickNotifier struct {
 	mu       sync.RWMutex
 	Watchers map[int][]Watcher // map the draft id to the group watching that draft
@@ -33,7 +45,7 @@ type PickNotifier struct {
 
 type Watcher struct {
 	WatcherId     uuid.UUID
-	NotifierQueue chan bool
+	NotifierQueue chan Notification
 }
 
 func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
@@ -42,7 +54,7 @@ func (pn *PickNotifier) RegisterWatcher(draftId int) *Watcher {
 
 	watcher := Watcher{
 		WatcherId:     uuid.New(),
-		NotifierQueue: make(chan bool, PickNotifierQueueBuffer()),
+		NotifierQueue: make(chan Notification, PickNotifierQueueBuffer()),
 	}
 
 	pn.Watchers[draftId] = append(pn.Watchers[draftId], watcher)
@@ -80,38 +92,48 @@ func removeWatcher(w []Watcher, i int) []Watcher {
 }
 
 func (pn *PickNotifier) ReceivePickEvent(ctx context.Context, pickEvent PickEvent) error {
-	pn.mu.RLock()
-	watchers := make([]Watcher, len(pn.Watchers[pickEvent.DraftId]))
-	copy(watchers, pn.Watchers[pickEvent.DraftId])
-	pn.mu.RUnlock()
-
-	log.Debug(ctx, "Received Pick Event", "pickId", pickEvent.Pick.Id, "draftId", pickEvent.DraftId, "numWatchers", len(watchers))
-	for _, watcher := range watchers {
-		select {
-		case watcher.NotifierQueue <- true:
-			// Sent successfully
-		case <-time.After(PickNotifierSendTimeout()):
-			log.Warn(ctx, "Timeout sending to watcher, skipping", "watcherId", watcher.WatcherId)
-			// Continue notifying remaining watchers; do not return error
-		}
-	}
+	pn.notifyWatchers(ctx, Notification{Type: PickNotificationType, DraftId: pickEvent.DraftId}, "pickId", pickEvent.Pick.Id)
 	return nil
 }
 
-func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
+// ReceiveScoreEvent notifies all watchers for the given draft that scores have
+// changed. The handler will re-render the draft score fragment and push it.
+func (pn *PickNotifier) ReceiveScoreEvent(ctx context.Context, draftId int) {
+	pn.notifyWatchers(ctx, Notification{Type: ScoreNotificationType, DraftId: draftId})
+}
+
+// NotifyStateChange notifies all watchers that the draft's state has changed.
+// Handlers use this to close connections that are no longer valid for the
+// current draft state (e.g. score notifiers when the draft leaves TEAMS_PLAYING).
+func (pn *PickNotifier) NotifyStateChange(ctx context.Context, draftId int, status model.DraftState) {
+	pn.notifyWatchers(ctx, Notification{Type: DraftStateChangedNotificationType, DraftId: draftId, Status: status}, "status", status)
+}
+
+func (pn *PickNotifier) notifyWatchers(ctx context.Context, notification Notification, logKeys ...any) {
 	pn.mu.RLock()
-	watchers := make([]Watcher, len(pn.Watchers[draftId]))
-	copy(watchers, pn.Watchers[draftId])
+	watchers := make([]Watcher, len(pn.Watchers[notification.DraftId]))
+	copy(watchers, pn.Watchers[notification.DraftId])
 	pn.mu.RUnlock()
 
-	log.Debug(ctx, "Notifying Watchers", "draftId", draftId, "numWatchers", len(watchers))
+	logArgs := append([]any{"type", notification.Type, "draftId", notification.DraftId, "numWatchers", len(watchers)}, logKeys...)
+	log.Debug(ctx, "Notifying watchers", logArgs...)
+
 	for _, watcher := range watchers {
 		select {
-		case watcher.NotifierQueue <- true:
+		case watcher.NotifierQueue <- notification:
+			// Sent successfully
 		case <-time.After(PickNotifierSendTimeout()):
-			log.Warn(ctx, "Timeout notifying watcher", "watcherId", watcher.WatcherId)
+			log.Warn(ctx, "Timeout sending to watcher, skipping", "type", notification.Type, "watcherId", watcher.WatcherId)
+			// Continue notifying remaining watchers; do not return error
 		}
 	}
+}
+
+// NotifyWatchers sends a pick notification to all watchers for the draft. It is
+// primarily used by tests; production code should use ReceivePickEvent or
+// ReceiveScoreEvent.
+func (pn *PickNotifier) NotifyWatchers(ctx context.Context, draftId int) {
+	pn.notifyWatchers(ctx, Notification{Type: PickNotificationType, DraftId: draftId})
 }
 
 // GetWatcherCount returns the number of active watchers for a draft. It is safe

@@ -51,7 +51,7 @@ func TestPickNotifier_UnregisterWatcher_WatcherNotFound(t *testing.T) {
 	pn := &PickNotifier{Watchers: make(map[int][]Watcher)}
 
 	watcher := Watcher{
-		NotifierQueue: make(chan bool, 1),
+		NotifierQueue: make(chan Notification, 1),
 	}
 
 	pn.UnregisterWatcher(context.Background(), &watcher)
@@ -69,8 +69,9 @@ func TestPickNotifier_ReceivePickEvent(t *testing.T) {
 
 	require.NoError(t, err)
 	select {
-	case notified := <-watcher.NotifierQueue:
-		assert.True(t, notified)
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, PickNotificationType, notification.Type)
+		assert.Equal(t, 1, notification.DraftId)
 	case <-time.After(time.Second):
 		t.Fatal("expected watcher to be notified")
 	}
@@ -91,7 +92,7 @@ func TestPickNotifier_ReceivePickEvent_SlowWatcherTimeout(t *testing.T) {
 
 	// Fill the channel so the notification blocks
 	for range cap(watcher.NotifierQueue) {
-		watcher.NotifierQueue <- true
+		watcher.NotifierQueue <- Notification{Type: PickNotificationType, DraftId: 1}
 	}
 
 	done := make(chan struct{})
@@ -109,6 +110,22 @@ func TestPickNotifier_ReceivePickEvent_SlowWatcherTimeout(t *testing.T) {
 	}
 }
 
+func TestPickNotifier_ReceiveScoreEvent(t *testing.T) {
+	pn := &PickNotifier{Watchers: make(map[int][]Watcher)}
+
+	watcher := pn.RegisterWatcher(1)
+
+	pn.ReceiveScoreEvent(context.Background(), 1)
+
+	select {
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, ScoreNotificationType, notification.Type)
+		assert.Equal(t, 1, notification.DraftId)
+	case <-time.After(time.Second):
+		t.Fatal("expected watcher to be notified")
+	}
+}
+
 func TestPickNotifier_NotifyWatchers(t *testing.T) {
 	pn := &PickNotifier{Watchers: make(map[int][]Watcher)}
 
@@ -117,8 +134,26 @@ func TestPickNotifier_NotifyWatchers(t *testing.T) {
 	pn.NotifyWatchers(context.Background(), 1)
 
 	select {
-	case notified := <-watcher.NotifierQueue:
-		assert.True(t, notified)
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, PickNotificationType, notification.Type)
+		assert.Equal(t, 1, notification.DraftId)
+	case <-time.After(time.Second):
+		t.Fatal("expected watcher to be notified")
+	}
+}
+
+func TestPickNotifier_NotifyStateChange(t *testing.T) {
+	pn := &PickNotifier{Watchers: make(map[int][]Watcher)}
+
+	watcher := pn.RegisterWatcher(1)
+
+	pn.NotifyStateChange(context.Background(), 1, "Complete")
+
+	select {
+	case notification := <-watcher.NotifierQueue:
+		assert.Equal(t, DraftStateChangedNotificationType, notification.Type)
+		assert.Equal(t, 1, notification.DraftId)
+		assert.Equal(t, model.DraftState("Complete"), notification.Status)
 	case <-time.After(time.Second):
 		t.Fatal("expected watcher to be notified")
 	}

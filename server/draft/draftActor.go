@@ -594,7 +594,17 @@ func (d *DraftActor) executeTransition(ctx context.Context, store model.DraftSto
 			requestedState: requestedState,
 		}
 	}
-	return transition.executeTransition(ctx, store, d.draftState, d.pickConfig)
+	if err := transition.executeTransition(ctx, store, d.draftState, d.pickConfig); err != nil {
+		return err
+	}
+
+	if d.pickNotifier != nil {
+		go func() {
+			d.pickNotifier.NotifyStateChange(ctx, d.draftState.Id, requestedState)
+		}()
+	}
+
+	return nil
 }
 
 
