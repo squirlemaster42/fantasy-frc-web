@@ -20,7 +20,7 @@ func TestNewCleanupService(t *testing.T) {
 	service := NewCleanupService(db, 60)
 
 	assert.NotNil(t, service)
-	assert.False(t, service.running)
+	assert.False(t, service.running.Load())
 	assert.Equal(t, 60, service.interval)
 }
 
@@ -35,7 +35,7 @@ func TestCleanupService_StartStop(t *testing.T) {
 
 	err = service.Start(ctx)
 	require.NoError(t, err)
-	assert.True(t, service.running)
+	assert.True(t, service.running.Load())
 
 	err = service.Start(ctx)
 	require.Error(t, err)
@@ -43,7 +43,7 @@ func TestCleanupService_StartStop(t *testing.T) {
 
 	err = service.Stop(ctx)
 	require.NoError(t, err)
-	assert.False(t, service.running)
+	assert.False(t, service.running.Load())
 
 	err = service.Stop(ctx)
 	require.Error(t, err)
