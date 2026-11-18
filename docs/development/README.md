@@ -35,7 +35,7 @@ Complete development environment setup:
 ## 🔧 Development Tools
 
 ### Required Software
-- **Go 1.27+**: Main programming language (server module declares `go 1.27.3`)
+- **Go 1.27+**: Main programming language (server module declares `go 1.27.4`)
 - **PostgreSQL 16+**: Database server
 - **Templ**: Template engine for HTML
 - **Git**: Version control system
