@@ -26,6 +26,7 @@ type handlerDefaults struct {
 	WsReadTimeout                 time.Duration `env:"WS_READ_TIMEOUT" default:"120s"`
 	WsPingInterval                time.Duration `env:"WS_PING_INTERVAL" default:"30s"`
 	WsWriteTimeout                time.Duration `env:"WS_WRITE_TIMEOUT" default:"10s"`
+	WsMaxMessageSize              int64         `env:"WS_MAX_MESSAGE_SIZE" default:"32768"`
 	TbaWebhookMaxBodyBytes        int64         `env:"TBA_WEBHOOK_MAX_BODY_BYTES" default:"1048576"`
 	TbaUpcomingMatchTeamCount     int           `env:"TBA_UPCOMING_MATCH_TEAM_COUNT" default:"6"`
 	AvatarHttpCacheMaxAgeSeconds  int           `env:"AVATAR_HTTP_CACHE_MAX_AGE_SECONDS" default:"604800"`
@@ -48,6 +49,7 @@ func WsWriteBufferSize() int                 { return getDefaults().WsWriteBuffe
 func WsReadTimeout() time.Duration           { return getDefaults().WsReadTimeout }
 func WsPingInterval() time.Duration          { return getDefaults().WsPingInterval }
 func WsWriteTimeout() time.Duration          { return getDefaults().WsWriteTimeout }
+func WsMaxMessageSize() int64                { return getDefaults().WsMaxMessageSize }
 func TbaWebhookMaxBodyBytes() int64          { return getDefaults().TbaWebhookMaxBodyBytes }
 func TbaUpcomingMatchTeamCount() int         { return getDefaults().TbaUpcomingMatchTeamCount }
 func AvatarHttpCacheMaxAgeSeconds() int      { return getDefaults().AvatarHttpCacheMaxAgeSeconds }

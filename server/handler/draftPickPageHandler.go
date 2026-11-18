@@ -213,6 +213,7 @@ func (h *Handler) PickNotifier(c *echo.Context) error {
 		log.Warn(ctx, "Failed to upgrade websocket connection", "error", err)
 		return c.NoContent(http.StatusBadRequest)
 	}
+	conn.SetReadLimit(WsMaxMessageSize())
 
 	draftActor, err := h.Services.DraftActorMap.GetActor(ctx, draftId)
 	if err != nil {

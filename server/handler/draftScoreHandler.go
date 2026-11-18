@@ -145,6 +145,7 @@ func (h *Handler) ScoreNotifier(c *echo.Context) error {
 		log.Warn(ctx, "Failed to upgrade websocket connection", "error", err)
 		return c.NoContent(http.StatusBadRequest)
 	}
+	conn.SetReadLimit(WsMaxMessageSize())
 
 	watcher := draft.RegisterWatcher(ctx, h.Services.DraftActorMap, draftId)
 	if watcher == nil {

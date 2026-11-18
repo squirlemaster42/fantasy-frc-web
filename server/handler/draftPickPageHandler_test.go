@@ -326,3 +326,29 @@ func TestPickNotifier_ClosesWhenDraftLeavesPicking(t *testing.T) {
 	_, _, err = conn.ReadMessage()
 	require.Error(t, err)
 }
+
+func TestPickNotifier_EnforcesReadLimit(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	mockStore := mocks.NewMockDraftStore(t)
+	mockStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(1, nil)
+	mockStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{
+		Id:      1,
+		Status:  model.PICKING,
+		Players: []model.DraftPlayer{},
+		Picks:   []model.Pick{},
+	}, nil).Once()
+
+	h, _ := setupWebsocketTestHandler(t, mockStore)
+	server := startWebsocketServer(t, h, "1", userUuid)
+	conn := dialWebsocket(t, server)
+
+	largeMessage := make([]byte, WsMaxMessageSize()+1)
+	err := conn.WriteMessage(websocket.BinaryMessage, largeMessage)
+	require.NoError(t, err)
+
+	err = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	require.NoError(t, err)
+	_, _, err = conn.ReadMessage()
+	require.Error(t, err)
+}
