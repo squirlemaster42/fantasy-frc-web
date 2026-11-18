@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: fantasyfrc_test
+      POSTGRES_PASSWORD: fantasyfrc_test
+      POSTGRES_DB: fantasyfrc_test
+    ports:
+      - "15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fantasyfrc_test -d fantasyfrc_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 10

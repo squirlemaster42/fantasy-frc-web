@@ -57,4 +57,24 @@ build-linux: build-css generate
 prod: build
 	@echo "Production build complete. Binary: server"
 
-.PHONY: build-css watch-css run build build-linux prod generate mocks lint test
+# Run integration tests against a temporary Postgres container.
+# Requires: Docker, docker compose, and goose (see database/Makefile).
+test-integration:
+	@echo "Starting integration test database..."
+	docker compose -f docker-compose.test.yml up --wait
+	@echo "Running database migrations..."
+	$(MAKE) -C ../database up \
+		DB_USERNAME=fantasyfrc_test \
+		DB_PASSWORD=fantasyfrc_test \
+		DB_IP=localhost:15433 \
+		DB_NAME=fantasyfrc_test
+	@echo "Running integration tests..."
+	DB_USERNAME=fantasyfrc_test \
+	DB_PASSWORD=fantasyfrc_test \
+	DB_IP=localhost:15433 \
+	DB_NAME=fantasyfrc_test \
+		go test -count=1 ./...
+	@echo "Stopping integration test database..."
+	docker compose -f docker-compose.test.yml down -v
+
+.PHONY: build-css watch-css run build build-linux prod generate mocks lint test test-integration

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -42,6 +43,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 		}
 
 		testDB, testDBErr = database.RegisterDatabaseConnection(context.Background(), dbUsername, dbPassword, dbIp, dbName)
+		if testDBErr == nil {
+			testDBErr = ensureTestTeams(context.Background(), testDB)
+		}
 	})
 
 	if errors.Is(testDBErr, sql.ErrConnDone) {
@@ -51,6 +55,25 @@ func setupTestDB(t *testing.T) *sql.DB {
 	require.NotNil(t, testDB)
 
 	return testDB
+}
+
+// ensureTestTeams seeds the Teams table with team keys referenced by the
+// integration tests. It is idempotent so a fresh container or an existing
+// shared database both work.
+func ensureTestTeams(ctx context.Context, db *sql.DB) error {
+	teams := []string{
+		"frc254", "frc971", "frcfinal",
+		"frcteamA", "frcteamB",
+	}
+	for _, tbaId := range teams {
+		_, err := db.ExecContext(ctx,
+			"INSERT INTO Teams (tbaId, name, allianceScore) VALUES ($1, $2, $3) ON CONFLICT (tbaId) DO NOTHING",
+			tbaId, "Test Team", 0)
+		if err != nil {
+			return fmt.Errorf("failed to seed test team %s: %w", tbaId, err)
+		}
+	}
+	return nil
 }
 
 // createTestUser creates a user with a unique username and returns the uuid.

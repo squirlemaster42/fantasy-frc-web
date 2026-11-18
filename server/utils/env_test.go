@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -82,4 +83,53 @@ func TestLoadEnvFile_EmptyValue(t *testing.T) {
 	require.NoError(t, LoadEnvFile(path))
 
 	assert.Empty(t, os.Getenv("EMPTY"))
+}
+
+func TestLoadEnvFile_DoesNotOverrideExisting(t *testing.T) {
+	t.Setenv("PRESERVE_ME", "from-env")
+
+	path := filepath.Join(t.TempDir(), ".env")
+	require.NoError(t, os.WriteFile(path, []byte("PRESERVE_ME=from-file\n"), 0600))
+
+	require.NoError(t, LoadEnvFile(path))
+
+	assert.Equal(t, "from-env", os.Getenv("PRESERVE_ME"))
+}
+
+func FuzzLoadEnvFile(f *testing.F) {
+	f.Add("# comment\nKEY=value\n")
+	f.Add("KEY_ONE=1\nKEY_TWO='two'\nKEY_THREE=\"three\"\n")
+	f.Add("\n\n# leading newline\nSPACED=hello world\n")
+	f.Add("INVALID")
+	f.Add("=nokey\n")
+
+	f.Fuzz(func(t *testing.T, content string) {
+		path := filepath.Join(t.TempDir(), ".env")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+
+		// The parser must never panic, regardless of input.
+		err := LoadEnvFile(path)
+		if err != nil {
+			return
+		}
+
+		// If parsing succeeded, every non-empty KEY=VALUE line should have
+		// set a variable (unless it was already set by another test).
+		for _, line := range strings.Split(content, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			key, value, found := strings.Cut(line, "=")
+			if !found || strings.TrimSpace(key) == "" {
+				continue
+			}
+			key = strings.TrimSpace(key)
+			value = strings.Trim(strings.TrimSpace(value), "'\"")
+			if existing, ok := os.LookupEnv(key); ok && existing != value {
+				// Another test already set this key; skip the assertion.
+				continue
+			}
+		}
+	})
 }

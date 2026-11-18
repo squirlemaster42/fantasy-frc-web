@@ -29,9 +29,11 @@ func MustGetEnvString(key string, defaultVal string) string {
 
 // LoadEnvFile loads environment variables from a .env-style file. It supports
 // KEY=VALUE assignments, blank lines, and #-prefixed comments. Values may be
-// quoted with single or double quotes; surrounding whitespace is trimmed. If
-// the file does not exist, LoadEnvFile returns nil so callers can fall back to
-// process environment variables.
+// quoted with single or double quotes; surrounding whitespace is trimmed. If a
+// key is already present in the process environment it is not overwritten, so
+// explicit environment variables take precedence over the file. If the file
+// does not exist, LoadEnvFile returns nil so callers can fall back to process
+// environment variables.
 func LoadEnvFile(path string) (retErr error) {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
@@ -66,6 +68,10 @@ func LoadEnvFile(path string) (retErr error) {
 
 		if key == "" {
 			return fmt.Errorf("empty key on env file line %d", lineNum)
+		}
+
+		if _, alreadySet := os.LookupEnv(key); alreadySet {
+			continue
 		}
 
 		if err := os.Setenv(key, value); err != nil {

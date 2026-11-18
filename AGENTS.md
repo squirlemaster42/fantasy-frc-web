@@ -35,6 +35,9 @@ go test -v ./...
 
 # Run tests with race detection
 go test -race ./...
+
+# Run integration tests against a temporary Postgres container
+make test-integration
 ```
 
 ### Linting and Formatting
