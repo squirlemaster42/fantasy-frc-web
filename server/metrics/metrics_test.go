@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,11 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/XSAM/otelsql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"server/utils"
@@ -182,4 +185,81 @@ func TestWebSocketListenerGauge(t *testing.T) {
 		"websocket_listeners_active metric should be present")
 	assert.Contains(t, output, " 1",
 		"gauge value should be 1 after 2 increments and 1 decrement")
+}
+
+func TestRecordTbaRequest(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(tbaRequestCount)
+	registry.MustRegister(tbaRequestDuration)
+
+	RecordTbaRequest("/event/2024cur/teams", http.StatusOK, 150*time.Millisecond)
+	RecordTbaRequest("", http.StatusNotFound, 50*time.Millisecond)
+
+	count, err := testutil.GatherAndCount(registry, "tba_requests_total")
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tbaRequestCount.WithLabelValues("/event/2024cur/teams", "200")), 0.0)
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tbaRequestCount.WithLabelValues(unknownRouteLabel, "404")), 0.0)
+}
+
+func TestRecordTbaCacheHit(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(tbaCacheHits)
+
+	RecordTbaCacheHit("hit")
+	RecordTbaCacheHit("miss")
+	RecordTbaCacheHit("hit")
+
+	assert.InDelta(t, 2.0, testutil.ToFloat64(tbaCacheHits.WithLabelValues("hit")), 0.0)
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tbaCacheHits.WithLabelValues("miss")), 0.0)
+}
+
+func TestCollectQueryStatsIteration(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	rows := sqlmock.NewRows([]string{"query", "calls", "mean_exec_time", "total_exec_time", "rows"}).
+		AddRow("SELECT very_long_query_text_"+strings.Repeat("x", 200), 10, 0.123, 1.23, 100)
+
+	mock.ExpectQuery("SELECT query, calls, mean_exec_time::numeric, total_exec_time::numeric, rows FROM pg_stat_statements").
+		WithArgs(float64(DBQueryThresholdMs())/1000.0, DBQueryMaxCount()).
+		WillReturnRows(rows)
+
+	collectQueryStatsIteration(t.Context(), db)
+
+	queryText := "SELECT very_long_query_text_" + strings.Repeat("x", 200)
+	queryID := queryText
+	if len(queryID) > MetricsQueryIdMaxLength() {
+		queryID = queryID[:MetricsQueryIdMaxLength()] + "..."
+	}
+	assert.InDelta(t, 0.000123, testutil.ToFloat64(dbQueryMeanTime.WithLabelValues(queryID)), 1e-9)
+	assert.InDelta(t, 10.0, testutil.ToFloat64(dbQueryCalls.WithLabelValues(queryID)), 0.0)
+	assert.InDelta(t, 100.0, testutil.ToFloat64(dbQueryRows.WithLabelValues(queryID)), 0.0)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCollectQueryStatsIteration_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectQuery("SELECT query, calls, mean_exec_time::numeric, total_exec_time::numeric, rows FROM pg_stat_statements").
+		WithArgs(float64(DBQueryThresholdMs())/1000.0, DBQueryMaxCount()).
+		WillReturnError(errors.New("connection refused"))
+
+	// Should not panic and should not touch gauges.
+	collectQueryStatsIteration(t.Context(), db)
+
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDefaultMetricsValues(t *testing.T) {
+	assert.Equal(t, 10*time.Second, ActiveUserCollectorTickInterval())
+	assert.Equal(t, 100, MetricsQueryIdMaxLength())
+	assert.Equal(t, 50, DBQueryThresholdMs())
+	assert.Equal(t, 30*time.Second, DBQueryPollInterval())
+	assert.Equal(t, 50, DBQueryMaxCount())
 }
