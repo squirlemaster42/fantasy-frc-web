@@ -9,7 +9,6 @@ require (
 	github.com/alicebob/miniredis/v2 v2.40.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jackc/pgx/v5 v5.13.0
-	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-otel/v5 v5.0.0
 	github.com/labstack/echo/v5 v5.4.6
 	github.com/prometheus/client_golang v1.25.0

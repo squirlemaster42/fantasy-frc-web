@@ -14,18 +14,21 @@ import (
 
 	"github.com/XSAM/otelsql"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"server/utils"
 )
 
 func getDB(t *testing.T) *sql.DB {
 	t.Helper()
-	err := godotenv.Load(filepath.Join("../", ".env"))
-	if err != nil {
+	envPath := filepath.Join("../", ".env")
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		t.Skipf("Skipping test: no .env file at %s", envPath)
+	}
+	if err := utils.LoadEnvFile(envPath); err != nil {
 		t.Skipf("Skipping test: failed to load .env file %v", err)
 	}
 

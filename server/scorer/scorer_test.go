@@ -12,16 +12,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"server/utils"
 )
 
 func getTbaTok(t *testing.T) string {
 	t.Helper()
-	err := godotenv.Load(filepath.Join("../", ".env"))
-	if err != nil {
+	if err := utils.LoadEnvFile(filepath.Join("../", ".env")); err != nil {
 		t.Fatal(err)
 	}
 	return os.Getenv("TBA_TOKEN")

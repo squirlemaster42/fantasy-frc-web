@@ -11,10 +11,10 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/XSAM/otelsql"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
+	"server/utils"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
@@ -32,8 +32,11 @@ func TestPlaceholders(t *testing.T) {
 }
 
 func TestRegisterDatabaseConnection(t *testing.T) {
-	err := godotenv.Load(filepath.Join("../", ".env"))
-	if err != nil {
+	envPath := filepath.Join("../", ".env")
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		t.Skipf("Skipping test: no .env file at %s", envPath)
+	}
+	if err := utils.LoadEnvFile(envPath); err != nil {
 		t.Skipf("Skipping test: failed to load .env file %v", err)
 	}
 

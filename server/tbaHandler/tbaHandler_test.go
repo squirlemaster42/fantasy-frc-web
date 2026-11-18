@@ -13,15 +13,18 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"server/utils"
 )
 
 func getTbaTok(t *testing.T) string {
 	t.Helper()
-	err := godotenv.Load(filepath.Join("../", ".env"))
-	if err != nil {
+	envPath := filepath.Join("../", ".env")
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		t.Skipf("Skipping test: no .env file at %s", envPath)
+	}
+	if err := utils.LoadEnvFile(envPath); err != nil {
 		t.Skipf("Skipping test: failed to load .env file %v", err)
 	}
 	token := os.Getenv("TBA_TOKEN")

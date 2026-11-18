@@ -13,11 +13,11 @@ import (
 	"net/http"
 	"os"
 	"server/swagger"
+	"server/utils"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -47,7 +47,7 @@ func createConnectionString(username string, password string, ip string, dbName 
 
 func main() {
 	assert := assert.CreateAssertWithContext("Main")
-	err := godotenv.Load()
+	err := utils.LoadEnvFile(".env")
 	assert.NoError(err, "Failed to load env vars")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbUsername := os.Getenv("DB_USERNAME")

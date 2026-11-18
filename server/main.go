@@ -27,7 +27,6 @@ import (
 	"server/utils"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -68,9 +67,8 @@ func main() {
 
 	log.Info(ctx, "-------- Starting Fantasy FRC --------")
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Info(ctx, "No .env file loaded, using environment variables")
+	if err := utils.LoadEnvFile(".env"); err != nil {
+		log.Fatal(ctx, "Failed to load .env file", "error", err)
 	}
 
 	var cfg mainConfig

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
 	"server/database"
+	"server/utils"
 )
 
 var (
@@ -29,7 +29,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	testDBOnce.Do(func() {
-		_ = godotenv.Load(filepath.Join("..", ".env"))
+		_ = utils.LoadEnvFile(filepath.Join("..", ".env"))
 
 		dbUsername := os.Getenv("DB_USERNAME")
 		dbPassword := os.Getenv("DB_PASSWORD")

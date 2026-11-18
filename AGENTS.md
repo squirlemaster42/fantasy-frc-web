@@ -113,7 +113,6 @@ import (
 
     // Third-party imports
     "github.com/google/uuid"
-    "github.com/joho/godotenv"
     "github.com/labstack/echo/v4"
     "github.com/stretchr/testify/assert"
 
