@@ -15,32 +15,37 @@ import (
 )
 
 func TestNewRateLimiter_DisabledWhenAddrEmpty(t *testing.T) {
-	limiter := NewRateLimiter("", "", 0)
+	limiter, err := NewRateLimiter("", "", 0)
+	require.NoError(t, err)
 	assert.NotNil(t, limiter)
 	assert.Nil(t, limiter.client)
+	assert.False(t, limiter.enabled)
 }
 
-func TestNewRateLimiter_DisabledWhenRedisUnavailable(t *testing.T) {
+func TestNewRateLimiter_ReturnsErrorWhenRedisUnavailable(t *testing.T) {
 	// Use a port that is very unlikely to be listening
-	limiter := NewRateLimiter("localhost:1", "", 0)
-	assert.NotNil(t, limiter)
-	assert.Nil(t, limiter.client)
+	limiter, err := NewRateLimiter("localhost:1", "", 0)
+	require.Error(t, err)
+	assert.Nil(t, limiter)
 }
 
 func TestNewRateLimiter_EnabledWithMiniredis(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	assert.NotNil(t, limiter)
 	assert.NotNil(t, limiter.client)
+	assert.True(t, limiter.enabled)
 }
 
 func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitLogin()
 
 	e := echo.New()
@@ -69,7 +74,7 @@ func TestRateLimiter_RateLimitLogin_BlocksAfterLimit(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 	retryAfter, parseErr := strconv.Atoi(rec.Header().Get("Retry-After"))
@@ -82,7 +87,8 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitRegister()
 
 	e := echo.New()
@@ -111,7 +117,7 @@ func TestRateLimiter_RateLimitRegister_BlocksAfterLimit(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 }
@@ -120,7 +126,8 @@ func TestRateLimiter_RateLimitGeneral_SkipsSafeMethods(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
 	e := echo.New()
@@ -144,7 +151,8 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
 	e := echo.New()
@@ -157,7 +165,7 @@ func TestRateLimiter_RateLimitGeneral_SkipsTbaWebhook(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
@@ -166,7 +174,8 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
 	e := echo.New()
@@ -180,7 +189,7 @@ func TestRateLimiter_RateLimitGeneral_BlocksAfterLimit(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -206,7 +215,8 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
 	e := echo.New()
@@ -222,7 +232,7 @@ func TestRateLimiter_RateLimitGeneral_UsesUserUuidKey(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
@@ -245,7 +255,8 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
 	e := echo.New()
@@ -269,14 +280,15 @@ func TestRateLimiter_RateLimitGeneral_DifferentUsersAreIndependent(t *testing.T)
 	}
 }
 
-func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
+func TestRateLimiter_RateLimitGeneral_FailsClosedOnRedisError(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitGeneral(1)
 
-	// Kill redis so subsequent requests fail open
+	// Kill redis so subsequent requests fail closed
 	s.Close()
 
 	e := echo.New()
@@ -289,13 +301,14 @@ func TestRateLimiter_RateLimitGeneral_FailOpenOnRedisError(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
-func TestRateLimiter_checkLimit_AllowsWhenRedisNil(t *testing.T) {
-	limiter := NewRateLimiter("", "", 0)
+func TestRateLimiter_checkLimit_AllowsWhenDisabled(t *testing.T) {
+	limiter, err := NewRateLimiter("", "", 0)
+	require.NoError(t, err)
 
 	allowed, _, retryAfter, err := limiter.checkLimit(t.Context(), "key", 1, time.Minute)
 	require.NoError(t, err)
@@ -307,7 +320,8 @@ func TestRateLimiter_WindowRollover_ResetsCounter(t *testing.T) {
 	s := miniredis.RunT(t)
 	defer s.Close()
 
-	limiter := NewRateLimiter(s.Addr(), "", 0)
+	limiter, err := NewRateLimiter(s.Addr(), "", 0)
+	require.NoError(t, err)
 	middleware := limiter.RateLimitLogin()
 
 	e := echo.New()
@@ -336,7 +350,7 @@ func TestRateLimiter_WindowRollover_ResetsCounter(t *testing.T) {
 		return c.String(http.StatusOK, "ok")
 	})
 
-	err := handler(c)
+	err = handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 

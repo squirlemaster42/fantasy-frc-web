@@ -39,7 +39,7 @@ type ServerConfig struct {
 	AllowedOrigin    string
 }
 
-func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(context.Context) error) {
+func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(context.Context) error, error) {
 	log.Info(ctx, "Starting Server")
 	auth := authentication.NewAuth(cfg.Handler.Services.AuthService, cfg.Handler.Stores.UserStore)
 	app := echo.New()
@@ -92,7 +92,11 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 	csrf := middleware.NewCSRF(cfg.CsrfSecret, cfg.Handler.Config.SecureHttpCookie)
 	var rateLimiter *middleware.RateLimiter
 	if cfg.RateLimitEnabled {
-		rateLimiter = middleware.NewRateLimiter(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisRateLimitDB)
+		var err error
+		rateLimiter, err = middleware.NewRateLimiter(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisRateLimitDB)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create rate limiter: %w", err)
+		}
 	}
 
 	loginPostMiddleware := []echo.MiddlewareFunc{echomiddleware.Gzip()}
@@ -118,7 +122,7 @@ func CreateServer(ctx context.Context, cfg ServerConfig) (*echo.Echo, func(conte
 
 	registerCatchAll(app)
 
-	return app, shutdown
+	return app, shutdown, nil
 }
 
 func registerPublicRoutes(app *echo.Echo, cfg ServerConfig, auth *authentication.Authenticator, loginMiddleware, registerMiddleware []echo.MiddlewareFunc) {

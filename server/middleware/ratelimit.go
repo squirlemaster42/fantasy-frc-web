@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"server/log"
@@ -14,27 +15,35 @@ import (
 )
 
 type RateLimiter struct {
-	client *redis.Client
+	client  *redis.Client
+	enabled bool
 }
 
-func NewRateLimiter(addr, password string, db int) *RateLimiter {
+// NewRateLimiter creates a Redis-backed rate limiter. If addr is empty, rate
+// limiting is disabled and the returned limiter allows all traffic. If addr is
+// set but Redis is unreachable, it returns an error so the caller can fail fast
+// rather than running without rate limiting.
+func NewRateLimiter(addr, password string, db int) (*RateLimiter, error) {
 	if addr == "" {
-		return &RateLimiter{}
+		return &RateLimiter{enabled: false}, nil
 	}
-		rdb := redisutil.NewClient(addr, password, db)
+
+	rdb := redisutil.NewClient(addr, password, db)
 	ctx, cancel := context.WithTimeout(context.Background(), RateLimitRedisPingTimeout())
 	defer cancel()
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Error(ctx, "Redis rate limiter unavailable, rate limiting disabled", "error", err)
-		return &RateLimiter{}
+		return nil, fmt.Errorf("redis rate limiter unavailable: %w", err)
 	}
-	return &RateLimiter{client: rdb}
+	return &RateLimiter{client: rdb, enabled: true}, nil
 }
 
 func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, window time.Duration) (bool, int64, time.Duration, error) {
-	if r.client == nil {
+	if !r.enabled {
 		return true, 0, 0, nil
+	}
+	if r.client == nil {
+		return false, 0, 0, errors.New("rate limiter enabled but redis client is nil")
 	}
 
 	now := time.Now()
@@ -47,7 +56,7 @@ func (r *RateLimiter) checkLimit(ctx context.Context, key string, limit int64, w
 	_, err := pipe.Exec(ctx)
 	if err != nil {
 		log.Error(ctx, "Rate limiter Redis error", "error", err)
-		return true, 0, 0, fmt.Errorf("failed to execute rate limit pipeline: %w", err)
+		return false, 0, 0, fmt.Errorf("failed to execute rate limit pipeline: %w", err)
 	}
 
 	count := incr.Val()
@@ -92,8 +101,8 @@ func (r *RateLimiter) RateLimitGeneral(postsPerMinute int64) echo.MiddlewareFunc
 
 			allowed, _, retryAfter, err := r.checkLimit(c.Request().Context(), key, postsPerMinute, window)
 			if err != nil {
-				log.Warn(c.Request().Context(), "Rate limiter failing open", "path", c.Request().URL.Path, "ip", c.RealIP(), "error", err)
-				return next(c) // Fail open
+				log.Error(c.Request().Context(), "Rate limiter error, failing closed", "path", c.Request().URL.Path, "ip", c.RealIP(), "error", err)
+				return c.NoContent(http.StatusServiceUnavailable)
 			}
 			if !allowed {
 				log.Warn(c.Request().Context(), "Rate limit exceeded", "path", c.Request().URL.Path, "ip", c.RealIP(), "key", key)
@@ -112,9 +121,8 @@ func (r *RateLimiter) rateLimitMiddleware(prefix string, limit int64, window tim
 			key := fmt.Sprintf("%s:%s", prefix, ip)
 			allowed, _, retryAfter, err := r.checkLimit(c.Request().Context(), key, limit, window)
 			if err != nil {
-				log.Warn(c.Request().Context(), "Rate limiter failing open", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix, "error", err)
-				// Fail open on Redis errors
-				return next(c)
+				log.Error(c.Request().Context(), "Rate limiter error, failing closed", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix, "error", err)
+				return c.NoContent(http.StatusServiceUnavailable)
 			}
 			if !allowed {
 				log.Warn(c.Request().Context(), "Rate limit exceeded", "path", c.Request().URL.Path, "ip", ip, "prefix", prefix)

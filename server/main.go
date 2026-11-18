@@ -244,7 +244,7 @@ func main() {
 
 	serverPort := strconv.Itoa(cfg.ServerPort)
 
-	app, otelShutdown := CreateServer(ctx, ServerConfig{
+	app, otelShutdown, err := CreateServer(ctx, ServerConfig{
 		ServerPort:       serverPort,
 		Handler:          handler,
 		Database:         db,
@@ -258,6 +258,9 @@ func main() {
 		TrustProxy:       cfg.TrustProxy,
 		AllowedOrigin:    cfg.AllowedOrigin,
 	})
+	if err != nil {
+		assert.NoError(ctx, err, "Failed to create server")
+	}
 
 	httpServer := &http.Server{
 		Addr:              ":" + serverPort,
