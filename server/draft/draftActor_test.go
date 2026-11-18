@@ -896,6 +896,58 @@ func TestPickNotifier_ConcurrentOperations(t *testing.T) {
 	assert.Equal(t, 0, notifier.GetWatcherCount(draftId), "all watchers should be unregistered")
 }
 
+func TestDraftActor_ConcurrentStateAccess(t *testing.T) {
+	mockStore := mocks.NewMockDraftStore(t)
+	draftId := 1
+	userUuid := uuid.New()
+	mockStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:     draftId,
+		Status: model.FILLING,
+		CurrentPick: model.Pick{
+			Id:             42,
+			ExpirationTime: time.Now().Add(time.Hour),
+		},
+		Players: []model.DraftPlayer{
+			{Id: 5, User: model.User{UserUuid: userUuid}},
+		},
+	}, nil).Once()
+
+	actor, err := NewDraftActor(t.Context(), draftId, mockStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), nil)
+	require.NoError(t, err)
+	require.NotNil(t, actor)
+
+	var wg sync.WaitGroup
+	for range 100 {
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			state := actor.GetDraftState()
+			assert.Equal(t, draftId, state.Id)
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = actor.GetDraftPlayerIdByUuid(userUuid)
+		}()
+		go func() {
+			defer wg.Done()
+			replyChan := make(chan Result, 1)
+			msg := Message{
+				Content: ModifyExpirationTimeMessage{PickId: 999, Extension: time.Minute},
+				Reply:   replyChan,
+			}
+			if err := actor.PostMessage(t.Context(), msg); err != nil {
+				return
+			}
+			select {
+			case <-replyChan:
+			case <-time.After(time.Second):
+				t.Log("timeout waiting for concurrent message reply")
+			}
+		}()
+	}
+	wg.Wait()
+}
+
 func TestDraftActor_ConcurrentMessages(t *testing.T) {
 	mockStore := mocks.NewMockDraftStore(t)
 	draftId := 1

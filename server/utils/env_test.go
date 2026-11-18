@@ -63,3 +63,23 @@ func TestLoadEnvFile_InvalidLine(t *testing.T) {
 	err := LoadEnvFile(path)
 	require.Error(t, err)
 }
+
+func TestLoadEnvFile_UnquotedValueWithSpaces(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	content := "SPACED=hello world\nTRIMMED=  padded  \n"
+	require.NoError(t, os.WriteFile(path, []byte(content), 0600))
+
+	require.NoError(t, LoadEnvFile(path))
+
+	assert.Equal(t, "hello world", os.Getenv("SPACED"))
+	assert.Equal(t, "padded", os.Getenv("TRIMMED"))
+}
+
+func TestLoadEnvFile_EmptyValue(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	require.NoError(t, os.WriteFile(path, []byte("EMPTY=\n"), 0600))
+
+	require.NoError(t, LoadEnvFile(path))
+
+	assert.Empty(t, os.Getenv("EMPTY"))
+}

@@ -106,6 +106,22 @@ func TestCleanupService_cleanExpiredSessionTokens_ExecError(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestCleanupService_RapidStartStop(t *testing.T) {
+	db, _, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	service := NewCleanupService(db, 60)
+	ctx := context.Background()
+
+	for range 50 {
+		require.NoError(t, service.Start(ctx))
+		require.NoError(t, service.Stop(ctx))
+	}
+
+	assert.False(t, service.running.Load())
+}
+
 func TestCleanupService_Start_RunsCleanup(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
