@@ -81,6 +81,27 @@ func (d *DraftModel) String() string {
 		d.Id, d.DisplayName, d.Description, d.Owner.String(), d.Status, stringBuilder.String(), d.NextPick.String(), d.TimingType, d.InitialPickTimeSec, d.IncrementTimeSec, d.PerPickExpTimeSec)
 }
 
+// DeepCopy returns a value copy of the draft, including copies of all slice
+// fields so mutations to the returned model do not affect the original.
+func (d DraftModel) DeepCopy() DraftModel {
+	copy := d
+	if d.Players != nil {
+		copy.Players = make([]DraftPlayer, len(d.Players))
+		for i := range d.Players {
+			copy.Players[i] = d.Players[i].DeepCopy()
+		}
+	}
+	copy.NextPick = d.NextPick.DeepCopy()
+	copy.CurrentPick = d.CurrentPick.DeepCopy()
+	if d.Picks != nil {
+		copy.Picks = make([]Pick, len(d.Picks))
+		for i := range d.Picks {
+			copy.Picks[i] = d.Picks[i].DeepCopy()
+		}
+	}
+	return copy
+}
+
 // PerPickExpirationDuration returns the configured fixed duration for each pick
 // when the draft uses PER_PICK timing.
 func (d *DraftModel) PerPickExpirationDuration() time.Duration {
@@ -130,6 +151,18 @@ func (d *DraftPlayer) String() string {
 		d.Id, d.User.UserUuid.String(), playerOrderStr, d.Pending, stringBuilder.String(), d.RemainingPickTimeSec)
 }
 
+// DeepCopy returns a value copy of the player, including a copy of its Picks slice.
+func (d DraftPlayer) DeepCopy() DraftPlayer {
+	copy := d
+	if d.Picks != nil {
+		copy.Picks = make([]Pick, len(d.Picks))
+		for i := range d.Picks {
+			copy.Picks[i] = d.Picks[i].DeepCopy()
+		}
+	}
+	return copy
+}
+
 type Pick struct {
 	Id             int
 	Player         int            // DraftPlayerId
@@ -152,6 +185,11 @@ func (p *Pick) String() string {
 	}
 	return fmt.Sprintf("Pick: {\nId: %d\n Player: %d\n Pick: %s\n PickTime: %s\n Skipped: %t\n AvailableTime: %s\n ExpirationTime: %s\n Score: %d\n}",
 		p.Id, p.Player, pickStr, pickTimeStr, p.Skipped, p.AvailableTime.String(), p.ExpirationTime.String(), p.Score)
+}
+
+// DeepCopy returns a value copy of the pick.
+func (p Pick) DeepCopy() Pick {
+	return p
 }
 
 type DraftInvite struct {

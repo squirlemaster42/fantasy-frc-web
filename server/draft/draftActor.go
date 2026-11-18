@@ -273,7 +273,9 @@ func (d *DraftActor) run() {
 			break
 		}
 
+		d.mu.Lock()
 		result := d.handleMessage(message)
+		d.mu.Unlock()
 
 		if message.Reply != nil {
 			select {
@@ -562,9 +564,7 @@ func (d *DraftActor) handleStateTransition(ctx context.Context, msg StateTransit
 // through the global pick-window configuration so that picks respect the
 // configured active hours.
 func (d *DraftActor) getNextPickExpirationTime(ctx context.Context, draftPlayerId int, t time.Time) time.Time {
-	d.mu.RLock()
 	draft := d.draftState
-	d.mu.RUnlock()
 
 	var expirationDuration time.Duration
 	if draft.TimingType == model.INCREMENT {
@@ -599,8 +599,9 @@ func (d *DraftActor) executeTransition(ctx context.Context, store model.DraftSto
 	}
 
 	if d.pickNotifier != nil {
+		draftId := d.draftState.Id
 		go func() {
-			d.pickNotifier.NotifyStateChange(ctx, d.draftState.Id, requestedState)
+			d.pickNotifier.NotifyStateChange(ctx, draftId, requestedState)
 		}()
 	}
 
@@ -822,9 +823,7 @@ func (d *DraftActor) handleModifyExpirationTime(ctx context.Context, msg ModifyE
 			Error: errors.New("failed to update pick expiration time"),
 		}
 	}
-	d.mu.Lock()
 	d.draftState.CurrentPick.ExpirationTime = newExpirationTime
-	d.mu.Unlock()
 
 	return Result{
 		Value: newExpirationTime,
@@ -974,7 +973,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	}
 
 	// Update cached fields directly — we know exactly what changed
-	d.mu.Lock()
 	d.draftState.DisplayName = msg.Name
 	d.draftState.Description = msg.Description
 	d.draftState.DiscordWebhook = msg.DiscordWebhook
@@ -982,7 +980,6 @@ func (d *DraftActor) handleUpdateDraftProfile(ctx context.Context, msg UpdateDra
 	d.draftState.InitialPickTimeSec = msg.InitialPickTimeSec
 	d.draftState.IncrementTimeSec = msg.IncrementTimeSec
 	d.draftState.PerPickExpTimeSec = msg.PerPickExpTimeSec
-	d.mu.Unlock()
 
 	return Result{}
 }
@@ -993,9 +990,7 @@ func (d *DraftActor) handleTransferDraftOwnership(ctx context.Context, msg Trans
 		log.Error(ctx, "Failed to transfer draft ownership", "draftId", d.draftState.Id, "error", err)
 		return Result{Error: err}
 	}
-	d.mu.Lock()
 	d.draftState.Owner.UserUuid = msg.UpdatedOwnerId
-	d.mu.Unlock()
 	return Result{}
 }
 
@@ -1073,16 +1068,15 @@ func (d *DraftActor) reloadDraftState(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	d.mu.Lock()
 	d.draftState = updatedDraft
-	d.mu.Unlock()
 	return nil
 }
 
 func (d *DraftActor) notifyPickListeners(ctx context.Context, pick model.Pick) {
+	draftId := d.draftState.Id
 	go d.notifyListeners(ctx, picking.PickEvent{
 		Pick:    pick,
-		DraftId: d.draftState.Id,
+		DraftId: draftId,
 	})
 }
 
@@ -1128,5 +1122,5 @@ func (d *DraftActor) GetDraftPlayerIdByUuid(userUuid uuid.UUID) (int, error) {
 func (d *DraftActor) GetDraftState() model.DraftModel {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	return d.draftState
+	return d.draftState.DeepCopy()
 }
