@@ -414,3 +414,116 @@ func TestAdminServiceInvalidatePickCache(t *testing.T) {
 		assert.Contains(t, err.Error(), "tba down")
 	})
 }
+
+func TestAdminServiceStartDraft_CancelInvitesError(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+
+	players := make([]model.DraftPlayer, 8)
+	for i := range players {
+		players[i] = model.DraftPlayer{Pending: false}
+	}
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(model.DraftModel{
+		Id:      draftId,
+		Status:  model.FILLING,
+		Players: players,
+	}, nil).Once()
+	mockDraftStore.On("CancelOutstandingInvites", ctx, draftId).Return(errors.New("db down")).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	_, err := svc.StartDraft(ctx, draftId)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to cancel outstanding invites")
+}
+
+func TestAdminServiceAdminPick_PickError(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(makeAdminDraftModel(userUuid), nil).Once()
+	mockDraftStore.On("HasBeenPicked", ctx, draftId, "frc254").Return(false, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	_, err := svc.AdminPick(ctx, draftId, "254")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pick validation cache is not available")
+}
+
+func TestAdminServiceUndoPick_Error(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	draftModel := makeAdminDraftModel(userUuid)
+	draftModel.CurrentPick.Id = 11
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(draftModel, nil).Once()
+	mockDraftStore.On("GetPreviousPick", ctx, draftId, 11).Return(model.Pick{}, sql.ErrNoRows).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	_, err := svc.UndoPick(ctx, draftId)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get previous pick")
+}
+
+func TestAdminServiceRenameDraft_Errors(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+
+	t.Run("draft not found", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", ctx, draftId).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+		svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+		_, err := svc.RenameDraft(ctx, draftId, "NewName")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "draft ID does not match a valid draft")
+	})
+
+	t.Run("update error", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", ctx, draftId).Return(model.DraftModel{
+			Id:          draftId,
+			DisplayName: "Old Name",
+			Players: []model.DraftPlayer{
+				{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+			},
+		}, nil).Once()
+		mockDraftStore.On("UpdateDraft", ctx, mock.Anything).Return(errors.New("db down")).Once()
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+		svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+		_, err := svc.RenameDraft(ctx, draftId, "NewName")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to update draft name")
+	})
+}
+
+func TestAdminServicePopulateTeams_TBAError(t *testing.T) {
+	ctx := context.Background()
+
+	tbaHandler := &mockAdminTBAHandler{err: errors.New("tba down")}
+
+	svc := &AdminService{TBAHandler: tbaHandler}
+	msg, err := svc.PopulateTeams(ctx)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Successfully populated 0 teams", msg)
+}

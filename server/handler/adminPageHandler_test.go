@@ -136,6 +136,7 @@ func TestRenameDraftCommandNameValidation(t *testing.T) {
 
 type mockAdminTBAHandler struct {
 	teams map[string][]swagger.Team
+	err   error
 }
 
 func (m *mockAdminTBAHandler) MakeEventListReq(ctx context.Context, teamId string) ([]string, error) { return nil, nil }
@@ -146,6 +147,9 @@ func (m *mockAdminTBAHandler) MakeEventMatchKeysRequest(ctx context.Context, eve
 	return nil, nil
 }
 func (m *mockAdminTBAHandler) MakeTeamsAtEventRequest(ctx context.Context, eventId string) ([]swagger.Team, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
 	return m.teams[eventId], nil
 }
 func (m *mockAdminTBAHandler) MakeEliminationAllianceRequest(ctx context.Context, eventId string) ([]swagger.EliminationAlliance, error) {
