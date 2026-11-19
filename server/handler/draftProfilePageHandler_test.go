@@ -756,6 +756,87 @@ func TestHandleUpdateDraftProfile(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Discord")
 	})
+
+	t.Run("rejects invalid timing values", func(t *testing.T) {
+		body := "draftName=Updated&timingType=increment&initialPickTimeSec=not-a-number"
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			body,
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{
+				Id:     1,
+				Owner:  model.User{UserUuid: userUuid},
+				Status: model.FILLING,
+			}, nil).Once()
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "invalid value for initialPickTimeSec")
+	})
+
+	t.Run("returns error when update fails", func(t *testing.T) {
+		_, c, _ := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		draftModel := model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.FILLING,
+		}
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(draftModel, nil).Once()
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(draftModel, nil).Once()
+		mockDraftStore.
+			On("UpdateDraft", c.Request().Context(), mock.Anything).
+			Return(errors.New("db down")).Once()
+
+		draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.Error(t, err)
+	})
 }
 
 func TestInviteDraftPlayer_ErrorPaths(t *testing.T) {

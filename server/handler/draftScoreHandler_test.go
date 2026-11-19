@@ -96,6 +96,105 @@ func TestHandleDraftTeamScore(t *testing.T) {
 	})
 }
 
+func TestHandleDraftTeamScore_ErrorPaths(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("invalid draft id", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/team/254", "", "test-session")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "abc"},
+			{Name: "teamNumber", Value: "254"},
+		})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+
+		h := &Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.HandleDraftTeamScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/team/254", "", "test-session")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "42"},
+			{Name: "teamNumber", Value: "254"},
+		})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
+
+		h := &Handler{
+			Stores: StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore},
+		}
+		err := h.HandleDraftTeamScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("team score error", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/team/254", "", "test-session")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "42"},
+			{Name: "teamNumber", Value: "254"},
+		})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockTeamStore := mocks.NewMockTeamStore(t)
+
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+			Id:     42,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.PICKING,
+		}, nil)
+		mockTeamStore.On("GetScore", c.Request().Context(), "frc254").Return(nil, assert.AnError)
+
+		h := &Handler{
+			Stores: StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore, TeamStore: mockTeamStore},
+		}
+		err := h.HandleDraftTeamScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+
+	t.Run("match scores error", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/team/254", "", "test-session")
+		c.SetPathValues(echo.PathValues{
+			{Name: "id", Value: "42"},
+			{Name: "teamNumber", Value: "254"},
+		})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockTeamStore := mocks.NewMockTeamStore(t)
+
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+			Id:     42,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.PICKING,
+		}, nil)
+		mockTeamStore.On("GetScore", c.Request().Context(), "frc254").Return(map[string]int{"total": 42}, nil)
+		mockTeamStore.On("GetMatchScores", c.Request().Context(), "frc254").Return(nil, assert.AnError)
+
+		h := &Handler{
+			Stores: StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore, TeamStore: mockTeamStore},
+		}
+		err := h.HandleDraftTeamScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
 func setupScoreWebsocketTestHandler(t *testing.T, mockStore *mocks.MockDraftStore) (*Handler, *picking.PickNotifier) {
 	t.Helper()
 
