@@ -96,6 +96,61 @@ func TestHandleDraftTeamScore(t *testing.T) {
 	})
 }
 
+func TestHandleDraftScore_ErrorPaths(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("invalid draft id", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/draftScore", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+
+		h := &Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.HandleDraftScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/draftScore", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows)
+
+		h := &Handler{Stores: StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore}}
+		err := h.HandleDraftScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("draft score error", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/42/draftScore", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+			Id:     42,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.PICKING,
+		}, nil)
+		mockDraftStore.On("GetDraftScore", c.Request().Context(), 42).Return(nil, assert.AnError)
+
+		h := &Handler{Stores: StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore}}
+		err := h.HandleDraftScore(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
 func TestHandleDraftTeamScore_ErrorPaths(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 
