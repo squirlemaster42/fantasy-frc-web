@@ -327,6 +327,63 @@ func TestPickNotifier_ClosesWhenDraftLeavesPicking(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPickNotifier_ErrorPaths(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("missing user uuid redirects to login", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick/ws", "", "")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		h := &Handler{}
+		err := h.PickNotifier(c)
+
+		require.ErrorIs(t, err, errLoginRequired)
+		assert.Equal(t, http.StatusSeeOther, rec.Code)
+	})
+
+	t.Run("invalid draft id", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/pick/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{}
+		err := h.PickNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("non-member forbidden", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(0, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.PickNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("membership check error", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(0, assert.AnError).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.PickNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
 func TestPickNotifier_EnforcesReadLimit(t *testing.T) {
 	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 

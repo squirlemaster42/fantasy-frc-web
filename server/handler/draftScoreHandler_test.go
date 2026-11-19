@@ -195,6 +195,95 @@ func TestHandleDraftTeamScore_ErrorPaths(t *testing.T) {
 	})
 }
 
+func TestScoreNotifier_ErrorPaths(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("missing user uuid redirects to login", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/score/ws", "", "")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		h := &Handler{}
+		err := h.ScoreNotifier(c)
+
+		require.ErrorIs(t, err, errLoginRequired)
+		assert.Equal(t, http.StatusSeeOther, rec.Code)
+	})
+
+	t.Run("invalid draft id", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/abc/score/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{}
+		err := h.ScoreNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("non-member forbidden", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(0, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/score/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.ScoreNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("membership check error", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(0, assert.AnError).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/score/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.ScoreNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(1, nil).Once()
+		mockDraftStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/score/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.ScoreNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("draft not in teams playing state", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, 1, userUuid).Return(1, nil).Once()
+		mockDraftStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{Id: 1, Status: model.PICKING}, nil).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/score/ws", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		err := h.ScoreNotifier(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
 func setupScoreWebsocketTestHandler(t *testing.T, mockStore *mocks.MockDraftStore) (*Handler, *picking.PickNotifier) {
 	t.Helper()
 
