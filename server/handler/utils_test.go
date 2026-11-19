@@ -116,3 +116,23 @@ func TestInternalServerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Equal(t, "An error occurred", rec.Body.String())
 }
+
+func TestRenderError_Success(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/u/home", "", "")
+
+	err := RenderError(c, http.StatusTeapot, emptyComponent())
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusTeapot, rec.Code)
+	assert.Equal(t, "<div>ok</div>", rec.Body.String())
+}
+
+func TestRenderError_RenderFailure(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/u/home", "", "")
+
+	err := RenderError(c, http.StatusBadRequest, failingComponent())
+
+	require.Error(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Empty(t, rec.Body.String())
+}
