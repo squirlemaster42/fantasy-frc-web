@@ -18,25 +18,48 @@ import (
 )
 
 func TestHandleViewInvites(t *testing.T) {
-	_, c, rec := setupTestContext(t, http.MethodGet, "/invites", "", "test-session")
-	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
-	c.Set("userUuid", userUuid)
-	mockUserStore := mocks.NewMockUserStore(t)
-	mockDraftStore := mocks.NewMockDraftStore(t)
+	t.Run("success", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodGet, "/invites", "", "test-session")
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
 
-	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
-	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
 
-	h := &Handler{
-		Stores: StorageGroup{
-			DraftStore: mockDraftStore,
-			UserStore:  mockUserStore,
-		},
-	}
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
 
-	err := h.HandleViewInvites(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
+		err := h.HandleViewInvites(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("get invites error", func(t *testing.T) {
+		_, c, _ := setupTestContext(t, http.MethodGet, "/invites", "", "test-session")
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return(nil, errors.New("db down"))
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleViewInvites(c)
+		require.Error(t, err)
+	})
 }
 
 func TestHandleAcceptInvite_InviteNotFound(t *testing.T) {

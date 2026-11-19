@@ -397,3 +397,19 @@ func TestHandleVerificationEvent_Success(t *testing.T) {
 
 	assert.Equal(t, "verify-me", h.Config.TbaVerificationCode)
 }
+
+func TestHandleVerificationEvent_WritesFileWhenMissing(t *testing.T) {
+	secretPath := "./webhookSecret.txt" //nolint:gosec // test fixture path, not a credential
+	_ = os.Remove(secretPath)
+	defer func() { _ = os.Remove(secretPath) }()
+
+	h := &Handler{Config: ConfigGroup{}}
+	data, err := json.Marshal(map[string]string{"verification_key": "fresh-key"})
+	require.NoError(t, err)
+	h.HandleVerificationEvent(context.Background(), data)
+
+	assert.Equal(t, "fresh-key", h.Config.TbaVerificationCode)
+	written, err := os.ReadFile(secretPath)
+	require.NoError(t, err)
+	assert.Equal(t, "fresh-key", string(written))
+}
