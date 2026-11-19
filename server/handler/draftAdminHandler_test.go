@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"server/background"
 	"server/draft"
 	"server/model"
 	"server/model/mocks"
@@ -640,4 +641,288 @@ func TestHandleAdminEndDraft_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Draft ended and remaining picks skipped")
+}
+
+func TestHandleAdminEndDraft_FailureBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("actor not found", func(t *testing.T) {
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		draftModel := makeAdminDraftModel(userUuid)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/endDraft", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		emptyActorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: emptyActorMap},
+		}
+
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft not found")
+	})
+
+	t.Run("end draft returns false", func(t *testing.T) {
+		draftModel := makeAdminDraftModel(userUuid)
+		draftModel.Status = model.TEAMS_PLAYING
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/endDraft", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to end draft")
+	})
+
+	t.Run("daemon remove error logs but succeeds", func(t *testing.T) {
+		picks := make([]model.Pick, 8)
+		for i := range picks {
+			picks[i] = model.Pick{Id: i + 1, Player: 5, PickTime: sql.NullTime{Time: time.Now(), Valid: true}}
+		}
+
+		initialModel := model.DraftModel{
+			Id:          1,
+			Owner:       model.User{UserUuid: userUuid},
+			Status:      model.PICKING,
+			CurrentPick: model.Pick{Id: 9, Player: 5},
+			Players: []model.DraftPlayer{
+				{Id: 5, User: model.User{UserUuid: userUuid}, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+			},
+			Picks:      picks,
+			TimingType: model.PER_PICK,
+		}
+		reloadedModel := initialModel
+		reloadedModel.Status = model.TEAMS_PLAYING
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(initialModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(initialModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(reloadedModel, nil).Once()
+		mockRunInTransaction(actorStore)
+		actorStore.On("SkipPick", mock.Anything, 9).Return(nil).Once()
+		actorStore.On("UpdateDraftStatus", mock.Anything, 1, model.TEAMS_PLAYING).Return(nil).Once()
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		daemon := background.NewDraftDaemon(actorStore, actorMap)
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/endDraft", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap, DraftDaemon: daemon},
+		}
+
+		err := h.HandleAdminEndDraft(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft ended and remaining picks skipped")
+	})
+}
+
+func TestHandleAdminSkipPick_FailureBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("actor not found", func(t *testing.T) {
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		draftModel := makeAdminDraftModel(userUuid)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/skip", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		emptyActorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: emptyActorMap},
+		}
+
+		err := h.HandleAdminSkipPick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft not found")
+	})
+
+	t.Run("skip returns false", func(t *testing.T) {
+		draftModel := makeAdminDraftModel(userUuid)
+		draftModel.Status = model.TEAMS_PLAYING
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/skip", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleAdminSkipPick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to skip pick")
+	})
+}
+
+func TestHandleAdminUndoPick_FailureBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("actor not found", func(t *testing.T) {
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		draftModel := makeAdminDraftModel(userUuid)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/undoPick", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		emptyActorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: emptyActorMap},
+		}
+
+		err := h.HandleAdminUndoPick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft not found")
+	})
+
+	t.Run("undo returns error", func(t *testing.T) {
+		draftModel := makeAdminDraftModel(userUuid)
+		draftModel.CurrentPick.Id = 11
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Maybe()
+		actorStore.On("GetPreviousPick", mock.Anything, 1, 11).Return(model.Pick{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/undoPick", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleAdminUndoPick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to undo pick")
+	})
+}
+
+func TestHandleAdminMakePick_FailureBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("actor not found", func(t *testing.T) {
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		draftModel := makeAdminDraftModel(userUuid)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		body := "teamNumber=254"
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/makePick", body, "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		emptyActorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: emptyActorMap},
+		}
+
+		err := h.HandleAdminMakePick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft not found")
+	})
+
+	t.Run("no current pick", func(t *testing.T) {
+		draftModel := makeAdminDraftModel(userUuid)
+		draftModel.CurrentPick = model.Pick{}
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+
+		body := "teamNumber=254"
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/makePick", body, "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleAdminMakePick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "No current pick found")
+	})
+
+	t.Run("make pick returns error", func(t *testing.T) {
+		draftModel := makeAdminDraftModel(userUuid)
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("HasBeenPicked", mock.Anything, 1, "frc254").Return(true, nil).Once()
+
+		body := "teamNumber=254"
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/makePick", body, "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: handlerStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleAdminMakePick(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to make pick")
+	})
 }
