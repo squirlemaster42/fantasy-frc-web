@@ -6,6 +6,7 @@ import (
 
 	"uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"server/authentication"
@@ -285,5 +286,57 @@ func TestHandleUpdateUserNotificationPreferences(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, http.StatusSeeOther, rec.Code)
 		assert.Equal(t, "/login", rec.Header().Get("Location"))
+	})
+}
+
+func TestLoadUserNotificationSettings(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("success", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsForUser", mock.Anything, userUuid).Return([]model.DraftModel{{Id: 1}}, nil).Once()
+		mockDraftStore.On("GetUserDraftNotificationPreferences", mock.Anything, userUuid).Return(map[int]model.DraftNotificationPreference{1: {UpcomingMatch: true}}, nil).Once()
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		drafts, prefs, err := h.loadUserNotificationSettings(t.Context(), userUuid)
+
+		require.NoError(t, err)
+		assert.Len(t, drafts, 1)
+		assert.True(t, prefs[1].UpcomingMatch)
+	})
+
+	t.Run("nil preferences become empty map", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsForUser", mock.Anything, userUuid).Return([]model.DraftModel{}, nil).Once()
+		mockDraftStore.On("GetUserDraftNotificationPreferences", mock.Anything, userUuid).Return(nil, nil).Once()
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		drafts, prefs, err := h.loadUserNotificationSettings(t.Context(), userUuid)
+
+		require.NoError(t, err)
+		assert.Empty(t, drafts)
+		assert.NotNil(t, prefs)
+		assert.Empty(t, prefs)
+	})
+
+	t.Run("drafts error", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsForUser", mock.Anything, userUuid).Return(nil, assert.AnError).Once()
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		_, _, err := h.loadUserNotificationSettings(t.Context(), userUuid)
+
+		require.Error(t, err)
+	})
+
+	t.Run("preferences error", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraftsForUser", mock.Anything, userUuid).Return([]model.DraftModel{}, nil).Once()
+		mockDraftStore.On("GetUserDraftNotificationPreferences", mock.Anything, userUuid).Return(nil, assert.AnError).Once()
+
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+		_, _, err := h.loadUserNotificationSettings(t.Context(), userUuid)
+
+		require.Error(t, err)
 	})
 }

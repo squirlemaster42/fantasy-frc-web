@@ -53,3 +53,22 @@ func TestHandleGetTeamScore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestAvatarColorForTeam(t *testing.T) {
+	t.Run("returns default when store is nil", func(t *testing.T) {
+		color := avatarColorForTeam(t.Context(), nil, "254")
+		assert.Equal(t, cache.DefaultAvatarColor, color)
+	})
+
+	t.Run("returns default for non-numeric team", func(t *testing.T) {
+		store := &mockAvatarStore{color: cache.DefaultAvatarColor}
+		color := avatarColorForTeam(t.Context(), store, "abc")
+		assert.Equal(t, cache.DefaultAvatarColor, color)
+	})
+
+	t.Run("delegates to store for numeric team", func(t *testing.T) {
+		store := &mockAvatarStore{color: "#123456"}
+		color := avatarColorForTeam(t.Context(), store, "254")
+		assert.Equal(t, "#123456", color)
+	})
+}
