@@ -466,3 +466,151 @@ func TestHandleAdminViewWebhookKey(t *testing.T) {
 	body := rec.Body.String()
 	assert.Contains(t, body, "View Webhook Key")
 }
+
+func TestHandleAdminUndoPickGlobal_Success(t *testing.T) {
+	draftId := 1
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/undoPick", "id=1")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	draftModel := makeAdminDraftModel(userUuid)
+	draftModel.CurrentPick.Id = 11
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Twice()
+	mockDraftStore.On("GetPreviousPick", mock.Anything, draftId, 11).Return(model.Pick{Id: 10, Player: 5}, nil).Once()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("DeletePick", mock.Anything, 11).Return(nil).Once()
+	mockDraftStore.On("ResetPick", mock.Anything, 10, mock.Anything).Return(nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := Handler{
+		Stores:   StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore},
+		Services: ServiceGroup{DraftActorMap: draftActorMap},
+	}
+	err := h.HandleAdminUndoPickGlobal(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Successfully undid pick")
+}
+
+func TestHandleAdminAdminPick_Success(t *testing.T) {
+	draftId := 1
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/adminPick", "id=1&team=254")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	initialModel := makeAdminDraftModel(userUuid)
+	reloadedModel := initialModel
+	reloadedModel.CurrentPick.Id = 11
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(initialModel, nil).Once()
+	mockDraftStore.On("HasBeenPicked", mock.Anything, draftId, "frc254").Return(false, nil).Once()
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(reloadedModel, nil).Once()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("MakePick", mock.Anything, mock.Anything).Return(nil).Once()
+	mockDraftStore.On("MakePickAvailable", mock.Anything, 5, mock.Anything, mock.Anything).Return(11, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, &stubEventTeamCache{})
+
+	h := Handler{
+		Stores:   StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore},
+		Services: ServiceGroup{DraftActorMap: draftActorMap},
+	}
+	err := h.HandleAdminAdminPick(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Successfully picked team 254")
+}
+
+func TestHandleAdminSkipPickGlobal_InvalidDraftId(t *testing.T) {
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/skipPick", "id=abc")
+
+	h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+	err := h.HandleAdminSkipPickGlobal(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "draft ID must be a number")
+}
+
+func TestHandleAdminSkipPickGlobal_Success(t *testing.T) {
+	draftId := 1
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/skipPick", "id=1")
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:     draftId,
+		Status: model.PICKING,
+		CurrentPick: model.Pick{
+			Id:     10,
+			Player: 1,
+		},
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
+		TimingType: model.PER_PICK,
+	}, nil).Once()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("SkipPick", mock.Anything, 10).Return(nil).Once()
+	mockDraftStore.On("MakePickAvailable", mock.Anything, 1, mock.Anything, mock.Anything).Return(11, nil).Once()
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{
+		Id:     draftId,
+		Status: model.PICKING,
+		CurrentPick: model.Pick{
+			Id:     11,
+			Player: 1,
+		},
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
+		TimingType: model.PER_PICK,
+	}, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := Handler{
+		Stores:   StorageGroup{UserStore: mockUserStore, DraftStore: mockDraftStore},
+		Services: ServiceGroup{DraftActorMap: draftActorMap},
+	}
+	err := h.HandleAdminSkipPickGlobal(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Player was skipped")
+}
+
+func TestHandleAdminUndoPickGlobal_InvalidDraftId(t *testing.T) {
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/undoPick", "id=abc")
+
+	h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+	err := h.HandleAdminUndoPickGlobal(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "draft ID must be a number")
+}
+
+func TestHandleAdminAdminPick_InvalidDraftId(t *testing.T) {
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/adminPick", "id=abc&team=254")
+
+	h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+	err := h.HandleAdminAdminPick(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "draft ID must be a number")
+}
+
+func TestHandleAdminAdminPick_MissingTeam(t *testing.T) {
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/adminPick", "id=1")
+
+	h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+	err := h.HandleAdminAdminPick(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "team number is required")
+}

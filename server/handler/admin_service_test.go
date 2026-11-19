@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -271,6 +273,84 @@ func TestAdminServiceUndoPick(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "draft ID does not match a valid draft")
+}
+
+func TestAdminServiceViewWebhookKey(t *testing.T) {
+	ctx := context.Background()
+	secretPath := "./webhookSecret.txt" //nolint:gosec // test fixture path, not a credential
+
+	t.Run("reads existing key file", func(t *testing.T) {
+		require.NoError(t, os.WriteFile(secretPath, []byte("super-secret-key"), 0600))
+		defer func() { _ = os.Remove(secretPath) }()
+
+		svc := &AdminService{}
+		msg, err := svc.ViewWebhookKey(ctx)
+
+		require.NoError(t, err)
+		assert.Equal(t, "super-secret-key", msg)
+	})
+
+	t.Run("returns error when file missing", func(t *testing.T) {
+		_ = os.Remove(secretPath)
+
+		svc := &AdminService{}
+		_, err := svc.ViewWebhookKey(ctx)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to open file")
+	})
+}
+
+func TestAdminServiceAdminPick_Success(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	initialModel := makeAdminDraftModel(userUuid)
+	reloadedModel := initialModel
+	reloadedModel.CurrentPick.Id = 11
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(initialModel, nil).Once()
+	mockDraftStore.On("HasBeenPicked", ctx, draftId, "frc254").Return(false, nil).Once()
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(reloadedModel, nil).Once()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("MakePick", ctx, mock.Anything).Return(nil).Once()
+	mockDraftStore.On("MakePickAvailable", ctx, 5, mock.Anything, mock.Anything).Return(11, nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, &stubEventTeamCache{})
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	msg, err := svc.AdminPick(ctx, draftId, "254")
+
+	require.NoError(t, err)
+	assert.Equal(t, "Successfully picked team 254", msg)
+	mockDraftStore.AssertExpectations(t)
+}
+
+func TestAdminServiceUndoPick_Success(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftModel := makeAdminDraftModel(userUuid)
+	draftModel.CurrentPick.Id = 11
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(draftModel, nil).Twice()
+	mockDraftStore.On("GetPreviousPick", ctx, draftId, 11).Return(model.Pick{Id: 10, Player: 5}, nil).Once()
+	mockRunInTransaction(mockDraftStore)
+	mockDraftStore.On("DeletePick", ctx, 11).Return(nil).Once()
+	mockDraftStore.On("ResetPick", ctx, 10, mock.Anything).Return(nil).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	msg, err := svc.UndoPick(ctx, draftId)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Successfully undid pick", msg)
+	mockDraftStore.AssertExpectations(t)
 }
 
 func TestAdminServiceInvalidatePickCache(t *testing.T) {
