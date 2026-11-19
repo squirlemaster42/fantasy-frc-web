@@ -213,30 +213,149 @@ func TestSearchPlayers(t *testing.T) {
 	})
 }
 
-func TestHandleUninvitePlayer_ErrorHandling(t *testing.T) {
-	t.Run("returns bad request when draft not in filling state", func(t *testing.T) {
-		expectedStatus := http.StatusBadRequest
-		expectedMsg := "Draft must be in FILLING state to uninvite players"
+func TestInviteDraftPlayer_Success(t *testing.T) {
+	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	invitedUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	draftId := 42
 
-		assert.Equal(t, http.StatusBadRequest, expectedStatus)
-		assert.NotEmpty(t, expectedMsg)
-	})
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
 
-	t.Run("returns unauthorized when user is not owner", func(t *testing.T) {
-		expectedStatus := http.StatusUnauthorized
-		expectedMsg := "You must own the draft to uninvite a player"
+	draftModel := model.DraftModel{
+		Id:      draftId,
+		Owner:   model.User{UserUuid: ownerUuid},
+		Status:  model.FILLING,
+		Players: []model.DraftPlayer{},
+	}
 
-		assert.Equal(t, http.StatusUnauthorized, expectedStatus)
-		assert.NotEmpty(t, expectedMsg)
-	})
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockDraftStore.On("InvitePlayer", mock.Anything, draftId, ownerUuid, invitedUuid).Return(1, nil).Once()
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockUserStore.On("SearchUsers", mock.Anything, "", draftId).Return([]model.User{}, nil).Once()
 
-	t.Run("returns internal server error on database failure", func(t *testing.T) {
-		expectedStatus := http.StatusInternalServerError
-		expectedMsg := "Failed to uninvite player"
+	body := "userUuid=" + invitedUuid.String() + "&search="
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/invite", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+	c.Set("userUuid", ownerUuid)
 
-		assert.Equal(t, http.StatusInternalServerError, expectedStatus)
-		assert.NotEmpty(t, expectedMsg)
-	})
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.InviteDraftPlayer(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestInviteDraftPlayer_NotOwner(t *testing.T) {
+	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	otherUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	invitedUuid := uuid.MustParse("770e8400-e29b-41d4-a716-446655440002")
+	draftId := 42
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	draftModel := model.DraftModel{
+		Id:      draftId,
+		Owner:   model.User{UserUuid: ownerUuid},
+		Status:  model.FILLING,
+		Players: []model.DraftPlayer{},
+	}
+
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+
+	body := "userUuid=" + invitedUuid.String() + "&search="
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/invite", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+	c.Set("userUuid", otherUuid)
+
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.InviteDraftPlayer(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Contains(t, rec.Body.String(), "must own the draft")
+}
+
+func TestHandleUninvitePlayer_Success(t *testing.T) {
+	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftId := 42
+	inviteId := 5
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+
+	draftModel := model.DraftModel{
+		Id:      draftId,
+		Owner:   model.User{UserUuid: ownerUuid},
+		Status:  model.FILLING,
+		Players: []model.DraftPlayer{},
+	}
+
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockDraftStore.On("UninvitePlayer", mock.Anything, draftId, ownerUuid, inviteId).Return(nil).Once()
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockUserStore.On("SearchUsers", mock.Anything, "", draftId).Return([]model.User{}, nil).Once()
+
+	body := "inviteId=5&search="
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/uninvite", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+	c.Set("userUuid", ownerUuid)
+
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.HandleUninvitePlayer(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestHandleUninvitePlayer_InvalidInviteId(t *testing.T) {
+	ownerUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+
+	body := "inviteId=abc&search="
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/uninvite", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+	c.Set("userUuid", ownerUuid)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+		},
+	}
+
+	err := h.HandleUninvitePlayer(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "Invalid invite ID")
 }
 
 func TestHandleStartDraft_AddsDraftToDaemon(t *testing.T) {

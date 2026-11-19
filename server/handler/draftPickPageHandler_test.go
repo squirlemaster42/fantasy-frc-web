@@ -13,8 +13,8 @@ import (
 	"uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"server/draft"
 	"server/model"
@@ -351,4 +351,102 @@ func TestPickNotifier_EnforcesReadLimit(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = conn.ReadMessage()
 	require.Error(t, err)
+}
+
+func makeTestDraftModel(userUuid uuid.UUID, status model.DraftState) model.DraftModel {
+	playerId := 5
+	pick := model.Pick{Id: 10, Player: playerId, ExpirationTime: time.Now()}
+	player := model.DraftPlayer{
+		Id:          playerId,
+		User:        model.User{UserUuid: userUuid},
+		PlayerOrder: sql.NullInt16{Int16: 0, Valid: true},
+		Picks:       []model.Pick{pick},
+	}
+	return model.DraftModel{
+		Id:          1,
+		Owner:       model.User{UserUuid: userUuid},
+		Status:      status,
+		CurrentPick: pick,
+		NextPick:    player,
+		Players:     []model.DraftPlayer{player},
+		Picks:       []model.Pick{pick},
+		TimingType:  model.PER_PICK,
+	}
+}
+
+func TestHandlerPickRequest_EmptyPick(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftId := 1
+	playerId := 5
+
+	draftModel := makeTestDraftModel(userUuid, model.PICKING)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockDraftStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(playerId, nil).Once()
+	mockDraftStore.On("ShouldSkipPick", mock.Anything, playerId).Return(false, nil).Once()
+
+	body := "pickInput="
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/makePick", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+	c.Set("userUuid", userUuid)
+
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{DraftStore: mockDraftStore},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.HandlerPickRequest(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "you must be the picking player")
+}
+
+func TestHandlerPickRequest_InvalidDraftId(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	_, c, _ := setupTestContext(t, http.MethodPost, "/u/draft/abc/makePick", "pickInput=254", "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "abc"}})
+	c.Set("userUuid", userUuid)
+
+	h := &Handler{}
+
+	err := h.HandlerPickRequest(c)
+	require.Error(t, err)
+}
+
+func TestServePickPage_Success(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftId := 1
+	playerId := 5
+
+	draftModel := makeTestDraftModel(userUuid, model.PICKING)
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	mockDraftStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(playerId, nil).Once()
+	mockDraftStore.On("ShouldSkipPick", mock.Anything, playerId).Return(false, nil).Once()
+	mockUserStore.On("GetUsername", mock.Anything, userUuid).Return("testuser", nil).Once()
+
+	_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick", "", "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+	c.Set("userUuid", userUuid)
+
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{DraftStore: mockDraftStore, UserStore: mockUserStore},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.ServePickPage(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
 }
