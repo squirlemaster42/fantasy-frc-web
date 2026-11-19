@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -351,6 +352,31 @@ func TestAdminServiceUndoPick_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Successfully undid pick", msg)
 	mockDraftStore.AssertExpectations(t)
+}
+
+func TestAdminServiceModifyPickTime_UpdateError(t *testing.T) {
+	ctx := context.Background()
+	draftId := 1
+	pickId := 42
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(model.DraftModel{
+		Id:          draftId,
+		Status:      model.PICKING,
+		CurrentPick: model.Pick{Id: pickId},
+		Players: []model.DraftPlayer{
+			{Id: 1, PlayerOrder: sql.NullInt16{Int16: 0, Valid: true}},
+		},
+	}, nil).Once()
+	mockDraftStore.On("UpdatePickExpirationTime", ctx, pickId, mock.Anything).Return(errors.New("db down")).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	_, err := svc.ModifyPickTime(ctx, draftId, 45*time.Minute)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update pick expiration time")
 }
 
 func TestAdminServiceInvalidatePickCache(t *testing.T) {
