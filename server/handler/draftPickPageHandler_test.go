@@ -507,3 +507,152 @@ func TestServePickPage_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestHandlerPickRequest_NotCurrentPick(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	otherUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	draftId := 1
+
+	pick := model.Pick{Id: 10, Player: 5, ExpirationTime: time.Now()}
+	otherPlayer := model.DraftPlayer{
+		Id:          5,
+		User:        model.User{UserUuid: otherUuid},
+		PlayerOrder: sql.NullInt16{Int16: 0, Valid: true},
+		Picks:       []model.Pick{pick},
+	}
+	currentPlayer := model.DraftPlayer{
+		Id:          6,
+		User:        model.User{UserUuid: userUuid},
+		PlayerOrder: sql.NullInt16{Int16: 1, Valid: true},
+		Picks:       []model.Pick{},
+	}
+	draftModel := model.DraftModel{
+		Id:          draftId,
+		Owner:       model.User{UserUuid: otherUuid},
+		Status:      model.PICKING,
+		CurrentPick: pick,
+		NextPick:    otherPlayer,
+		Players:     []model.DraftPlayer{otherPlayer, currentPlayer},
+		Picks:       []model.Pick{pick},
+		TimingType:  model.PER_PICK,
+	}
+
+	handlerStore := mocks.NewMockDraftStore(t)
+	actorStore := mocks.NewMockDraftStore(t)
+	handlerStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(6, nil).Once()
+	handlerStore.On("ShouldSkipPick", mock.Anything, 6).Return(false, nil).Once()
+	actorStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+
+	body := "pickInput=254"
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/makePick", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+	c.Set("userUuid", userUuid)
+
+	actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{DraftStore: handlerStore},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.HandlerPickRequest(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "you must be the picking player")
+}
+
+func TestHandlerPickRequest_MakePickError(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftId := 1
+	playerId := 5
+
+	draftModel := makeTestDraftModel(userUuid, model.PICKING)
+
+	handlerStore := mocks.NewMockDraftStore(t)
+	actorStore := mocks.NewMockDraftStore(t)
+	handlerStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(playerId, nil).Once()
+	handlerStore.On("ShouldSkipPick", mock.Anything, playerId).Return(false, nil).Once()
+	actorStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+	actorStore.On("HasBeenPicked", mock.Anything, draftId, "frc254").Return(true, nil).Once()
+
+	body := "pickInput=254"
+	_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/makePick", body, "test-session")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+	c.Set("userUuid", userUuid)
+
+	actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, &stubEventTeamCache{})
+
+	h := &Handler{
+		Stores: StorageGroup{DraftStore: handlerStore},
+		Services: ServiceGroup{
+			DraftActorMap: actorMap,
+		},
+	}
+
+	err := h.HandlerPickRequest(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "team already picked")
+}
+
+func TestRenderPickPage_ErrorBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	draftId := 1
+
+	t.Run("actor not found", func(t *testing.T) {
+		actorStore := mocks.NewMockDraftStore(t)
+		actorStore.On("GetDraft", mock.Anything, draftId).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, _ := setupTestContext(t, http.MethodGet, "/u/draft/1/pick", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.renderPickPage(c, draftId, userUuid, "testuser", nil, true)
+		require.Error(t, err)
+	})
+
+	t.Run("draft player id error", func(t *testing.T) {
+		draftModel := makeTestDraftModel(userUuid, model.PICKING)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(0, assert.AnError).Once()
+		mockDraftStore.On("ShouldSkipPick", mock.Anything, -1).Return(false, nil).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}, Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.renderPickPage(c, draftId, userUuid, "testuser", nil, true)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("should skip pick error", func(t *testing.T) {
+		draftModel := makeTestDraftModel(userUuid, model.PICKING)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", mock.Anything, draftId).Return(draftModel, nil).Once()
+		mockDraftStore.On("GetDraftPlayerId", mock.Anything, draftId, userUuid).Return(5, nil).Once()
+		mockDraftStore.On("ShouldSkipPick", mock.Anything, 5).Return(false, assert.AnError).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodGet, "/u/draft/1/pick", "", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}, Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.renderPickPage(c, draftId, userUuid, "testuser", nil, true)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+}
