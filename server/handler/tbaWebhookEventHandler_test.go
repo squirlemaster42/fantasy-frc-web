@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -279,11 +280,12 @@ func TestHandleAllianceSelectionEvent_InvalidJSON(t *testing.T) {
 
 type mockDiscordNotifier struct {
 	preMatchEvent *discord.PreMatchDiscordEvent
+	returnErr     error
 }
 
 func (m *mockDiscordNotifier) PostPreMatchNotification(event discord.PreMatchDiscordEvent) error {
 	m.preMatchEvent = &event
-	return nil
+	return m.returnErr
 }
 
 func (m *mockDiscordNotifier) PostPickNotification(_ context.Context, _ discord.NextPickDiscordEvent) error {
@@ -347,6 +349,137 @@ func TestHandleUpcomingMatchEvent_WrongTeamCount(t *testing.T) {
 	require.NoError(t, err)
 
 	h.HandleUpcomingMatchEvent(context.Background(), data)
+}
+
+func TestHandleUpcomingMatchEvent_InvalidJSON(t *testing.T) {
+	h := &Handler{}
+	h.HandleUpcomingMatchEvent(context.Background(), []byte(`not json`))
+}
+
+func TestHandleUpcomingMatchEvent_GetDraftPickRowsError(t *testing.T) {
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftPickRows", mock.Anything, []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"}).Return(nil, errors.New("db down")).Once()
+
+	h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}}
+
+	payload := map[string]any{
+		"event_key":      "2026arc",
+		"match_key":      "2026arc_qm1",
+		"team_key":       "frc1",
+		"event_name":     "Test Event",
+		"team_keys":      []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"},
+		"scheduled_time": time.Now().Unix(),
+		"predicted_time": time.Now().Unix(),
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	h.HandleUpcomingMatchEvent(context.Background(), data)
+}
+
+func TestHandleUpcomingMatchEvent_InvalidWebhookSkipsNotification(t *testing.T) {
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftPickRows", mock.Anything, []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"}).Return([]model.DraftPickRow{
+		{
+			DraftId:            1,
+			Username:           "user",
+			Pick:               "frc1",
+			Webhook:            sql.NullString{Valid: false},
+			WantsUpcomingMatch: true,
+		},
+	}, nil).Once()
+
+	notifier := &mockDiscordNotifier{}
+	h := &Handler{
+		Stores:   StorageGroup{DraftStore: mockDraftStore},
+		Services: ServiceGroup{DiscordWebhookBus: notifier},
+	}
+
+	payload := map[string]any{
+		"event_key":      "2026arc",
+		"match_key":      "2026arc_qm1",
+		"team_key":       "frc1",
+		"event_name":     "Test Event",
+		"team_keys":      []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"},
+		"scheduled_time": time.Now().Unix(),
+		"predicted_time": time.Now().Unix(),
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	h.HandleUpcomingMatchEvent(context.Background(), data)
+
+	assert.Nil(t, notifier.preMatchEvent)
+}
+
+func TestHandleUpcomingMatchEvent_UserOptedOut(t *testing.T) {
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftPickRows", mock.Anything, []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"}).Return([]model.DraftPickRow{
+		{
+			DraftId:            1,
+			Username:           "user",
+			Pick:               "frc1",
+			Webhook:            sql.NullString{String: "https://discord.com/webhook", Valid: true},
+			WantsUpcomingMatch: false,
+		},
+	}, nil).Once()
+
+	notifier := &mockDiscordNotifier{}
+	h := &Handler{
+		Stores:   StorageGroup{DraftStore: mockDraftStore},
+		Services: ServiceGroup{DiscordWebhookBus: notifier},
+	}
+
+	payload := map[string]any{
+		"event_key":      "2026arc",
+		"match_key":      "2026arc_qm1",
+		"team_key":       "frc1",
+		"event_name":     "Test Event",
+		"team_keys":      []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"},
+		"scheduled_time": time.Now().Unix(),
+		"predicted_time": time.Now().Unix(),
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	h.HandleUpcomingMatchEvent(context.Background(), data)
+
+	assert.Nil(t, notifier.preMatchEvent)
+}
+
+func TestHandleUpcomingMatchEvent_DiscordNotifierError(t *testing.T) {
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraftPickRows", mock.Anything, []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"}).Return([]model.DraftPickRow{
+		{
+			DraftId:            1,
+			Username:           "user",
+			Pick:               "frc1",
+			Webhook:            sql.NullString{String: "https://discord.com/webhook", Valid: true},
+			WantsUpcomingMatch: true,
+		},
+	}, nil).Once()
+
+	notifier := &mockDiscordNotifier{returnErr: errors.New("webhook failed")}
+	h := &Handler{
+		Stores:   StorageGroup{DraftStore: mockDraftStore},
+		Services: ServiceGroup{DiscordWebhookBus: notifier},
+	}
+
+	payload := map[string]any{
+		"event_key":      "2026arc",
+		"match_key":      "2026arc_qm1",
+		"team_key":       "frc1",
+		"event_name":     "Test Event",
+		"team_keys":      []string{"frc1", "frc2", "frc3", "frc4", "frc5", "frc6"},
+		"scheduled_time": time.Now().Unix(),
+		"predicted_time": time.Now().Unix(),
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	h.HandleUpcomingMatchEvent(context.Background(), data)
+
+	assert.NotNil(t, notifier.preMatchEvent)
 }
 
 func TestHandleMatchVideoEvent(t *testing.T) {
