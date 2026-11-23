@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -128,6 +129,34 @@ func TestHandleSkipPickToggle(t *testing.T) {
 		c.Set("userUuid", userUuid)
 		mockUserStore := mocks.NewMockUserStore(t)
 		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleSkipPickToggle(c)
+		require.Error(t, err)
+	})
+
+	t.Run("get draft player id fails", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/u/draft/42/skipPickToggle", strings.NewReader("skipping=true"))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+		req.AddCookie(&http.Cookie{Name: "sessionToken", Value: "test-session"}) //nolint:gosec // test cookie
+		rec := httptest.NewRecorder()
+
+		e := echo.New()
+		c := e.NewContext(req, rec)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		mockDraftStore.On("GetDraftPlayerId", c.Request().Context(), 42, userUuid).Return(0, errors.New("db down"))
 
 		h := &Handler{
 			Stores: StorageGroup{
