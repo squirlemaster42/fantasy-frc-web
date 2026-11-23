@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
@@ -218,5 +219,28 @@ func TestHandleCreateDraftPost(t *testing.T) {
 		err := h.HandleCreateDraftPost(c)
 		require.NoError(t, err)
 		assert.Equal(t, "/u/draft/42/profile", rec.Header().Get("HX-Redirect"))
+	})
+
+	t.Run("create draft fails", func(t *testing.T) {
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/createDraft", "draftName=Test+Draft&description=A+test+draft&interval=60", "test-session")
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+		mockUserStore := mocks.NewMockUserStore(t)
+		mockDraftStore := mocks.NewMockDraftStore(t)
+
+		mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+		mockDraftStore.On("CreateDraft", c.Request().Context(), mock.AnythingOfType("*model.DraftModel")).Return(0, errors.New("db down"))
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+				UserStore:  mockUserStore,
+			},
+		}
+
+		err := h.HandleCreateDraftPost(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		assert.Contains(t, rec.Body.String(), "An error occurred")
 	})
 }
