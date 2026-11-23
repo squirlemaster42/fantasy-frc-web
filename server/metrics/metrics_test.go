@@ -263,3 +263,22 @@ func TestDefaultMetricsValues(t *testing.T) {
 	assert.Equal(t, 30*time.Second, DBQueryPollInterval())
 	assert.Equal(t, 50, DBQueryMaxCount())
 }
+
+func TestInitMetrics(t *testing.T) {
+	db, _, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	require.NoError(t, InitMetrics(t.Context(), db))
+
+	// Verify HTTP counters can still be incremented after initialization.
+	before := testutil.ToFloat64(authenticatedRequestCount.WithLabelValues("GET", "/u/home"))
+	RecordAuthenticatedRequest("GET", "/u/home")
+	after := testutil.ToFloat64(authenticatedRequestCount.WithLabelValues("GET", "/u/home"))
+	assert.InDelta(t, before+1, after, 0.0)
+
+	// Shutdown should not panic after initialization.
+	assert.NotPanics(t, func() {
+		ShutdownMetrics()
+	})
+}
