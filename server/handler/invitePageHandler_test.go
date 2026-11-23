@@ -380,3 +380,93 @@ func TestHandleDeclineInvite_InvalidInviteId(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid invite ID")
 }
+
+func TestHandleDeclineInvite_GetInviteDatabaseError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/decline", "inviteId=123", "test-session")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{}, errors.New("db down"))
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
+
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+	}
+
+	err := h.HandleDeclineInvite(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "An error occurred")
+}
+
+func TestHandleDeclineInvite_ActorNotFound(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/decline", "inviteId=123", "test-session")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+	actorStore := mocks.NewMockDraftStore(t)
+
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{
+		Id:      123,
+		DraftId: 42,
+	}, nil)
+	actorStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
+
+	actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{DraftActorMap: actorMap},
+	}
+
+	err := h.HandleDeclineInvite(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "An error occurred")
+}
+
+func TestHandleDeclineInvite_DeclineError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodPost, "/invites/decline", "inviteId=123", "test-session")
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	c.Set("userUuid", userUuid)
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockUserStore := mocks.NewMockUserStore(t)
+
+	mockDraftStore.On("GetInvite", c.Request().Context(), 123).Return(model.DraftInvite{
+		Id:              123,
+		DraftId:         42,
+		InvitedUserUuid: userUuid,
+	}, nil)
+	mockDraftStore.On("GetDraft", c.Request().Context(), 42).Return(model.DraftModel{
+		Id:     42,
+		Status: model.FILLING,
+	}, nil).Once()
+	mockDraftStore.On("CancelInvite", c.Request().Context(), 123).Return(errors.New("db down")).Once()
+	mockUserStore.On("GetUsername", c.Request().Context(), userUuid).Return("testuser", nil)
+	mockDraftStore.On("GetInvites", c.Request().Context(), userUuid).Return([]model.DraftInvite{}, nil)
+
+	actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+	h := &Handler{
+		Stores: StorageGroup{
+			DraftStore: mockDraftStore,
+			UserStore:  mockUserStore,
+		},
+		Services: ServiceGroup{DraftActorMap: actorMap},
+	}
+
+	err := h.HandleDeclineInvite(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "could not decline invite")
+}
