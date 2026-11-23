@@ -1,6 +1,6 @@
 # Database Documentation
 
-Complete documentation of Fantasy FRC database structure, migrations, and management.
+Complete documentation of Fantasy FRC database structure, migrations, and management
 
 ## 📚 Documentation
 
