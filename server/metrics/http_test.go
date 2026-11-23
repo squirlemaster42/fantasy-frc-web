@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v5"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -122,4 +123,33 @@ func TestWrapHTTPErrorHandler_DoesNotDoubleRecord(t *testing.T) {
 
 	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/ok", "200", "2"))
 	assert.InDelta(t, before+1, after, 0.0)
+}
+
+func TestRecordHTTPRequestMetrics_MissingStartTime(t *testing.T) {
+	e := echo.New()
+	e.GET("/direct", func(c *echo.Context) error { return nil })
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/direct", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetPath("/direct")
+
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(httpRequestCount)
+	registry.MustRegister(httpRequestDuration)
+
+	before := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/direct", "0", "0"))
+
+	recordHTTPRequestMetrics(c)
+
+	after := testutil.ToFloat64(httpRequestCount.WithLabelValues(http.MethodGet, "/direct", "0", "0"))
+	assert.InDelta(t, before+1, after, 0.0)
+}
+
+func TestRecordAuthenticatedRequest_UnknownRoute(t *testing.T) {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(authenticatedRequestCount)
+
+	RecordAuthenticatedRequest("GET", "")
+
+	assert.InDelta(t, 1.0, testutil.ToFloat64(authenticatedRequestCount.WithLabelValues("GET", "unknown")), 0.0)
 }
