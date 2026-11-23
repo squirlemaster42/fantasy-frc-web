@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -82,6 +83,50 @@ func TestHandleViewRegister(t *testing.T) {
 	assertCsrfCookie(t, rec)
 }
 
+func TestHandleViewLogin_RenderError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/login", "", "")
+	c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+	h := &Handler{Config: ConfigGroup{MinPasswordLength: 12}}
+	err := h.HandleViewLogin(c)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+}
+
+func TestHandleViewRegister_RenderError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/register", "", "")
+	c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+	h := &Handler{Config: ConfigGroup{MinPasswordLength: 12}}
+	err := h.HandleViewRegister(c)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+}
+
+func TestRenderLoginWithError_RenderError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/login", "", "")
+	c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+	h := &Handler{Config: ConfigGroup{MinPasswordLength: 12}}
+	err := h.renderLoginWithError(c, "bad credentials")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+}
+
+func TestRenderRegisterWithError_RenderError(t *testing.T) {
+	_, c, rec := setupTestContext(t, http.MethodGet, "/register", "", "")
+	c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+	h := &Handler{Config: ConfigGroup{MinPasswordLength: 12}}
+	err := h.renderRegisterWithError(c, "username taken")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+}
+
 func TestHandleLoginPost_Success(t *testing.T) {
 	csrfValue := "dummy-csrf-value"
 	userUuid := uuid.New()
@@ -140,6 +185,28 @@ func TestHandleLoginPost_CSRFFailure(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid request")
+}
+
+func TestHandleLoginPost_AuthServiceError(t *testing.T) {
+	csrfValue := "dummy-csrf-value"
+
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockAuthService.On("Login", mock.Anything, "testuser", "Password123!").
+		Return(uuid.UUID{}, "", errors.New("db down"))
+
+	body := loginFormBody("testuser", "Password123!", csrfValue)
+	_, c, rec := setupTestContext(t, http.MethodPost, "/login", body, "")
+	c.Request().AddCookie(testCsrfCookie(csrfValue))
+
+	h := &Handler{
+		Config:   ConfigGroup{MinPasswordLength: 12},
+		Services: ServiceGroup{AuthService: mockAuthService},
+	}
+	err := h.HandleLoginPost(c)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Contains(t, rec.Body.String(), "An error occurred")
 }
 
 func TestHandleLogoutPost(t *testing.T) {
@@ -227,6 +294,28 @@ func TestHandlerRegisterPost_CSRFFailure(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid request")
+}
+
+func TestHandlerRegisterPost_AuthServiceError(t *testing.T) {
+	csrfValue := "dummy-csrf-value"
+
+	mockAuthService := authmocks.NewMockAuthService(t)
+	mockAuthService.On("Register", mock.Anything, "newuser", "Password123!", "Password123!").
+		Return(uuid.UUID{}, "", errors.New("db down"))
+
+	body := registerFormBody("newuser", "Password123!", "Password123!", csrfValue)
+	_, c, rec := setupTestContext(t, http.MethodPost, "/register", body, "")
+	c.Request().AddCookie(testCsrfCookie(csrfValue))
+
+	h := &Handler{
+		Config:   ConfigGroup{MinPasswordLength: 12},
+		Services: ServiceGroup{AuthService: mockAuthService},
+	}
+	err := h.HandlerRegisterPost(c)
+	require.NoError(t, err)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assert.Contains(t, rec.Body.String(), "An error occurred")
 }
 
 func assertCsrfCookie(t *testing.T, rec *httptest.ResponseRecorder) {

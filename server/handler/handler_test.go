@@ -19,6 +19,16 @@ import (
 	modelmocks "server/model/mocks"
 )
 
+// failingResponseWriter wraps a real http.ResponseWriter and returns an error on
+// every body write. It is useful for exercising render-failure paths.
+type failingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (f *failingResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
+}
+
 func setupTestContext(t *testing.T, method string, target string, body string, cookieValue string) (*echo.Echo, *echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
 	e := echo.New()
