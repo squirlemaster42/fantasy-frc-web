@@ -837,6 +837,114 @@ func TestHandleUpdateDraftProfile(t *testing.T) {
 
 		require.Error(t, err)
 	})
+
+	t.Run("draft not found", func(t *testing.T) {
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Invalid draft ID")
+	})
+
+	t.Run("not owner", func(t *testing.T) {
+		_, c, rec := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		ownerUuid := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+		c.Set("userUuid", userUuid)
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{
+				Id:     1,
+				Owner:  model.User{UserUuid: ownerUuid},
+				Status: model.FILLING,
+			}, nil).Once()
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: mockDraftStore,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("actor not found", func(t *testing.T) {
+		_, c, _ := setupTestContext(
+			t,
+			http.MethodPost,
+			"/u/draft/1/profile",
+			"draftName=Updated",
+			"test-session",
+		)
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+
+		userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		c.Set("userUuid", userUuid)
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{
+				Id:     1,
+				Owner:  model.User{UserUuid: userUuid},
+				Status: model.FILLING,
+			}, nil).Once()
+		actorStore.
+			On("GetDraft", c.Request().Context(), 1).
+			Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		draftActorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+		h := &Handler{
+			Stores: StorageGroup{
+				DraftStore: handlerStore,
+			},
+			Services: ServiceGroup{
+				DraftActorMap: draftActorMap,
+			},
+		}
+
+		err := h.HandleUpdateDraftProfile(c)
+
+		require.Error(t, err)
+	})
 }
 
 func TestInviteDraftPlayer_ErrorPaths(t *testing.T) {
