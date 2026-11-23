@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -233,6 +234,14 @@ func setupAdminContext(t *testing.T, target string, body string) (*echo.Context,
 	return c, rec, mockUserStore
 }
 
+type failingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (f *failingResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
+}
+
 func TestHandleAdminConsoleGet(t *testing.T) {
 	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/console", "")
 	c.Set("csrfToken", "test-token")
@@ -243,6 +252,66 @@ func TestHandleAdminConsoleGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Admin Console")
+}
+
+func TestHandleAdminConsoleGet_RenderError(t *testing.T) {
+	c, rec, mockUserStore := setupAdminContext(t, "/u/admin/console", "")
+	c.Set("csrfToken", "test-token")
+	c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+	h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+	err := h.HandleAdminConsoleGet(c)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+}
+
+func TestRenderAdminResponse(t *testing.T) {
+	t.Run("json success", func(t *testing.T) {
+		c, rec, mockUserStore := setupAdminContext(t, "/u/admin/ping", "")
+		c.Request().Header.Set("Accept", "application/json")
+
+		h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.renderAdminResponse(c, "Ping", "Pong", nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.JSONEq(t, `{"success":true,"message":"Pong"}`, rec.Body.String())
+	})
+
+	t.Run("json encode error", func(t *testing.T) {
+		c, rec, mockUserStore := setupAdminContext(t, "/u/admin/ping", "")
+		c.Request().Header.Set("Accept", "application/json")
+		c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+		h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.renderAdminResponse(c, "Ping", "Pong", nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to encode admin response")
+	})
+
+	t.Run("html render error", func(t *testing.T) {
+		c, rec, mockUserStore := setupAdminContext(t, "/u/admin/ping", "")
+		c.SetResponse(&failingResponseWriter{ResponseWriter: rec})
+
+		h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.renderAdminResponse(c, "Ping", "Pong", nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "write failed")
+	})
+
+	t.Run("error message overrides success message", func(t *testing.T) {
+		c, rec, mockUserStore := setupAdminContext(t, "/u/admin/ping", "")
+
+		h := Handler{Stores: StorageGroup{UserStore: mockUserStore}}
+		err := h.renderAdminResponse(c, "Ping", "Pong", errors.New("boom"))
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "boom")
+	})
 }
 
 func TestHandleAdminPing(t *testing.T) {
