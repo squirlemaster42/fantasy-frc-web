@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -365,6 +366,83 @@ func TestHandleAdminExtendTime_InvalidDuration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid duration format")
+}
+
+func TestHandleAdminExtendTime_ErrorBranches(t *testing.T) {
+	userUuid := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("non-positive duration", func(t *testing.T) {
+		draftModel := model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.PICKING,
+		}
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/extendTime", "duration=-5m", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}, Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.HandleAdminExtendTime(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Duration must be positive")
+	})
+
+	t.Run("actor not found", func(t *testing.T) {
+		draftModel := model.DraftModel{
+			Id:     1,
+			Owner:  model.User{UserUuid: userUuid},
+			Status: model.PICKING,
+		}
+
+		handlerStore := mocks.NewMockDraftStore(t)
+		actorStore := mocks.NewMockDraftStore(t)
+		handlerStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Once()
+		actorStore.On("GetDraft", mock.Anything, 1).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/extendTime", "duration=30m", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Stores: StorageGroup{DraftStore: handlerStore}, Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.HandleAdminExtendTime(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Draft not found")
+	})
+
+	t.Run("modify expiration time error", func(t *testing.T) {
+		draftModel := model.DraftModel{
+			Id:          1,
+			Owner:       model.User{UserUuid: userUuid},
+			Status:      model.PICKING,
+			CurrentPick: model.Pick{Id: 10, ExpirationTime: time.Now().Add(time.Hour)},
+		}
+
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockDraftStore.On("GetDraft", mock.Anything, 1).Return(draftModel, nil).Twice()
+		mockDraftStore.On("UpdatePickExpirationTime", mock.Anything, 10, mock.Anything).Return(errors.New("db down")).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/1/admin/extendTime", "duration=30m", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "1"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Stores: StorageGroup{DraftStore: mockDraftStore}, Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.HandleAdminExtendTime(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to extend time")
+	})
 }
 
 func TestHandleAdminMakePick_MissingTeam(t *testing.T) {
