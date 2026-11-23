@@ -1032,6 +1032,55 @@ func TestInviteDraftPlayer_ErrorPaths(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Failed to invite player")
 	})
+
+	t.Run("actor not found", func(t *testing.T) {
+		invitedUuid := uuid.MustParse("770e8400-e29b-41d4-a716-446655440002")
+		actorStore := mocks.NewMockDraftStore(t)
+		actorStore.On("GetDraft", mock.Anything, 42).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		body := "userUuid=" + invitedUuid.String() + "&search="
+		_, c, _ := setupTestContext(t, http.MethodPost, "/u/draft/42/invite", body, "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.InviteDraftPlayer(c)
+		require.Error(t, err)
+	})
+
+	t.Run("search users error", func(t *testing.T) {
+		invitedUuid := uuid.MustParse("770e8400-e29b-41d4-a716-446655440002")
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockUserStore := mocks.NewMockUserStore(t)
+		draftModel := model.DraftModel{
+			Id:      42,
+			Owner:   model.User{UserUuid: userUuid},
+			Status:  model.FILLING,
+			Players: []model.DraftPlayer{},
+		}
+		mockDraftStore.On("GetDraft", mock.Anything, 42).Return(draftModel, nil).Once()
+		mockDraftStore.On("InvitePlayer", mock.Anything, 42, userUuid, invitedUuid).Return(1, nil).Once()
+		mockDraftStore.On("GetDraft", mock.Anything, 42).Return(draftModel, nil).Once()
+		mockUserStore.On("SearchUsers", mock.Anything, "", 42).Return(nil, errors.New("db down")).Once()
+
+		body := "userUuid=" + invitedUuid.String() + "&search="
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/invite", body, "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: mockDraftStore, UserStore: mockUserStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.InviteDraftPlayer(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to search users")
+	})
 }
 
 func TestHandleUninvitePlayer_ErrorPaths(t *testing.T) {
@@ -1100,5 +1149,51 @@ func TestHandleUninvitePlayer_ErrorPaths(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		assert.Contains(t, rec.Body.String(), "Failed to uninvite player")
+	})
+
+	t.Run("actor not found", func(t *testing.T) {
+		actorStore := mocks.NewMockDraftStore(t)
+		actorStore.On("GetDraft", mock.Anything, 42).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/uninvite", "inviteId=5&search=", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(actorStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{Services: ServiceGroup{DraftActorMap: actorMap}}
+
+		err := h.HandleUninvitePlayer(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		assert.Contains(t, rec.Body.String(), "Failed to load draft")
+	})
+
+	t.Run("search users error logs but succeeds", func(t *testing.T) {
+		mockDraftStore := mocks.NewMockDraftStore(t)
+		mockUserStore := mocks.NewMockUserStore(t)
+		draftModel := model.DraftModel{
+			Id:      42,
+			Owner:   model.User{UserUuid: userUuid},
+			Status:  model.FILLING,
+			Players: []model.DraftPlayer{},
+		}
+		mockDraftStore.On("GetDraft", mock.Anything, 42).Return(draftModel, nil).Once()
+		mockDraftStore.On("UninvitePlayer", mock.Anything, 42, userUuid, 5).Return(nil).Once()
+		mockDraftStore.On("GetDraft", mock.Anything, 42).Return(draftModel, nil).Once()
+		mockUserStore.On("SearchUsers", mock.Anything, "", 42).Return(nil, errors.New("db down")).Once()
+
+		_, c, rec := setupTestContext(t, http.MethodPost, "/u/draft/42/uninvite", "inviteId=5&search=", "test-session")
+		c.SetPathValues(echo.PathValues{{Name: "id", Value: "42"}})
+		c.Set("userUuid", userUuid)
+
+		actorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+		h := &Handler{
+			Stores:   StorageGroup{DraftStore: mockDraftStore, UserStore: mockUserStore},
+			Services: ServiceGroup{DraftActorMap: actorMap},
+		}
+
+		err := h.HandleUninvitePlayer(c)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 }
