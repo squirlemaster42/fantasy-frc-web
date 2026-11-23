@@ -136,3 +136,17 @@ func TestRenderError_RenderFailure(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Empty(t, rec.Body.String())
 }
+
+func TestRenderToString_Success(t *testing.T) {
+	str, err := RenderToString(context.Background(), emptyComponent())
+
+	require.NoError(t, err)
+	assert.Equal(t, "<div>ok</div>", str)
+}
+
+func TestRenderToString_Failure(t *testing.T) {
+	_, err := RenderToString(context.Background(), failingComponent())
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to render RenderToString")
+}
