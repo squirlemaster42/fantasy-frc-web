@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,6 +63,17 @@ func TestConsumeTbaWebhook_MalformedJSON(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestConsumeTbaWebhook_PayloadTooLarge(t *testing.T) {
+	largeBody := strings.Repeat("a", int(TbaWebhookMaxBodyBytes())+1)
+	_, c, rec := setupTestContext(t, http.MethodPost, "/tba/webhook", largeBody, "")
+
+	h := &Handler{Config: ConfigGroup{TbaWebhookSecret: "secret"}}
+	err := h.ConsumeTbaWebhook(c)
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
 }
 
 func TestConsumeTbaWebhook_Verification(t *testing.T) {
