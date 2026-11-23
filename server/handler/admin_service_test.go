@@ -379,6 +379,22 @@ func TestAdminServiceModifyPickTime_UpdateError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to update pick expiration time")
 }
 
+func TestAdminServiceModifyPickTime_ActorNotFound(t *testing.T) {
+	ctx := context.Background()
+	draftId := 999
+
+	mockDraftStore := mocks.NewMockDraftStore(t)
+	mockDraftStore.On("GetDraft", ctx, draftId).Return(model.DraftModel{}, sql.ErrNoRows).Once()
+
+	draftActorMap := draft.NewDraftActorMap(mockDraftStore, nil, nil, nil, nil, utils.DefaultPickWindowConfig(), 16, nil)
+
+	svc := &AdminService{DraftStore: mockDraftStore, DraftActorMap: draftActorMap}
+	_, err := svc.ModifyPickTime(ctx, draftId, 45*time.Minute)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "draft ID does not match a valid draft")
+}
+
 func TestAdminServiceInvalidatePickCache(t *testing.T) {
 	ctx := context.Background()
 
