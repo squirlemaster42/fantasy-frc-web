@@ -1,6 +1,6 @@
 # Database Schema Visual Guide
 
-Visual representations of Fantasy FRC database structure and relationships.
+Visual representations of Fantasy FRC database structure and relationships
 
 ## 🗄️ Complete Entity Relationship Diagram
 
