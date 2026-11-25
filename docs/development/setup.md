@@ -1,6 +1,6 @@
 # Development Setup Guide
 
-Complete guide for setting up a Fantasy FRC development environment.
+Complete guide for setting up a Fantasy FRC development environment
 
 ## 🎯 Overview
 
