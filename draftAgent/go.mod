@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	draftclient v0.0.0
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 )
 
 require go.yaml.in/yaml/v3 v3.0.5 // indirect
