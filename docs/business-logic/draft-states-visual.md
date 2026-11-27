@@ -1,6 +1,6 @@
 # Draft State Machine Visual Guide
 
-Visual representations of Fantasy FRC draft lifecycle and state management.
+Visual representations of Fantasy FRC draft lifecycle and state management
 
 ## 🎯 Complete State Flow
 
